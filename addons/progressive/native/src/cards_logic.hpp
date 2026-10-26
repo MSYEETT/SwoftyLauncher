@@ -53,6 +53,8 @@ constexpr std::string_view kEventHub = "career.hub";
 constexpr std::string_view kEventContentPressed = "career.content.pressed";
 constexpr std::string_view kEventStarting = "career.starting";
 constexpr std::string_view kEvents[] = {kEventHub, kEventContentPressed, kEventStarting};
+// career.loaded only dresses Team Select's cars (the career components exist from then on).
+constexpr std::string_view kEventLoaded = "career.loaded";
 
 inline bool takes_back(std::string_view event, int64_t a)
 {
