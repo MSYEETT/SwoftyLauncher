@@ -59,6 +59,8 @@ bool load()
         x.seed = static_cast<uint32_t>(c["seed"].num());
         x.start = static_cast<int>(c["start"].num(2026));
         x.rnd = c["rnd"].str("real_life");
+        if (x.rnd != "real_life")
+            x.rnd = "hybrid";
         x.moves = c["moves"].str("follow_driver");
         x.created_season = static_cast<int>(c["created_season"].num());
         x.applied_season = static_cast<int>(c["applied_season"].num(-1));

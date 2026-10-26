@@ -6,8 +6,8 @@
 // every upgrade type from Game_Rnd_CalcUpgradeTypeProgress (0x143526260). Only calls made inside
 // the fill are changed: the same function also feeds power-unit wear (0x1411cd6da) and the R&D
 // screens, which keep the game's answer. The mode comes from progressive.dll
-// (ProgressiveRndMode: 0 not a Progressive career, 1 real_life, 2 base, 3 hybrid), set at Team HQ
-// from the career's store entry.
+// (ProgressiveRndMode: 0 not a Progressive career, 1 real_life, 3 hybrid), set at Team HQ from the
+// career's store entry and at once when the R&D option changes while the career is loaded.
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

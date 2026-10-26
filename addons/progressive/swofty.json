@@ -99,16 +99,12 @@
       "id": "rnd_mode",
       "type": "choice",
       "label": "R&D",
-      "description": "Real life: each season's car brings that year's pace and R&D is off. Base: the stock R&D on top of the year's car. Hybrid: per-season budgets from the year's real pace.",
+      "description": "Real life: each season's car brings that year's pace, with no R&D. Hybrid: R&D on top of the year's car, with a per-season budget from the team's real pace. You can change it at any time; it applies to the loaded career.",
       "default": "real_life",
       "values": [
         {
           "value": "real_life",
           "label": "Real life"
-        },
-        {
-          "value": "base",
-          "label": "Base"
         },
         {
           "value": "hybrid",
@@ -194,9 +190,6 @@
       },
       {
         "dll": "native/progressive_rnd.dll"
-      },
-      {
-        "dll": "native/progressive_rnd_block.dll"
       },
       {
         "dll": "native/progressive_follow.dll"

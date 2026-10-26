@@ -28,7 +28,9 @@
 
 #include <swofty/career.hpp>
 #include <swofty/career_content.hpp>
+#include <swofty/hud.hpp>
 #include <swofty/lang.hpp>
+#include <swofty/events.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 #include <swofty/storage.hpp>
@@ -59,6 +61,7 @@ constexpr const char *kYearsPath = "data/years.json";
 season::Data g_data;
 bool g_data_ok = false;
 int g_failures = 0;
+std::atomic<bool> g_rnd_changed{false};
 std::string g_names_for;
 int g_names_year = 0;
 
@@ -125,7 +128,7 @@ store::Career *career_entry(const swofty::career::State &state, uint32_t season_
     c.driver = driver;
     c.seed = seed;
     c.start = setting_year();
-    c.rnd = std::string(rnd_mode.get());
+    c.rnd = std::string(rnd_mode.get()) == "real_life" ? "real_life" : "hybrid";
     c.moves = std::string(team_moves.get());
     c.created_season = static_cast<int>(season_index);
     store::Career &added = store::add(c);
@@ -645,13 +648,33 @@ void hybrid_budgets(uintptr_t e, int year)
 }
 
 std::atomic<int> g_rnd{0};
-std::atomic<uint32_t> g_player_team{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
 
 int rnd_code(const std::string &m)
 {
-    return m == "real_life" ? 1 : m == "base" ? 2 : m == "hybrid" ? 3 : 0;
+    return m == "real_life" ? 1 : m == "hybrid" ? 3 : 0;
+}
+
+std::string rnd_option()
+{
+    std::string v(rnd_mode.get());
+    return v == "real_life" ? v : "hybrid";
+}
+
+// The Team HQ tab (lane A) reads these view-model bools: the tab shows in a Progressive career, and
+// its R&D tab only when the career's R&D mode is hybrid.
+constexpr const char *kVmCareer = "view_model_data.hud_progressive_career";
+constexpr const char *kVmRnd = "view_model_data.hud_progressive_rnd";
+
+void publish(bool career, const std::string &rnd)
+{
+    bool show_rnd = career && rnd == "hybrid";
+    auto a = swofty::hud::set(kVmCareer, career), b = swofty::hud::set(kVmRnd, show_rnd);
+    static int logged = 0;
+    if (logged++ < 12)
+        swofty::log("[progressive] view model: %s = %s (%s), %s = %s (%s)", kVmCareer, career ? "true" : "false",
+                    swofty::hud::name(a), kVmRnd, show_rnd ? "true" : "false", swofty::hud::name(b));
 }
 
 } // namespace
@@ -670,6 +693,33 @@ void season_loaded(const swofty::career::State &)
     names::load();
 }
 
+void rnd_option_changed()
+{
+    store::Career *c = g_current.empty() ? nullptr : store::find(g_current);
+    if (!c)
+        return;
+    std::string now = rnd_option();
+    if (now == c->rnd)
+        return;
+    swofty::log("[progressive] R&D: career %s switches from %s to %s", c->key.c_str(), c->rnd.c_str(), now.c_str());
+    c->rnd = now;
+    store::save();
+    g_rnd = rnd_code(now);
+    publish(true, now);
+    uintptr_t e = entity();
+    SeasonInfo s;
+    if (now == "hybrid" && e && season(e, s) && data()) {
+        int year = c->applied_season >= 0 && c->applied_year ? c->applied_year : season::year_for(c->start, s.index);
+        hybrid_budgets(e, year);
+    }
+}
+
+void rnd_frame(double, void *)
+{
+    if (g_rnd_changed.exchange(false))
+        rnd_option_changed();
+}
+
 void wizard_left(const char *group)
 {
     if (g_current.empty() && g_names_year && !progressive_career()) {
@@ -680,8 +730,9 @@ void wizard_left(const char *group)
 
 void season_unloaded()
 {
+    if (!g_current.empty())
+        publish(false, "");
     g_rnd = 0;
-    g_player_team = 0;
     g_current.clear();
     g_standings_pending.clear();
     g_refreshed_for.clear();
@@ -706,12 +757,18 @@ void season_hub(const swofty::career::State &state)
     store::Career *c = career_entry(state, s.index, player);
     if (!c)
         return;
+    if (g_current != c->key) {
+        publish(true, c->rnd);
+        if (rnd_option() != c->rnd)
+            swofty::log("[progressive] R&D: this career runs %s while the option reads %s; the career's own mode "
+                        "stays (the core has no call to set an option, so the tab shows the option)",
+                        c->rnd.c_str(), rnd_option().c_str());
+    }
     g_current = c->key;
-    for (auto &r : rows)
-        if (human(r.rec))
-            g_player_team = r.rec.team_stat_id;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
         swofty::log("[progressive] R&D mode of this career: %s", c->rnd.c_str());
+    if (g_rnd_changed.exchange(false))
+        rnd_option_changed();
     if (g_test_armed.exchange(false)) {
         ++c->test_seasons;
         store::save();
@@ -769,13 +826,6 @@ void season_hub(const swofty::career::State &state)
     else {
         g_standings_pending = c->key;
         swofty::log("[progressive] standings: round 1 has no sessions yet; the rebuild waits for a later Team HQ");
-    }
-    {
-        std::vector<Row> now;
-        if (entrant_rows(e, now))
-            for (auto &r : now)
-                if (human(r.rec))
-                    g_player_team = r.rec.team_stat_id;
     }
     report("after season apply", state);
 }
@@ -843,11 +893,6 @@ extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat,
     return 0;
 }
 
-extern "C" __declspec(dllexport) uint32_t ProgressivePlayerTeam()
-{
-    return pg::g_player_team.load();
-}
-
 extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)
 {
     if (!pg::g_current.empty() || pg::progressive_career())
@@ -855,4 +900,18 @@ extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)
     year = progressive::season::clamp_year(year);
     if (pg::g_names_year != year)
         pg::set_names(year, "new-career wizard");
+}
+
+SWOFTY_ON_CHANGE(rnd_mode, std::string_view)
+{
+    pg::g_rnd_changed = true;
+}
+
+SWOFTY_ON_LOAD
+{
+    uint32_t token = 0;
+    swofty::events::Result r = swofty::events::on_frame(pg::rnd_frame, nullptr, &token);
+    if (r != swofty::events::Result::ok)
+        swofty::log("[progressive] R&D: no frame callback (%s); an R&D mode change applies at the next Team HQ",
+                    swofty::events::name(r));
 }
