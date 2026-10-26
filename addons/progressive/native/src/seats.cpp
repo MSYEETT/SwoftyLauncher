@@ -100,6 +100,50 @@ bool season(uintptr_t e, SeasonInfo &out)
     return true;
 }
 
+bool calendar(uintptr_t e, Calendar &out)
+{
+    out = {};
+    uintptr_t c = e ? championship(e) : 0;
+    Championship ch{};
+    if (!c || !swofty::mem::read(c, ch))
+        return false;
+    auto b = reinterpret_cast<uintptr_t>(ch.seasons_begin), en = reinterpret_cast<uintptr_t>(ch.seasons_end);
+    if (en <= b || (en - b) % sizeof(ChampionshipSeasonEntry) || (en - b) / sizeof(ChampionshipSeasonEntry) > kMaxSeasons ||
+        ch.season_index >= (en - b) / sizeof(ChampionshipSeasonEntry))
+        return false;
+    ChampionshipSeasonEntry entry{};
+    if (!swofty::mem::read(b + ch.season_index * sizeof entry, entry) || !entry.season)
+        return false;
+    auto season_at = reinterpret_cast<uintptr_t>(entry.season);
+    if (rdv<uintptr_t>(season_at) != reinterpret_cast<uintptr_t>(vt_Career_Season.get()))
+        return false;
+    Season s{};
+    if (!swofty::mem::read(season_at, s))
+        return false;
+    auto wb = reinterpret_cast<uintptr_t>(s.weekends_begin), we = reinterpret_cast<uintptr_t>(s.weekends_end);
+    if (!wb || we <= wb || (we - wb) % sizeof(Weekend *) || (we - wb) / sizeof(Weekend *) > 64 ||
+        s.current_weekend >= (we - wb) / sizeof(Weekend *))
+        return false;
+    size_t n = (we - wb) / sizeof(Weekend *);
+    uintptr_t want = reinterpret_cast<uintptr_t>(vt_Career_Weekend.get());
+    for (size_t i = 0; i < n; ++i) {
+        uintptr_t w = rdv<uintptr_t>(wb + i * sizeof(Weekend *));
+        if (!w || rdv<uintptr_t>(w) != want)
+            return false;
+        uint8_t track = 0xff;
+        uint32_t progress = 0;
+        if (!swofty::mem::read(w + offsetof(Weekend, track_stat_id), track) ||
+            !swofty::mem::read(w + offsetof(Weekend, progress_state), progress))
+            return false;
+        out.tracks.push_back(track == 0xff ? -1 : track);
+        if (i == s.current_weekend)
+            out.progress = progress;
+    }
+    out.current = s.current_weekend;
+    out.next = static_cast<int>(s.current_weekend) + (out.progress == 0 ? 1 : 2);
+    return true;
+}
+
 bool entrant_rows(uintptr_t e, std::vector<Row> &out)
 {
     out.clear();

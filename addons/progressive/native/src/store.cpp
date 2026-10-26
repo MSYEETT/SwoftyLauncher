@@ -71,6 +71,9 @@ bool load()
         x.used = static_cast<uint64_t>(c["used"].num());
         x.team = static_cast<int>(c["team"].num(-1));
         x.season = static_cast<int>(c["season"].num(-1));
+        x.mid_year = static_cast<int>(c["mid_year"].num());
+        x.mid_round = static_cast<int>(c["mid_round"].num());
+        x.mid_applied = c["mid_applied"].str();
         if (x.key.empty())
             continue;
         if (!x.driver && x.applied_season < 0) {
@@ -118,11 +121,13 @@ bool save()
         std::snprintf(b, sizeof b,
                       "%s\n    {\"key\": %s, \"driver\": %u, \"seed\": %u, \"start\": %d, \"rnd\": %s, \"moves\": %s, "
                       "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d, \"test_seasons\": %d, "
-                      "\"used\": %llu, \"team\": %d, \"season\": %d}",
+                      "\"used\": %llu, \"team\": %d, \"season\": %d, \"mid_year\": %d, \"mid_round\": %d, "
+                      "\"mid_applied\": ",
                       i ? "," : "", quoted(c.key).c_str(), c.driver, c.seed, c.start, quoted(c.rnd).c_str(),
                       quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year, c.test_seasons,
-                      static_cast<unsigned long long>(c.used), c.team, c.season);
+                      static_cast<unsigned long long>(c.used), c.team, c.season, c.mid_year, c.mid_round);
         out += b;
+        out += quoted(c.mid_applied) + "}";
     }
     out += "\n  ]\n}\n";
     swofty::storage::Result r = swofty::storage::write(kPath, out);

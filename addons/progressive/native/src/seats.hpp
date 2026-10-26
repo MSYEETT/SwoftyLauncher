@@ -56,6 +56,18 @@ struct SeasonInfo {
 };
 bool season(uintptr_t entity, SeasonInfo &out);
 
+// The current season's calendar (Championship.seasons[season_index] -> Season.weekends, each
+// Weekend.track_stat_id, the tracks.Track statId) and the next race: Season.current_weekend when
+// that weekend has not started (Weekend.progress_state 0), else the one after it (tails' history
+// engine reads the same). next is 1-based; weekends + 1 once the season's last race is done.
+struct Calendar {
+    std::vector<int> tracks;
+    int next = 1;
+    uint32_t current = 0;
+    uint32_t progress = 0;
+};
+bool calendar(uintptr_t entity, Calendar &out);
+
 bool entrant_rows(uintptr_t entity, std::vector<Row> &out);
 uint32_t driver_of(const EntrantRecord &r);
 inline uint32_t stat_of(uint32_t key)

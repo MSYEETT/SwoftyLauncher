@@ -16,6 +16,12 @@
 //      finalise against the line-up from before the batch;
 //   4. the team names of the year through swofty::lang (also on every career load);
 //   5. in a hybrid R&D career, each team's resource points for the season.
+// Mid-season (midseason_logic.hpp): the year's real line-up changes are placed on the career's own
+// calendar (Season.weekends' tracks, the next race), and the plan is made from the line-up at the
+// next race, so each change is written at the first idle Team HQ before its career race and a
+// stand-in's regular driver comes back at the next one. The player is never swapped out; in follow
+// mode a move of his driver moves him (the same move and contract signing as a season's first apply).
+// The changes in force are recorded in the career's store entry (mid_year, mid_round, mid_applied).
 // Every career load and Team HQ also records the player's team and the season index in the store
 // entry, for the year on the career's Resume Career card (ProgressiveCardYear,
 // progressive_resume.dll).
@@ -41,6 +47,7 @@
 #include <swofty/mixin.hpp>
 #include <swofty/storage.hpp>
 
+#include "midseason_logic.hpp"
 #include "names.hpp"
 #include "player_logic.hpp"
 #include "progressive.hpp"
@@ -767,6 +774,125 @@ void hybrid_budgets(uintptr_t e, int year)
 }
 
 std::map<std::string, std::string> g_player_seen;
+std::map<std::string, std::string> g_mid_logged;
+
+std::string driver_text(const std::string &label, const season::Resolve &r)
+{
+    int st = r.driver_stat(label);
+    return st < 0 ? label : label + "(" + std::to_string(st) + ")";
+}
+
+std::string seat_text(int slot, int seat)
+{
+    return (slot >= 0 && slot < season::kSlots ? g_data.slots[slot].team : std::string("?")) + " seat " +
+           std::to_string(seat + 1);
+}
+
+std::string change_text(const season::Year &y, const season::Change &c, const season::Resolve &r)
+{
+    char b[96];
+    std::snprintf(b, sizeof b, ", #%d, real round %d of %zu (%s)", c.number, c.round, y.real_tracks.size(),
+                  c.circuit.c_str());
+    std::string t = driver_text(c.in, r) + " in for " + driver_text(c.out, r) + " at " + seat_text(c.slot, c.seat) + b;
+    t += ", " + c.kind;
+    t += c.until ? ", until real round " + std::to_string(c.until) : ", for the rest of the season";
+    t += ", look " + (c.look.label.empty() ? std::string("none") : c.look.label);
+    return t;
+}
+
+// The career's mid-season schedule, once per session and calendar: which career race each change
+// of the year comes before, and the changes the player rules skip.
+void log_schedule(const store::Career &c, const midseason::At &at, const season::Resolve &r, bool from_store)
+{
+    const season::Year *y = g_data.year(at.year);
+    if (!y)
+        return;
+    std::string tracks;
+    for (int t : at.career)
+        tracks += (tracks.empty() ? "" : ",") + std::to_string(t);
+    std::string key = std::to_string(at.year) + "|" + tracks + "|" + (from_store ? "store" : "calendar");
+    if (g_mid_logged[c.key] == key)
+        return;
+    g_mid_logged[c.key] = key;
+    if (from_store) {
+        swofty::log("[progressive] mid-season %d: the career calendar is unreadable; using the %zu change(s) recorded "
+                    "at career round %d",
+                    at.year, at.active.size(), at.round);
+        return;
+    }
+    swofty::log("[progressive] mid-season %d schedule: career calendar of %zu races (tracks %s), %zu real rounds, %zu "
+                "change(s); next race is career round %d (real round %d's changes are due)",
+                at.year, at.career.size(), tracks.c_str(), y->real_tracks.size(), y->changes.size(), at.round,
+                at.real_round);
+    for (size_t i = 0; i < y->changes.size(); ++i) {
+        const season::Change &ch = y->changes[i];
+        if (!at.kept[i])
+            continue;
+        const midseason::Window &w = at.windows[i];
+        std::string until = w.to >= midseason::kOpen ? std::string("for the rest of the season")
+                                                     : "back at career round " + std::to_string(w.to);
+        swofty::log("[progressive] mid-season %d round %d: %s (%s)", at.year, w.from, change_text(*y, ch, r).c_str(),
+                    until.c_str());
+    }
+    for (auto &k : at.skipped)
+        swofty::log("[progressive] mid-season %d skipped: %s: %s", at.year, change_text(*y, y->changes[k.change], r).c_str(),
+                    k.why.c_str());
+}
+
+// What changed against the career's record: each change now in force that was not, each one that
+// ended, and where the plan put its drivers when the player's seat or driver remapped it.
+void log_changes(const store::Career &c, const midseason::At &at, const season::Plan &p, const season::Resolve &r)
+{
+    const season::Year *y = g_data.year(at.year);
+    if (!y)
+        return;
+    std::vector<std::string> before = c.mid_year == at.year ? midseason::split_ids(c.mid_applied)
+                                                             : std::vector<std::string>{};
+    auto target_of = [&](const std::string &label, int &slot, int &seat) {
+        int st = r.driver_stat(label);
+        slot = seat = -1;
+        for (int i = 0; st >= 0 && i < season::kSlots; ++i)
+            for (int k = 0; k < lineup::kSeats; ++k)
+                if (p.target[i][k] == static_cast<uint32_t>(st)) {
+                    slot = i;
+                    seat = k;
+                }
+    };
+    for (int i : at.active) {
+        const season::Change &ch = y->changes[i];
+        if (std::find(before.begin(), before.end(), ch.id) != before.end())
+            continue;
+        swofty::log("[progressive] mid-season %d round %d: %s", at.year, at.round, change_text(*y, ch, r).c_str());
+        int slot, seat;
+        target_of(ch.in, slot, seat);
+        if (static_cast<uint32_t>(r.driver_stat(ch.in)) == p.player)
+            swofty::log("[progressive] mid-season %d round %d: the player's driver %s moves to %s%s", at.year, at.round,
+                        ch.in.c_str(), g_data.slots[ch.slot].team.c_str(),
+                        p.player_moves ? "; follow mode moves the player with a contract for that team"
+                                       : "; choose mode keeps the player at his team (the season fit remaps the seat)");
+        else if (slot < 0)
+            swofty::log("[progressive] mid-season %d round %d: %s has no seat in the plan (the player's seat or the "
+                        "season fit took it)",
+                        at.year, at.round, ch.in.c_str());
+        else if (slot != ch.slot)
+            swofty::log("[progressive] mid-season %d round %d: %s races for %s instead (the player holds his real "
+                        "seat; choose mode remap)",
+                        at.year, at.round, ch.in.c_str(), seat_text(slot, seat).c_str());
+    }
+    for (auto &id : before) {
+        bool still = false;
+        for (int i : at.active)
+            still = still || y->changes[i].id == id;
+        if (still)
+            continue;
+        for (auto &ch : y->changes)
+            if (ch.id == id)
+                swofty::log("[progressive] mid-season %d round %d: %s's drive at %s ended; %s",
+                            at.year, at.round, ch.in.c_str(), seat_text(ch.slot, ch.seat).c_str(),
+                            ch.until && at.real_round >= ch.until ? (ch.out + " is back").c_str()
+                                                                  : "the seat follows the line-up at this round");
+    }
+}
 
 // Compares the copies of the player's team (player_logic.hpp) and logs them when they change; the
 // store's recorded team (the Resume Career card) follows the seat. The stale-contract repair itself
@@ -1002,6 +1128,7 @@ void season_unloaded()
     clear_names();
     g_names_for.clear();
     g_player_seen.clear();
+    g_mid_logged.clear();
     g_failures = 0;
 }
 
@@ -1064,7 +1191,51 @@ void season_hub(const swofty::career::State &state)
     player_check(e, c, "Team HQ, before the season apply");
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
-    season::Plan p = season::plan(g_data, year, view(rows), resolver(), move_player);
+    season::Resolve res = resolver();
+    const season::Year *yr = g_data.year(year);
+    bool mid = yr && !yr->changes.empty();
+    midseason::At at;
+    season::Plan p;
+    if (mid) {
+        auto is_player = [&](const std::string &label) {
+            int st = res.driver_stat(label);
+            return st >= 0 && static_cast<uint32_t>(st) == player;
+        };
+        Calendar cal;
+        if (calendar(e, cal) && !cal.tracks.empty()) {
+            at = midseason::at_round(g_data, year, cal.tracks, cal.next, is_player);
+            midseason::At opening = midseason::at_round(g_data, year, cal.tracks, 1, is_player);
+            log_schedule(*c, at, res, false);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up);
+        } else if (c->mid_year == year) {
+            at = midseason::at_ids(g_data, year, c->mid_round, midseason::split_ids(c->mid_applied));
+            log_schedule(*c, at, res, true);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up);
+        } else {
+            mid = false;
+            static std::string warned;
+            if (warned != c->key + std::to_string(year)) {
+                warned = c->key + std::to_string(year);
+                swofty::log("[progressive] mid-season %d: the career calendar is unreadable and nothing is recorded; "
+                            "the season's line-up stands",
+                            year);
+            }
+            p = season::plan(g_data, year, view(rows), res, move_player);
+        }
+        for (auto &n : at.notes)
+            p.notes.push_back("mid-season: " + n);
+    } else {
+        p = season::plan(g_data, year, view(rows), res, move_player);
+    }
+    std::string mid_ids = mid ? midseason::ids_text(g_data.years[year], at.active) : std::string();
+    auto record_mid = [&]() {
+        if (!mid || (c->mid_year == year && c->mid_round == at.round && c->mid_applied == mid_ids))
+            return;
+        c->mid_year = year;
+        c->mid_round = at.round;
+        c->mid_applied = mid_ids;
+        store::save();
+    };
     if (!p.error.empty()) {
         static std::string last;
         std::string what = c->key + " " + std::to_string(year) + " " + p.error;
@@ -1075,14 +1246,19 @@ void season_hub(const swofty::career::State &state)
         }
         return;
     }
-    char why[160];
+    char why[256];
     if (new_season)
         std::snprintf(why, sizeof why, "season %u of career %s, start %d%s: not applied yet", index, c->key.c_str(),
                       c->start, c->test_seasons ? ", includes test seasons" : "");
     else
         std::snprintf(why, sizeof why, "season %u of career %s: the seats differ from the %d plan although season %d is "
                       "marked applied", index, c->key.c_str(), year, c->applied_season);
-    std::string tries = c->key + ":" + std::to_string(year);
+    if (mid) {
+        size_t n = std::strlen(why);
+        std::snprintf(why + n, sizeof why - n, "; mid-season line-up of career round %d (%zu change(s) in force)",
+                      at.round, at.active.size());
+    }
+    std::string tries = c->key + ":" + std::to_string(year) + ":" + mid_ids;
     if (g_applies[tries] >= 2) {
         if (g_applies[tries]++ == 2)
             swofty::log("[progressive] season %d: the seats differ from the plan after two applies this session; "
@@ -1090,6 +1266,8 @@ void season_hub(const swofty::career::State &state)
                         year);
         return;
     }
+    if (mid)
+        log_changes(*c, at, p, res);
     int wrote = apply(e, p, rows, season_visuals, why);
     player_check(e, c, "after the season apply");
     if (wrote < 0) {
@@ -1098,6 +1276,7 @@ void season_hub(const swofty::career::State &state)
     }
     if (wrote)
         ++g_applies[tries];
+    record_mid();
     if (!wrote && !new_season)
         return;
     c->applied_season = static_cast<int>(index);
