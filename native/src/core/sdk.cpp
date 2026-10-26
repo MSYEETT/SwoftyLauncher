@@ -278,6 +278,7 @@ void ready()
     postfx_setup();
     grade_setup();
     telemetry_setup();
+    netplay_setup();
     perf::start();
 }
 
