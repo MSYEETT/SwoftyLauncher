@@ -907,6 +907,12 @@ void rnd_frame(double, void *)
         rnd_option_changed();
 }
 
+void wizard_abandoned(const char *why)
+{
+    if (g_new_career.exchange(false))
+        swofty::log("[progressive] store: %s; the pending new Progressive career is dropped", why);
+}
+
 void wizard_left(const char *group)
 {
     if (g_new_career.exchange(false))

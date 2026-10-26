@@ -62,6 +62,13 @@ void on_content(const SwoftyEvent *ev, void *)
         pg::wizard_left(group);
 }
 
+// A continue route loads an existing save, so a new-career wizard left with Back stays abandoned.
+void on_starting(const SwoftyEvent *ev, void *)
+{
+    if (ev->b == SWOFTY_CAREER_START_CONTINUE)
+        pg::wizard_abandoned("a saved career is continued");
+}
+
 void subscribe(const char *event)
 {
     uint32_t token = 0;
@@ -81,6 +88,8 @@ SWOFTY_ON_LOAD
     uint32_t token = 0;
     swofty::events::Result r = swofty::events::subscribe(SWOFTY_EVENT_CAREER_CONTENT_PRESSED, on_content, nullptr, &token);
     swofty::log("[progressive] subscribe %s: %s", SWOFTY_EVENT_CAREER_CONTENT_PRESSED, swofty::events::name(r));
+    r = swofty::events::subscribe(SWOFTY_EVENT_CAREER_STARTING, on_starting, nullptr, &token);
+    swofty::log("[progressive] subscribe %s: %s", SWOFTY_EVENT_CAREER_STARTING, swofty::events::name(r));
 }
 
 SWOFTY_ADDON()

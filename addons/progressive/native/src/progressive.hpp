@@ -21,6 +21,7 @@ bool progressive_career();
 void season_loaded(const swofty::career::State &state);
 void season_unloaded();
 void wizard_left(const char *group);
+void wizard_abandoned(const char *why);
 void rnd_option_changed();
 void rnd_frame(double dt, void *user);
 void season_hub(const swofty::career::State &state);
