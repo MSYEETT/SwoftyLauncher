@@ -14,6 +14,7 @@ struct BankAccount;
 struct BankSubAccount;
 struct BankTransaction;
 struct BankTransactionMessage;
+struct CalendarActivity;
 struct CarNumberComponent;
 struct CarPerfVehicle;
 struct CarPhysicsRecord;

@@ -204,6 +204,18 @@ const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, check_funds)
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, category) == 0x28);
 
 #[repr(C)]
+pub struct CalendarActivity {
+    _pad_0x0: [u8; 0xa],
+    pub day: u16,
+    _pad_0xc: [u8; 0x4],
+    pub activity: *mut ActivityDef,
+    _pad_0x18: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(CalendarActivity, day) == 0xa);
+const _: () = assert!(core::mem::offset_of!(CalendarActivity, activity) == 0x10);
+const _: () = assert!(core::mem::size_of::<CalendarActivity>() == 0x20);
+
+#[repr(C)]
 pub struct CarNumberComponent {
     _pad_0x0: [u8; 0x278],
     pub entity: *mut CareerEntity,
@@ -437,10 +449,15 @@ const _: () = assert!(core::mem::size_of::<CurvePoint>() == 0x8);
 
 #[repr(C)]
 pub struct DriverCalendar {
-    _pad_0x0: [u8; 0xc0],
+    _pad_0x0: [u8; 0x50],
+    pub activities_begin: *mut c_void,
+    pub activities_end: *mut c_void,
+    _pad_0x60: [u8; 0x60],
     pub driver: u32,
     _pad_0xc4: [u8; 0x4],
 }
+const _: () = assert!(core::mem::offset_of!(DriverCalendar, activities_begin) == 0x50);
+const _: () = assert!(core::mem::offset_of!(DriverCalendar, activities_end) == 0x58);
 const _: () = assert!(core::mem::offset_of!(DriverCalendar, driver) == 0xc0);
 const _: () = assert!(core::mem::size_of::<DriverCalendar>() == 0xc8);
 
@@ -1764,6 +1781,8 @@ pub type FeTile_Route_CareerItem_t =
     unsafe extern "C" fn(item: *mut HomeItem, out: *mut Action) -> *mut Action;
 pub type Game_CareerActivities_AddActivity_t =
     unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u32);
+pub type Game_CareerActivities_RemoveActivity_t =
+    unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u16);
 pub type Game_CareerSetup_ResetEntrants_t = unsafe extern "C" fn(setup: *mut c_void);
 pub type Game_CareerWizard_PushNextStep_t = unsafe extern "C" fn(wizard: *mut c_void);
 pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
@@ -2163,6 +2182,11 @@ pub mod bindings {
     };
     pub const Game_CareerActivities_AddActivity: Binding = Binding {
         id: "Game_CareerActivities_AddActivity",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CareerActivities_RemoveActivity: Binding = Binding {
+        id: "Game_CareerActivities_RemoveActivity",
         kind: "func",
         status: Status::Experimental,
     };
