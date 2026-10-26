@@ -46,6 +46,7 @@ pub mod registry;
 pub mod resolver;
 pub mod rowkeys;
 pub mod runtime;
+pub mod save_backup;
 pub mod saves;
 pub mod send_logs;
 pub mod session;
