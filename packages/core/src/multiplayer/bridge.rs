@@ -556,10 +556,11 @@ impl Shared {
             stats.large
         };
         if count <= 10 || count.is_multiple_of(100) {
-            eprintln!(
-                "swofty-launcher: netplay: {len}-byte datagram {direction} member {member} is over \
-                 {LARGE_PAYLOAD} bytes ({count} so far)"
+            let text = format!(
+                "{len}-byte datagram {direction} member {member} is over {LARGE_PAYLOAD} bytes ({count} so far)"
             );
+            super::diag::line(format!("bridge: {text}"));
+            eprintln!("swofty-launcher: netplay: {text}");
         }
     }
 

@@ -14,6 +14,7 @@ use gpui_kit::*;
 use swofty_core::catalog::{self, Addon};
 use swofty_core::install::Game;
 use swofty_core::multiplayer::bridge::MemberStats;
+use swofty_core::multiplayer::diag;
 use swofty_core::multiplayer::game::{self as mp_game, Category, Command, GameStatus, Screen};
 use swofty_core::multiplayer::rooms::{Api, RoomSettings, RoomSummary};
 use swofty_core::multiplayer::session::{
@@ -693,7 +694,9 @@ impl Shell {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    let local = read_local(&store, &profile, &dir)?;
+                    let local = read_local(&store, &profile, &dir).inspect_err(|e| {
+                        diag::line(format!("session not started: couldn't read the addons: {e}"));
+                    })?;
                     let setup = Setup::new(Api::new(&token), &dir, local);
                     Ok::<_, String>(match start {
                         Start::Create(settings) => Session::create(setup, settings),
