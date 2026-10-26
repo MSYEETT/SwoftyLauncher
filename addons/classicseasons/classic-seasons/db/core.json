@@ -287,14 +287,6 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=pascal_wehrlein]",
-   "set": {
-    "_metadata_": "cs_pascal_wehrlein"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_nico_rosberg",
@@ -354,6 +346,17 @@
    "set": {
     "_metadata_": "cs_stoffel_vandoorne",
     "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_stoffel_vandoo/idf/cs_stoffel_vandoo_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
+   "set": {
+    "_metadata_": "cs_pascal_wehrlein",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_pascal_wehrle/idf/cs_pascal_wehrle_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }

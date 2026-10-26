@@ -35,18 +35,18 @@
    "version": null,
    "author": null
   },
-  "pascal_wehrlein_face_mod": {
-   "zip": "Pascal_Wehrlein.zip",
-   "root": "F1 25",
-   "title": "Pascal Wehrlein face mod",
-   "version": null,
-   "author": null
-  },
   "f1_2016_career": {
    "zip": "tails.f1-2016.swoftyaddon",
    "root": "",
    "title": "F1 2016 Driver Career",
    "version": "0.1.44",
+   "author": null
+  },
+  "pascal_wehrlein_f1_2016": {
+   "zip": "pascal_wehrlein_head_F1_2016.zip",
+   "root": "",
+   "title": "Pascal Wehrlein head, F1 2016",
+   "version": null,
    "author": null
   },
   "f1_2012_season": {
@@ -72,7 +72,6 @@
   "rio_haryanto": "rio_haryanto_face_mod",
   "brendon_hartley": "brendon_hartley_face_mod",
   "sergey_sirotkin": "sergey_sirotkin_face_mod",
-  "pascal_wehrlein": "pascal_wehrlein_face_mod",
   "nico_rosberg": "f1_2012_season"
  },
  "repair_from": {
@@ -116,6 +115,12 @@
    "face": "male_ls204",
    "base": "laurens_vanhoepen",
    "code": "cs_stoffel_vandoo"
+  },
+  "pascal_wehrlein": {
+   "source": "pascal_wehrlein_f1_2016",
+   "mipmaps": "character_package/heads/male_driver/pascal_wehrlein/textures/pascal_wehrlein_head_d.tga.mipmaps",
+   "base": "sami_meguetounif",
+   "code": "cs_pascal_wehrle"
   }
  },
  "row_from": {
