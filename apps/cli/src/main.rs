@@ -6,6 +6,7 @@ mod offline;
 mod postfx;
 mod recover;
 mod run;
+mod saves;
 mod send_logs;
 mod setup;
 mod time;
@@ -145,6 +146,11 @@ enum Command {
         about = "Post-process passes: compile an addon's shaders to check them"
     )]
     Postfx(postfx::PostfxCommand),
+    #[command(
+        subcommand,
+        about = "List the profile save backups taken before sessions without an addon that affects saves, and restore one"
+    )]
+    Saves(saves::SavesCommand),
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -458,6 +464,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Logs { dir, exe, .. } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
         Command::Game(cmd) => game(&store, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Saves(cmd) => saves::command(&store, cmd),
         Command::Steam { start } => run::steam_check(&store, start),
         Command::Postfx(cmd) => postfx::command(cmd),
         Command::Update { check } => update::update(check),

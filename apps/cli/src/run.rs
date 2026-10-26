@@ -233,6 +233,9 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     }
     let summary = follow.summary();
     settle(store, &g, &mut wrapper, relay.as_mut(), true);
+    if let Some(text) = crate::saves::notice_since(store, asked) {
+        say("warning", &format!("saves: {text}"));
+    }
     summary?;
     if let Some(failure) = launch::Failure::read(&store.root).filter(|f| f.at >= asked) {
         if relay.is_none() {
@@ -429,7 +432,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         "info",
         "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
     );
+    let backup = crate::saves::before_session(store, &profile, g);
     let result = run_loop(store, args, &config, &request, &profile, g, installed);
+    crate::saves::after_session(store, backup.as_ref());
     finish(session, result)
 }
 
