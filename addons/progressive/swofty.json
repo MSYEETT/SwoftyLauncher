@@ -131,6 +131,9 @@
         "dll": "native/progressive_suffix.dll"
       },
       {
+        "dll": "native/progressive_rnd.dll"
+      },
+      {
         "dll": "native/progressive.dll",
         "files": [
           "data/"
