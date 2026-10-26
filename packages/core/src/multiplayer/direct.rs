@@ -51,6 +51,14 @@ impl Transport for DirectUdp {
         Ok(())
     }
 
+    fn permitted(&self, member: u8) -> bool {
+        self.peers
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .by_member
+            .contains_key(&member)
+    }
+
     fn send(&self, to: u8, payload: &[u8]) -> io::Result<()> {
         let addr = self
             .peers
