@@ -224,7 +224,7 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 | `game_original` | `{ rel }` | a path to a clean copy of the file |
 | `game_original_lang` | `{ code }` | a path to the stock `language_<code>.lng` |
 | `game_dir` *(1.0.10)* | — | the game folder, or `null` |
-| `addon_game_dir` *(1.0.10)* | — | `<game>/swofty/addons/<id>/` for your addon, or `null` |
+| `addon_game_dir` *(1.0.10)* | — | `<game>/swofty/addons/<id>/` for your addon, `$DATA/addon-storage/<id>/` when the game keeps its files there, or `null` |
 | `game_status` *(1.0.10)* | — | `{ running, pid, since, session }` |
 | `steam_save_dir` *(1.0.10)* | — | `<steam>/userdata/<steamid3>/3059520/remote/`, or `null` |
 | `profile_tracks` *(1.0.12)* | — | the tracks in the active profile's last build, or `null` ([Profile tracks](#profile-tracks)) |
@@ -250,7 +250,7 @@ While handling a request, you can call back to the launcher. Include an `id` whe
 - Use `get_state` to read your addon's entry in the active profile's `state`; you'll get `null` if the profile has none. `set_state` replaces the whole value, whose contents the launcher never reads. Duplicating or renaming a profile copies its state.
 - Use the five `game_*` calls when you need the game's own clean files, rather than the modded folder. If no game is found, `game_build_key`, `game_exe_version` and `game_is_stock` return `null` or `false`. `game_original` and `game_original_lang` return `error: "the game is not available"` instead. A build key looks like `25251167-d873a1c8d204`; an exe version looks like `1.0.141.7865`.
 - `game_dir` is the folder the launcher plays: the [active copy](/using/game-copies), Steam's or the EA app's or an added folder. It is `null` when no game is found.
-- `addon_game_dir` is your addon's own folder inside the game, the one a native plugin reads and writes with the [storage library](./native-plugins). The launcher doesn't create it; it may not exist until a session has run the addon, so create it yourself before you write to it. Restoring the game folder removes it, so keep anything that must outlast a session in `data_dir`.
+- `addon_game_dir` is your addon's own folder inside the game, the one a native plugin reads and writes with the [storage library](./native-plugins). When the game can't create files in that folder, the core keeps your addon's files in `$DATA/addon-storage/<id>/` for the session and writes a `.swofty-data-folder` file there; `addon_game_dir` then names that folder until the next install, which removes the file (see [Storage](/reference/std/storage#when-the-game-can-t-write-in-its-folder)). The launcher doesn't create it; it may not exist until a session has run the addon, so create it yourself before you write to it. Restoring the game folder removes it, so keep anything that must outlast a session in `data_dir`.
 - `steam_save_dir` is the game's Steam Cloud save folder for the most recent Steam user (from Steam's `loginusers.vdf`, else the user folder changed last). It is `null` when that folder doesn't exist. The saves are encrypted per Steam account, so a backup restores only on the same account.
 - `game_status` reports the running game:
 
