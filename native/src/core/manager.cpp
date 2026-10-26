@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include "../loader/data_folder.h"
 #include "Zydis.h"
 #include "json.hpp"
 #include "perf.hpp"
@@ -153,7 +154,8 @@ std::unordered_map<std::string, uintptr_t> anchor_funcs;
 bool kb_first = true;
 int (*loader_scan)(const char *, const char *, uintptr_t *);
 scancache::Cache scan_cache;
-std::wstring scan_cache_path;
+std::wstring scan_cache_path, cache_dir;
+const char *cache_name = "swofty\\cache";
 bool scan_cache_on;
 std::unordered_map<std::string, std::string> section_alias;
 SRWLOCK scan_lock = SRWLOCK_INIT;
@@ -1081,6 +1083,38 @@ int api_scan(const char *section, const char *pattern, uintptr_t *out)
     return hits;
 }
 
+const std::wstring &caches(const std::wstring &dir)
+{
+    if (!cache_dir.empty())
+        return cache_dir;
+    cache_dir = dir + L"..\\..\\cache\\";
+    CreateDirectoryW(cache_dir.c_str(), nullptr);
+    HANDLE probe = CreateFileW((cache_dir + L"write-test.tmp").c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                               FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+    if (probe != INVALID_HANDLE_VALUE) {
+        CloseHandle(probe);
+        return cache_dir;
+    }
+    DWORD error = GetLastError();
+    wchar_t folder[MAX_PATH * 2];
+    if (!swofty_data_folder(folder, MAX_PATH * 2)) {
+        api->log("[core] caches: the game can't create files in swofty\\cache (error %lu) and LOCALAPPDATA is not set; "
+                 "the scan and exe hash caches are not kept",
+                 error);
+        return cache_dir;
+    }
+    std::wstring data = folder;
+    CreateDirectoryW(data.c_str(), nullptr);
+    CreateDirectoryW((data += L"\\cache").c_str(), nullptr);
+    CreateDirectoryW((data += L"\\game").c_str(), nullptr);
+    cache_dir = data + L"\\";
+    cache_name = "%LOCALAPPDATA%\\Swofty\\cache\\game";
+    api->log("[core] caches: the game can't create files in swofty\\cache (error %lu); the scan and exe hash caches "
+             "are in %s",
+             error, cache_name);
+    return cache_dir;
+}
+
 void open_scan_cache(SwoftyApi *a, const std::wstring &dir)
 {
     loader_scan = a->scan;
@@ -1092,15 +1126,14 @@ void open_scan_cache(SwoftyApi *a, const std::wstring &dir)
         return;
     }
     uint64_t key = exe_key();
-    CreateDirectoryW((dir + L"..\\..\\cache").c_str(), nullptr);
-    scan_cache_path = dir + L"..\\..\\cache\\scan-cache.tsv";
+    scan_cache_path = caches(dir) + L"scan-cache.tsv";
     std::string text = read_file(scan_cache_path);
     if (text.empty()) {
         scan_cache.parse("", key);
         api->log("[core] scan cache: none yet for this exe (key %016llx); patterns found by a scan are kept in "
-                 "swofty\\cache\\scan-cache.tsv", (unsigned long long)key);
+                 "%s\\scan-cache.tsv", (unsigned long long)key, cache_name);
     } else if (!scan_cache.parse(text, key)) {
-        api->log("[core] scan cache: swofty\\cache\\scan-cache.tsv belongs to another exe; starting over (key %016llx)",
+        api->log("[core] scan cache: %s\\scan-cache.tsv belongs to another exe; starting over (key %016llx)", cache_name,
                  (unsigned long long)key);
     } else {
         api->log("[core] scan cache: %zu address(es) for this exe (key %016llx), each checked against the pattern before use",
@@ -1128,9 +1161,11 @@ void save_scan_cache()
     ok = ok && MoveFileExW(tmp.c_str(), scan_cache_path.c_str(), MOVEFILE_REPLACE_EXISTING);
     if (!ok)
         DeleteFileW(tmp.c_str());
-    api->log(ok ? "[core] scan cache: %zu address(es) saved to swofty\\cache\\scan-cache.tsv"
-                : "[core] scan cache: writing swofty\\cache\\scan-cache.tsv failed (%zu address(es) kept for this session)",
-             n);
+    if (ok)
+        api->log("[core] scan cache: %zu address(es) saved to %s\\scan-cache.tsv", n, cache_name);
+    else
+        api->log("[core] scan cache: writing %s\\scan-cache.tsv failed (%zu address(es) kept for this session)",
+                 cache_name, n);
 }
 
 Binding *find_binding(const std::string &id)
@@ -2114,8 +2149,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->era = runtime::era_table();
     a->version = SWOFTY_API_VERSION;
     add_core_sets(runtime::career_mixins());
-    CreateDirectoryW((dir + L"..\\..\\cache").c_str(), nullptr);
-    exe_sha = exe_sha256(exe, dir + L"..\\..\\cache\\exe-sha256.tsv");
+    exe_sha = exe_sha256(exe, caches(dir) + L"exe-sha256.tsv");
     const auto &said = doc["build"]["packed"];
     auto cs = section_by_name(game_code());
     double ce = cs ? section_entropy(cs) : -1;

@@ -104,8 +104,13 @@ count() {
     if [[ $n == "$2" ]]; then echo "ok  : $1"; else echo "FAIL: $1 (logged $n times, want $2)"; status=1; fi
 }
 CACHE=$OUT/game/swofty/cache/scan-cache.tsv
-for mode in trigger fallback vm settings settings_local session gamelog_off assets assets_ro nearfull nopool; do
+for mode in trigger fallback vm settings settings_local session gamelog_off assets assets_ro nearfull nopool cache_ro; do
     echo "==== $mode"
+    if [[ $mode == cache_ro ]]; then
+        rm -rf "$OUT/game/swofty/cache" "$WINEPREFIX"/drive_c/users/*/AppData/Local/Swofty/cache/game
+        mkdir -p "$OUT/game/swofty/cache"
+        chmod a-w "$OUT/game/swofty/cache"
+    fi
     stale=
     [[ $mode == vm ]] && stale=$(python3 - "$CACHE" <<'EOF'
 import sys
@@ -177,6 +182,7 @@ EOF
         ro_files+=" seeded=$(cat "$GAME_ADDON/seeded.txt" 2>/dev/null) mark=$(tr -d '\r' <"$KEPT/.swofty-data-folder" 2>/dev/null)"
         chmod -R u+w "$GAME_ADDON"
     fi
+    [[ $mode == cache_ro ]] && chmod u+w "$OUT/game/swofty/cache"
     rm -rf "$OUT/game/swofty/session.json" "$OUT/game/swofty/settings.json" "$OUT/game/swofty/assets.json" \
         "$OUT/game/swofty/addons/example.sample-mod"
     echo "---- $LOG ($mode)"
@@ -229,6 +235,18 @@ EOF
         once "hook pool: the core says when the loader has none" '\[core\] hook pool: the loader reserved none at attach'
         check "hook pool: without it an install names the missing memory and the bytes" '\[core\] (site|wrap|redirect) on [A-Za-z_]+ at 0x[0-9a-f]+: the (trampoline|stub|jump stub) did not allocate: no free memory within 2 GB of the target'
         once "hook pool: the free-region map is logged once" '\[core\]   within 2 GB of 0x[0-9a-f]+: [0-9]+ free region\(s\), 0 whole 64 KB slot\(s\)'
+        ;;
+    cache_ro)
+        once "caches: a game folder that refuses files moves them to the data folder" '\[core\] caches: the game can.t create files in swofty[\]cache \(error [0-9]+\); the scan and exe hash caches are in %LOCALAPPDATA%[\]Swofty[\]cache[\]game[[:space:]]*$'
+        check "caches: the scan cache is saved in the data folder" '\[core\] scan cache: [1-9][0-9]* address\(es\) saved to %LOCALAPPDATA%[\]Swofty[\]cache[\]game[\]scan-cache\.tsv'
+        count "caches: nothing fails to write" 0 'scan cache: writing .* failed'
+        kept=$(echo "$WINEPREFIX"/drive_c/users/*/AppData/Local/Swofty/cache/game)
+        if [[ -s $kept/scan-cache.tsv && -s $kept/exe-sha256.tsv ]]; then
+            echo "ok  : caches: scan-cache.tsv and exe-sha256.tsv are in the data folder"
+        else
+            echo "FAIL: caches: scan-cache.tsv and exe-sha256.tsv are in the data folder ($kept)"
+            status=1
+        fi
         ;;
     esac
     case $mode in
