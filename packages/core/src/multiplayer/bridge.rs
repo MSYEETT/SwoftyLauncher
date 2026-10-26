@@ -480,6 +480,15 @@ impl Shared {
         m.bytes_out += len as u64;
     }
 
+    /// Take back a [`Shared::sent`] whose send failed.
+    fn unsent(&self, member: u8, len: usize) {
+        let mut stats = self.stats();
+        let m = stats.members.entry(member).or_default();
+        m.packets_out = m.packets_out.saturating_sub(1);
+        m.bytes_out = m.bytes_out.saturating_sub(len as u64);
+        stats.drops.send_failed += 1;
+    }
+
     fn delivery_port(&self) -> u16 {
         match self.seen_port.load(Ordering::Relaxed) {
             0 => self.configured_port,
@@ -504,14 +513,21 @@ impl Shared {
             )
         })?;
         self.check_size(from, payload.len(), "from");
+        let len = payload.len() as u64;
+        {
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in += 1;
+            m.bytes_in += len;
+        }
         if let Err(e) = socket.send_to(payload, (Ipv4Addr::LOCALHOST, self.delivery_port())) {
-            self.stats().drops.deliver_failed += 1;
+            let mut stats = self.stats();
+            let m = stats.members.entry(from).or_default();
+            m.packets_in = m.packets_in.saturating_sub(1);
+            m.bytes_in = m.bytes_in.saturating_sub(len);
+            stats.drops.deliver_failed += 1;
             return Err(e);
         }
-        let mut stats = self.stats();
-        let m = stats.members.entry(from).or_default();
-        m.packets_in += 1;
-        m.bytes_in += payload.len() as u64;
         Ok(())
     }
 
@@ -580,18 +596,17 @@ fn outbound(shared: &Shared, member: u8) {
             }
         }
         shared.check_size(member, n, "to");
+        if game {
+            shared.sent(member, n);
+        }
         match link {
             Some(link) => {
                 link.sealer.seal(member, payload, &mut wire);
                 if link.transport().send(member, &wire).is_err() {
-                    shared.stats().drops.send_failed += 1;
-                    continue;
+                    shared.unsent(member, n);
                 }
             }
             None => shared.keep(member, from, !game, payload),
-        }
-        if game {
-            shared.sent(member, n);
         }
     }
 }

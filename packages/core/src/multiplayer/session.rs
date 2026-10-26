@@ -1744,6 +1744,36 @@ mod tests {
         }
     }
 
+    /// A session that leaves and waits for its worker when the test lets go of it, so no worker
+    /// outlives its test and sends to ports another test has taken.
+    struct Finished(Session);
+
+    impl std::ops::Deref for Finished {
+        type Target = Session;
+
+        fn deref(&self) -> &Session {
+            &self.0
+        }
+    }
+
+    impl Drop for Finished {
+        fn drop(&mut self) {
+            self.0.leave();
+            let deadline = Instant::now() + WAIT;
+            while !self.0.is_finished() && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+
+    fn create(setup: Setup, settings: RoomSettings) -> Finished {
+        Finished(Session::create(setup, settings))
+    }
+
+    fn join(setup: Setup, code: &str) -> Finished {
+        Finished(Session::join(setup, code))
+    }
+
     /// Leave and wait for the worker to finish; `leave` itself returns at once.
     fn leave(session: &Session) -> SessionState {
         let asked = Instant::now();
@@ -1807,7 +1837,7 @@ mod tests {
             name: Some("Sunday league".into()),
             ..RoomSettings::default()
         };
-        let host = Session::create(setup(&server.url, "host-token", &host_game, print(&[])), settings);
+        let host = create(setup(&server.url, "host-token", &host_game, print(&[])), settings);
         let state = wait_until(&host, "the host's lobby", in_lobby);
         let room = state.room.clone().unwrap();
         assert_eq!(
@@ -1823,7 +1853,7 @@ mod tests {
             ]
         );
 
-        let guest = Session::join(
+        let guest = join(
             setup(&server.url, "guest-token", &guest_game, print(&[])),
             &room.code,
         );
@@ -1882,17 +1912,19 @@ mod tests {
     fn a_joiner_whose_addons_differ_waits_with_the_differences() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-mm"), FakeGame::new("guest-mm"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(
+        let guest = join(
             setup(&server.url, "guest-token", &guest_game, print(&["extra"])),
             &code,
         );
-        let state = wait_until(&guest, "the mismatch", |s| !s.mismatches.is_empty());
-        assert!(matches!(&state.phase, Phase::WaitingForGame(why) if why.contains("match")));
+        let state = wait_until(&guest, "the mismatch", |s| {
+            !s.mismatches.is_empty()
+                && matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("match"))
+        });
         assert!(matches!(&state.mismatches[0].kind, MismatchKind::ExtraAddon { id, .. } if id == "extra"));
         assert_eq!(
             guest.fix_plan(),
@@ -1916,12 +1948,12 @@ mod tests {
     fn a_fresh_fingerprint_after_a_fix_lets_the_joiner_in() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-fix"), FakeGame::new("guest-fix"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(
+        let guest = join(
             setup(&server.url, "guest-token", &guest_game, print(&["extra"])),
             &code,
         );
@@ -1946,7 +1978,7 @@ mod tests {
     fn leave_returns_at_once_and_finishes_with_the_server_stalled() {
         let server = server();
         let game = FakeGame::new("stall");
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -1986,7 +2018,7 @@ mod tests {
         let server = server();
         let game = FakeGame::new("cancel");
         *lock(&game.host_delay) = Duration::from_secs(30);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -2008,7 +2040,7 @@ mod tests {
         let server = server();
         let game = FakeGame::new("late-configure");
         game.configure_fails.store(true, Ordering::Relaxed);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -2027,7 +2059,7 @@ mod tests {
         let server = server();
         let game = FakeGame::new("refused");
         game.refuse_host.store(true, Ordering::Relaxed);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -2054,7 +2086,7 @@ mod tests {
         let server = server();
         let game = FakeGame::new("menu");
         game.set_screen(Screen::Other);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
@@ -2077,7 +2109,7 @@ mod tests {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-slow"), FakeGame::new("guest-slow"));
         *lock(&host_game.host_delay) = Duration::from_millis(1500);
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
@@ -2087,7 +2119,7 @@ mod tests {
             |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("car category")),
         );
         let code = state.room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let during = wait_until(&host, "the guest's relay while hosting", both_relays_ready);
         assert!(matches!(during.phase, Phase::WaitingForGame(_)));
         wait_until(&host, "the host's lobby", in_lobby);
@@ -2098,12 +2130,12 @@ mod tests {
     fn the_host_closing_the_room_ends_the_joiner_session() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-close"), FakeGame::new("guest-close"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         wait_until(&guest, "the guest's lobby", in_lobby);
         leave(&host);
         let state = wait_until(&guest, "the end", |s| s.phase.is_over());
@@ -2117,12 +2149,12 @@ mod tests {
     fn a_new_relay_takes_over_under_the_bridge() {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-relay"), FakeGame::new("guest-relay"));
-        let host = Session::create(
+        let host = create(
             setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let guest = join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let before = wait_until(&guest, "the guest's lobby", in_lobby);
         wait_until(&host, "the relays", both_relays_ready);
         let old_relay = before.relay.clone().unwrap();
@@ -2155,7 +2187,7 @@ mod tests {
         let tokens = std::env::var("SWOFTY_MP_E2E_TOKENS").expect("SWOFTY_MP_E2E_TOKENS");
         let (host_token, guest_token) = tokens.split_once(',').expect("host,guest");
         let (host_game, guest_game) = (FakeGame::new("host-e2e"), FakeGame::new("guest-e2e"));
-        let host = Session::create(
+        let host = create(
             setup(&url, host_token, &host_game, print(&[])),
             RoomSettings::default(),
         );
@@ -2169,7 +2201,7 @@ mod tests {
             room.addons.as_ref().map(|a| a.tracks.clone()),
             Some(vec!["okayama name".to_owned()])
         );
-        let guest = Session::join(setup(&url, guest_token, &guest_game, print(&[])), &code);
+        let guest = join(setup(&url, guest_token, &guest_game, print(&[])), &code);
         wait_until(&guest, "the guest's lobby", in_lobby);
         wait_until(&host, "the relays at the host", both_relays_ready);
         wait_until(&guest, "the relays at the guest", both_relays_ready);
