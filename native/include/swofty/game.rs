@@ -1020,12 +1020,43 @@ const _: () = assert!(core::mem::offset_of!(NeAllocatorVtbl, alloc) == 0x18);
 const _: () = assert!(core::mem::offset_of!(NeAllocatorVtbl, free) == 0x38);
 
 #[repr(C)]
+pub struct NeBagCodec {
+    pub vtable: *mut *mut c_void,
+    pub stream: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(NeBagCodec, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(NeBagCodec, stream) == 0x8);
+
+#[repr(C)]
+pub struct NeCountingStream {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x20],
+    pub count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(NeCountingStream, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(NeCountingStream, count) == 0x28);
+
+#[repr(C)]
 pub struct NeLogGate {
     pub channel_hashes: [u32; 373],
     pub enabled: u8,
 }
 const _: () = assert!(core::mem::offset_of!(NeLogGate, channel_hashes) == 0x0);
 const _: () = assert!(core::mem::offset_of!(NeLogGate, enabled) == 0x5d4);
+
+#[repr(C)]
+pub struct NeMemWriteStream {
+    pub vtable: *mut *mut c_void,
+    pub data: *mut u8,
+    pub capacity: u64,
+    pub position: u64,
+    pub size: u64,
+}
+const _: () = assert!(core::mem::offset_of!(NeMemWriteStream, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(NeMemWriteStream, data) == 0x8);
+const _: () = assert!(core::mem::offset_of!(NeMemWriteStream, capacity) == 0x10);
+const _: () = assert!(core::mem::offset_of!(NeMemWriteStream, position) == 0x18);
+const _: () = assert!(core::mem::offset_of!(NeMemWriteStream, size) == 0x20);
 
 #[repr(C)]
 pub struct NeMessageBus {
@@ -1051,6 +1082,26 @@ const _: () = assert!(core::mem::offset_of!(NeOptionalVec, engaged) == 0x20);
 const _: () = assert!(core::mem::size_of::<NeOptionalVec>() == 0x28);
 
 #[repr(C)]
+pub struct NePropertyTypeVtbl {
+    _pad_0x0: [u8; 0x10],
+    pub id: *mut c_void,
+    _pad_0x18: [u8; 0x8],
+    pub key_offset: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(NePropertyTypeVtbl, id) == 0x10);
+const _: () = assert!(core::mem::offset_of!(NePropertyTypeVtbl, key_offset) == 0x20);
+
+#[repr(C)]
+pub struct NePropertyVtbl {
+    _pad_0x0: [u8; 0x8],
+    pub r#type: *mut c_void,
+    _pad_0x10: [u8; 0x28],
+    pub value: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(NePropertyVtbl, r#type) == 0x8);
+const _: () = assert!(core::mem::offset_of!(NePropertyVtbl, value) == 0x38);
+
+#[repr(C)]
 pub struct NeSharedCtrl {
     pub vtable: *mut *mut c_void,
     pub strong: i32,
@@ -1059,6 +1110,15 @@ pub struct NeSharedCtrl {
 const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, vtable) == 0x0);
 const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, strong) == 0x8);
 const _: () = assert!(core::mem::offset_of!(NeSharedCtrl, weak) == 0xc);
+
+#[repr(C)]
+pub struct NeStreamVtbl {
+    _pad_0x0: [u8; 0x48],
+    pub write: *mut c_void,
+    pub write_length: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(NeStreamVtbl, write) == 0x48);
+const _: () = assert!(core::mem::offset_of!(NeStreamVtbl, write_length) == 0x50);
 
 #[repr(C)]
 pub struct RenownAwardedMessage {
@@ -1094,6 +1154,24 @@ const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, wallet_enti
 const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, wallet_mode) == 0x4b0);
 const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, driver_wallets) == 0x4b8);
 const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, team_wallets) == 0x528);
+
+#[repr(C)]
+pub struct SaveDataContainer {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0x78],
+    pub name: *const c_char,
+    _pad_0x88: [u8; 0x78],
+    pub retain_unknown: u8,
+    _pad_0x101: [u8; 0x7],
+    pub retain_unknown_key: u64,
+    _pad_0x110: [u8; 0xb8],
+    pub retained_count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, name) == 0x80);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown) == 0x100);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown_key) == 0x108);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retained_count) == 0x1c8);
 
 #[repr(C)]
 pub struct Season {
@@ -1764,6 +1842,20 @@ pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
 pub type Game_Rnd_FillVehicleUpgrades_t =
     unsafe extern "C" fn(component: *mut c_void, car: u8, a3: u8, a4: u8);
+pub type Game_SaveData_DeserialiseContainer_t = unsafe extern "C" fn(
+    self_: *mut SaveDataContainer,
+    result: *mut c_int,
+    bag: *mut c_void,
+    reset_on_error: u8,
+    groups: u64,
+) -> *mut c_int;
+pub type Game_SaveData_SerialiseContainer_t = unsafe extern "C" fn(
+    self_: *mut SaveDataContainer,
+    result: *mut c_int,
+    bag: *mut c_void,
+    groups: u64,
+) -> *mut c_int;
+pub type Game_SaveData_WriteBag_t = unsafe extern "C" fn(codec: *mut NeBagCodec, bag: *mut c_void) -> c_int;
 pub type Game_SeasonLength_ApplyPreset_t = unsafe extern "C" fn(component: *mut c_void, preset: u8);
 pub type Game_SeasonLength_PushCalendarEntry_t =
     unsafe extern "C" fn(calendar: *mut c_void, entry: *const c_void) -> u64;
@@ -1791,6 +1883,7 @@ pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
     layer: i32,
 );
 pub type Ne_Post_BusMessage_t = unsafe extern "C" fn(bus: *mut c_void, msg: *mut c_void) -> u64;
+pub type Ne_StringTable_Lookup_t = unsafe extern "C" fn(table: *mut c_void, hash: u64) -> *const c_char;
 pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
 pub type Sess_Find_GroupRowPosition_t =
@@ -2216,6 +2309,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_SaveData_DeserialiseContainer: Binding = Binding {
+        id: "Game_SaveData_DeserialiseContainer",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SaveData_SerialiseContainer: Binding = Binding {
+        id: "Game_SaveData_SerialiseContainer",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SaveData_WriteBag: Binding = Binding {
+        id: "Game_SaveData_WriteBag",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_SeasonLength_ApplyPreset: Binding = Binding {
         id: "Game_SeasonLength_ApplyPreset",
         kind: "func",
@@ -2288,6 +2396,11 @@ pub mod bindings {
     };
     pub const Ne_Post_BusMessage: Binding = Binding {
         id: "Ne_Post_BusMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_StringTable_Lookup: Binding = Binding {
+        id: "Ne_StringTable_Lookup",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2423,6 +2536,11 @@ pub mod bindings {
     };
     pub const g_Ne_LogGate: Binding = Binding {
         id: "g_Ne_LogGate",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Ne_StringTable: Binding = Binding {
+        id: "g_Ne_StringTable",
         kind: "data",
         status: Status::Experimental,
     };
@@ -2613,6 +2731,26 @@ pub mod bindings {
     };
     pub const k_Gdb_StringXorKey: Binding = Binding {
         id: "k_Gdb_StringXorKey",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_BagCodecVtbl: Binding = Binding {
+        id: "k_Ne_BagCodecVtbl",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_CountingStreamVtbl: Binding = Binding {
+        id: "k_Ne_CountingStreamVtbl",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_MemWriteStreamVtbl: Binding = Binding {
+        id: "k_Ne_MemWriteStreamVtbl",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const k_Ne_PropertyType_Bag: Binding = Binding {
+        id: "k_Ne_PropertyType_Bag",
         kind: "data",
         status: Status::Experimental,
     };
@@ -3401,6 +3539,26 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Game_SaveData_ContainersChildren: Binding = Binding {
+        id: "site_Game_SaveData_ContainersChildren",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_SaveData_ContainersCount: Binding = Binding {
+        id: "site_Game_SaveData_ContainersCount",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_SaveData_ContainersDone: Binding = Binding {
+        id: "site_Game_SaveData_ContainersDone",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_SaveData_UnclaimedChild: Binding = Binding {
+        id: "site_Game_SaveData_UnclaimedChild",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
         id: "site_Game_TeamSelect_TeamLogoFormat",
         kind: "call",
@@ -3663,6 +3821,11 @@ pub mod bindings {
     };
     pub const vt_Game_DriverCareerSlotPredicate: Binding = Binding {
         id: "vt_Game_DriverCareerSlotPredicate",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Game_SaveDataRootContainer: Binding = Binding {
+        id: "vt_Game_SaveDataRootContainer",
         kind: "vtable",
         status: Status::Experimental,
     };

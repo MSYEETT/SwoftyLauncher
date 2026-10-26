@@ -98,6 +98,10 @@ The core checks the first four rows once the database has loaded and logs the re
 
 The F1 1990 addon's `tools/career.py` and `tools/grid.py` write a complete set of these rows; use them as the reference.
 
+## Saves when the addon is off
+
+A content whose `game_modes.ModeChampionship` row has its own `save_data.name` keeps its careers in a save container of that name in the profile save. In a game run without the addon, the core keeps that container and writes it back unchanged with each profile save, so the careers are there again once the addon is back on; the game shows them nowhere while the addon is off. `loader.log` names each kept container: `[saves] profile load <n>: kept <name> (<bytes> bytes), which no loaded game mode claims` and `[saves] profile save: wrote back <k> save container(s) no loaded game mode claims: <names>`. A core without this drops the container at the first profile save without the addon; the launcher's save backup ([`swofty saves`](/reference/cli#swofty-saves)) covers that case.
+
 ## Which career is loaded
 
 | Call | Returns |

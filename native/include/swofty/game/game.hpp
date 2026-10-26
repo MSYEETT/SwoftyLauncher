@@ -95,6 +95,12 @@ using Game_Rnd_CalcUpgradeTypeProgress_t = float(void *const *instances, uint8_t
 inline constexpr fn<"Game_Rnd_CalcUpgradeTypeProgress", Game_Rnd_CalcUpgradeTypeProgress_t> Game_Rnd_CalcUpgradeTypeProgress{}; // L2 experimental
 using Game_Rnd_FillVehicleUpgrades_t = void(void *component, uint8_t car, uint8_t a3, uint8_t a4);
 inline constexpr fn<"Game_Rnd_FillVehicleUpgrades", Game_Rnd_FillVehicleUpgrades_t> Game_Rnd_FillVehicleUpgrades{}; // L2 experimental
+using Game_SaveData_DeserialiseContainer_t = int *(SaveDataContainer *self, int *result, void *bag, uint8_t reset_on_error, uint64_t groups);
+inline constexpr fn<"Game_SaveData_DeserialiseContainer", Game_SaveData_DeserialiseContainer_t> Game_SaveData_DeserialiseContainer{}; // L2 experimental
+using Game_SaveData_SerialiseContainer_t = int *(SaveDataContainer *self, int *result, void *bag, uint64_t groups);
+inline constexpr fn<"Game_SaveData_SerialiseContainer", Game_SaveData_SerialiseContainer_t> Game_SaveData_SerialiseContainer{}; // L2 experimental
+using Game_SaveData_WriteBag_t = int(NeBagCodec *codec, void *bag);
+inline constexpr fn<"Game_SaveData_WriteBag", Game_SaveData_WriteBag_t> Game_SaveData_WriteBag{}; // L2 experimental
 using Game_SeasonLength_ApplyPreset_t = void(void *component, uint8_t preset);
 inline constexpr fn<"Game_SeasonLength_ApplyPreset", Game_SeasonLength_ApplyPreset_t> Game_SeasonLength_ApplyPreset{}; // L2 experimental
 using Game_SeasonLength_PushCalendarEntry_t = uint64_t(void *calendar, const void *entry);
@@ -113,11 +119,16 @@ inline constexpr call<"site_Game_DriverSelectHeader_BuildTabs"> site_Game_Driver
 inline constexpr site<"site_Game_DriverSelect_BackRoute"> site_Game_DriverSelect_BackRoute{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_BadgeFormat"> site_Game_DriverSelect_BadgeFormat{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_TeamLogoFormat"> site_Game_DriverSelect_TeamLogoFormat{}; // L2 experimental
+inline constexpr site<"site_Game_SaveData_ContainersChildren"> site_Game_SaveData_ContainersChildren{}; // L2 experimental
+inline constexpr site<"site_Game_SaveData_ContainersCount"> site_Game_SaveData_ContainersCount{}; // L2 experimental
+inline constexpr site<"site_Game_SaveData_ContainersDone"> site_Game_SaveData_ContainersDone{}; // L2 experimental
+inline constexpr site<"site_Game_SaveData_UnclaimedChild"> site_Game_SaveData_UnclaimedChild{}; // L2 experimental
 inline constexpr call<"site_Game_TeamSelect_TeamLogoFormat"> site_Game_TeamSelect_TeamLogoFormat{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerDLCSelectViewModel", 19> vt_Game_CareerDLCSelectViewModel{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerWizardSettingsSelectViewModel", 19> vt_Game_CareerWizardSettingsSelectViewModel{}; // L2 experimental, CareerWizardSettingsSelectViewModel.
 inline constexpr vtable<"vt_Game_DriverCareerDriverSelectViewModel", 22> vt_Game_DriverCareerDriverSelectViewModel{}; // L2 experimental
 inline constexpr vtable<"vt_Game_DriverCareerSlotPredicate", 6> vt_Game_DriverCareerSlotPredicate{}; // L2 experimental
+inline constexpr vtable<"vt_Game_SaveDataRootContainer", 7> vt_Game_SaveDataRootContainer{}; // L2 experimental
 inline constexpr vtable<"vt_Game_TrackListComponent", 79> vt_Game_TrackListComponent{}; // L2 experimental, TrackListComponent
 
 }
