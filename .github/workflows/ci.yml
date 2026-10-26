@@ -382,6 +382,9 @@ jobs:
       - name: Socket trace Wine test
         run: native/test/run_net_trace_test.sh
 
+      - name: Netplay bridge Wine test
+        run: native/test/run_netplay_test.sh
+
       # Saved after the Wine tests, which compile their fixtures into the same cache.
       - name: Save the Zig cache
         if: github.ref == 'refs/heads/main' && steps.zig-cache.outputs.cache-hit != 'true'
