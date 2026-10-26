@@ -185,7 +185,7 @@ fn run_bridge(args: BridgeArgs) -> Result<ExitCode> {
             None => eprintln!("swofty: member {m} has no --peer; what the game sends it is dropped"),
         }
     }
-    crate::run::end_on_signals();
+    crate::run::end_on_ctrl_c();
     let interval = Duration::from_secs(args.interval.max(1));
     let started = Instant::now();
     let mut next = started + interval;
@@ -229,7 +229,7 @@ fn run_echo(args: EchoArgs) -> Result<ExitCode> {
     for m in bridge.members() {
         println!("member {m}: kept, not relayed");
     }
-    crate::run::end_on_signals();
+    crate::run::end_on_ctrl_c();
     let enter = (!injects.is_empty()).then(|| {
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
