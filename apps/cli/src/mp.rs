@@ -398,7 +398,12 @@ fn run_room(store: &Store, profile: &str, cmd: RoomCmd) -> Result<ExitCode> {
     if !crate::run::ending() {
         println!("leaving the room");
     }
-    let last = session.leave();
+    session.leave();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !session.is_finished() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let last = session.state();
     show_changes(shown.as_ref(), &last);
     Ok(match last.phase {
         Phase::Failed(_) => ExitCode::FAILURE,
