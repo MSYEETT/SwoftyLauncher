@@ -81,7 +81,7 @@ void session_patches()
 
 void setup()
 {
-    uintptr_t lan = runtime::find(S_LAN_TILE, "netplay", "netplay"), tail = runtime::find(S_TILE_TAIL, "netplay", "netplay");
+    uintptr_t lan = runtime::find(S_LAN_TILE, "core", "core"), tail = runtime::find(S_TILE_TAIL, "core", "core");
     bool hidden = false;
     if (lan && tail && tail > lan && tail - lan < 0x10000) {
         uint8_t skip_lan[9] = {0xE9, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90};
