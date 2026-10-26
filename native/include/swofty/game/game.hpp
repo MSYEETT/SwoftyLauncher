@@ -35,6 +35,8 @@ using Game_CareerWizard_StartsInF1_t = bool(void *entrants, void *wizard_data, c
 inline constexpr fn<"Game_CareerWizard_StartsInF1", Game_CareerWizard_StartsInF1_t> Game_CareerWizard_StartsInF1{}; // L2 experimental
 using Game_Career_IsDriverCareerMode_t = bool(const void *championship);
 inline constexpr fn<"Game_Career_IsDriverCareerMode", Game_Career_IsDriverCareerMode_t> Game_Career_IsDriverCareerMode{}; // L2 experimental
+using Game_DriverContracts_BuildOffers_t = void(void *contracts, uint32_t driver);
+inline constexpr fn<"Game_DriverContracts_BuildOffers", Game_DriverContracts_BuildOffers_t> Game_DriverContracts_BuildOffers{}; // L2 experimental
 using Game_DriverSelectHeader_SetTabState_t = void(void *header, uint64_t tab, uint8_t content_visible, uint8_t enabled);
 inline constexpr fn<"Game_DriverSelectHeader_SetTabState", Game_DriverSelectHeader_SetTabState_t> Game_DriverSelectHeader_SetTabState{}; // L2 experimental
 using Game_EngineMgmt_AddGridPenalty_t = void(void *engine_management, const uint32_t *driver, uint32_t places, uint32_t reason);
