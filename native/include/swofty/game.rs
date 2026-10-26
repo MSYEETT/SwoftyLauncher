@@ -1732,6 +1732,10 @@ pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
     entrant_list: *const c_char,
 ) -> bool;
 pub type Game_Career_IsDriverCareerMode_t = unsafe extern "C" fn(championship: *const c_void) -> bool;
+pub type Game_ContractTeamSelect_OnEnter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Game_ContractTeamSelect_OnExit_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Game_ContractTeamSelect_OnUpdate_t =
+    unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
 pub type Game_DriverContracts_AdvanceSecretMeeting_t =
     unsafe extern "C" fn(contracts: *mut c_void, driver: u32, notify: u8);
 pub type Game_DriverContracts_BuildOffers_t = unsafe extern "C" fn(contracts: *mut c_void, driver: u32);
@@ -2133,6 +2137,21 @@ pub mod bindings {
     };
     pub const Game_Career_IsDriverCareerMode: Binding = Binding {
         id: "Game_Career_IsDriverCareerMode",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_ContractTeamSelect_OnEnter: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_ContractTeamSelect_OnExit: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_ContractTeamSelect_OnUpdate: Binding = Binding {
+        id: "Game_ContractTeamSelect_OnUpdate",
         kind: "func",
         status: Status::Experimental,
     };

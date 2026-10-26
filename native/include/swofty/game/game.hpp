@@ -65,6 +65,12 @@ using Game_CareerWizard_StartsInF1_t = bool(void *entrants, void *wizard_data, c
 inline constexpr fn<"Game_CareerWizard_StartsInF1", Game_CareerWizard_StartsInF1_t> Game_CareerWizard_StartsInF1{}; // L2 experimental
 using Game_Career_IsDriverCareerMode_t = bool(const void *championship);
 inline constexpr fn<"Game_Career_IsDriverCareerMode", Game_Career_IsDriverCareerMode_t> Game_Career_IsDriverCareerMode{}; // L2 experimental
+using Game_ContractTeamSelect_OnEnter_t = uint64_t(void *state);
+inline constexpr fn<"Game_ContractTeamSelect_OnEnter", Game_ContractTeamSelect_OnEnter_t> Game_ContractTeamSelect_OnEnter{}; // L2 experimental
+using Game_ContractTeamSelect_OnExit_t = uint64_t(void *state);
+inline constexpr fn<"Game_ContractTeamSelect_OnExit", Game_ContractTeamSelect_OnExit_t> Game_ContractTeamSelect_OnExit{}; // L2 experimental
+using Game_ContractTeamSelect_OnUpdate_t = uint32_t *(void *state, uint32_t *link);
+inline constexpr fn<"Game_ContractTeamSelect_OnUpdate", Game_ContractTeamSelect_OnUpdate_t> Game_ContractTeamSelect_OnUpdate{}; // L2 experimental
 using Game_DriverContracts_AdvanceSecretMeeting_t = void(void *contracts, uint32_t driver, uint8_t notify);
 inline constexpr fn<"Game_DriverContracts_AdvanceSecretMeeting", Game_DriverContracts_AdvanceSecretMeeting_t> Game_DriverContracts_AdvanceSecretMeeting{}; // L2 experimental
 using Game_DriverContracts_BuildOffers_t = void(void *contracts, uint32_t driver);
