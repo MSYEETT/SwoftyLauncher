@@ -431,6 +431,7 @@ void run_job()
     f.local_mp = local_mp && local_mp_opened.load();
     f.lan_mode = lan_mode();
     f.lobby = lobby.load();
+    f.home = frontend.load() && home_screen.load();
     drive::Do d;
     void *fn, *ctx;
     {

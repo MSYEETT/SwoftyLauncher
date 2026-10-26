@@ -192,6 +192,19 @@ int main()
         expect(m.cancel() && m.finished() && m.error == "cancelled by the launcher", "cancel ends a running host");
         expect(m.tick(f, 1) == drive::Do::nothing, "a cancelled job takes no more steps");
     }
+    {
+        drive::Job j;
+        drive::Facts f;
+        f.local_mp = f.lan_mode = true;
+        j.start(host, 0);
+        for (uint64_t t = 0; t < 5; t++)
+            j.tick(f, t);
+        expect(j.popup(drive::LAN_DIALOG, 5) && j.tick(f, 6) == drive::Do::answer_dialog, "host answers the dialog");
+        expect(j.tick(f, 1000) == drive::Do::nothing && j.active(), "host waits on the Car Category screen");
+        f.home = true;
+        j.tick(f, 2000);
+        expect(j.finished() && j.error == drive::BACK_HOME, "back on the main menu ends the wait at once");
+    }
     expect(drive::reply_json(host, main_menu(), "", 1, "picked by hand").find(R"("detail":"picked by hand")") != std::string::npos,
            "a reply carries its detail");
 

@@ -297,7 +297,10 @@ struct Facts {
     bool local_mp = false;
     bool lan_mode = false;
     bool lobby = false;
+    bool home = false;
 };
+
+constexpr const char *BACK_HOME = "the game went back to its main menu before the LAN lobby opened";
 
 constexpr const char *LAN_DIALOG = "multiplayer_lan_msg";
 constexpr const char *IP_PROMPT = "set_join_via_ip";
@@ -405,7 +408,10 @@ public:
             }
             return Do::answer_dialog;
         case Step::wait_ip_prompt:
-            late("the Join via IP prompt did not open");
+            if (f.home)
+                fail(BACK_HOME);
+            else
+                late("the Join via IP prompt did not open");
             return Do::nothing;
         case Step::answer_ip:
             step = Step::wait_lobby;
@@ -414,6 +420,8 @@ public:
         case Step::wait_lobby:
             if (f.lobby)
                 step = Step::finished;
+            else if (f.home)
+                fail(BACK_HOME);
             else
                 late(cmd.op == Op::host ? "the LAN lobby did not open" : "the host's LAN lobby did not open");
             return Do::nothing;
