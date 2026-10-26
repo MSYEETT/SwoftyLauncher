@@ -12,13 +12,16 @@
 // instead get the progress progressive.dll worked out for the car's team at the last load or Team
 // HQ (ProgressiveDevelopmentProgress), 0 when it has none. The fill passes the team's R&D model
 // (Upgrades, team key at +0x0c) + 0x1a30 as the type metadata (decomp 0x141238cb0), which names the
-// team here.
+// team here. A probe logs Team HQ's vehicle performance comparison with its parts whenever the game
+// refreshes it in a Progressive career.
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #include <atomic>
 #include <cstddef>
+#include <cstdio>
+#include <string>
 
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
@@ -103,6 +106,93 @@ SWOFTY_WRAP(Game_Rnd_CalcUpgradeTypeProgress, float, void *const *instances, uin
         return p;
     }
     return orig(instances, type, state, meta);
+}
+
+// Probe of Team HQ's VEHICLE PERFORMANCE COMPARISON (Game_Refresh_PerformanceComparison 0x141890990,
+// the hub widget and the R&D page): after the game fills and sorts it, each entry {team key +0,
+// driver key +4, value +8} (count +0x38, 20 at +0x40, 0x14 each; mode +0x1d0, department +0x1d8,
+// 5 = all) is logged with its parts read from the team's R&D model (UpgradesComponent at +0x10,
+// models +0x298..+0x2a0): the type metadata's rating base sum for that department and the rest of
+// the value, the completed upgrades' gain, with the room the metadata leaves for it.
+constexpr uintptr_t kCmpComponent = 0x10, kCmpCount = 0x38, kCmpEntries = 0x40, kCmpStride = 0x14;
+constexpr uintptr_t kCmpMode = 0x1d0, kCmpDept = 0x1d8, kCmpPlayer = 0x1f7;
+constexpr uintptr_t kModels = 0x298, kTypeMeta = 0x1a38, kMetaStride = 0x20;
+std::atomic<uint32_t> g_chart_lines{0};
+std::string g_chart_last;
+
+bool model_parts(uintptr_t comp, uint32_t team, uint8_t dept, double &base, double &room)
+{
+    uintptr_t b = 0, e = 0;
+    base = room = 0;
+    if (!swofty::mem::read(comp + kModels, b) || !swofty::mem::read(comp + kModels + 8, e) || e <= b || e - b > 64 * 8)
+        return false;
+    for (uintptr_t at = b; at < e; at += 8) {
+        uintptr_t model = 0;
+        uint32_t key = 0;
+        if (!swofty::mem::read(at, model) || !model ||
+            !swofty::mem::read(model + offsetof(swofty::game::Upgrades, team_key), key) || (key >> 16) != (team >> 16))
+            continue;
+        uintptr_t mb = 0, me = 0;
+        if (!swofty::mem::read(model + kTypeMeta, mb) || !swofty::mem::read(model + kTypeMeta + 8, me) || me <= mb ||
+            (me - mb) / kMetaStride > 64)
+            return false;
+        for (uintptr_t m = mb; m < me; m += kMetaStride) {
+            uint8_t d = 0;
+            float lo = 0, hi = 0;
+            swofty::mem::read(m + 1, d);
+            swofty::mem::read(m + 0xc, lo);
+            swofty::mem::read(m + 0x10, hi);
+            if (dept == 5 || d == dept) {
+                base += lo;
+                room += hi - lo;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+SWOFTY_WRAP(Game_Refresh_PerformanceComparison, void, void *comparison)
+{
+    orig(comparison);
+    if (rnd_mode() == 0 || !comparison)
+        return;
+    auto c = reinterpret_cast<uintptr_t>(comparison);
+    uint64_t count = 0;
+    uint32_t mode = 0;
+    uint8_t dept = 0, player = 0;
+    uintptr_t comp = 0;
+    if (!swofty::mem::read(c + kCmpCount, count) || count > 20 || !swofty::mem::read(c + kCmpMode, mode) ||
+        !swofty::mem::read(c + kCmpDept, dept) || !swofty::mem::read(c + kCmpComponent, comp))
+        return;
+    swofty::mem::read(c + kCmpPlayer, player);
+    std::string line;
+    for (uint64_t i = 0; i < count; ++i) {
+        uint32_t team = 0, driver = 0;
+        float value = 0;
+        uintptr_t at = c + kCmpEntries + i * kCmpStride;
+        if (!swofty::mem::read(at, team) || !swofty::mem::read(at + 4, driver) || !swofty::mem::read(at + 8, value))
+            break;
+        double base = 0, room = 0;
+        bool parts = comp && model_parts(comp, team, dept, base, room);
+        char b[160];
+        if (parts)
+            std::snprintf(b, sizeof b, "%s%llu. team %u%s %.1f = base %.1f + upgrades %.1f (room %.1f)",
+                          line.empty() ? "" : ", ", static_cast<unsigned long long>(i + 1), team >> 16,
+                          (driver & 0xffff0000u) != 0x3fff0000u ? " (driver row)" : "", value, base, value - base, room);
+        else
+            std::snprintf(b, sizeof b, "%s%llu. team %u %.1f (no model)", line.empty() ? "" : ", ",
+                          static_cast<unsigned long long>(i + 1), team >> 16, value);
+        line += b;
+    }
+    char head[96];
+    std::snprintf(head, sizeof head, "mode %u, department %u%s, %llu team(s)", mode, dept, dept == 5 ? " (all)" : "",
+                  static_cast<unsigned long long>(count));
+    std::string all = std::string(head) + ": " + line;
+    if (all == g_chart_last || g_chart_lines++ >= 60)
+        return;
+    g_chart_last = all;
+    swofty::log("[progressive] R&D chart %s", all.c_str());
 }
 
 SWOFTY_ON_LOAD
