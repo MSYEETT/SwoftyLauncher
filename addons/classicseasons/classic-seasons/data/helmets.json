@@ -8,6 +8,39 @@
    "spec": "S files (Spec)/{driver}_helmet_s.tga.dds",
    "normal": "N file/HELMET N.dds",
    "author": null
+  },
+  "vettel_monaco_2017": {
+   "name": "Vettel Montecarlo 2017 1.1",
+   "dir": "Vettel_Montecarlo_2017_1.1/Vettel_Montecarlo_2017_1.1",
+   "colour": "Vettel Montecarlo_2017.dds",
+   "spec": "generic",
+   "normal": "generic"
+  },
+  "sirotkin_2018": {
+   "name": "sirotkin1_2",
+   "dir": "sirotkin1_2",
+   "colour": "sirotkin12.dds",
+   "spec": "generic",
+   "normal": "generic"
+  },
+  "wehrlein_2017": {
+   "name": "Pascal Wehrlein helmet 2017",
+   "dir": "Pascal Wehrlein helmet 2017/Pascal Wehrlein helmet 2017/F1 2016/character_package/drivers/male/2016-sauber_felipe_nasr/textures",
+   "colour": "file_dds/felipe_nasr_helmet_d.tga.dds",
+   "spec": "file_dds/felipe_nasr_helmet_s.tga.dds",
+   "normal": "generic"
+  },
+  "vettel_mexico_2022": {
+   "name": "Vettel Mexico GP helmet 2022",
+   "dir": "vettel_mexico_2022/Vettel Mexico GP helmet 2022/_ACTIVE",
+   "archive": "helmet_vettel.erp",
+   "textures": "eaid://character_package/drivers/male/2022-forceindia_sebastian_vettel/textures/sebastian_vettel_helmet_"
+  },
+  "massa_ferrari_f1_23": {
+   "name": "Felipe Massa Ferrari Career Mode Helmet",
+   "dir": "Felipe Massa Ferrari Career Mode Helmet/Felipe Massa Ferrari Career Mode Helmet/2023_asset_groups/character_package/team_livery/2023-custom-callie_mayer",
+   "archive": "2023-custom-callie_mayer_helmet.erp",
+   "textures": "eaid://character_package/team_livery/2023-custom-callie_mayer/textures/2023-custom-callie_mayer_helmet_"
   }
  },
  "helmets": [
@@ -31,6 +64,11 @@
   {"season": 2016, "driver": "pascal_wehrlein",    "mod": "helmets_2016", "base": "2024-f2-invictaracing_kush_maini"},
   {"season": 2016, "driver": "rio_haryanto",       "mod": "helmets_2016", "base": "2024-f2-trident_richard_verschoor"},
   {"season": 2016, "driver": "romain_grosjean",    "mod": "helmets_2016", "base": "2025-haas_esteban_ocon"},
-  {"season": 2016, "driver": "esteban_gutierrez",  "mod": "helmets_2016", "base": "2024-haas_kevin_magnussen"}
+  {"season": 2016, "driver": "esteban_gutierrez",  "mod": "helmets_2016", "base": "2024-haas_kevin_magnussen"},
+  {"season": 2017, "driver": "sebastian_vettel",   "mod": "vettel_monaco_2017", "base": "2024-f2-artgp_zak_osullivan"},
+  {"season": 2017, "driver": "pascal_wehrlein",    "mod": "wehrlein_2017", "base": "2024-f2-invictaracing_kush_maini"},
+  {"season": 2018, "driver": "sergey_sirotkin",    "mod": "sirotkin_2018", "base": "2024-williams_logan_sargeant"},
+  {"season": 2022, "driver": "sebastian_vettel",   "mod": "vettel_mexico_2022", "base": "2024-f2-artgp_zak_osullivan"},
+  {"season": 2017, "driver": "felipe_massa",       "mod": "massa_ferrari_f1_23", "base": "2024-tororosso_daniel_ricciardo", "off": true}
  ]
 }
