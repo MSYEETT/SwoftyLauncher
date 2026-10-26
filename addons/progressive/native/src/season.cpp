@@ -351,6 +351,40 @@ EntrantRecord expected(const Row &r, const Write &w)
     return x;
 }
 
+// The seat a move writes: the row holding it (its team, car, registry value, livery, badge, seat
+// value and position), or for an empty seat its teammate's row, else a row of the slot's team,
+// with the slot's car when that row has none and the seat's position.
+bool seat_template(const season::Plan &p, const std::vector<Row> &rows, const Row &driver, const season::Seat &to,
+                   EntrantWriteData &data, uint16_t &position, std::string &why)
+{
+    int h = p.holder[to.slot][to.index];
+    if (h >= 0) {
+        data = seat_data(driver, rows[h]);
+        position = rows[h].rec.team_position;
+        return true;
+    }
+    const Row *tpl = nullptr;
+    int mate = p.holder[to.slot][1 - to.index];
+    if (mate >= 0)
+        tpl = &rows[mate];
+    uint32_t team = static_cast<uint32_t>(g_data.slots[to.slot].team_stat) << 16;
+    for (size_t i = 0; !tpl && i < rows.size(); ++i)
+        if (!teamless(rows[i].rec) && stat_of(rows[i].rec.team_stat_id) == stat_of(team))
+            tpl = &rows[i];
+    data = tpl ? seat_data(driver, *tpl) : released_data(driver);
+    if (!tpl)
+        data.team_stat_id = team;
+    if (!tpl || !has_car(tpl->rec)) {
+        if (p.vehicles[to.slot].stat < 0) {
+            why = "no row of its team has a car and no vehicle row resolves for the slot";
+            return false;
+        }
+        data.vehicle_ref = static_cast<uint32_t>(p.vehicles[to.slot].stat) << 16;
+    }
+    position = static_cast<uint16_t>(0x100 | to.index);
+    return true;
+}
+
 std::string seat_name(const season::Seat &s)
 {
     if (s.slot < 0)
@@ -389,14 +423,30 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
                         label_or(Kind::driver, m.driver).c_str());
             return -1;
         }
-        const Row &seat = rows[p.holder[m.to.slot][m.to.index]];
+        EntrantWriteData data{};
+        uint16_t position = 0;
+        std::string bad;
+        if (!seat_template(p, rows, rows[idx], m.to, data, position, bad)) {
+            swofty::log("[progressive] season %d REFUSED: %s is empty and cannot be written: %s", p.year,
+                        seat_name(m.to).c_str(), bad.c_str());
+            return -1;
+        }
         Write &w = write_for(idx);
-        w.data = seat_data(rows[idx], seat);
-        w.position = seat.rec.team_position;
+        w.data = data;
+        w.position = position;
         w.move = true;
         w.old_team = rows[idx].rec.team_stat_id;
-        w.new_team = seat.rec.team_stat_id;
-        w.why = seat_name(m.from) + " -> " + seat_name(m.to);
+        w.new_team = data.team_stat_id;
+        w.why = seat_name(m.from) + " -> " + seat_name(m.to) +
+                (p.holder[m.to.slot][m.to.index] < 0 ? " (an empty seat)" : "");
+    }
+    for (auto &m : p.repositions) {
+        int idx = row_index(rows, m.driver);
+        if (idx < 0)
+            continue;
+        Write &w = write_for(idx);
+        w.position = static_cast<uint16_t>(0x100 | m.to.index);
+        w.why = "race seat position " + std::to_string(m.from.index) + " -> " + seat_name(m.to);
     }
     for (uint32_t d : p.releases) {
         int idx = row_index(rows, d);
