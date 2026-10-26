@@ -71,6 +71,7 @@
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
 #include "seats.hpp"
+#include "seats_logic.hpp"
 #include "store.hpp"
 #include "weekend_logic.hpp"
 #include "store_logic.hpp"
@@ -143,36 +144,35 @@ season::Resolve resolver();
 
 std::atomic<bool> g_new_career{false};
 
-// The years whose real line-up has the most of its race-seat drivers on their own slot's race
-// seats in this career, when that is at least 12; empty otherwise. A career the season apply has
-// run on shows its year (2025 and 2026 share drivers, the best count still tells them apart).
+std::string years_text(const std::vector<int> &ys);
+
+// The year the career's seats show (seats_logic.hpp): the year of most of the seated cars, else the
+// years whose line-up at some real round holds the most seated drivers (at least 12); empty
+// otherwise.
+
 std::vector<int> seats_years(const std::vector<Row> &rows, int &count)
 {
     season::Resolve r = resolver();
-    std::vector<std::pair<int, uint32_t>> seated;
+    static std::map<int, int> cars;
+    static bool cars_ok = false;
+    if (!cars_ok && g_data_ok) {
+        cars = progressive::seats::car_years(g_data, r);
+        cars_ok = true;
+    }
+    std::vector<progressive::seats::Seated> seated;
     for (auto &row : rows)
         if (has_car(row.rec) && !teamless(row.rec))
             seated.push_back({season::slot_of_team(g_data, static_cast<int>(stat_of(row.rec.team_stat_id))),
-                              stat_of(driver_of(row.rec))});
-    std::vector<int> best;
-    count = 0;
-    for (auto &[year, y] : g_data.years) {
-        lineup::Grid g = season::grid_of(y, r, nullptr, nullptr);
-        int n = 0;
-        for (auto &[slot, who] : seated)
-            if (slot >= 0)
-                for (auto d : g[slot])
-                    n += d == who;
-        if (n > count) {
-            count = n;
-            best.clear();
-        }
-        if (n == count && n)
-            best.push_back(year);
+                              stat_of(driver_of(row.rec)), static_cast<int>(stat_of(row.rec.vehicle_ref))});
+    progressive::seats::Years y = progressive::seats::seats_years(g_data, r, seated, cars);
+    count = y.count;
+    static std::string last;
+    std::string now = years_text(y.years) + " by " + y.how + " (" + std::to_string(y.count) + ")";
+    if (now != last) {
+        last = now;
+        swofty::log("[progressive] seats: the career's seats show %s", now.c_str());
     }
-    if (count < 12)
-        best.clear();
-    return best;
+    return y.years;
 }
 
 std::string years_text(const std::vector<int> &ys)
