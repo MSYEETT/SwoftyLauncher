@@ -596,6 +596,69 @@
  "ops": [
   {
    "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=ferrari_2025]",
+   "set": {
+    "_metadata_": "cs16_ferra",
+    "bundle_name": "cs16_ferra"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=ferrari_2025]",
+   "set": {
+    "_metadata_": "cs16_ferrari",
+    "bundle_name": "cs16_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=honda_2025]",
+   "set": {
+    "_metadata_": "cs16_honda___",
+    "bundle_name": "cs16_honda___"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=mercedes_2025]",
+   "set": {
+    "_metadata_": "cs16_mercede",
+    "bundle_name": "cs16_mercede"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=mercedes_2025]",
+   "set": {
+    "_metadata_": "cs16_mercedes",
+    "bundle_name": "cs16_mercedes"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=renault_2025]",
+   "set": {
+    "_metadata_": "cs16_renau",
+    "bundle_name": "cs16_renau"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=renault_2025]",
+   "set": {
+    "_metadata_": "cs16_renault",
+    "bundle_name": "cs16_renault"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.animation.driver_animation_sets",
    "from": "entrants.animation.driver_animation_sets.driver_animation_set[_metadata_=f1_2025]",
    "set": {

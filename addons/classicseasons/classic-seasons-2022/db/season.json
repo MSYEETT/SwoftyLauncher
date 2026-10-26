@@ -578,6 +578,42 @@
  "ops": [
   {
    "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=ferrari_2025]",
+   "set": {
+    "_metadata_": "cs22_ferrari",
+    "bundle_name": "cs22_ferrari"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=honda_2025]",
+   "set": {
+    "_metadata_": "cs22_honda",
+    "bundle_name": "cs22_honda"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=mercedes_2025]",
+   "set": {
+    "_metadata_": "cs22_mercedes",
+    "bundle_name": "cs22_mercedes"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "audio.audio_bundle_settings",
+   "from": "audio.audio_bundle_settings.audio_bundle_settings[_metadata_=renault_2025]",
+   "set": {
+    "_metadata_": "cs22_renault",
+    "bundle_name": "cs22_renault"
+   }
+  },
+  {
+   "op": "add-row",
    "table": "entrants.vehicles.vehicle_packages",
    "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
    "set": {
