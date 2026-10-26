@@ -962,7 +962,8 @@ struct Weekend {
     uint8_t _pad_0x30[0x1f0];
     Session *sessions_begin; // L2 experimental
     Session *sessions_end; // L2 experimental
-    uint8_t _pad_0x230[0xc];
+    uint8_t _pad_0x230[0x8];
+    uint32_t current_session; // L2 experimental
     uint32_t progress_state; // L2 experimental
     uint8_t _pad_0x240[0x38];
     uint8_t track_stat_id; // L2 experimental
@@ -972,6 +973,7 @@ static_assert(offsetof(Weekend, vtable) == 0x0);
 static_assert(offsetof(Weekend, name) == 0x28);
 static_assert(offsetof(Weekend, sessions_begin) == 0x220);
 static_assert(offsetof(Weekend, sessions_end) == 0x228);
+static_assert(offsetof(Weekend, current_session) == 0x238);
 static_assert(offsetof(Weekend, progress_state) == 0x23c);
 static_assert(offsetof(Weekend, track_stat_id) == 0x278);
 static_assert(sizeof(Weekend) == 0x4f0);

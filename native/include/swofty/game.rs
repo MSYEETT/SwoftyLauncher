@@ -1556,7 +1556,8 @@ pub struct Weekend {
     _pad_0x30: [u8; 0x1f0],
     pub sessions_begin: *mut Session,
     pub sessions_end: *mut Session,
-    _pad_0x230: [u8; 0xc],
+    _pad_0x230: [u8; 0x8],
+    pub current_session: u32,
     pub progress_state: u32,
     _pad_0x240: [u8; 0x38],
     pub track_stat_id: u8,
@@ -1566,6 +1567,7 @@ const _: () = assert!(core::mem::offset_of!(Weekend, vtable) == 0x0);
 const _: () = assert!(core::mem::offset_of!(Weekend, name) == 0x28);
 const _: () = assert!(core::mem::offset_of!(Weekend, sessions_begin) == 0x220);
 const _: () = assert!(core::mem::offset_of!(Weekend, sessions_end) == 0x228);
+const _: () = assert!(core::mem::offset_of!(Weekend, current_session) == 0x238);
 const _: () = assert!(core::mem::offset_of!(Weekend, progress_state) == 0x23c);
 const _: () = assert!(core::mem::offset_of!(Weekend, track_stat_id) == 0x278);
 const _: () = assert!(core::mem::size_of::<Weekend>() == 0x4f0);
@@ -1815,6 +1817,8 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
     wear_scale: f32,
 ) -> u32;
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
+pub type Sess_Weekend_Start_t =
+    unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
@@ -2309,6 +2313,11 @@ pub mod bindings {
     };
     pub const Sess_WeatherComponent_SetSystemRandomSeed: Binding = Binding {
         id: "Sess_WeatherComponent_SetSystemRandomSeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Weekend_Start: Binding = Binding {
+        id: "Sess_Weekend_Start",
         kind: "func",
         status: Status::Experimental,
     };
