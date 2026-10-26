@@ -18,6 +18,7 @@ struct GameMessageBusHolder;
 struct GameModeContext;
 struct GdbStringRecord;
 struct NeMessageBus;
+struct SaveDataContainer;
 }
 
 namespace runtime::layout {
@@ -61,10 +62,19 @@ concept message_bus = requires(H *h, B *b) {
     b->active;
 };
 
+template <class C>
+concept save_container = requires(C *c) {
+    c->vtable;
+    c->retain_unknown;
+    c->retain_unknown_key;
+    c->retained_count;
+};
+
 inline constexpr bool FLOW = flow_state<g::FlowState>;
 inline constexpr bool GDB_STRING = gdb_string<g::GdbStringRecord>;
 inline constexpr bool CAREER = career_chain<g::GameManager, g::GameModeContext, g::ChampionshipHolder, g::CareerEntity>;
 inline constexpr bool ENTRANT = entrant<g::EntrantRecord>;
 inline constexpr bool BUS = message_bus<g::GameMessageBusHolder, g::NeMessageBus>;
+inline constexpr bool SAVE_CONTAINER = save_container<g::SaveDataContainer>;
 
 }

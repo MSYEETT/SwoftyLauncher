@@ -54,6 +54,20 @@ static_assert(offsetof(NeSharedCtrl, vtable) == 0x0);
 static_assert(offsetof(NeSharedCtrl, strong) == 0x8);
 static_assert(offsetof(NeSharedCtrl, weak) == 0xc);
 
+struct SaveDataContainer {
+    void **vtable; // L2 experimental
+    uint8_t _pad_0x8[0xf8];
+    uint8_t retain_unknown; // L2 experimental
+    uint8_t _pad_0x101[0x7];
+    uint64_t retain_unknown_key; // L2 experimental
+    uint8_t _pad_0x110[0xb8];
+    uint64_t retained_count; // L2 experimental
+};
+static_assert(offsetof(SaveDataContainer, vtable) == 0x0);
+static_assert(offsetof(SaveDataContainer, retain_unknown) == 0x100);
+static_assert(offsetof(SaveDataContainer, retain_unknown_key) == 0x108);
+static_assert(offsetof(SaveDataContainer, retained_count) == 0x1c8);
+
 using Ne_Compare_StringNoCase_t = int32_t(const char *a, const char *b);
 inline constexpr fn<"Ne_Compare_StringNoCase", Ne_Compare_StringNoCase_t> Ne_Compare_StringNoCase{}; // L2 experimental, _stricmp
 using Ne_Detach_ChildNode_t = int(void *parent, void *child);

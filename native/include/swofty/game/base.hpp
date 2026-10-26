@@ -77,6 +77,7 @@ struct RenownAwardedMessage;
 struct RenownConfig;
 struct ResourcePointsComponent;
 struct RnDDepartmentConfig;
+struct SaveDataContainer;
 struct Season;
 struct Session;
 struct SponsorEntry;

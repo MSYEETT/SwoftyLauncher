@@ -1070,6 +1070,21 @@ const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, driver_wall
 const _: () = assert!(core::mem::offset_of!(ResourcePointsComponent, team_wallets) == 0x528);
 
 #[repr(C)]
+pub struct SaveDataContainer {
+    pub vtable: *mut *mut c_void,
+    _pad_0x8: [u8; 0xf8],
+    pub retain_unknown: u8,
+    _pad_0x101: [u8; 0x7],
+    pub retain_unknown_key: u64,
+    _pad_0x110: [u8; 0xb8],
+    pub retained_count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, vtable) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown) == 0x100);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown_key) == 0x108);
+const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retained_count) == 0x1c8);
+
+#[repr(C)]
 pub struct Season {
     pub vtable: *mut *mut c_void,
     _pad_0x8: [u8; 0x218],
@@ -1703,6 +1718,19 @@ pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
 pub type Game_Rnd_FillVehicleUpgrades_t =
     unsafe extern "C" fn(component: *mut c_void, car: u8, a3: u8, a4: u8);
+pub type Game_SaveData_DeserialiseContainer_t = unsafe extern "C" fn(
+    self_: *mut SaveDataContainer,
+    result: *mut c_int,
+    bag: *mut c_void,
+    reset_on_error: u8,
+    groups: u64,
+) -> *mut c_int;
+pub type Game_SaveData_SerialiseContainer_t = unsafe extern "C" fn(
+    self_: *mut SaveDataContainer,
+    result: *mut c_int,
+    bag: *mut c_void,
+    groups: u64,
+) -> *mut c_int;
 pub type Game_SeasonLength_ApplyPreset_t = unsafe extern "C" fn(component: *mut c_void, preset: u8);
 pub type Game_SeasonLength_PushCalendarEntry_t =
     unsafe extern "C" fn(calendar: *mut c_void, entry: *const c_void) -> u64;
@@ -2115,6 +2143,16 @@ pub mod bindings {
     };
     pub const Game_Rnd_FillVehicleUpgrades: Binding = Binding {
         id: "Game_Rnd_FillVehicleUpgrades",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SaveData_DeserialiseContainer: Binding = Binding {
+        id: "Game_SaveData_DeserialiseContainer",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_SaveData_SerialiseContainer: Binding = Binding {
+        id: "Game_SaveData_SerialiseContainer",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3535,6 +3573,11 @@ pub mod bindings {
     };
     pub const vt_Game_DriverCareerSlotPredicate: Binding = Binding {
         id: "vt_Game_DriverCareerSlotPredicate",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Game_SaveDataRootContainer: Binding = Binding {
+        id: "vt_Game_SaveDataRootContainer",
         kind: "vtable",
         status: Status::Experimental,
     };

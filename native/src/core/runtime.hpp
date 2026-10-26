@@ -126,6 +126,8 @@ void career_content_tick();
 const SwoftyEra *era_table();
 std::vector<CoreMixins> era_mixins();
 void era_commit();
+std::vector<CoreMixins> save_keep_mixins();
+void save_keep_commit();
 void hud_setup();
 void focus_setup();
 void hud_fatal();
