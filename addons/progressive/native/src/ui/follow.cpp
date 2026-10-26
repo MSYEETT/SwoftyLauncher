@@ -7,7 +7,11 @@
 // this season) in a Progressive career whose team moves are follow_driver, with one human, the
 // player signs a one-season contract with the game's own
 // Career_Build_DriverContract + Career_Sign_DriverContract (type 0, the screen's recommended target)
-// and the negotiation scene passes straight through (Intro and Outro skip, Update leaves at once):
+// and the whole contract scene passes straight through (scene_logic.hpp): at the end of his contract
+// the team select (Game_ContractTeamSelect_*, entered first then) returns the continue link without
+// its screen, the agent intro cutscene (Intro) and the outro skip, and the contract terms screen
+// (Update) enters idle and leaves at once. The outro logs where it was skipped, the steps that passed
+// through and the contract signed. The team signed:
 //   - no active contract (a new career, or a save from before its first contract): his real team of
 //     the career's current year (ProgressiveRealTeam: start + season index), whatever seat the
 //     save still shows; his current team when he did not race that year;
@@ -49,6 +53,7 @@
 #include <swofty/mixin.hpp>
 
 #include "../meetings_logic.hpp"
+#include "../scene_logic.hpp"
 
 SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 
@@ -77,8 +82,9 @@ constexpr size_t kCachedEntry = 0x38;
 constexpr uintptr_t kCachedKind = 0x2c;
 constexpr uintptr_t kCachedStat = 0x2e;
 
-bool g_skip = false;
-bool g_update_skipped = false;
+namespace sc = progressive::scene;
+
+sc::Skip g_scene;
 
 template <class T> T rdv(uintptr_t a, T def = T{})
 {
@@ -260,6 +266,8 @@ bool sign(uintptr_t contracts)
                 rdv<int32_t>(reinterpret_cast<uintptr_t>(buf) + kContractSeasons),
                 rdv<int32_t>(reinterpret_cast<uintptr_t>(buf) + kContractEnd),
                 ok ? "signed or cached for the season change" : "NOT signed");
+    if (ok)
+        g_scene.arm(active, team, year, target);
     return ok;
 }
 
@@ -401,6 +409,7 @@ void on_career(const SwoftyEvent *ev, void *)
 {
     if (!std::strcmp(ev->name, SWOFTY_EVENT_CAREER_UNLOADED)) {
         g_meetings.reset();
+        g_scene.clear();
         return;
     }
     if (ev->a == 1 && static_cast<swofty::career::Mode>(ev->b) == swofty::career::Mode::driver_career)
@@ -412,7 +421,7 @@ void on_career(const SwoftyEvent *ev, void *)
 SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t *link)
 {
     uint32_t *r = orig(state, link);
-    g_skip = false;
+    g_scene.clear();
     if (!link || *link != kLinkNegotiate || !swofty::career::is(kGroup))
         return r;
     if (follow_mode() != 1) {
@@ -426,20 +435,44 @@ SWOFTY_WRAP(Career_Decide_ContractNegotiation, uint32_t *, void *state, uint32_t
         swofty::career::component_by_desc(k_Career_DriverCareerContractsManagerComponentDesc.get()));
     if (!contracts)
         return r;
-    g_skip = sign(contracts);
-    if (g_skip)
-        swofty::log("[progressive] follow: skipping the negotiation scene (continue link 0x%08x)", continue_link());
+    if (sign(contracts))
+        swofty::log("[progressive] follow: skipping the contract scene (%s; continue link 0x%08x)", g_scene.where().c_str(),
+                    continue_link());
     return r;
+}
+
+SWOFTY_WRAP(Game_ContractTeamSelect_OnEnter, uint64_t, void *state)
+{
+    if (!g_scene.on)
+        return orig(state);
+    g_scene.mark(sc::kTeamSelect);
+    return 1;
+}
+
+SWOFTY_WRAP(Game_ContractTeamSelect_OnUpdate, uint32_t *, void *state, uint32_t *link)
+{
+    if (!g_scene.on)
+        return orig(state, link);
+    *link = continue_link();
+    return link;
+}
+
+SWOFTY_WRAP(Game_ContractTeamSelect_OnExit, uint64_t, void *state)
+{
+    return g_scene.on ? 1 : orig(state);
 }
 
 SWOFTY_WRAP(Career_ContractIntro_OnEnter, uint64_t, void *state)
 {
-    return g_skip ? 1 : orig(state);
+    if (!g_scene.on)
+        return orig(state);
+    g_scene.mark(sc::kIntro);
+    return 1;
 }
 
 SWOFTY_WRAP(Career_ContractIntro_OnUpdate, uint32_t *, void *state, uint32_t *link)
 {
-    if (!g_skip)
+    if (!g_scene.on)
         return orig(state, link);
     *link = continue_link();
     return link;
@@ -447,20 +480,21 @@ SWOFTY_WRAP(Career_ContractIntro_OnUpdate, uint32_t *, void *state, uint32_t *li
 
 SWOFTY_WRAP(Career_ContractUpdate_OnEnter, uint64_t, void *state)
 {
-    if (!g_skip)
+    if (!g_scene.on)
         return orig(state);
     auto *s = static_cast<uint8_t *>(state);
     s[0xd58] = 1;
     s[0xd5a] = 0;
     s[0xd5b] = 0;
     std::memset(s + 0xd60, 0, 0x10);
-    g_update_skipped = true;
+    g_scene.update_skipped = true;
+    g_scene.mark(sc::kTerms);
     return 1;
 }
 
 SWOFTY_WRAP(Career_ContractUpdate_OnUpdate, uint32_t *, void *state, uint32_t *link)
 {
-    if (!g_update_skipped)
+    if (!g_scene.update_skipped)
         return orig(state, link);
     *link = continue_link();
     return link;
@@ -468,24 +502,27 @@ SWOFTY_WRAP(Career_ContractUpdate_OnUpdate, uint32_t *, void *state, uint32_t *l
 
 SWOFTY_WRAP(Career_ContractUpdate_OnExit, uint64_t, void *state)
 {
-    if (!g_update_skipped)
+    if (!g_scene.update_skipped)
         return orig(state);
-    g_update_skipped = false;
+    g_scene.update_skipped = false;
     return 1;
 }
 
 SWOFTY_WRAP(Career_ContractOutro_OnEnter, uint64_t, void *state)
 {
-    return g_skip ? 1 : orig(state);
+    if (!g_scene.on)
+        return orig(state);
+    g_scene.mark(sc::kOutro);
+    return 1;
 }
 
 SWOFTY_WRAP(Career_ContractOutro_OnUpdate, uint32_t *, void *state, uint32_t *link)
 {
-    if (!g_skip)
+    if (!g_scene.on)
         return orig(state, link);
     *link = continue_link();
-    g_skip = false;
-    swofty::log("[progressive] follow: negotiation scene skipped");
+    swofty::log("[progressive] follow: %s", g_scene.summary().c_str());
+    g_scene.clear();
     return link;
 }
 
