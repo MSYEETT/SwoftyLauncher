@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Contact sheet of the face map (head_d) of every driver whose head data/seasons.json sets: a shipped head from
 heads/ (tools/heads.py), or a stock generic head from the game folder. With --generic, every stock male generic head
-(male_ls<n>) instead, with its hair texture set and its hair colour swatch.
+(male_ls<n>) instead, with its hair texture set and its hair colour swatch. With --donors, every stock scanned male
+head (heads/male_driver/) of no driver of a Classic Seasons season.
 
-usage: head_sheet.py --out <png> [--generic] [--game <F1 25>] [--baseline <launcher baseline>/<build>]
+usage: head_sheet.py --out <png> [--generic | --donors] [--game <F1 25>] [--baseline <launcher baseline>/<build>]
 """
 
 import argparse
@@ -47,10 +48,12 @@ def archive(head, stock):
 
 def face(path, game):
     e = erpw.Erp(str(path))
+    folders = {r.name.split("/")[5] for r in e.res if r.name.endswith("?model") and "/heads/male_" in r.name
+               and "/kitpart_" not in r.name}
+    images = [r for r in e.res if r.name.endswith("_head_d.tif.image") and "/heads/male_" in r.name]
+    own = [r for r in images if r.name.split("/")[5] in folders and r.name.split("/")[4] != "head_template"]
     best = None
-    for r in e.res:
-        if not r.name.endswith("_head_d.tif.image") or "/heads/male_" not in r.name:
-            continue
+    for r in own if any(r.name.rsplit("/", 1)[-1].startswith(r.name.split("/")[5]) for r in own) else images:
         img = bcn.top_level([heads.frag(r, i) for i in range(len(r.frags))], [heads.OUT, game])
         if best is None or img.shape[0] > best[1].shape[0]:
             best = (r.name.rsplit("/", 1)[-1], img)
@@ -74,6 +77,55 @@ def hair(path, game):
     r = res[swatch + ".image"]
     img = bcn.top_level([heads.frag(r, i) for i in range(len(r.frags))], game)
     return style, swatch.rsplit("/", 1)[-1][len("hair_swatch_"):-len("_et.tif")], img
+
+
+def small_face(path, stock, want=512):
+    e = erpw.Erp(str(path))
+    for r in e.res:
+        if not r.name.endswith("_head_d.tif.image") or "/heads/male_" not in r.name:
+            continue
+        frags = [heads.frag(r, i) for i in range(len(r.frags))]
+        fmt, w, h, _ = bcn.Surface.header(frags[0])
+        if len(frags) > 2 and frags[2] and frags[2][0]:
+            side_path, side = bcn.sidecar(frags[2])
+            n = len(side)
+            k = next((k for k in range(n) if (w << (n - k)) <= want), None)
+            if k is not None:
+                full = stock.path(side_path)
+                return bcn.decode(fmt, bcn.read_level(full, side[k]), w << (n - k), h << (n - k))
+        return bcn.decode(fmt, frags[1], w, h)
+    sys.exit(f"{path}: no head_d surface")
+
+
+def donors(game, stock):
+    seasons = json.loads((heads.ROOT / "data" / "seasons.json").read_text())
+    grid = {d for s in seasons["seasons"] for team in s["teams"] for d, _ in team["drivers"]}
+    folder = Path(game) / f"2025_asset_groups/{heads.SCENES}/heads"
+    out = []
+    for p in sorted(folder.glob("*.erp")):
+        label = p.stem
+        if label.startswith(("male_", "female_", "cs_")) or label in grid or label.endswith("_malerig"):
+            continue
+        names = {r.name for r in erpw.Erp(str(stock.path(f"2025_asset_groups/{heads.SCENES}/heads/{p.name}"))).res}
+        if any(n.startswith(f"eaid://character_package/heads/male_driver/{label}/idf/") and n.endswith("?model")
+               for n in names):
+            out.append(label)
+    return out
+
+
+def donor_sheet(out, game, stock):
+    labels = donors(game, stock)
+    rows = (len(labels) + COLS - 1) // COLS
+    sheet = Image.new("RGB", (TILE * COLS, (TILE + 20) * rows), (24, 24, 24))
+    draw = ImageDraw.Draw(sheet)
+    for n, head in enumerate(labels):
+        img = small_face(stock.path(f"2025_asset_groups/{heads.SCENES}/heads/{head}.erp"), stock)
+        x, y = TILE * (n % COLS), (TILE + 20) * (n // COLS)
+        sheet.paste(Image.fromarray(np.asarray(img)[..., :3]).resize((TILE, TILE), Image.LANCZOS), (x, y + 20))
+        draw.text((x + 4, y + 3), head, fill=(255, 255, 255))
+        print(head)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out)
 
 
 def generic_sheet(out, game, stock):
@@ -111,11 +163,14 @@ def main():
     ap.add_argument("--game", default="/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
     ap.add_argument("--baseline", default=heads.BASELINE)
     ap.add_argument("--generic", action="store_true", help="every stock male generic head instead")
+    ap.add_argument("--donors", action="store_true", help="every stock scanned male head of no season driver instead")
     a = ap.parse_args()
     baseline = Path(a.baseline).expanduser()
     stock = Stock(a.game, baseline if (baseline / "baseline.json").is_file() else None)
     if a.generic:
         return generic_sheet(a.out, a.game, stock)
+    if a.donors:
+        return donor_sheet(a.out, a.game, stock)
     rows = drivers()
     sheet = Image.new("RGB", (TILE * COLS, (TILE + 34) * ((len(rows) + COLS - 1) // COLS)), (24, 24, 24))
     draw = ImageDraw.Draw(sheet)
