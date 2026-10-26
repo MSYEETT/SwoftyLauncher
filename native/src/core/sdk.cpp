@@ -280,6 +280,7 @@ void ready()
     telemetry_setup();
     net_trace_setup();
     netplay_setup();
+    netplay_drive_setup();
     perf::start();
 }
 
