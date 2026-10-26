@@ -10,9 +10,13 @@
 //                 same fraction of the season, real round k of N -> round(k * M / N) of M. Real round
 //                 1 is always career round 1. Over the changes in real order the rounds never go back.
 //   window        a change is due from its career round; a change with `until` ends at the career
-//                 round of the real round the regular driver came back, or, when that is not later,
-//                 after as many career races as it lasted in real life. A stand-in never lasts more
-//                 career races than real ones (a one-off: the next race brings the regular back).
+//                 round of the real round the regular driver came back (the same mapping as a start),
+//                 or, when that is not later than the start, after its real races scaled to the
+//                 season (k of N real races -> round(k * M / N)), at least one. A stand-in never lasts
+//                 more career races than real ones, so a one-off gets one race and the regular is back
+//                 at the next. A change that started before the season's last race always ends by it:
+//                 the regular gets the last race back at the latest (on the last race itself the
+//                 stand-in races it and the regular misses it).
 //   keep          the player is never swapped out: a stand-in involving his driver (in or out) is
 //                 skipped, and so is a change taking his driver out of a seat unless the same round
 //                 moves his driver into another seat (follow mode moves the player with it; in
@@ -160,9 +164,20 @@ inline std::vector<Window> windows(const Year &y, const std::vector<int> &career
             floor_round = from;
         w[i].from = from;
         if (c.until > c.round) {
+            int m = static_cast<int>(career.size()), n = static_cast<int>(y.real_tracks.size());
             int back = career_round(y.real_tracks, c.until, career);
             int races = c.until - c.round;
-            w[i].to = back <= from ? from + races : c.kind == "stand_in" ? std::min(back, from + races) : back;
+            int to = back;
+            if (back <= from) {
+                int scaled = m > 0 && n > 0 ? static_cast<int>(std::floor(static_cast<double>(races) * m / n + 0.5))
+                                            : races;
+                to = from + std::max(1, std::min(races, scaled));
+            }
+            if (c.kind == "stand_in")
+                to = std::min(to, from + races);
+            if (m > 0 && from < m)
+                to = std::min(to, m);
+            w[i].to = std::max(to, from + 1);
         }
     }
     return w;

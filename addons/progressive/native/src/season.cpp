@@ -997,7 +997,9 @@ void log_schedule(const store::Career &c, const midseason::At &at, const season:
             continue;
         const midseason::Window &w = at.windows[i];
         std::string until = w.to >= midseason::kOpen ? std::string("for the rest of the season")
-                                                     : "back at career round " + std::to_string(w.to);
+                            : w.to > static_cast<int>(at.career.size())
+                                ? "to the season's end; the regular misses the last race"
+                                : "back at career round " + std::to_string(w.to);
         swofty::log("[progressive] mid-season %d round %d: %s (%s)", at.year, w.from, change_text(*y, ch, r).c_str(),
                     until.c_str());
     }
@@ -1056,7 +1058,8 @@ void log_changes(const store::Career &c, const midseason::At &at, const season::
             if (ch.id == id)
                 swofty::log("[progressive] mid-season %d round %d: %s's drive at %s ended; %s",
                             at.year, at.round, ch.in.c_str(), seat_text(ch.slot, ch.seat).c_str(),
-                            ch.until && at.real_round >= ch.until ? (ch.out + " is back").c_str()
+                            ch.until && (at.windows.empty() || at.round >= at.windows[&ch - y->changes.data()].to)
+                                ? (ch.out + " is back").c_str()
                                                                   : "the seat follows the line-up at this round");
     }
 }

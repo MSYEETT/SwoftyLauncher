@@ -33,6 +33,8 @@ season::Data g_data;
 
 const std::vector<int> kLong = {0, 2, 13, 3, 29, 30, 6, 5, 4, 17, 7, 10, 9, 26, 11, 42, 20, 12, 15, 19, 16, 31, 32, 14};
 const std::vector<int> kShort = {0, 13, 3, 17, 7, 10, 11, 42, 16, 31};
+const std::vector<int> kMedium = {0, 2, 13, 3, 30, 6, 17, 7, 10, 26, 11, 42, 16, 31, 32, 14};
+const std::vector<int> kTest = {0, 13, 3};
 
 int stat(const std::string &label)
 {
@@ -448,6 +450,103 @@ void changes_fill_an_empty_seat()
     EXPECT(kvyat && max);
 }
 
+// Every change ends inside the season, whatever its length: on the 3-race test calendar of
+// swofty's 2016 career (tracks 0,13,3) Kvyat and Verstappen swapped back at career round 5 and
+// Alonso came back at round 4, after the season.
+int rounds_with(int year, const std::vector<int> &cal, int slot1, int position, const std::string &driver,
+                int *first = nullptr, int *last = nullptr)
+{
+    int count = 0;
+    if (first)
+        *first = -1;
+    if (last)
+        *last = -1;
+    for (int n = 1; n <= static_cast<int>(cal.size()); ++n)
+        if (seat(midseason::at_round(g_data, year, cal, n, player_is("")), slot1, position) == driver) {
+            ++count;
+            if (first && *first < 0)
+                *first = n;
+            if (last)
+                *last = n;
+        }
+    return count;
+}
+
+void ends_scale_to_the_season()
+{
+    const std::vector<int> two = {0, 14};
+    for (auto *cal : {&two, &kTest, &kShort, &kMedium, &kLong}) {
+        int m = static_cast<int>(cal->size());
+        int first = 0, last = 0;
+        EXPECT(seat(midseason::at_round(g_data, 2016, *cal, 1, player_is("")), 3, 1) == "daniil_kvyat");
+        EXPECT(seat(midseason::at_round(g_data, 2016, *cal, 1, player_is("")), 8, 1) == "max_verstappen");
+        EXPECT(rounds_with(2016, *cal, 3, 1, "max_verstappen", &first) >= 1 && first >= 2 && first <= m);
+        EXPECT(seat(midseason::at_round(g_data, 2016, *cal, m, player_is("")), 3, 1) == "max_verstappen");
+        EXPECT(seat(midseason::at_round(g_data, 2016, *cal, m, player_is("")), 8, 1) == "daniil_kvyat");
+        EXPECT(rounds_with(2016, *cal, 4, 0, "stoffel_vandoorne", &first) == 1);
+        if (first < m)
+            EXPECT(seat(midseason::at_round(g_data, 2016, *cal, first + 1, player_is("")), 4, 0) == "fernando_alonso");
+        EXPECT(rounds_with(2016, *cal, 11, 1, "esteban_ocon", &first, &last) >= 1 && last == m);
+
+        if (career_round(g_data.year(2019)->real_tracks, 13, *cal) > 1)
+            EXPECT(seat(midseason::at_round(g_data, 2019, *cal, 1, player_is("")), 3, 1) == "pierre_gasly");
+        else
+            EXPECT(m == 2);
+        EXPECT(seat(midseason::at_round(g_data, 2019, *cal, m, player_is("")), 3, 1) == "alex_albon");
+        EXPECT(seat(midseason::at_round(g_data, 2019, *cal, m, player_is("")), 8, 1) == "pierre_gasly");
+
+        EXPECT(rounds_with(2020, *cal, 1, 0, "george_russell", &first) == 1);
+        int aitken = 0;
+        EXPECT(rounds_with(2020, *cal, 7, 0, "jack_aitken", &aitken) == 1 && aitken == first);
+        if (first < m) {
+            auto back = midseason::at_round(g_data, 2020, *cal, first + 1, player_is(""));
+            EXPECT(seat(back, 1, 0) == "lewis_hamilton" && seat(back, 7, 0) == "george_russell");
+        }
+
+        for (int year = 2016; year <= 2025; ++year) {
+            const season::Year *y = g_data.year(year);
+            auto w = midseason::windows(*y, *cal, std::vector<bool>(y->changes.size(), true));
+            for (size_t i = 0; i < y->changes.size(); ++i) {
+                EXPECT(w[i].from >= 1 && w[i].from <= m && w[i].to > w[i].from);
+                if (y->changes[i].until && w[i].from < m)
+                    EXPECT(w[i].to <= m);
+                if (y->changes[i].kind == "stand_in")
+                    EXPECT(w[i].to - w[i].from <= y->changes[i].until - y->changes[i].round);
+            }
+        }
+    }
+    const season::Year *y = g_data.year(2016);
+    auto w = midseason::windows(*y, kTest, std::vector<bool>(y->changes.size(), true));
+    int k = change(2016, "2016-r1-s3b-daniil_kvyat"), v = change(2016, "2016-r2-s4a-stoffel_vandoorne");
+    EXPECT(w[k].from == 1 && w[k].to == 2);
+    EXPECT(w[v].from == 3 && w[v].to == 4);
+}
+
+void ends_follow_the_player()
+{
+    season::Resolve r = resolver();
+    auto rows = rows_for(season_seats(2016), "max_verstappen");
+    auto is = player_is("max_verstappen");
+    auto opening = midseason::at_round(g_data, 2016, kTest, 1, is);
+    season::Plan p1 = season::plan(g_data, 2016, rows, r, true, &opening.line_up, &opening.line_up);
+    EXPECT(p1.player_moves && in_slot(p1, 8, "max_verstappen"));
+    auto r2 = midseason::at_round(g_data, 2016, kTest, 2, is);
+    season::Plan p2 = season::plan(g_data, 2016, after(p1, rows), r, true, &r2.line_up, &opening.line_up);
+    EXPECT(p2.player_moves && in_slot(p2, 3, "max_verstappen") && in_slot(p2, 8, "daniil_kvyat"));
+
+    auto seats = season_seats(2016);
+    seats[2][1] = "lewis_hamilton";
+    seats[0][0] = "max_verstappen";
+    auto hrows = rows_for(seats, "lewis_hamilton");
+    auto his = player_is("lewis_hamilton");
+    auto ho = midseason::at_round(g_data, 2016, kTest, 1, his);
+    season::Plan h1 = season::plan(g_data, 2016, hrows, r, false, &ho.line_up, &ho.line_up);
+    EXPECT(in_slot(h1, 1, "daniil_kvyat") && in_slot(h1, 3, "lewis_hamilton"));
+    auto h2 = midseason::at_round(g_data, 2016, kTest, 2, his);
+    season::Plan p = season::plan(g_data, 2016, after(h1, hrows), r, false, &h2.line_up, &ho.line_up);
+    EXPECT(in_slot(p, 1, "max_verstappen") && in_slot(p, 8, "daniil_kvyat") && in_slot(p, 3, "lewis_hamilton"));
+}
+
 void recorded_ids_round_trip()
 {
     auto a = midseason::at_round(g_data, 2016, kLong, 4, player_is(""));
@@ -479,6 +578,8 @@ int main(int argc, char **argv)
     follow_moves_the_player_with_his_driver();
     choose_fits_changes_around_the_player();
     changes_fill_an_empty_seat();
+    ends_scale_to_the_season();
+    ends_follow_the_player();
     recorded_ids_round_trip();
     if (failures) {
         std::printf("midseason_logic_test: %d failure(s)\n", failures);
