@@ -167,6 +167,14 @@
       "team_moves"
     ]
   },
+  "hub_tab": {
+    "name": "progressive",
+    "title": "Progressive Settings",
+    "options": [
+      "rnd_mode"
+    ],
+    "data_group": "f1_career_progressive"
+  },
   "operations": {
     "database": [
       "db/career.json",

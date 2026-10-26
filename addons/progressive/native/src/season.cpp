@@ -28,6 +28,7 @@
 
 #include <swofty/career.hpp>
 #include <swofty/career_content.hpp>
+#include <swofty/hub.hpp>
 #include <swofty/hud.hpp>
 #include <swofty/lang.hpp>
 #include <swofty/events.hpp>
@@ -684,13 +685,38 @@ bool progressive_career()
     return swofty::career::is(kGroup);
 }
 
-void season_loaded(const swofty::career::State &)
+// The Team HQ tab (manifest hub_tab, built by the core) shows rnd_mode, which is a profile option:
+// on load the career's own mode is pushed into it, and a Real-life career keeps the R&D tab out of the
+// laptop (the core's hide_rnd, applied when the laptop is built at Team HQ entry).
+void hub_sync(const std::string &rnd, const char *why)
+{
+    swofty::hub::Result h = swofty::hub::hide_rnd(rnd == "real_life");
+    swofty::hub::Result o = rnd_option() == rnd ? swofty::hub::Result::ok
+                                                : swofty::hub::set_option("swofty.progressive", "rnd_mode", rnd);
+    swofty::log("[progressive] Team HQ tab (%s): R&D %s, R&D tab %s (%s), option %s", why, rnd.c_str(),
+                rnd == "real_life" ? "hidden" : "shown", swofty::hub::name(h), swofty::hub::name(o));
+}
+
+void season_loaded(const swofty::career::State &state)
 {
     if (!progressive_career()) {
         clear_names();
+        swofty::hub::hide_rnd(false);
         return;
     }
     names::load();
+    uintptr_t e = entity();
+    SeasonInfo s;
+    std::vector<Row> rows;
+    if (!e || !season(e, s) || !entrant_rows(e, rows) || !store::load())
+        return;
+    uint32_t player = 0;
+    for (auto &r : rows)
+        if (human(r.rec))
+            player = stat_of(driver_of(r.rec));
+    store::Career *c = career_entry(state, s.index, player);
+    if (c)
+        hub_sync(c->rnd, "career load");
 }
 
 void rnd_option_changed()
@@ -706,6 +732,7 @@ void rnd_option_changed()
     store::save();
     g_rnd = rnd_code(now);
     publish(true, now);
+    hub_sync(now, "R&D changed; the laptop follows at the next Team HQ entry");
     uintptr_t e = entity();
     SeasonInfo s;
     if (now == "hybrid" && e && season(e, s) && data()) {
@@ -732,6 +759,7 @@ void season_unloaded()
 {
     if (!g_current.empty())
         publish(false, "");
+    swofty::hub::hide_rnd(false);
     g_rnd = 0;
     g_current.clear();
     g_standings_pending.clear();
@@ -760,9 +788,7 @@ void season_hub(const swofty::career::State &state)
     if (g_current != c->key) {
         publish(true, c->rnd);
         if (rnd_option() != c->rnd)
-            swofty::log("[progressive] R&D: this career runs %s while the option reads %s; the career's own mode "
-                        "stays (the core has no call to set an option, so the tab shows the option)",
-                        c->rnd.c_str(), rnd_option().c_str());
+            hub_sync(c->rnd, "Team HQ");
     }
     g_current = c->key;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
