@@ -2,6 +2,7 @@ mod build;
 mod db;
 mod doctor;
 mod ea;
+mod mp;
 mod offline;
 mod postfx;
 mod recover;
@@ -145,6 +146,11 @@ enum Command {
         about = "Post-process passes: compile an addon's shaders to check them"
     )]
     Postfx(postfx::PostfxCommand),
+    #[command(
+        subcommand,
+        about = "Multiplayer: the profile's fingerprint, and what to change to match a host's"
+    )]
+    Mp(mp::MpCommand),
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -460,6 +466,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Game(cmd) => game(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Steam { start } => run::steam_check(&store, start),
         Command::Postfx(cmd) => postfx::command(cmd),
+        Command::Mp(cmd) => mp::command(&store, &profile, cmd),
         Command::Update { check } => update::update(check),
     }
 }
