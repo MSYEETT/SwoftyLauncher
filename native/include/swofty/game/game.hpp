@@ -3,11 +3,41 @@
 
 namespace swofty::game {
 
+struct ActivityDef {
+    uint8_t _pad_0x0[0x10];
+    uint8_t type; // L2 experimental
+};
+static_assert(offsetof(ActivityDef, type) == 0x10);
+
+struct CalendarActivity {
+    uint8_t _pad_0x0[0xa];
+    uint16_t day; // L2 experimental
+    uint8_t _pad_0xc[0x4];
+    ActivityDef *activity; // L2 experimental
+    uint8_t _pad_0x18[0x8];
+};
+static_assert(offsetof(CalendarActivity, day) == 0xa);
+static_assert(offsetof(CalendarActivity, activity) == 0x10);
+static_assert(sizeof(CalendarActivity) == 0x20);
+
 struct ChampionshipHolder {
     uint8_t _pad_0x0[0x260];
     CareerEntity *entity; // L2 experimental
 };
 static_assert(offsetof(ChampionshipHolder, entity) == 0x260);
+
+struct DriverCalendar {
+    uint8_t _pad_0x0[0x50];
+    void *activities_begin; // L2 experimental
+    void *activities_end; // L2 experimental
+    uint8_t _pad_0x60[0x60];
+    uint32_t driver; // L2 experimental
+    uint8_t _pad_0xc4[0x4];
+};
+static_assert(offsetof(DriverCalendar, activities_begin) == 0x50);
+static_assert(offsetof(DriverCalendar, activities_end) == 0x58);
+static_assert(offsetof(DriverCalendar, driver) == 0xc0);
+static_assert(sizeof(DriverCalendar) == 0xc8);
 
 struct DriverSecretMeetings {
     uint8_t _pad_0x0[0x10];
@@ -45,6 +75,24 @@ struct GameModeContext {
 };
 static_assert(offsetof(GameModeContext, championship_holder) == 0x88);
 
+struct ScheduleComponent {
+    uint8_t _pad_0x0[0x410];
+    ScheduleSeason *seasons_begin; // L2 experimental
+    ScheduleSeason *seasons_end; // L2 experimental
+};
+static_assert(offsetof(ScheduleComponent, seasons_begin) == 0x410);
+static_assert(offsetof(ScheduleComponent, seasons_end) == 0x418);
+
+struct ScheduleSeason {
+    uint8_t _pad_0x0[0x40];
+    DriverCalendar *driver_calendars_begin; // L2 experimental
+    DriverCalendar *driver_calendars_end; // L2 experimental
+    uint8_t _pad_0x50[0x30];
+};
+static_assert(offsetof(ScheduleSeason, driver_calendars_begin) == 0x40);
+static_assert(offsetof(ScheduleSeason, driver_calendars_end) == 0x48);
+static_assert(sizeof(ScheduleSeason) == 0x80);
+
 struct SecretMeeting {
     uint32_t id; // L2 experimental
     uint8_t _pad_0x4[0x10];
@@ -57,6 +105,10 @@ static_assert(offsetof(SecretMeeting, reason) == 0x14);
 static_assert(offsetof(SecretMeeting, team) == 0x20);
 static_assert(sizeof(SecretMeeting) == 0x24);
 
+using Game_CareerActivities_AddActivity_t = void(void *calendar, const void *activity, uint32_t day);
+inline constexpr fn<"Game_CareerActivities_AddActivity", Game_CareerActivities_AddActivity_t> Game_CareerActivities_AddActivity{}; // L2 experimental
+using Game_CareerActivities_RemoveActivity_t = void(void *calendar, const void *activity, uint16_t day);
+inline constexpr fn<"Game_CareerActivities_RemoveActivity", Game_CareerActivities_RemoveActivity_t> Game_CareerActivities_RemoveActivity{}; // L2 experimental
 using Game_CareerSetup_ResetEntrants_t = void(void *setup);
 inline constexpr fn<"Game_CareerSetup_ResetEntrants", Game_CareerSetup_ResetEntrants_t> Game_CareerSetup_ResetEntrants{}; // L2 experimental
 using Game_CareerWizard_PushNextStep_t = void(void *wizard);

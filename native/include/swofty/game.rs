@@ -122,6 +122,13 @@ const _: () = assert!(core::mem::offset_of!(Action, r#type) == 0x0);
 const _: () = assert!(core::mem::offset_of!(Action, str) == 0x8);
 
 #[repr(C)]
+pub struct ActivityDef {
+    _pad_0x0: [u8; 0x10],
+    pub r#type: u8,
+}
+const _: () = assert!(core::mem::offset_of!(ActivityDef, r#type) == 0x10);
+
+#[repr(C)]
 pub struct BankAccount {
     _pad_0x0: [u8; 0x10],
     pub subs_begin: *mut BankSubAccount,
@@ -195,6 +202,18 @@ const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, time) == 0x2
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, flow) == 0x24);
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, check_funds) == 0x25);
 const _: () = assert!(core::mem::offset_of!(BankTransactionMessage, category) == 0x28);
+
+#[repr(C)]
+pub struct CalendarActivity {
+    _pad_0x0: [u8; 0xa],
+    pub day: u16,
+    _pad_0xc: [u8; 0x4],
+    pub activity: *mut ActivityDef,
+    _pad_0x18: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(CalendarActivity, day) == 0xa);
+const _: () = assert!(core::mem::offset_of!(CalendarActivity, activity) == 0x10);
+const _: () = assert!(core::mem::size_of::<CalendarActivity>() == 0x20);
 
 #[repr(C)]
 pub struct CarNumberComponent {
@@ -429,6 +448,20 @@ const _: () = assert!(core::mem::offset_of!(CurvePoint, y) == 0x4);
 const _: () = assert!(core::mem::size_of::<CurvePoint>() == 0x8);
 
 #[repr(C)]
+pub struct DriverCalendar {
+    _pad_0x0: [u8; 0x50],
+    pub activities_begin: *mut c_void,
+    pub activities_end: *mut c_void,
+    _pad_0x60: [u8; 0x60],
+    pub driver: u32,
+    _pad_0xc4: [u8; 0x4],
+}
+const _: () = assert!(core::mem::offset_of!(DriverCalendar, activities_begin) == 0x50);
+const _: () = assert!(core::mem::offset_of!(DriverCalendar, activities_end) == 0x58);
+const _: () = assert!(core::mem::offset_of!(DriverCalendar, driver) == 0xc0);
+const _: () = assert!(core::mem::size_of::<DriverCalendar>() == 0xc8);
+
+#[repr(C)]
 pub struct DriverCareerContractOwner {
     _pad_0x0: [u8; 0x298],
     pub contracts_begin: *mut c_void,
@@ -447,7 +480,8 @@ pub struct DriverCareerContractsManagerComponent {
     pub career_time: *mut CareerTimeComponent,
     _pad_0x360: [u8; 0x8],
     pub car_numbers: *mut CarNumberComponent,
-    _pad_0x370: [u8; 0x38],
+    pub schedule: *mut ScheduleComponent,
+    _pad_0x378: [u8; 0x30],
     pub secret_meetings_begin: *mut c_void,
     pub secret_meetings_end: *mut c_void,
 }
@@ -456,6 +490,7 @@ const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponen
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, career_time) == 0x358);
 const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
+const _: () = assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, schedule) == 0x370);
 const _: () =
     assert!(core::mem::offset_of!(DriverCareerContractsManagerComponent, secret_meetings_begin) == 0x3a8);
 const _: () =
@@ -1174,6 +1209,26 @@ const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown_ke
 const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retained_count) == 0x1c8);
 
 #[repr(C)]
+pub struct ScheduleComponent {
+    _pad_0x0: [u8; 0x410],
+    pub seasons_begin: *mut ScheduleSeason,
+    pub seasons_end: *mut ScheduleSeason,
+}
+const _: () = assert!(core::mem::offset_of!(ScheduleComponent, seasons_begin) == 0x410);
+const _: () = assert!(core::mem::offset_of!(ScheduleComponent, seasons_end) == 0x418);
+
+#[repr(C)]
+pub struct ScheduleSeason {
+    _pad_0x0: [u8; 0x40],
+    pub driver_calendars_begin: *mut DriverCalendar,
+    pub driver_calendars_end: *mut DriverCalendar,
+    _pad_0x50: [u8; 0x30],
+}
+const _: () = assert!(core::mem::offset_of!(ScheduleSeason, driver_calendars_begin) == 0x40);
+const _: () = assert!(core::mem::offset_of!(ScheduleSeason, driver_calendars_end) == 0x48);
+const _: () = assert!(core::mem::size_of::<ScheduleSeason>() == 0x80);
+
+#[repr(C)]
 pub struct Season {
     pub vtable: *mut *mut c_void,
     _pad_0x8: [u8; 0x218],
@@ -1802,6 +1857,10 @@ pub type FeTile_Press_EraTile_t =
     unsafe extern "C" fn(view_model: *mut c_void, command: *mut c_void) -> *mut c_char;
 pub type FeTile_Route_CareerItem_t =
     unsafe extern "C" fn(item: *mut HomeItem, out: *mut Action) -> *mut Action;
+pub type Game_CareerActivities_AddActivity_t =
+    unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u32);
+pub type Game_CareerActivities_RemoveActivity_t =
+    unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u16);
 pub type Game_CareerSetup_ResetEntrants_t = unsafe extern "C" fn(setup: *mut c_void);
 pub type Game_CareerWizard_PushNextStep_t = unsafe extern "C" fn(wizard: *mut c_void);
 pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
@@ -2211,6 +2270,16 @@ pub mod bindings {
     };
     pub const FeTile_Route_CareerItem: Binding = Binding {
         id: "FeTile_Route_CareerItem",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CareerActivities_AddActivity: Binding = Binding {
+        id: "Game_CareerActivities_AddActivity",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CareerActivities_RemoveActivity: Binding = Binding {
+        id: "Game_CareerActivities_RemoveActivity",
         kind: "func",
         status: Status::Experimental,
     };

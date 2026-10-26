@@ -298,7 +298,8 @@ struct DriverCareerContractsManagerComponent {
     CareerTimeComponent *career_time; // L2 experimental
     uint8_t _pad_0x360[0x8];
     CarNumberComponent *car_numbers; // L2 experimental
-    uint8_t _pad_0x370[0x38];
+    ScheduleComponent *schedule; // L2 experimental
+    uint8_t _pad_0x378[0x30];
     void *secret_meetings_begin; // L2 experimental
     void *secret_meetings_end; // L2 experimental
 };
@@ -307,6 +308,7 @@ static_assert(offsetof(DriverCareerContractsManagerComponent, entity) == 0x278);
 static_assert(offsetof(DriverCareerContractsManagerComponent, contract_owner) == 0x350);
 static_assert(offsetof(DriverCareerContractsManagerComponent, career_time) == 0x358);
 static_assert(offsetof(DriverCareerContractsManagerComponent, car_numbers) == 0x368);
+static_assert(offsetof(DriverCareerContractsManagerComponent, schedule) == 0x370);
 static_assert(offsetof(DriverCareerContractsManagerComponent, secret_meetings_begin) == 0x3a8);
 static_assert(offsetof(DriverCareerContractsManagerComponent, secret_meetings_end) == 0x3b0);
 
