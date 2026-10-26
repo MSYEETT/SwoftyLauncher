@@ -38,8 +38,13 @@ pub const ENV: &str = "SWOFTY_NETPLAY";
 pub const ARMED: &str = "armed";
 /// Whether a game started with [`ENV`] also gets the core's socket trace ([`TRACE_ENV`]).
 pub const TRACE_WHEN_ARMED: bool = true;
-/// The socket trace, capped at 16 MB, written to `<game>/swofty/net-trace.log`.
-pub const TRACE_ENV: [(&str, &str); 2] = [("SWOFTY_NET_TRACE", "1"), ("SWOFTY_NET_TRACE_CAP_KB", "16384")];
+/// The socket trace, capped at 16 MB, written to `<game>/swofty/net-trace.log`, and the game's own
+/// network log channels at info in loader.log.
+pub const TRACE_ENV: [(&str, &str); 3] = [
+    ("SWOFTY_NET_TRACE", "1"),
+    ("SWOFTY_NET_TRACE_CAP_KB", "16384"),
+    ("SWOFTY_GAME_LOG_CHANNELS", "default,NETWORK*:info,SSL*:info"),
+];
 /// The game's `Network.Transport.SocketPort`.
 pub const DEFAULT_GAME_PORT: u16 = 21414;
 /// Where, under the game folder, the core reports the bridge once the game socket is bound.
