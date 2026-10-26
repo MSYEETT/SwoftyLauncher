@@ -479,6 +479,41 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
     return true;
 }
 
+std::string g_standings_pending;
+
+// The driver and constructor standings rows come from the line-up when the game initialises a
+// season's standings (Career_Rebuild_SeasonStandings 0x140ae8040, from the season start and
+// Career_Rebuild_ChampionshipStandings), so drivers the apply seated have no rows until the next
+// init. The championship-wide rebuild clears the four standings of every season and re-inits each
+// one only when its first weekend has sessions; before that it would leave them empty. So it runs
+// once the current season's first weekend has sessions: right after the apply, or at a later Team
+// HQ (the first one after round 1 starts), and the re-init re-applies every session result.
+bool standings_rebuild(uintptr_t e, const char *when)
+{
+    uintptr_t champ = championship(e);
+    Championship ch{};
+    if (!champ || !swofty::mem::read(champ, ch) || !Career_Rebuild_ChampionshipStandings.address())
+        return false;
+    auto b = reinterpret_cast<uintptr_t>(ch.seasons_begin), en = reinterpret_cast<uintptr_t>(ch.seasons_end);
+    size_t n = en > b ? (en - b) / sizeof(ChampionshipSeasonEntry) : 0;
+    if (ch.season_index >= n)
+        return false;
+    ChampionshipSeasonEntry entry{};
+    Season season{};
+    Weekend first{};
+    uintptr_t weekend = 0;
+    if (!swofty::mem::read(b + ch.season_index * sizeof entry, entry) || !entry.season ||
+        !swofty::mem::read(entry.season, season) || !season.weekends_begin || season.weekends_end <= season.weekends_begin ||
+        !swofty::mem::read(reinterpret_cast<uintptr_t>(season.weekends_begin), weekend) || !weekend ||
+        !swofty::mem::read(weekend, first) || !first.sessions_begin || first.sessions_end <= first.sessions_begin)
+        return false;
+    NeOptionalVec none_a{}, none_b{};
+    Career_Rebuild_ChampionshipStandings(reinterpret_cast<uint8_t *>(champ) + offsetof(Championship, list_vtable),
+                                         &none_a, &none_b);
+    swofty::log("[progressive] standings rebuilt from the line-up (%s): Career_Rebuild_ChampionshipStandings", when);
+    return true;
+}
+
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
@@ -508,6 +543,7 @@ void season_unloaded()
 {
     g_rnd = 0;
     g_current.clear();
+    g_standings_pending.clear();
     clear_names();
     g_names_for.clear();
     g_failures = 0;
@@ -546,6 +582,8 @@ void season_hub(const swofty::career::State &state)
         g_names_for = c->key;
         set_names(shown, "career");
     }
+    if (g_standings_pending == c->key && standings_rebuild(e, "first Team HQ with round 1 sessions"))
+        g_standings_pending.clear();
     if (c->applied_season >= static_cast<int>(index))
         return;
     if (entity_busy(e) || g_failures >= 3)
@@ -573,6 +611,12 @@ void season_hub(const swofty::career::State &state)
     c->applied_year = year;
     store::save();
     set_names(year, "season applied");
+    if (standings_rebuild(e, "season applied"))
+        g_standings_pending.clear();
+    else {
+        g_standings_pending = c->key;
+        swofty::log("[progressive] standings: round 1 has no sessions yet; the rebuild waits for a later Team HQ");
+    }
     report("after season apply", state);
 }
 
