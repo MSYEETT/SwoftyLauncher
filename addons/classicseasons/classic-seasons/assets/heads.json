@@ -349,6 +349,43 @@
   },
   {
    "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/stoffel_vandoorne.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/stoffel_vandoorne.erp",
+   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.erp"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_d.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_d.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_n.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_n.tif.2025.mipmaps"
+  },
+  {
+   "op": "file.put",
+   "source": "heads/character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_s.tif.2025.mipmaps",
+   "target": "character_package/heads/male_driver/stoffel_vandoorne/textures/stoffel_vandoorne_head_s.tif.2025.mipmaps"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
+  },
+  {
+   "op": "group.register",
+   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.assetgroup",
+   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.erp",
+   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
+  },
+  {
+   "op": "file.put",
    "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/nico_rosberg.erp",
    "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_nico_rosberg.erp"
   },
@@ -470,28 +507,6 @@
    "op": "group.register",
    "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_esteban_gutierrez.assetgroup",
    "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_esteban_gutierrez.erp",
-   "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
-  },
-  {
-   "op": "file.put",
-   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.erp",
-   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.erp"
-  },
-  {
-   "op": "file.put",
-   "source": "heads/2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.erp",
-   "target": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.erp"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.assetgroup",
-   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_stoffel_vandoorne.erp",
-   "template": "asset_groups/animation_package/scenes/cinematics/drivers/heads/lando_norris.assetgroup"
-  },
-  {
-   "op": "group.register",
-   "group": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.assetgroup",
-   "erp": "2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_stoffel_vandoorne.erp",
    "template": "asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/lando_norris.assetgroup"
   },
   {

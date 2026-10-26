@@ -35,6 +35,13 @@
    "version": null,
    "author": null
   },
+  "stoffel_vandoorne_face_mod": {
+   "zip": "Stoffel_Vandoorne.zip",
+   "root": "F1 25",
+   "title": "Stoffel Vandoorne face mod",
+   "version": null,
+   "author": null
+  },
   "f1_2016_career": {
    "zip": "tails.f1-2016.swoftyaddon",
    "root": "",
@@ -72,6 +79,7 @@
   "rio_haryanto": "rio_haryanto_face_mod",
   "brendon_hartley": "brendon_hartley_face_mod",
   "sergey_sirotkin": "sergey_sirotkin_face_mod",
+  "stoffel_vandoorne": "stoffel_vandoorne_face_mod",
   "nico_rosberg": "f1_2012_season"
  },
  "repair_from": {
@@ -109,13 +117,6 @@
    "base": "rafael_villagomez",
    "code": "cs_esteban_gutier"
   },
-  "stoffel_vandoorne": {
-   "source": "f1_2016_career",
-   "archive": "heads/male_ls204.erp",
-   "face": "male_ls204",
-   "base": "laurens_vanhoepen",
-   "code": "cs_stoffel_vandoo"
-  },
   "pascal_wehrlein": {
    "source": "pascal_wehrlein_f1_2016",
    "mipmaps": "character_package/heads/male_driver/pascal_wehrlein/textures/pascal_wehrlein_head_d.tga.mipmaps",
@@ -127,6 +128,7 @@
   "rio_haryanto": "male_ls222",
   "brendon_hartley": "male_ls222",
   "sergey_sirotkin": "male_ls222",
+  "stoffel_vandoorne": "male_ls222",
   "nico_rosberg": "male_ls222"
  },
  "off": {}

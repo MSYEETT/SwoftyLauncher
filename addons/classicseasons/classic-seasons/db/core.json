@@ -289,6 +289,17 @@
    "table": "entrants.animation.driver_heads",
    "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
+    "_metadata_": "cs_stoffel_vandoorne",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/stoffel_vandoorne/idf/stoffel_vandoorne_rig_head_morph_v1",
+    "has_morph_data": "True",
+    "available_for_customisation": "False"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "entrants.animation.driver_heads",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
+   "set": {
     "_metadata_": "cs_nico_rosberg",
     "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/nico_rosberg/idf/nico_rosberg_rig_head_morph_v1",
     "has_morph_data": "True",
@@ -335,17 +346,6 @@
    "set": {
     "_metadata_": "cs_esteban_gutierrez",
     "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_esteban_gutier/idf/cs_esteban_gutier_rig_head_morph_v1",
-    "has_morph_data": "True",
-    "available_for_customisation": "False"
-   }
-  },
-  {
-   "op": "add-row",
-   "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
-   "set": {
-    "_metadata_": "cs_stoffel_vandoorne",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_stoffel_vandoo/idf/cs_stoffel_vandoo_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
