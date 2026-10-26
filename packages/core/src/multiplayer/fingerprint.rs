@@ -235,7 +235,7 @@ pub fn content_hash(dir: &Path, hashes: &mut Hashes) -> Result<String> {
 
 /// The addon data files and profile state a build hook reads, leaving out hidden entries, `logs`
 /// folders and `.log` and `.tmp` files. A JSON file or the state counts as [`settled`] JSON,
-/// and one with nothing in it counts as absent.
+/// and one that holds only empty containers counts as absent.
 fn hook_inputs(
     store: &Store,
     m: &AddonManifest,
@@ -248,6 +248,7 @@ fn hook_inputs(
     }
     let mut h = Sha256::new();
     let dir = store.addon_data_dir(&m.id);
+    let counters = m.id == crate::dbedit::driver_manager::ID;
     let volatile = |rel: &str| {
         rel.split('/').any(|c| c.starts_with('.') || c == "logs")
             || rel.ends_with(".log")
@@ -262,7 +263,7 @@ fn hook_inputs(
                 .flatten()
                 .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
             let sha = match parsed {
-                Some(v) => match settled(v) {
+                Some(v) => match settled(v, counters) {
                     Some(v) => sha256_bytes(&serde_json::to_vec(&v).expect("serialisable")),
                     None => continue,
                 },
@@ -271,7 +272,11 @@ fn hook_inputs(
             h.update(format!("{rel}\0{sha}\n"));
         }
     }
-    let state = profile.state.get(&m.id).cloned().and_then(settled);
+    let state = profile
+        .state
+        .get(&m.id)
+        .cloned()
+        .and_then(|v| settled(v, counters));
     h.update(format!(
         "\0state\0{}",
         serde_json::to_string(&state).expect("serialisable")
@@ -282,23 +287,20 @@ fn hook_inputs(
 /// JSON addon data bigger than this is hashed as bytes.
 const JSON_INPUT_LIMIT: u64 = 4 * 1024 * 1024;
 
-/// `v` with sorted keys and without its top-level `next_*` id counters, or `None` when nothing
-/// but a `schema` or `schema_version` is set: every value null, false, zero, empty or such an
-/// object.
-fn settled(v: Value) -> Option<Value> {
+/// `v` with sorted keys, and with `counters` without its top-level `next_*` id counters, as
+/// Driver Manager keeps them. `None` when, `schema` and `schema_version` aside, it holds only
+/// empty arrays and objects.
+fn settled(v: Value, counters: bool) -> Option<Value> {
     fn empty(v: &Value) -> bool {
         match v {
-            Value::Null => true,
-            Value::Bool(b) => !b,
-            Value::Number(n) => n.as_f64() == Some(0.0),
-            Value::String(s) => s.is_empty(),
             Value::Array(a) => a.is_empty(),
             Value::Object(o) => o.values().all(empty),
+            _ => false,
         }
     }
     let v = match v {
         Value::Object(mut o) => {
-            o.retain(|k, _| !k.starts_with("next_"));
+            o.retain(|k, _| !(counters && k.starts_with("next_")));
             let bare = o
                 .iter()
                 .all(|(k, v)| k == "schema" || k == "schema_version" || empty(v));
@@ -1412,7 +1414,7 @@ mod tests {
                 .unwrap()
         };
         let none = inputs(&p);
-        let data_dir = store.addon_data_dir("t.dm");
+        let data_dir = store.addon_data_dir(DM);
         std::fs::create_dir_all(&data_dir).unwrap();
         let roster = |next: u32, drivers: Value| {
             json!({ "schema": 1, "next_driver": next, "next_preset": next + 158, "drivers": drivers })
@@ -1420,7 +1422,7 @@ mod tests {
         };
         std::fs::write(data_dir.join("drivers.json"), roster(209, json!([]))).unwrap();
         std::fs::write(data_dir.join("stock.json"), r#"{"schema":1,"drivers":{}}"#).unwrap();
-        p.set_state("t.dm", json!({ "mods": [] })).unwrap();
+        p.set_state(DM, json!({ "mods": [] })).unwrap();
         assert_eq!(inputs(&p), none);
 
         std::fs::write(
@@ -1442,6 +1444,47 @@ mod tests {
         )
         .unwrap();
         assert_ne!(inputs(&p), one);
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn other_build_hooks_keep_false_zero_empty_text_and_counters() {
+        let store = store("generic-hook");
+        let hook = json!({
+            "id": "t.hook", "kind": ["database"],
+            "launcher": { "program": { "linux": "bin/hook", "windows": "bin/hook.exe" }, "build": true },
+        });
+        put(&store, hook, &[]);
+        let p = profile(&["t.hook"]);
+        let data_dir = store.addon_data_dir("t.hook");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        let inputs = || {
+            fingerprint(&store, &p, &game()).unwrap().addons[1]
+                .inputs
+                .clone()
+                .unwrap()
+        };
+        let none = inputs();
+        std::fs::write(
+            data_dir.join("items.json"),
+            r#"{"schema":1,"items":[],"groups":{"a":[]}}"#,
+        )
+        .unwrap();
+        assert_eq!(inputs(), none);
+        for text in [
+            r#"{"enabled":false}"#,
+            r#"{"count":0}"#,
+            r#"{"name":""}"#,
+            r#"{"next_id":4}"#,
+            r#"{"value":null}"#,
+        ] {
+            std::fs::write(data_dir.join("items.json"), text).unwrap();
+            assert_ne!(inputs(), none, "{text}");
+        }
+        std::fs::write(data_dir.join("items.json"), r#"{"next_id":4}"#).unwrap();
+        let four = inputs();
+        std::fs::write(data_dir.join("items.json"), r#"{"next_id":5}"#).unwrap();
+        assert_ne!(inputs(), four);
         std::fs::remove_dir_all(&store.root).ok();
     }
 
