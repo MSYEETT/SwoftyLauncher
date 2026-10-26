@@ -30,6 +30,15 @@
 // progressive_resume.dll).
 // The cars and looks are written while the option season_visuals is on (the default; experiment E1
 // showed a Team HQ rewrite of vehicle_ref and look in the next session).
+// ten_team_years (hidden, default off): a year with no team for career slot 11 (2017-2025) closes
+// the slot (season_logic.hpp): its drivers are released, so no row of its team has a car. A weekend
+// takes its entrants from the career rows with a car when it is (re)built (0x140af7680 ->
+// Weekend::start 0x140af0460, at a load and on entering a session not yet past session 1), so it
+// races 20 cars; the constructors' standings, the Team Select list and the AI market list the
+// unique team keys of their rows and skip a teamless one, so they leave the slot out. Session
+// participant copies built before the apply keep their row count: the mirror writes the released
+// rows teamless in place (rows are never moved, the weekend keeps pointers into them), so until
+// the weekend is rebuilt the drivers' standings still list those two drivers.
 
 #include <algorithm>
 #include <atomic>
@@ -68,6 +77,7 @@ SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 SWOFTY_SETTING(bool, season_visuals, true);
 SWOFTY_SETTING(bool, season_development, true);
 SWOFTY_SETTING(bool, test_next_season, false);
+SWOFTY_SETTING(bool, ten_team_years, false);
 
 namespace pg {
 
@@ -406,6 +416,30 @@ std::string seat_name(const season::Seat &s)
     return g_data.slots[s.slot].team + " seat " + std::to_string(s.index + 1);
 }
 
+// The career's grid as weekends take it: rows with a car (the weekend's entrant filter), the teams
+// they race for and slot 11's rows.
+void log_grid(uintptr_t e, const season::Plan &p, const char *when)
+{
+    std::vector<Row> rows;
+    if (!entrant_rows(e, rows))
+        return;
+    size_t cars = 0, slot11 = 0;
+    std::vector<uint32_t> teams;
+    for (auto &r : rows) {
+        if (!has_car(r.rec))
+            continue;
+        ++cars;
+        uint32_t t = stat_of(r.rec.team_stat_id);
+        if (std::find(teams.begin(), teams.end(), t) == teams.end())
+            teams.push_back(t);
+        slot11 += static_cast<int>(t) == g_data.slots[season::kSlots - 1].team_stat;
+    }
+    swofty::log("[progressive] grid %d (%s): %zu career row(s) with a car (the weekend entrants), %zu team(s), %zu on "
+                "%s; ten_team_years %s, %d closed slot(s)",
+                p.year, when, cars, teams.size(), slot11, g_data.slots[season::kSlots - 1].team.c_str(),
+                ten_team_years ? "on" : "off", season::closed_slots(p));
+}
+
 int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool visuals, const std::string &why)
 {
     uintptr_t manager = contracts_manager();
@@ -571,9 +605,14 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
     for (auto &n : p.notes)
         swofty::log("[progressive]   note: %s", n.c_str());
     for (int i = 0; i < season::kSlots; ++i)
-        swofty::log("[progressive]   %s: %s + %s, car %s", g_data.slots[i].team.c_str(),
-                    label_or(Kind::driver, p.target[i][0]).c_str(), label_or(Kind::driver, p.target[i][1]).c_str(),
-                    p.vehicles[i].stat < 0 ? "unchanged" : p.vehicles[i].label.c_str());
+        if (p.closed[i])
+            swofty::log("[progressive]   %s: does not race in %d (ten_team_years: no team in this year); its drivers "
+                        "are released",
+                        g_data.slots[i].team.c_str(), p.year);
+        else
+            swofty::log("[progressive]   %s: %s + %s, car %s", g_data.slots[i].team.c_str(),
+                        label_or(Kind::driver, p.target[i][0]).c_str(), label_or(Kind::driver, p.target[i][1]).c_str(),
+                        p.vehicles[i].stat < 0 ? "unchanged" : p.vehicles[i].label.c_str());
     swofty::log("[progressive] season %d plan: %zu move(s), %zu release(s), %zu number change(s), cars and looks %s; "
                 "%zu row(s) to write",
                 p.year, p.moves.size(), p.releases.size(), p.numbers.size(), visuals ? "on" : "off (season_visuals)",
@@ -676,6 +715,7 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
                 p.year, written.size(), numbered,
                 p.moves.empty() && p.releases.empty() ? "not needed" : fin ? "posted" : "FAILED",
                 static_cast<unsigned long long>(changes));
+    log_grid(e, p, "after the season apply");
     return static_cast<int>(written.size());
 }
 
@@ -1400,11 +1440,11 @@ void season_hub(const swofty::career::State &state)
             at = midseason::at_round(g_data, year, cal.tracks, cal.next, is_player);
             midseason::At opening = midseason::at_round(g_data, year, cal.tracks, 1, is_player);
             log_schedule(*c, at, res, false);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, &opening.line_up, ten_team_years);
         } else if (c->mid_year == year) {
             at = midseason::at_ids(g_data, year, c->mid_round, midseason::split_ids(c->mid_applied));
             log_schedule(*c, at, res, true);
-            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up);
+            p = season::plan(g_data, year, view(rows), res, move_player, &at.line_up, nullptr, ten_team_years);
         } else {
             mid = false;
             static std::string warned;
@@ -1414,12 +1454,12 @@ void season_hub(const swofty::career::State &state)
                             "the season's line-up stands",
                             year);
             }
-            p = season::plan(g_data, year, view(rows), res, move_player);
+            p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, ten_team_years);
         }
         for (auto &n : at.notes)
             p.notes.push_back("mid-season: " + n);
     } else {
-        p = season::plan(g_data, year, view(rows), res, move_player);
+        p = season::plan(g_data, year, view(rows), res, move_player, nullptr, nullptr, ten_team_years);
     }
     std::string mid_ids = mid ? midseason::ids_text(g_data.years[year], at.active) : std::string();
     auto record_mid = [&]() {

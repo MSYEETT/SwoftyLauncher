@@ -180,6 +180,15 @@
       "hidden": true
     },
     {
+      "id": "ten_team_years",
+      "type": "toggle",
+      "label": "Developer: 10 teams in 2017-2025",
+      "description": "Developer test: in a Progressive career the seasons 2017 to 2025 race 10 teams and 20 cars. The 11th team's drivers are released at the season's first Team HQ, and Cadillac comes back with two drivers in 2026. Leave off.",
+      "default": false,
+      "binds": "native",
+      "hidden": true
+    },
+    {
       "id": "dev_probe",
       "type": "toggle",
       "label": "Developer: seat probe",
