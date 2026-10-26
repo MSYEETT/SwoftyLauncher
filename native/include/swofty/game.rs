@@ -1687,6 +1687,7 @@ pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
     entrant_list: *const c_char,
 ) -> bool;
 pub type Game_Career_IsDriverCareerMode_t = unsafe extern "C" fn(championship: *const c_void) -> bool;
+pub type Game_DriverContracts_BuildOffers_t = unsafe extern "C" fn(contracts: *mut c_void, driver: u32);
 pub type Game_DriverSelectHeader_SetTabState_t =
     unsafe extern "C" fn(header: *mut c_void, tab: u64, content_visible: u8, enabled: u8);
 pub type Game_EngineMgmt_AddGridPenalty_t =
@@ -2075,6 +2076,11 @@ pub mod bindings {
     };
     pub const Game_Career_IsDriverCareerMode: Binding = Binding {
         id: "Game_Career_IsDriverCareerMode",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_DriverContracts_BuildOffers: Binding = Binding {
+        id: "Game_DriverContracts_BuildOffers",
         kind: "func",
         status: Status::Experimental,
     };

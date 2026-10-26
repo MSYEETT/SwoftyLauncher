@@ -42,6 +42,7 @@
 #include <swofty/storage.hpp>
 
 #include "names.hpp"
+#include "player_logic.hpp"
 #include "progressive.hpp"
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
@@ -450,13 +451,24 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
         for (auto &r : now) {
             if (!has_car(r.rec) || teamless(r.rec))
                 continue;
-            bool moved_player = human(r.rec) && writes.count(static_cast<int>(&r - now.data())) &&
-                                writes[static_cast<int>(&r - now.data())].move;
-            if (human(r.rec) && !moved_player)
-                continue;
             uint32_t d = driver_of(r.rec);
-            if (contract_fits(contract_of(live, d), r.rec.team_stat_id))
+            uintptr_t own = contract_of(live, d);
+            if (contract_fits(own, r.rec.team_stat_id))
                 continue;
+            if (human(r.rec)) {
+                int at = static_cast<int>(&r - now.data());
+                bool moved_player = writes.count(at) && writes[at].move;
+                DriverContract k{};
+                bool stale = own && swofty::mem::read(own, k) && k.active;
+                if (!moved_player && !stale)
+                    continue;
+                swofty::log("[progressive] season %d player contract: %s sits at %s, his contract names %s (%s); signing "
+                            "his seat's team",
+                            p.year, label_or(Kind::driver, stat_of(d)).c_str(),
+                            label_or(Kind::team, stat_of(r.rec.team_stat_id)).c_str(),
+                            own ? label_or(Kind::team, stat_of(k.team)).c_str() : "no team",
+                            moved_player ? "moved in this apply" : "a stale contract from before a move");
+            }
             ++need;
             Signing s;
             if (const char *why = plan_signing(manager, live, d, r.rec.team_stat_id, s))
@@ -491,6 +503,12 @@ int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool
                 order.size());
     for (int idx : order) {
         const Write &w = writes[idx];
+        if (human(rows[idx].rec) && w.move)
+            swofty::log("[progressive] season %d player move: %s %s -> %s; the save header (info_team) and the Team HQ "
+                        "props read his seat, so they show %s from the game's next save and the next Team HQ load",
+                        p.year, label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str(),
+                        label_or(Kind::team, stat_of(w.old_team)).c_str(), label_or(Kind::team, stat_of(w.new_team)).c_str(),
+                        label_or(Kind::team, stat_of(w.new_team)).c_str());
         swofty::log("[progressive]   %s %s: %s", w.move ? "move" : w.release ? "release" : "update",
                     label_or(Kind::driver, stat_of(driver_of(rows[idx].rec))).c_str(),
                     w.why.empty() ? "number, car or look" : w.why.c_str());
@@ -748,6 +766,52 @@ void hybrid_budgets(uintptr_t e, int year)
                 per_team ? "per-team" : "per-driver");
 }
 
+std::map<std::string, std::string> g_player_seen;
+
+// Compares the copies of the player's team (player_logic.hpp) and logs them when they change; the
+// store's recorded team (the Resume Career card) follows the seat. The stale-contract repair itself
+// is the season apply's contract step (sign_seats), which runs at every idle Team HQ.
+void player_check(uintptr_t e, store::Career *c, const char *when)
+{
+    uintptr_t manager = contracts_manager();
+    std::vector<Row> rows;
+    std::vector<uintptr_t> live;
+    if (!c || !manager || !entrant_rows(e, rows) || !contract_objects(manager, live))
+        return;
+    const Row *h = nullptr;
+    for (auto &r : rows)
+        if (human(r.rec))
+            h = &r;
+    if (!h)
+        return;
+    player::Teams t;
+    t.row = teamless(h->rec) ? player::kNone : static_cast<int>(stat_of(h->rec.team_stat_id));
+    uint32_t d = driver_of(h->rec);
+    DriverContract k{};
+    uintptr_t own = contract_of(live, d);
+    t.contract_found = own && swofty::mem::read(own, k);
+    if (t.contract_found) {
+        t.contract = none(k.team) ? player::kNone : static_cast<int>(stat_of(k.team));
+        t.contract_active = k.active != 0;
+    }
+    uint32_t cached = cached_contract_team(manager, d);
+    t.cached = none(cached) ? player::kNone : static_cast<int>(stat_of(cached));
+    t.store = c->team;
+    player::Verdict v = player::judge(t);
+    std::string &seen = g_player_seen[when];
+    std::string now = c->key + "|" + v.text;
+    if (seen != now) {
+        seen = now;
+        swofty::log("[progressive] player team (%s): %s at %s; %s", when, label_or(Kind::driver, stat_of(d)).c_str(),
+                    t.row == player::kNone ? "no team" : label_or(Kind::team, static_cast<uint32_t>(t.row)).c_str(),
+                    v.text.c_str());
+    }
+    if (v.store_stale) {
+        c->team = t.row;
+        store::save();
+    }
+}
+
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
 std::string g_current;
@@ -937,6 +1001,7 @@ void season_unloaded()
     g_refreshed_for.clear();
     clear_names();
     g_names_for.clear();
+    g_player_seen.clear();
     g_failures = 0;
 }
 
@@ -996,6 +1061,7 @@ void season_hub(const swofty::career::State &state)
         g_standings_pending.clear();
     if (entity_busy(e) || g_failures >= 3)
         return;
+    player_check(e, c, "Team HQ, before the season apply");
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
     season::Plan p = season::plan(g_data, year, view(rows), resolver(), move_player);
@@ -1025,6 +1091,7 @@ void season_hub(const swofty::career::State &state)
         return;
     }
     int wrote = apply(e, p, rows, season_visuals, why);
+    player_check(e, c, "after the season apply");
     if (wrote < 0) {
         ++g_failures;
         return;

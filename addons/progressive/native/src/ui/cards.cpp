@@ -19,6 +19,20 @@
 // also put back when the wizard is left (a career tile press or career.starting) and at Team HQ.
 // During the populate the driver pool (ICONS) and the F2 list read empty, so the cards are the
 // season list's drivers only.
+//
+// Team Select's 3D cars do not come from +0xe18. Its team list (0x141873a30) first calls
+// Game_DriverContracts_BuildOffers for the picked driver, then builds one carousel item per team
+// (0x141879310), which spawns the car of the team's first line-up row (the game mode's entrant
+// rows, team +0x58, position +0x80, Sess_Find_Vehicle on +0x5c). So the BuildOffers wrap gives
+// those line-up rows the start season's car of their team (from the view) for the rest of the
+// build and puts the career's cars back 500 ms later (a frame callback), at the next Choose Driver,
+// or when the view is taken back. The R&D team models were made from the career's cars before
+// Choose Driver, and the career's own line-up copy at creation is untouched.
+//
+// Team Select enables only the teams in the picked driver's offer entry (contracts +0x3c8, 0x48
+// each, team vector +0x10..+0x18, capacity +0x20). With team_moves follow_driver the wrap leaves
+// that vector with the driver's start season team only, so it is the one team the player can sign
+// for; with choose the game's offers stand.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -27,9 +41,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <atomic>
+#include <cstddef>
 #include <iterator>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <swofty/events.hpp>
 #include <swofty/game.hpp>
@@ -66,12 +84,38 @@ constexpr uintptr_t kListEnd = 0x18;
 constexpr uintptr_t kListCapacity = 0x20;
 constexpr size_t kListHeader = 0x100;
 constexpr size_t kMaxRows = pc::kMaxRows;
+constexpr uintptr_t kModeEntrants = 0x2e0;
+constexpr uintptr_t kContractsGameMode = 0x278;
+constexpr uintptr_t kContractsOffers = 0x3c8;
+constexpr size_t kOfferSize = 0x48;
+constexpr uintptr_t kOfferTeamsBegin = 0x10;
+constexpr uintptr_t kOfferTeamsEnd = 0x18;
+constexpr uintptr_t kOfferTeamsCapacity = 0x20;
+constexpr uintptr_t kRowVehicle = offsetof(EntrantRecord, vehicle_ref);
+constexpr uint64_t kRestoreMs = 500;
+
+static_assert(sizeof(EntrantRecord) == 0x88);
+static_assert(kRowVehicle == 0x5c);
+
+SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 
 alignas(16) uint8_t g_header[kListHeader];
 EntrantRecord g_rows[kMaxRows];
 uintptr_t g_mode = 0;
 uintptr_t g_list = 0;
+size_t g_count = 0;
+int g_year = 0;
 int g_logged = 0;
+
+struct Swap {
+    uintptr_t row;
+    uint8_t id_lo;
+    uint16_t id_hi;
+    uint32_t was, now;
+};
+std::mutex g_swap_lock;
+std::vector<Swap> g_swaps;
+std::atomic<uint64_t> g_swapped_at{0};
 
 uintptr_t view()
 {
@@ -94,7 +138,7 @@ bool writable(uintptr_t p, size_t n)
     return p + n <= reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
 }
 
-bool put(uintptr_t p, uintptr_t v)
+template <class T> bool put(uintptr_t p, T v)
 {
     if (!writable(p, sizeof v))
         return false;
@@ -133,13 +177,32 @@ uintptr_t list_at(uintptr_t entrants, unsigned stat)
     return swofty::mem::readable(list, kListHeader) ? list : 0;
 }
 
+void restore_cars(const char *why)
+{
+    std::lock_guard<std::mutex> g(g_swap_lock);
+    g_swapped_at = 0;
+    if (g_swaps.empty())
+        return;
+    size_t back = 0;
+    for (const Swap &w : g_swaps) {
+        EntrantRecord r{};
+        if (swofty::mem::read(w.row, r) && r.id_lo == w.id_lo && r.id_hi == w.id_hi && r.vehicle_ref == w.now &&
+            put<uint32_t>(w.row + kRowVehicle, w.was))
+            ++back;
+    }
+    swofty::log("[progressive] cards: Team Select: %zu of %zu line-up row(s) back on their career cars (%s)", back,
+                g_swaps.size(), why);
+    g_swaps.clear();
+}
+
 void take_back(const char *why)
 {
+    restore_cars(why);
     if (!g_mode)
         return;
     uintptr_t setup = rd<uintptr_t>(g_mode + kModeSetupList);
     if (setup == view()) {
-        bool ok = put(g_mode + kModeSetupList, g_list);
+        bool ok = put<uintptr_t>(g_mode + kModeSetupList, g_list);
         swofty::log("[progressive] cards: %s: the setup list is the career's own again%s", why, ok ? "" : " (write failed)");
     } else if (g_logged++ < 16) {
         swofty::log("[progressive] cards: %s: the game already pointed the setup list back at %s 0x%llx", why,
@@ -171,10 +234,12 @@ bool dress(uintptr_t vm, uintptr_t mode, uintptr_t entrants, uintptr_t career_li
     std::memcpy(g_header + kListEnd, &e, sizeof e);
     uint64_t cap = n;
     std::memcpy(g_header + kListCapacity, &cap, sizeof cap);
-    if (!put(mode + kModeSetupList, view()))
+    if (!put<uintptr_t>(mode + kModeSetupList, view()))
         return false;
     g_mode = mode;
     g_list = career_list;
+    g_count = n;
+    g_year = year;
     if (g_logged++ < 16)
         swofty::log("[progressive] cards: Choose Driver %d (vm 0x%llx): %zu season driver(s) on their %d seats (looks %zu, "
                     "cars %zu, numbers %zu), %zu not in the career list, %zu filler seat(s), %zu 2026 seat(s) left free, "
@@ -190,6 +255,115 @@ int suffix_year(uintptr_t wizard)
     if (s.size() != 4 || s[0] != 'P' || s[1] != 'G' || s[2] < '0' || s[2] > '9' || s[3] < '0' || s[3] > '9')
         return 0;
     return 2000 + (s[2] - '0') * 10 + (s[3] - '0');
+}
+
+const EntrantRecord *view_row(uint32_t driver)
+{
+    for (size_t i = 0; i < g_count; ++i)
+        if (g_rows[i].id_lo == (driver & 0xff) && g_rows[i].id_hi == (driver >> 16))
+            return &g_rows[i];
+    return nullptr;
+}
+
+uint32_t season_car(uint32_t team)
+{
+    uint32_t any = pc::kNoKey;
+    for (size_t i = 0; i < g_count; ++i) {
+        const EntrantRecord &r = g_rows[i];
+        if (!pc::seated(r) || !pc::same_team(r.team_stat_id, team) || pc::none(r.vehicle_ref))
+            continue;
+        if ((r.team_position & 0xff) == 0)
+            return r.vehicle_ref;
+        if (pc::none(any))
+            any = r.vehicle_ref;
+    }
+    return any;
+}
+
+size_t swap_cars(uintptr_t mode)
+{
+    uintptr_t b = rd<uintptr_t>(mode + kModeEntrants), e = rd<uintptr_t>(mode + kModeEntrants + 8);
+    if (!b || e < b || (e - b) % sizeof(EntrantRecord) || (e - b) / sizeof(EntrantRecord) > kMaxRows ||
+        !swofty::mem::readable(b, e - b))
+        return 0;
+    std::lock_guard<std::mutex> g(g_swap_lock);
+    for (uintptr_t p = b; p < e; p += sizeof(EntrantRecord)) {
+        const auto &r = *reinterpret_cast<const EntrantRecord *>(p);
+        if (pc::none(r.team_stat_id) || pc::none(r.vehicle_ref))
+            continue;
+        uint32_t car = season_car(r.team_stat_id);
+        if (pc::none(car) || car == r.vehicle_ref)
+            continue;
+        Swap w{p, r.id_lo, r.id_hi, r.vehicle_ref, car};
+        if (put<uint32_t>(p + kRowVehicle, car))
+            g_swaps.push_back(w);
+    }
+    if (!g_swaps.empty())
+        g_swapped_at = GetTickCount64();
+    return g_swaps.size();
+}
+
+const char *lock_offer(uintptr_t contracts, uint32_t driver, uint32_t &team, size_t &before)
+{
+    const EntrantRecord *v = view_row(driver);
+    if (!v || !pc::seated(*v))
+        return "the driver has no seat in the start season view";
+    team = v->team_stat_id;
+    uintptr_t b = rd<uintptr_t>(contracts + kContractsOffers), e = rd<uintptr_t>(contracts + kContractsOffers + 8);
+    if (!b || e < b || (e - b) % kOfferSize)
+        return "the offer list does not look like one";
+    for (uintptr_t o = b; o < e; o += kOfferSize) {
+        if (rd<uint8_t>(o) != (driver & 0xff) || rd<uint16_t>(o + 2) != (driver >> 16))
+            continue;
+        uintptr_t tb = rd<uintptr_t>(o + kOfferTeamsBegin), te = rd<uintptr_t>(o + kOfferTeamsEnd);
+        uint64_t cap = rd<uint64_t>(o + kOfferTeamsCapacity);
+        before = tb && te >= tb ? (te - tb) / 4 : 0;
+        if (!tb || cap < 1 || te < tb)
+            return "the driver's offer list has no room, so every offered team stays open";
+        if (!put<uint32_t>(tb, team) || !put<uintptr_t>(o + kOfferTeamsEnd, tb + 4))
+            return "the offer list write failed";
+        return nullptr;
+    }
+    return "the driver has no offer entry, so every team stays open";
+}
+
+void team_select(uintptr_t contracts, uint32_t driver)
+{
+    if (!g_mode || !contracts || rd<uintptr_t>(g_mode + kModeSetupList) != view())
+        return;
+    if (uintptr_t mode = rd<uintptr_t>(contracts + kContractsGameMode); mode != g_mode) {
+        if (g_logged++ < 16)
+            swofty::log("[progressive] cards: Team Select: the offers' game mode 0x%llx is not the dressed one 0x%llx; "
+                        "cars and offers left as they are",
+                        static_cast<unsigned long long>(mode), static_cast<unsigned long long>(g_mode));
+        return;
+    }
+    restore_cars("Team Select built again");
+    size_t n = swap_cars(g_mode);
+    swofty::log("[progressive] cards: Team Select %d: %zu line-up row(s) wear their team's %d car while the carousel "
+                "is built",
+                g_year, n, g_year);
+    if (std::string_view(team_moves.get()) != "follow_driver") {
+        swofty::log("[progressive] cards: Team Select %d: team moves %.*s, the game's offers stand", g_year,
+                    static_cast<int>(team_moves.get().size()), team_moves.get().data());
+        return;
+    }
+    uint32_t team = pc::kNoKey;
+    size_t before = 0;
+    if (const char *why = lock_offer(contracts, driver, team, before))
+        swofty::log("[progressive] cards: Team Select %d: follow_driver: driver 0x%08x not locked: %s", g_year, driver,
+                    why);
+    else
+        swofty::log("[progressive] cards: Team Select %d: follow_driver: driver 0x%08x can sign only for his %d team "
+                    "0x%08x (%zu offer(s) before)",
+                    g_year, driver, g_year, team, before);
+}
+
+void frame(double, void *)
+{
+    uint64_t at = g_swapped_at.load();
+    if (at && GetTickCount64() - at >= kRestoreMs)
+        restore_cars("the carousel is built");
 }
 
 void on_event(const SwoftyEvent *ev, void *)
@@ -218,11 +392,12 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
     uintptr_t career_list = entrants ? list_at(entrants, pc::kCareerList) : 0;
     uintptr_t setup = mode ? rd<uintptr_t>(mode + kModeSetupList) : 0;
     int year = suffix_year(wizard);
+    restore_cars("Choose Driver");
     if (g_mode && g_mode != mode)
         take_back("Choose Driver of another game mode");
     bool ours = career_list && (setup == career_list || setup == view());
     if (setup == view() && career_list)
-        put(mode + kModeSetupList, career_list);
+        put<uintptr_t>(mode + kModeSetupList, career_list);
     g_mode = 0;
     if (!ours && g_logged++ < 8)
         swofty::log("[progressive] cards: Choose Driver: the game mode's setup list 0x%llx is not f1_career_progressive "
@@ -236,12 +411,12 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
     for (size_t i = 0; ours && i < std::size(pc::kHiddenLists); ++i) {
         uintptr_t list = list_at(entrants, pc::kHiddenLists[i]);
         uintptr_t end = list ? rd<uintptr_t>(list + kListEnd) : 0;
-        if (list && end && list != career_list && put(list + kListEnd, rd<uintptr_t>(list + kListBegin)))
+        if (list && end && list != career_list && put<uintptr_t>(list + kListEnd, rd<uintptr_t>(list + kListBegin)))
             hidden[hid++] = {list, end};
     }
     void *r = orig(vm);
     for (size_t i = 0; i < hid; ++i)
-        put(hidden[i].list + kListEnd, hidden[i].end);
+        put<uintptr_t>(hidden[i].list + kListEnd, hidden[i].end);
     if (ours && g_logged++ < 16) {
         uintptr_t cb = rd<uintptr_t>(at + kVmCardsBegin), ce = rd<uintptr_t>(at + kVmCardsEnd);
         swofty::log("[progressive] cards: Choose Driver %d populated %ld card(s), %zu of %zu list(s) left out (the driver "
@@ -252,11 +427,26 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
     return r;
 }
 
+SWOFTY_WRAP(Game_DriverContracts_BuildOffers, void, void *contracts, uint32_t driver)
+{
+    orig(contracts, driver);
+    team_select(reinterpret_cast<uintptr_t>(contracts), driver);
+}
+
 SWOFTY_ON_LOAD
 {
     uint32_t token = 0;
-    for (std::string_view ev : pc::kEvents)
-        swofty::events::subscribe(ev.data(), on_event, nullptr, &token);
+    for (std::string_view ev : pc::kEvents) {
+        swofty::events::Result r = swofty::events::subscribe(ev, on_event, nullptr, &token);
+        if (r != swofty::events::Result::ok)
+            swofty::log("[progressive] cards: subscribe %.*s: %s; the view is not taken back on it",
+                        static_cast<int>(ev.size()), ev.data(), swofty::events::name(r));
+    }
+    swofty::events::Result f = swofty::events::on_frame(frame, nullptr, &token);
+    if (f != swofty::events::Result::ok)
+        swofty::log("[progressive] cards: frame callback %s; Team Select's cars go back at the next Choose Driver or "
+                    "take-back",
+                    swofty::events::name(f));
     swofty::log("[progressive] cards: Choose Driver and Team Select show the start season's drivers, looks and cars");
 }
 
