@@ -1329,7 +1329,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-forceindia_lance_stroll]",
    "set": {
     "_metadata_": "2022-cs_force_india_sebastian_vettel",
-    "helmet": "2025-forceindia_lance_stroll",
+    "helmet": "cs22-f2-artgp_zak_osullivan",
     "suit": "cs22-forceindia_fernando_alonso",
     "gloves": "cs22-forceindia_fernando_alonso",
     "linked_driver_stat_id": "sebastian_vettel",

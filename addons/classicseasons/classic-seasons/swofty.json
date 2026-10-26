@@ -34,7 +34,8 @@
     "assets": [
       "lang/core.json",
       "assets/heads.json",
-      "assets/suits.json"
+      "assets/suits.json",
+      "assets/helmets.json"
     ],
     "native": [
       {

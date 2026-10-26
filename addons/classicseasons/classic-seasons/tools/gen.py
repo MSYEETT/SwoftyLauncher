@@ -26,9 +26,9 @@ keeping the stock team's.
 
 Suits of 2016 to 2023 (suit_sources.py): each driver's look wears the suit and gloves suit_sources.pick chooses, a
 real suit (a mod's or F1 23's, built by build_real_suits.py into this addon's suits/, or a stock F1 25 one) or, for
-2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json), and a real driver suit's
-helmet. A 2022 or 2023 look with no built F1 23 suit keeps its seat's stock kit. A driver with a stock look of the
-season (<year>-<stock team>_<driver>, the 2024 grid) wears that look's suit, gloves and helmet. The core addon copies
+2016 to 2021, the team's generated suit (build_suits.py, the season's suits/meta.json). A 2022 or 2023 look with no
+built F1 23 suit keeps its seat's stock kit. A driver with a stock look of the season (<year>-<stock team>_<driver>,
+the 2024 grid) wears that look's suit and gloves. The core addon copies
 each built mod suit's suit, gloves and helmet rows from its base under its label, with item ids REAL_SUIT_IDS and
 HELMET_IDS, and ships its archives (assets/suits.json). A season copies its generated suits' rows; every team-season of
 SUIT_YEARS takes the next id of SUIT_IDS, in season and team order, whether its suit is generated or not. The suits of
@@ -41,6 +41,13 @@ Game_Build_CustomisationCatalogue reads all four at boot, and a copy without the
 Sess_Apply_ContentAvailability. The files with copies list them in ITEM_FIELDS, and the suit and gloves copies set
 each to "0": the 2025 suit and gloves rows hold "" in all four, and launchers up to 1.4.0 skip a copied "" for an int.
 A helmet copy sets the base helmet's values (data/real_suits.json "helmet_colours"), with "0" for an empty one.
+
+Helmets: a period helmet is a helmet of a driver's own from one season: a stock look of the season
+(<year>-<stock team>_<driver>, the 2024 grid), a built mod or F1 23 driver suit's helmet (its season and driver in
+data/real_suits.json) or a built season helmet of data/helmets.json (build_helmets.py; the last of these wins).
+Each driver's look of a season wears his period helmet of the nearest season that has one, the earlier season on a
+tie, else his own stock F1 25 helmet (data/stock_looks.json driver_looks), else his seat's. The core addon holds the
+season helmets' rows (item ids from HELMET_IDS.stop, in data/helmets.json order) and archives (assets/helmets.json).
 """
 
 import json
@@ -223,6 +230,28 @@ def helmet_row(m):
                     **dict(zip(COLOUR_FIELDS, m["helmet_colours"]))}}
 
 
+def period_helmets(made, season_helmets):
+    out = {}
+    for season in DATA["seasons"]:
+        for team in season["teams"]:
+            stock = DATA["folders"][team["folder"]]["team"]
+            for driver, _ in team["drivers"]:
+                look = STOCK["looks"].get(f"{season['year']}-{stock}_{driver}")
+                if look:
+                    out[season["year"], driver] = look["helmet"]
+    for e in suit_sources.real():
+        if e["kind"] == "mod" and e["helmet_label"] in made and "driver" in e:
+            out[e["season"], e["driver"]] = e["helmet_label"]
+    for (year, driver), m in season_helmets.items():
+        out[year, driver] = m["label"]
+    return out
+
+
+def nearest_helmet(period, year, driver):
+    own = sorted((abs(y - year), y, label) for (y, d), label in period.items() if d == driver)
+    return own[0][2] if own else None
+
+
 def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
@@ -290,6 +319,9 @@ def build():
         m = made.get(suit_sources.mod_label(entry))
         if m:
             ops += real_rows(m, item_id, helmet_id)
+    season_helmets = helmets()
+    ops += [helmet_row(m) for m in season_helmets.values()]
+    period = period_helmets(made, season_helmets)
 
     core_ops, core_text = ops, text
     for index, season in enumerate(DATA["seasons"]):
@@ -300,8 +332,6 @@ def build():
         ops, text = [], []
         seasons.append((year, ops, text))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
-        season_helmets = helmets(year)
-        ops += [helmet_row(m) for m in season_helmets.values()]
         cars = built(year)
         if cars:
             pkg = f"cs_{year}_vehicle_package"
@@ -381,11 +411,9 @@ def build():
                     choice = suit_sources.pick(year, team, driver, set(made))
                     if choice:
                         suit_look = gloves = choice["label"]
-                        helmet = choice["helmet_label"] if choice["helmet_label"] in made else helmet
                     elif suit:
                         suit_look = gloves = suit["label"]
-                if driver in season_helmets:
-                    helmet = season_helmets[driver]["label"]
+                helmet = nearest_helmet(period, year, driver) or helmet
                 look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit_look, "gloves": gloves,
@@ -448,13 +476,15 @@ def build():
               CATEGORY + ".value": CATEGORY_FIELDS}
     items = check_item_ids([("core", core_ops)] + [(str(year), ops) for year, ops, _ in seasons])
     write_json(ROOT / "db" / "core.json",
-               {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made else {})}, "ops": core_ops})
-    core_assets = [a for a in core["operations"]["assets"] if a != "assets/suits.json"]
-    if made:
-        write_json(ROOT / "assets" / "suits.json", real_suit_asset_ops())
-        core_assets.append("assets/suits.json")
-    elif (ROOT / "assets" / "suits.json").exists():
-        (ROOT / "assets" / "suits.json").unlink()
+               {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made or season_helmets else {})},
+                "ops": core_ops})
+    core_assets = [a for a in core["operations"]["assets"] if a not in ("assets/suits.json", "assets/helmets.json")]
+    for name, has, write in (("suits", made, real_suit_asset_ops), ("helmets", season_helmets, helmet_asset_ops)):
+        if has:
+            write_json(ROOT / "assets" / f"{name}.json", write())
+            core_assets.append(f"assets/{name}.json")
+        elif (ROOT / "assets" / f"{name}.json").exists():
+            (ROOT / "assets" / f"{name}.json").unlink()
     if core_assets != core["operations"]["assets"]:
         core["operations"]["assets"] = core_assets
         (ROOT / "swofty.json").write_text(json.dumps(core, indent=2, ensure_ascii=False) + "\n")
@@ -465,12 +495,11 @@ def build():
           f"unique ids")
     for year, ops, text in seasons:
         folder = year_dir(year)
-        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else []) + \
-            (["assets/helmets.json"] if helmets(year) else [])
+        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
         write_json(folder / "db" / "season.json",
                    {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS,
-                                                    **(ITEM_FIELDS if suits(year) or helmets(year) else {})}, "ops": ops})
+                                                    **(ITEM_FIELDS if suits(year) else {})}, "ops": ops})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\n")
         cars = built(year)
@@ -480,9 +509,7 @@ def build():
             write_json(folder / "assets" / "suits.json", suit_asset_ops(year))
         elif (folder / "assets" / "suits.json").exists():
             (folder / "assets" / "suits.json").unlink()
-        if helmets(year):
-            write_json(folder / "assets" / "helmets.json", helmet_asset_ops(year))
-        elif (folder / "assets" / "helmets.json").exists():
+        if (folder / "assets" / "helmets.json").exists():
             (folder / "assets" / "helmets.json").unlink()
         adds = sum(1 for o in ops if o["op"] == "add-row")
         print(f"{year}: {len(ops)} db ops ({adds} add-row), {len(text)} strings, cars {'built' if cars else 'missing'}, "
