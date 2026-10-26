@@ -1,13 +1,16 @@
 //! The files addons write through the storage API (`swofty/storage.hpp`).
 //!
 //! The core keeps them under `swofty/addons/<id>/` in the game folder, next
-//! to the files an install places there. They belong to the player, not to
+//! to the files an install places there. When the game can't create files
+//! there, the core keeps that addon's files in `addon-storage/<id>/` in the
+//! data folder for the session instead. They belong to the player, not to
 //! the session: rolling back a session that placed an addon's files first
 //! moves every other file in that addon's folder to `addon-storage/<id>/` in
 //! the data folder, and the next install with that addon moves them back. A
 //! restore moves them out of every addon folder before it clears `swofty/`.
-//! Each file is in one place or the other and is never deleted, so a file an
-//! addon removed stays removed.
+//! Where both places hold a copy of a file, the newer one wins and the older
+//! one goes. Otherwise a file is never deleted, so a file an addon removed
+//! stays removed.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -79,8 +82,10 @@ pub fn present(game: &Path) -> Result<BTreeSet<String>> {
 
 /// Move every file in the addon's game folder whose game path is not one of
 /// `managed` (keys as [`placed::key`] makes them) to the addon's storage,
-/// over any copy stored there, and remove the folders that leaves empty.
-/// Returns the game paths it moved.
+/// over any older copy stored there, and remove the folders that leaves
+/// empty. A stored copy newer than the game folder's, which the game wrote
+/// there because it couldn't write in its folder, stays, and the game
+/// folder's copy goes. Returns the game paths it moved or dropped.
 pub fn keep(data: &Path, game: &Path, id: &str, managed: &BTreeSet<String>) -> Result<Vec<String>> {
     let from = game_dir(game, id);
     if !from.is_dir() {
@@ -93,7 +98,12 @@ pub fn keep(data: &Path, game: &Path, id: &str, managed: &BTreeSet<String>) -> R
         if managed.contains(&placed::key(&at)) {
             continue;
         }
-        move_over(&from.join(&rel), &to.join(&rel))?;
+        let (src, dst) = (from.join(&rel), to.join(&rel));
+        if dst.is_file() && newer(&dst, &src) {
+            with_retry(&src, || std::fs::remove_file(&src))?;
+        } else {
+            move_over(&src, &dst)?;
+        }
         moved.push(at);
     }
     prune(&from)?;
@@ -102,9 +112,10 @@ pub fn keep(data: &Path, game: &Path, id: &str, managed: &BTreeSet<String>) -> R
 
 /// Move the addon's stored files into its game folder, except at a game path
 /// in `planned` (keys as [`placed::key`] makes them), where the install's
-/// file wins, and where the game folder already holds a file: a session that
-/// ended without handing it back left that one, and it is newer. Returns the
-/// game paths it moved.
+/// file wins. Where the game folder already holds a file, which a session
+/// that ended without handing it back left there, the newer copy wins: a
+/// newer stored copy replaces it, and an older one goes. Returns the game
+/// paths it moved.
 pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) -> Result<Vec<String>> {
     let from = addon_dir(data, id);
     if !from.is_dir() {
@@ -114,15 +125,29 @@ pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) 
     let mut moved = Vec::new();
     for rel in files(&from)? {
         let at = game_rel(id, &rel);
-        let dst = to.join(&rel);
-        if planned.contains(&placed::key(&at)) || std::fs::symlink_metadata(&dst).is_ok() {
+        if planned.contains(&placed::key(&at)) {
             continue;
         }
-        move_over(&from.join(&rel), &dst)?;
+        let (src, dst) = (from.join(&rel), to.join(&rel));
+        match std::fs::symlink_metadata(&dst) {
+            Ok(m) if !m.is_file() => continue,
+            Ok(_) if !newer(&src, &dst) => {
+                with_retry(&src, || std::fs::remove_file(&src))?;
+                continue;
+            }
+            _ => {}
+        }
+        move_over(&src, &dst)?;
         moved.push(at);
     }
     prune(&from)?;
     Ok(moved)
+}
+
+/// Whether `a` was modified after `b`.
+fn newer(a: &Path, b: &Path) -> bool {
+    let modified = |p: &Path| std::fs::metadata(p).and_then(|m| m.modified()).ok();
+    matches!((modified(a), modified(b)), (Some(x), Some(y)) if x > y)
 }
 
 /// The files under `dir`, as paths relative to it with `/` between folders.
@@ -158,9 +183,9 @@ fn prune(dir: &Path) -> Result<bool> {
     Ok(empty)
 }
 
-/// Move `from` to `to`, replacing it. Across volumes the copy is flushed
-/// under a temporary name and renamed over `to` before `from` goes, so a
-/// crash leaves a whole file at both ends.
+/// Move `from` to `to`, replacing it. Across volumes the copy keeps the
+/// modification time and is flushed under a temporary name and renamed over
+/// `to` before `from` goes, so a crash leaves a whole file at both ends.
 fn move_over(from: &Path, to: &Path) -> Result<()> {
     if let Some(dir) = to.parent() {
         std::fs::create_dir_all(dir).map_err(io_err(dir))?;
@@ -177,6 +202,11 @@ fn move_over(from: &Path, to: &Path) -> Result<()> {
     name.push(".swofty-tmp");
     let tmp = to.with_file_name(name);
     std::fs::copy(from, &tmp).map_err(io_err(&tmp))?;
+    if let Ok(t) = std::fs::metadata(from).and_then(|m| m.modified())
+        && let Ok(f) = std::fs::OpenOptions::new().write(true).open(&tmp)
+    {
+        f.set_modified(t).ok();
+    }
     crate::sync_file(&tmp)?;
     with_retry(to, || std::fs::rename(&tmp, to))?;
     with_retry(from, || std::fs::remove_file(from))
