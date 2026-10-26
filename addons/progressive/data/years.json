@@ -238,7 +238,9 @@
   "look.stat_id": "Classic Seasons sets look stat ids explicitly (420-601), stock looks are stock ids",
   "filler": "slot 11 in 2017-2025: the 2016 Manor car, drivers chosen at run time (DESIGN D7)",
   "logo_keys": "Classic Seasons team logo keys present in driver_career_2024_team_select, badges_broadcast and driver_select_team_logos; a season team's cs_team outside this list keeps its stock logo",
-  "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none"
+  "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
+  "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries (data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track `track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his real `number` and `look` (that team and year, else that team's nearest year, else his look that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in (`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
+  "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver"
  },
  "seasons": {
   "2016": {
@@ -779,7 +781,199 @@
      "sessions": 8,
      "number": 31
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 2,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 3,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 4,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 5,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 6,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 7,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 8,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 12,
+     "circuit": "hockenheimring",
+     "track": null
+    },
+    {
+     "round": 13,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 14,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 15,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 16,
+     "circuit": "sepang",
+     "track": null
+    },
+    {
+     "round": 17,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 18,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 19,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 20,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 21,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2016-r1-s3b-daniil_kvyat",
+     "round": 1,
+     "real_round_count": 21,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 3,
+     "seat": 1,
+     "out": "max_verstappen",
+     "in": "daniil_kvyat",
+     "number": 26,
+     "kind": "move",
+     "look": {
+      "label": "2016-cs_toro_rosso_daniil_kvyat",
+      "stat_id": 433,
+      "from": "slot 8 2016"
+     },
+     "until_round": 5,
+     "until_circuit": "catalunya",
+     "until_track": 4
+    },
+    {
+     "id": "2016-r1-s8b-max_verstappen",
+     "round": 1,
+     "real_round_count": 21,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 8,
+     "seat": 1,
+     "out": "daniil_kvyat",
+     "in": "max_verstappen",
+     "number": 33,
+     "kind": "move",
+     "look": {
+      "label": "2016-cs_redbull_max_verstappen",
+      "stat_id": 423,
+      "from": "slot 3 2016"
+     },
+     "until_round": 5,
+     "until_circuit": "catalunya",
+     "until_track": 4
+    },
+    {
+     "id": "2016-r2-s4a-stoffel_vandoorne",
+     "round": 2,
+     "real_round_count": 21,
+     "circuit": "bahrain",
+     "track": 3,
+     "slot": 4,
+     "seat": 0,
+     "out": "fernando_alonso",
+     "in": "stoffel_vandoorne",
+     "number": 47,
+     "kind": "stand_in",
+     "look": {
+      "label": "2017-cs_mclaren_stoffel_vandoorne",
+      "stat_id": 459,
+      "from": "same team 2017"
+     },
+     "until_round": 3,
+     "until_circuit": "shanghai",
+     "until_track": 2
+    },
+    {
+     "id": "2016-r13-s11b-esteban_ocon",
+     "round": 13,
+     "real_round_count": 21,
+     "circuit": "spa",
+     "track": 10,
+     "slot": 11,
+     "seat": 1,
+     "out": "rio_haryanto",
+     "in": "esteban_ocon",
+     "number": 31,
+     "kind": "replace",
+     "look": {
+      "label": "2017-cs_force_india_esteban_ocon",
+      "stat_id": 451,
+      "from": "slot 5 2017"
+     },
+     "permanent": true
+    }
+   ],
+   "changes_skipped": []
   },
   "2017": {
    "teams": [
@@ -1305,6 +1499,241 @@
      "sessions": 2,
      "number": 36
     }
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 2,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 3,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 4,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 5,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 6,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 7,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 8,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 12,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 13,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 14,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 15,
+     "circuit": "sepang",
+     "track": null
+    },
+    {
+     "round": 16,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 17,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 18,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 19,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 20,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2017-r1-s9b-antonio_giovinazzi",
+     "round": 1,
+     "real_round_count": 20,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 9,
+     "seat": 1,
+     "out": "pascal_wehrlein",
+     "in": "antonio_giovinazzi",
+     "number": 36,
+     "kind": "stand_in",
+     "look": {
+      "label": "2019-cs_sauber_antonio_giovinazzi",
+      "stat_id": 497,
+      "from": "same team 2019"
+     },
+     "until_round": 3,
+     "until_circuit": "bahrain",
+     "until_track": 3
+    },
+    {
+     "id": "2017-r6-s4a-jenson_button",
+     "round": 6,
+     "real_round_count": 20,
+     "circuit": "monaco",
+     "track": 5,
+     "slot": 4,
+     "seat": 0,
+     "out": "fernando_alonso",
+     "in": "jenson_button",
+     "number": 22,
+     "kind": "stand_in",
+     "look": {
+      "label": "2016-cs_mclaren_jenson_button",
+      "stat_id": 437,
+      "from": "same team 2016"
+     },
+     "until_round": 7,
+     "until_circuit": "villeneuve",
+     "until_track": 6
+    },
+    {
+     "id": "2017-r15-s8b-pierre_gasly",
+     "round": 15,
+     "real_round_count": 20,
+     "circuit": "sepang",
+     "track": null,
+     "slot": 8,
+     "seat": 1,
+     "out": "daniil_kvyat",
+     "in": "pierre_gasly",
+     "number": 10,
+     "kind": "stand_in",
+     "look": {
+      "label": "2018-cs_toro_rosso_pierre_gasly",
+      "stat_id": 478,
+      "from": "same team 2018"
+     },
+     "until_round": 17,
+     "until_circuit": "americas",
+     "until_track": 15
+    },
+    {
+     "id": "2017-r17-s6b-carlos_sainz-jr",
+     "round": 17,
+     "real_round_count": 20,
+     "circuit": "americas",
+     "track": 15,
+     "slot": 6,
+     "seat": 1,
+     "out": "jolyon_palmer",
+     "in": "carlos_sainz-jr",
+     "number": 55,
+     "kind": "replace",
+     "look": {
+      "label": "2018-cs_lotus_carlos_sainz-jr",
+      "stat_id": 469,
+      "from": "same team 2018"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2017-r17-s8a-brendon_hartley",
+     "round": 17,
+     "real_round_count": 20,
+     "circuit": "americas",
+     "track": 15,
+     "slot": 8,
+     "seat": 0,
+     "out": "carlos_sainz-jr",
+     "in": "brendon_hartley",
+     "number": 39,
+     "kind": "move",
+     "look": {
+      "label": "2018-cs_toro_rosso_brendon_hartley",
+      "stat_id": 479,
+      "from": "same team 2018"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2017-r18-s8b-pierre_gasly",
+     "round": 18,
+     "real_round_count": 20,
+     "circuit": "rodriguez",
+     "track": 19,
+     "slot": 8,
+     "seat": 1,
+     "out": "daniil_kvyat",
+     "in": "pierre_gasly",
+     "number": 10,
+     "kind": "replace",
+     "look": {
+      "label": "2018-cs_toro_rosso_pierre_gasly",
+      "stat_id": 478,
+      "from": "same team 2018"
+     },
+     "permanent": true
+    }
+   ],
+   "changes_skipped": [
+    {
+     "round": 11,
+     "circuit": "hungaroring",
+     "slot": 7,
+     "seat": 0,
+     "out": "felipe_massa",
+     "not_in_game": "Paul di Resta",
+     "reason": "not in the game; the seat keeps its driver"
+    }
    ]
   },
   "2018": {
@@ -1788,7 +2217,116 @@
      "drivers": []
     }
    ],
-   "stand_ins": []
+   "stand_ins": [],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 2,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 3,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 4,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 5,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 6,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 7,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 8,
+     "circuit": "ricard",
+     "track": 1
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hockenheimring",
+     "track": null
+    },
+    {
+     "round": 12,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 13,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 14,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 15,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 16,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 17,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 18,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 19,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 20,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 21,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [],
+   "changes_skipped": []
   },
   "2019": {
    "teams": [
@@ -2286,7 +2824,155 @@
      "sessions": 9,
      "number": 10
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 2,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 3,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 4,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 5,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 6,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 7,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 8,
+     "circuit": "ricard",
+     "track": 1
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hockenheimring",
+     "track": null
+    },
+    {
+     "round": 12,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 13,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 14,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 15,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 16,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 17,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 18,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 19,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 20,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 21,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2019-r13-s3b-alex_albon",
+     "round": 13,
+     "real_round_count": 21,
+     "circuit": "spa",
+     "track": 10,
+     "slot": 3,
+     "seat": 1,
+     "out": "pierre_gasly",
+     "in": "alex_albon",
+     "number": 23,
+     "kind": "move",
+     "look": {
+      "label": "2020-cs_redbull_alex_albon",
+      "stat_id": 505,
+      "from": "same team 2020"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2019-r13-s8b-pierre_gasly",
+     "round": 13,
+     "real_round_count": 21,
+     "circuit": "spa",
+     "track": 10,
+     "slot": 8,
+     "seat": 1,
+     "out": "alex_albon",
+     "in": "pierre_gasly",
+     "number": 10,
+     "kind": "move",
+     "look": {
+      "label": "2020-cs_toro_rosso_pierre_gasly",
+      "stat_id": 514,
+      "from": "same team 2020"
+     },
+     "permanent": true
+    }
+   ],
+   "changes_skipped": []
   },
   "2020": {
    "teams": [
@@ -2798,6 +3484,199 @@
      "sessions": 2,
      "number": 51
     }
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 2,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 3,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 4,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 5,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 6,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 7,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 8,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 9,
+     "circuit": "mugello",
+     "track": null
+    },
+    {
+     "round": 10,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 11,
+     "circuit": "nurburgring",
+     "track": null
+    },
+    {
+     "round": 12,
+     "circuit": "portimao",
+     "track": 28
+    },
+    {
+     "round": 13,
+     "circuit": "imola",
+     "track": 27
+    },
+    {
+     "round": 14,
+     "circuit": "istanbul",
+     "track": null
+    },
+    {
+     "round": 15,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 16,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 17,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2020-r4-s5a-nico_hulkenberg",
+     "round": 4,
+     "real_round_count": 17,
+     "circuit": "silverstone",
+     "track": 7,
+     "slot": 5,
+     "seat": 0,
+     "out": "sergio_perez",
+     "in": "nico_hulkenberg",
+     "number": 27,
+     "kind": "stand_in",
+     "look": {
+      "label": "2019-cs_lotus_nico_hulkenberg",
+      "stat_id": 491,
+      "from": "slot 6 2019"
+     },
+     "until_round": 6,
+     "until_circuit": "catalunya",
+     "until_track": 4
+    },
+    {
+     "id": "2020-r11-s5b-nico_hulkenberg",
+     "round": 11,
+     "real_round_count": 17,
+     "circuit": "nurburgring",
+     "track": null,
+     "slot": 5,
+     "seat": 1,
+     "out": "lance_stroll",
+     "in": "nico_hulkenberg",
+     "number": 27,
+     "kind": "stand_in",
+     "look": {
+      "label": "2019-cs_lotus_nico_hulkenberg",
+      "stat_id": 491,
+      "from": "slot 6 2019"
+     },
+     "until_round": 12,
+     "until_circuit": "portimao",
+     "until_track": 28
+    },
+    {
+     "id": "2020-r16-s1a-george_russell",
+     "round": 16,
+     "real_round_count": 17,
+     "circuit": "bahrain",
+     "track": 3,
+     "slot": 1,
+     "seat": 0,
+     "out": "lewis_hamilton",
+     "in": "george_russell",
+     "number": 63,
+     "kind": "stand_in",
+     "look": {
+      "label": "2022-cs_mercedes_george_russell",
+      "stat_id": 547,
+      "from": "same team 2022"
+     },
+     "until_round": 17,
+     "until_circuit": "yas_marina",
+     "until_track": 14
+    },
+    {
+     "id": "2020-r16-s7a-jack_aitken",
+     "round": 16,
+     "real_round_count": 17,
+     "circuit": "bahrain",
+     "track": 3,
+     "slot": 7,
+     "seat": 0,
+     "out": "george_russell",
+     "in": "jack_aitken",
+     "number": 89,
+     "kind": "move",
+     "look": {
+      "label": "pg-jack_aitken",
+      "stat_id": 716,
+      "from": "default look"
+     },
+     "until_round": 17,
+     "until_circuit": "yas_marina",
+     "until_track": 14
+    }
+   ],
+   "changes_skipped": [
+    {
+     "round": 16,
+     "circuit": "bahrain",
+     "slot": 10,
+     "seat": 0,
+     "out": "romain_grosjean",
+     "not_in_game": "Pietro Fittipaldi",
+     "reason": "not in the game; the seat keeps its driver"
+    },
+    {
+     "round": 17,
+     "circuit": "yas_marina",
+     "slot": 10,
+     "seat": 0,
+     "out": "romain_grosjean",
+     "not_in_game": "Pietro Fittipaldi",
+     "reason": "not in the game; the seat keeps its driver"
+    }
    ]
   },
   "2021": {
@@ -3289,7 +4168,143 @@
      "sessions": 2,
      "number": 88
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 2,
+     "circuit": "imola",
+     "track": 27
+    },
+    {
+     "round": 3,
+     "circuit": "portimao",
+     "track": 28
+    },
+    {
+     "round": 4,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 5,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 6,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 7,
+     "circuit": "ricard",
+     "track": 1
+    },
+    {
+     "round": 8,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 12,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 13,
+     "circuit": "zandvoort",
+     "track": 26
+    },
+    {
+     "round": 14,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 15,
+     "circuit": "sochi",
+     "track": 18
+    },
+    {
+     "round": 16,
+     "circuit": "istanbul",
+     "track": null
+    },
+    {
+     "round": 17,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 18,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 19,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 20,
+     "circuit": "losail",
+     "track": 32
+    },
+    {
+     "round": 21,
+     "circuit": "jeddah",
+     "track": 29
+    },
+    {
+     "round": 22,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2021-r13-s9a-robert_kubica",
+     "round": 13,
+     "real_round_count": 22,
+     "circuit": "zandvoort",
+     "track": 26,
+     "slot": 9,
+     "seat": 0,
+     "out": "kimi_raikkonen",
+     "in": "robert_kubica",
+     "number": 88,
+     "kind": "stand_in",
+     "look": {
+      "label": "2019-cs_williams_robert_kubica",
+      "stat_id": 501,
+      "from": "slot 7 2019"
+     },
+     "until_round": 15,
+     "until_circuit": "sochi",
+     "until_track": 18
+    }
+   ],
+   "changes_skipped": []
   },
   "2022": {
    "teams": [
@@ -3787,7 +4802,164 @@
      "sessions": 1,
      "number": 45
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 2,
+     "circuit": "jeddah",
+     "track": 29
+    },
+    {
+     "round": 3,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 4,
+     "circuit": "imola",
+     "track": 27
+    },
+    {
+     "round": 5,
+     "circuit": "miami",
+     "track": 30
+    },
+    {
+     "round": 6,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 7,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 8,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 9,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 12,
+     "circuit": "ricard",
+     "track": 1
+    },
+    {
+     "round": 13,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 14,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 15,
+     "circuit": "zandvoort",
+     "track": 26
+    },
+    {
+     "round": 16,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 17,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 18,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 19,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 20,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 21,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 22,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2022-r1-s5a-nico_hulkenberg",
+     "round": 1,
+     "real_round_count": 22,
+     "circuit": "bahrain",
+     "track": 3,
+     "slot": 5,
+     "seat": 0,
+     "out": "sebastian_vettel",
+     "in": "nico_hulkenberg",
+     "number": 27,
+     "kind": "stand_in",
+     "look": {
+      "label": "2023-cs_haas_nico_hulkenberg",
+      "stat_id": 580,
+      "from": "slot 10 2023"
+     },
+     "until_round": 3,
+     "until_circuit": "albert_park",
+     "until_track": 0
+    },
+    {
+     "id": "2022-r16-s7a-nyck_de-vries",
+     "round": 16,
+     "real_round_count": 22,
+     "circuit": "monza",
+     "track": 11,
+     "slot": 7,
+     "seat": 0,
+     "out": "alex_albon",
+     "in": "nyck_de-vries",
+     "number": 45,
+     "kind": "stand_in",
+     "look": {
+      "label": "2023-cs_toro_rosso_nyck_de-vries",
+      "stat_id": 577,
+      "from": "slot 8 2023"
+     },
+     "until_round": 17,
+     "until_circuit": "marina_bay",
+     "until_track": 12
+    }
+   ],
+   "changes_skipped": []
   },
   "2023": {
    "teams": [
@@ -4285,7 +5457,162 @@
      "sessions": 5,
      "number": 40
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 2,
+     "circuit": "jeddah",
+     "track": 29
+    },
+    {
+     "round": 3,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 4,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 5,
+     "circuit": "miami",
+     "track": 30
+    },
+    {
+     "round": 6,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 7,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 8,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 9,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 10,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 11,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 12,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 13,
+     "circuit": "zandvoort",
+     "track": 26
+    },
+    {
+     "round": 14,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 15,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 16,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 17,
+     "circuit": "losail",
+     "track": 32
+    },
+    {
+     "round": 18,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 19,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 20,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 21,
+     "circuit": "vegas",
+     "track": 31
+    },
+    {
+     "round": 22,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2023-r11-s8b-daniel_ricciardo",
+     "round": 11,
+     "real_round_count": 22,
+     "circuit": "hungaroring",
+     "track": 9,
+     "slot": 8,
+     "seat": 1,
+     "out": "nyck_de-vries",
+     "in": "daniel_ricciardo",
+     "number": 3,
+     "kind": "replace",
+     "look": {
+      "label": "2024-cs_toro_rosso_daniel_ricciardo",
+      "stat_id": 597,
+      "from": "same team 2024"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2023-r13-s8b-liam_lawson",
+     "round": 13,
+     "real_round_count": 22,
+     "circuit": "zandvoort",
+     "track": 26,
+     "slot": 8,
+     "seat": 1,
+     "out": "daniel_ricciardo",
+     "in": "liam_lawson",
+     "number": 40,
+     "kind": "stand_in",
+     "look": {
+      "label": "2025-tororosso_liam_lawson",
+      "stat_id": 270,
+      "from": "same team 2025"
+     },
+     "until_round": 18,
+     "until_circuit": "americas",
+     "until_track": 15
+    }
+   ],
+   "changes_skipped": []
   },
   "2024": {
    "teams": [
@@ -4804,7 +6131,252 @@
      "sessions": 2,
      "number": 50
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 2,
+     "circuit": "jeddah",
+     "track": 29
+    },
+    {
+     "round": 3,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 4,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 5,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 6,
+     "circuit": "miami",
+     "track": 30
+    },
+    {
+     "round": 7,
+     "circuit": "imola",
+     "track": 27
+    },
+    {
+     "round": 8,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 9,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 10,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 11,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 12,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 13,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 14,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 15,
+     "circuit": "zandvoort",
+     "track": 26
+    },
+    {
+     "round": 16,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 17,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 18,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 19,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 20,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 21,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 22,
+     "circuit": "vegas",
+     "track": 31
+    },
+    {
+     "round": 23,
+     "circuit": "losail",
+     "track": 32
+    },
+    {
+     "round": 24,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2024-r2-s2b-oliver_bearman",
+     "round": 2,
+     "real_round_count": 24,
+     "circuit": "jeddah",
+     "track": 29,
+     "slot": 2,
+     "seat": 1,
+     "out": "carlos_sainz-jr",
+     "in": "oliver_bearman",
+     "number": 38,
+     "kind": "stand_in",
+     "look": {
+      "label": "2025-haas_oliver_bearman",
+      "stat_id": 254,
+      "from": "slot 10 2025"
+     },
+     "until_round": 3,
+     "until_circuit": "albert_park",
+     "until_track": 0
+    },
+    {
+     "id": "2024-r16-s7b-franco_colapinto",
+     "round": 16,
+     "real_round_count": 24,
+     "circuit": "monza",
+     "track": 11,
+     "slot": 7,
+     "seat": 1,
+     "out": "logan_sargeant",
+     "in": "franco_colapinto",
+     "number": 43,
+     "kind": "replace",
+     "look": {
+      "label": "2025-renault_franco_colapinto",
+      "stat_id": 296,
+      "from": "slot 6 2025"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2024-r17-s10b-oliver_bearman",
+     "round": 17,
+     "real_round_count": 24,
+     "circuit": "baku",
+     "track": 20,
+     "slot": 10,
+     "seat": 1,
+     "out": "kevin_magnussen",
+     "in": "oliver_bearman",
+     "number": 50,
+     "kind": "stand_in",
+     "look": {
+      "label": "2025-haas_oliver_bearman",
+      "stat_id": 254,
+      "from": "same team 2025"
+     },
+     "until_round": 18,
+     "until_circuit": "marina_bay",
+     "until_track": 12
+    },
+    {
+     "id": "2024-r19-s8b-liam_lawson",
+     "round": 19,
+     "real_round_count": 24,
+     "circuit": "americas",
+     "track": 15,
+     "slot": 8,
+     "seat": 1,
+     "out": "daniel_ricciardo",
+     "in": "liam_lawson",
+     "number": 30,
+     "kind": "replace",
+     "look": {
+      "label": "2025-tororosso_liam_lawson",
+      "stat_id": 270,
+      "from": "same team 2025"
+     },
+     "permanent": true
+    },
+    {
+     "id": "2024-r21-s10b-oliver_bearman",
+     "round": 21,
+     "real_round_count": 24,
+     "circuit": "interlagos",
+     "track": 16,
+     "slot": 10,
+     "seat": 1,
+     "out": "kevin_magnussen",
+     "in": "oliver_bearman",
+     "number": 50,
+     "kind": "stand_in",
+     "look": {
+      "label": "2025-haas_oliver_bearman",
+      "stat_id": 254,
+      "from": "same team 2025"
+     },
+     "until_round": 22,
+     "until_circuit": "vegas",
+     "until_track": 31
+    },
+    {
+     "id": "2024-r24-s6b-jack_doohan",
+     "round": 24,
+     "real_round_count": 24,
+     "circuit": "yas_marina",
+     "track": 14,
+     "slot": 6,
+     "seat": 1,
+     "out": "esteban_ocon",
+     "in": "jack_doohan",
+     "number": 61,
+     "kind": "replace",
+     "look": {
+      "label": "2025-renault_jack_doohan",
+      "stat_id": 257,
+      "from": "same team 2025"
+     },
+     "permanent": true
+    }
+   ],
+   "changes_skipped": []
   },
   "2025": {
    "teams": [
@@ -5319,7 +6891,195 @@
      "sessions": 2,
      "number": 22
     }
-   ]
+   ],
+   "calendar": [
+    {
+     "round": 1,
+     "circuit": "albert_park",
+     "track": 0
+    },
+    {
+     "round": 2,
+     "circuit": "shanghai",
+     "track": 2
+    },
+    {
+     "round": 3,
+     "circuit": "suzuka",
+     "track": 13
+    },
+    {
+     "round": 4,
+     "circuit": "bahrain",
+     "track": 3
+    },
+    {
+     "round": 5,
+     "circuit": "jeddah",
+     "track": 29
+    },
+    {
+     "round": 6,
+     "circuit": "miami",
+     "track": 30
+    },
+    {
+     "round": 7,
+     "circuit": "imola",
+     "track": 27
+    },
+    {
+     "round": 8,
+     "circuit": "monaco",
+     "track": 5
+    },
+    {
+     "round": 9,
+     "circuit": "catalunya",
+     "track": 4
+    },
+    {
+     "round": 10,
+     "circuit": "villeneuve",
+     "track": 6
+    },
+    {
+     "round": 11,
+     "circuit": "red_bull_ring",
+     "track": 17
+    },
+    {
+     "round": 12,
+     "circuit": "silverstone",
+     "track": 7
+    },
+    {
+     "round": 13,
+     "circuit": "spa",
+     "track": 10
+    },
+    {
+     "round": 14,
+     "circuit": "hungaroring",
+     "track": 9
+    },
+    {
+     "round": 15,
+     "circuit": "zandvoort",
+     "track": 26
+    },
+    {
+     "round": 16,
+     "circuit": "monza",
+     "track": 11
+    },
+    {
+     "round": 17,
+     "circuit": "baku",
+     "track": 20
+    },
+    {
+     "round": 18,
+     "circuit": "marina_bay",
+     "track": 12
+    },
+    {
+     "round": 19,
+     "circuit": "americas",
+     "track": 15
+    },
+    {
+     "round": 20,
+     "circuit": "rodriguez",
+     "track": 19
+    },
+    {
+     "round": 21,
+     "circuit": "interlagos",
+     "track": 16
+    },
+    {
+     "round": 22,
+     "circuit": "vegas",
+     "track": 31
+    },
+    {
+     "round": 23,
+     "circuit": "losail",
+     "track": 32
+    },
+    {
+     "round": 24,
+     "circuit": "yas_marina",
+     "track": 14
+    }
+   ],
+   "changes": [
+    {
+     "id": "2025-r1-s3b-liam_lawson",
+     "round": 1,
+     "real_round_count": 24,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 3,
+     "seat": 1,
+     "out": "yuki_tsunoda",
+     "in": "liam_lawson",
+     "number": 30,
+     "kind": "move",
+     "look": {
+      "label": "2025-redbull_liam_lawson",
+      "stat_id": 256,
+      "from": "same team and year"
+     },
+     "until_round": 3,
+     "until_circuit": "suzuka",
+     "until_track": 13
+    },
+    {
+     "id": "2025-r1-s6b-jack_doohan",
+     "round": 1,
+     "real_round_count": 24,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 6,
+     "seat": 1,
+     "out": "franco_colapinto",
+     "in": "jack_doohan",
+     "number": 7,
+     "kind": "stand_in",
+     "look": {
+      "label": "2025-renault_jack_doohan",
+      "stat_id": 257,
+      "from": "same team and year"
+     },
+     "until_round": 7,
+     "until_circuit": "imola",
+     "until_track": 27
+    },
+    {
+     "id": "2025-r1-s8b-yuki_tsunoda",
+     "round": 1,
+     "real_round_count": 24,
+     "circuit": "albert_park",
+     "track": 0,
+     "slot": 8,
+     "seat": 1,
+     "out": "liam_lawson",
+     "in": "yuki_tsunoda",
+     "number": 22,
+     "kind": "move",
+     "look": {
+      "label": "2025-tororosso_yuki_tsunoda",
+      "stat_id": 174,
+      "from": "same team and year"
+     },
+     "until_round": 3,
+     "until_circuit": "suzuka",
+     "until_track": 13
+    }
+   ],
+   "changes_skipped": []
   },
   "2026": {
    "teams": [

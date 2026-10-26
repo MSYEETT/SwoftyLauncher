@@ -134,7 +134,17 @@ JOLPICA_TEAMS = {
     "rb": "toro_rosso", "sauber": "sauber", "alfa": "sauber", "mclaren": "mclaren", "haas": "haas",
     "manor": "manor",
 }
+JOLPICA_DRIVERS.update({"antonelli": "andrea-kimi_antonelli", "bortoleto": "gabriel_bortoleto",
+                        "hadjar": "isack_hadjar"})
 NOT_IN_GAME = {"pietro_fittipaldi": "Pietro Fittipaldi", "resta": "Paul di Resta"}
+CIRCUIT_TRACKS = {
+    "albert_park": 0, "ricard": 1, "shanghai": 2, "bahrain": 3, "catalunya": 4, "monaco": 5, "villeneuve": 6,
+    "silverstone": 7, "hungaroring": 9, "spa": 10, "monza": 11, "marina_bay": 12, "suzuka": 13, "yas_marina": 14,
+    "americas": 15, "interlagos": 16, "red_bull_ring": 17, "sochi": 18, "rodriguez": 19, "baku": 20,
+    "zandvoort": 26, "imola": 27, "portimao": 28, "jeddah": 29, "miami": 30, "vegas": 31, "losail": 32,
+    "madring": 42, "hockenheimring": None, "sepang": None, "mugello": None, "nurburgring": None, "istanbul": None,
+}
+MIDSEASON_YEARS = range(2016, 2026)
 PARTICIPANTS_2025 = {
     "redbull": {"max_verstappen": {"sessions": 24, "number": 1}, "yuki_tsunoda": {"sessions": 22, "number": 22},
                 "liam_lawson": {"sessions": 2, "number": 30}},
@@ -184,6 +194,176 @@ def participants_from_jolpica(folder):
     return {"source": "Classic Seasons build/jolpica qualifying-<year>.json (qualifying sessions per constructor); "
                       "2025 by hand",
             "not_in_game": NOT_IN_GAME, "years": out}
+
+
+def rounds_from_jolpica(folder):
+    out = {}
+    for year in MIDSEASON_YEARS:
+        cal = json.loads((folder / f"calendar-{year}.json").read_text())["MRData"]["RaceTable"]["Races"]
+        races = {}
+        for page in sorted(folder.glob(f"results-{year}-p*.json"), key=lambda p: int(p.stem.rsplit("-p", 1)[1])):
+            for race in json.loads(page.read_text())["MRData"]["RaceTable"]["Races"]:
+                races.setdefault(int(race["round"]), []).extend(race["Results"])
+        rounds = []
+        for race in cal:
+            k = int(race["round"])
+            cid = race["Circuit"]["circuitId"]
+            if cid not in CIRCUIT_TRACKS:
+                raise SystemExit(f"{year} round {k}: circuit {cid} has no entry in CIRCUIT_TRACKS")
+            entries = {}
+            for res in races.get(k, []):
+                team = JOLPICA_TEAMS[res["Constructor"]["constructorId"]]
+                jid = res["Driver"]["driverId"]
+                if jid not in JOLPICA_DRIVERS:
+                    raise SystemExit(f"{year}: Jolpica driver {jid} has no game label in JOLPICA_DRIVERS")
+                label = JOLPICA_DRIVERS[jid] or f"missing:{jid}"
+                entries.setdefault(team, []).append([label, int(res["number"])])
+            rounds.append({"round": k, "circuit": cid, "race": race["raceName"], "date": race["date"],
+                           "entries": {t: sorted(e) for t, e in sorted(entries.items())}})
+        out[str(year)] = rounds
+    return {"source": "Jolpica F1 API /<year>.json (calendar) and /<year>/results.json (race entries per round and "
+                      "constructor), cached under /mnt/work/.progressive/jolpica",
+            "not_in_game": NOT_IN_GAME, "years": out}
+
+
+def look_index(stock):
+    """Every look a driver has for a career slot in a year: (year, slot, driver) -> (label, stat_id)."""
+    out = {}
+    for year in CS_YEARS:
+        _, looks, _ = season_ops(year)
+        for label, row in looks.items():
+            rest = label.split("-", 1)[1]
+            for key, slot in SLOT_OF_CS_KEY.items():
+                if rest.startswith(f"cs_{key}_"):
+                    out[(year, slot, rest[len(f"cs_{key}_"):])] = (label, int(row["stat_id"]))
+    for label in stock.looks:
+        head, _, rest = label.partition("-")
+        if not head.isdigit() or not (2016 <= int(head) <= 2026):
+            continue
+        for team, slot in sorted(SLOT_OF_STOCK_TEAM.items(), key=lambda kv: -len(kv[0])):
+            if rest.startswith(f"{team}_"):
+                driver = rest[len(team) + 1:]
+                if driver in stock.drivers and stock.stat(stock.looks, label) is not None:
+                    out.setdefault((int(head), slot, driver), (label, stock.stat(stock.looks, label)))
+                break
+    return out
+
+
+def change_look(looks, pool_by_driver, year, slot, driver):
+    """The look a driver who comes in mid-season wears: his look for that team and year, else for that team in the
+    nearest year, else his look that year at another team (each year away costs 1, another team 2.5)."""
+    best = None
+    for (y, s, d), (label, stat) in looks.items():
+        if d != driver:
+            continue
+        score = abs(y - year) + (0 if s == slot else 2.5)
+        key = (score, -y, label)
+        if best is None or key < best[0]:
+            best = (key, label, stat, "same team and year" if score == 0 else
+                    f"{'same team' if s == slot else 'slot ' + str(s)} {y}")
+    if best:
+        return {"label": best[1], "stat_id": best[2], "from": best[3]}
+    p = pool_by_driver.get(driver)
+    if p:
+        return {"label": p["default_look"]["label"], "stat_id": p["default_look"]["stat_id"], "from": "default look"}
+    return None
+
+
+def season_timeline(year, teams, rounds):
+    """Per career slot and seat, the holder at each real round from the year's race entries. The season's line-up
+    (teams[].drivers by position) is the start; a holder missing from a round keeps the seat unless a new driver
+    raced for the team, and a driver not in the game never takes it."""
+    seats, skipped = {}, []
+    for t in teams:
+        if t["kind"] != "real":
+            continue
+        seats[t["slot"]] = [d["driver"] for d in sorted(t["drivers"], key=lambda d: d["position"])]
+    key_of = {t["slot"]: t["cs_key"] or SLOTS[t["slot"] - 1]["folder"] for t in teams if t["kind"] == "real"}
+    holders = {slot: [list(base)] for slot, base in seats.items()}
+    numbers = {}
+    for r in rounds:
+        for slot, base in seats.items():
+            now = list(holders[slot][-1])
+            entries = r["entries"].get(key_of[slot], [])
+            raced = [d for d, _ in entries]
+            for d, n in entries:
+                numbers[(r["round"], d)] = n
+            new = [d for d in raced if d not in now]
+            gone = [i for i, d in enumerate(now) if d not in raced]
+            for i in gone:
+                if not new:
+                    break
+                back = [d for d in new if any(h[i] == d for h in holders[slot])]
+                pick = back[0] if back else new[0]
+                new.remove(pick)
+                if pick.startswith("missing:"):
+                    skipped.append({"round": r["round"], "circuit": r["circuit"], "slot": slot, "seat": i,
+                                    "out": now[i], "not_in_game": NOT_IN_GAME[pick[len("missing:"):]],
+                                    "reason": "not in the game; the seat keeps its driver"})
+                    continue
+                now[i] = pick
+            holders[slot].append(now)
+    by_round = {}
+    for slot, hs in holders.items():
+        for k in range(1, len(hs)):
+            for d in hs[k]:
+                if d in by_round.setdefault(k, {}):
+                    raise SystemExit(f"{year} round {k}: {d} sits twice ({by_round[k][d]} and slot {slot})")
+                by_round[k][d] = slot
+    return holders, numbers, skipped
+
+
+def season_changes(year, teams, rounds, looks, pool_by_driver):
+    holders, numbers, skipped = season_timeline(year, teams, rounds)
+    n = len(rounds)
+    circuit = {r["round"]: r["circuit"] for r in rounds}
+    seated = {k: {d for hs in holders.values() for d in hs[k]} for k in range(1, n + 1)}
+    changes = []
+    for slot in sorted(holders):
+        hs = holders[slot]
+        for seat in range(len(hs[0])):
+            line = [h[seat] for h in hs]
+            k = 1
+            while k <= n:
+                if line[k] == line[k - 1]:
+                    k += 1
+                    continue
+                out, new = line[k - 1], line[k]
+                m = k + 1
+                while m <= n and line[m] == new:
+                    m += 1
+                until = m if m <= n and line[m] == out else None
+                absent = all(out not in seated[j] for j in range(k, m))
+                kind = "stand_in" if until and absent else "move" if any(
+                    out in seated[j] for j in range(k, m)) else "replace"
+                ch = {"id": f"{year}-r{k}-s{slot}{'ab'[seat]}-{new}", "round": k, "real_round_count": n,
+                      "circuit": circuit[k], "track": CIRCUIT_TRACKS[circuit[k]], "slot": slot, "seat": seat,
+                      "out": out, "in": new, "number": numbers[(k, new)], "kind": kind,
+                      "look": change_look(looks, pool_by_driver, year, slot, new)}
+                if until:
+                    ch["until_round"] = until
+                    ch["until_circuit"] = circuit[until]
+                    ch["until_track"] = CIRCUIT_TRACKS[circuit[until]]
+                else:
+                    ch["permanent"] = True
+                changes.append(ch)
+                k = m + 1 if until else m
+    changes.sort(key=lambda c: (c["round"], c["slot"], c["seat"]))
+    return changes, skipped
+
+
+def midseason(years, rounds_doc, stock, pool):
+    looks = look_index(stock)
+    pool_by_driver = {p["driver"]: p for p in pool}
+    for year in MIDSEASON_YEARS:
+        rounds = rounds_doc["years"][str(year)]
+        y = years[str(year)]
+        changes, skipped = season_changes(year, y["teams"], rounds, looks, pool_by_driver)
+        y["calendar"] = [{"round": r["round"], "circuit": r["circuit"], "track": CIRCUIT_TRACKS[r["circuit"]]}
+                         for r in rounds]
+        y["changes"] = changes
+        y["changes_skipped"] = skipped
+    return years
 
 
 def season_ops(year):
@@ -630,6 +810,10 @@ def kit_looks(years, pool):
     for p in pool:
         for slot in sorted(set(p["years"].values())):
             add(slot, p["default_look"]["label"])
+    for year in YEARS:
+        for ch in years[str(year)].get("changes", []):
+            if ch["look"]:
+                add(ch["slot"], ch["look"]["label"])
     return out
 
 
@@ -664,13 +848,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=str(stockdb.DEFAULT))
     ap.add_argument("--jolpica", type=Path)
+    ap.add_argument("--rounds", type=Path, help="Jolpica cache with calendar-<year>.json and results-<year>-p<n>.json "
+                                                "(fetch_results.py); refreshes data/rounds.json")
     args = ap.parse_args()
     if args.jolpica:
         write_json(ROOT / "data" / "participants.json", participants_from_jolpica(args.jolpica))
+    if args.rounds:
+        write_json(ROOT / "data" / "rounds.json", rounds_from_jolpica(args.rounds))
     participants = json.loads((ROOT / "data" / "participants.json").read_text())
+    rounds = json.loads((ROOT / "data" / "rounds.json").read_text())
     stock = Stock(stockdb.Db(args.db))
     years, raced, new_drivers = build_years(stock, participants)
     pool = pool_rows(stock, years, raced, new_drivers)
+    midseason(years, rounds, stock, pool)
     grid, ids = grid_ops(stock, years, pool)
     grid["ops"] += kit_ops(stock, years, pool)
     reserved = {
@@ -700,6 +890,14 @@ def main():
                          "and driver_select_team_logos; a season team's cs_team outside this list keeps its stock "
                          "logo",
             "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
+            "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries "
+                       "(data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track "
+                       "`track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his "
+                       "real `number` and `look` (that team and year, else that team's nearest year, else his look "
+                       "that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in "
+                       "(`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). "
+                       "The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
+            "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver",
         },
         "seasons": years,
         "pool": pool,
