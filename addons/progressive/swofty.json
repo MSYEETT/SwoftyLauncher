@@ -93,7 +93,8 @@
         "2025",
         "2026"
       ],
-      "binds": "native"
+      "binds": "native",
+      "hidden": true
     },
     {
       "id": "rnd_mode",
@@ -111,7 +112,8 @@
           "label": "Hybrid"
         }
       ],
-      "binds": "native"
+      "binds": "native",
+      "hidden": true
     },
     {
       "id": "team_moves",
@@ -129,7 +131,8 @@
           "label": "Choose your team"
         }
       ],
-      "binds": "native"
+      "binds": "native",
+      "hidden": true
     },
     {
       "id": "season_visuals",
