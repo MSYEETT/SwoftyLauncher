@@ -12,6 +12,7 @@ You can use your addon to change the game's menus in three ways:
 | Settings for your addon | [`options`](/reference/addons/settings). swofty_core builds the addon's page in ADDON SETTINGS |
 | A new screen | `operations.screens`. swofty_core registers it with the game's UI system |
 | Settings before the new-career wizard | [`career_setup`](#add-a-career-setup-page). The launcher builds a page in the CUSTOM SETTINGS look |
+| Settings in Team HQ | [`hub_tab`](#add-a-team-hq-tab). The launcher builds the page of a laptop tab; your plugin adds the tab |
 | A tile on the home screen | A [site mixin](/reference/addons/hooking#run-code-at-an-instruction) on the home-tile builder |
 | A change to an existing screen | [UI patches](/reference/ops/ui-patches) |
 | A change to a screen's layout | An edited [scene](/reference/ui/editing-menus), made in [Swofty UI](/reference/ui/swofty-ui) |
@@ -128,6 +129,28 @@ wz::tile_route(group, "career_wizard_driver_career_progressive");
 The home focuses its category tile each time it opens. Back on `next` takes the game's own back route for that step. Fire `back_<route>` there to return to the page, for example from your plugin's wizard back-route site for your data group. The build log has a line for each page: `ui: <addon> has a career setup page swofty_setup_<route>: ...`. The build stops when the content select already has a route named `route`, or when `next` is not a screen in `flow_career_season_setup.erp`.
 
 The rows change the options live, as ADDON SETTINGS does: a `native` option's value reaches your plugin through [settings](/reference/std/settings), and the launcher stores it in the profile. The options also show on your addon's page in ADDON SETTINGS. Their values belong to the profile, not to a career; copy them into the career's [storage](/reference/std/storage) when the career is created. The description panel shows the option's `description`; a choice has no description per value.
+
+## Add a Team HQ tab
+
+Team HQ is the career hub's laptop, the screen `laptop_container` in `career_hub_flow`. Its tabs come from the laptop's view model, which the game fills when the hub loads (`Career_Build_HubLaptop`); a `.ui` edit can't add one. The launcher builds the tab's page from `hub_tab` ([manifest](./manifest#hub-tab)), and your plugin adds the tab, publishes the page's data and handles its commands.
+
+### What the build makes
+
+The template `swofty_hub_<name>`, added to the templates of `screens/laptop_my_driver.ui` in `flow_career_hub.erp` and `flow_team_hq.erp`. It is a copy of the laptop's driver statistics page, `tab_content_driver_details_panel`, on its scene `driver_details_panel.idf`:
+
+| Part | Shows |
+|---|---|
+| Grid cells of the stats block, one per option: down the first column, then the next | label `#view_model_data.swofty_hub_<name>.o<i>.label` and value `….o<i>.value`, for option `i` in `options` order |
+| Details panel, top | `#view_model_data.swofty_hub_<name>.title` |
+| Details panel, below | the focused option's `label` and `description` from the manifest |
+
+Up and Down move between the options. Right on option `i` raises the command `swofty_next:<addon id>:<option id>` on the template, and Left raises `swofty_prev:<addon id>:<option id>`, as on ADDON SETTINGS pages. The template's `shown` and `enabled` events focus the first option. The build checks the template against the game's UI loader rules. The build log has a line for each page: `ui: <addon> has a hub tab template swofty_hub_<name> for <data_group> careers in 2 archive(s); …`.
+
+### What your plugin does
+
+- Add a primary tab to the laptop for careers of `data_group`, with a sub-tab whose content template is `swofty_hub_<name>`. The laptop builder adds each of its own tabs the same way (STANDINGS: content `tabbing_secondary_controller`, header `tabbing_secondary_tab`).
+- Publish `title`, and `label` and `value` for each option, under `view_model_data.swofty_hub_<name>`.
+- Handle `swofty_next` and `swofty_prev` raised on the sub-tab and change the option.
 
 ## Add a home tile
 
