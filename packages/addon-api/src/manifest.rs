@@ -120,8 +120,10 @@ impl CareerSetup {
             return Err("options names no option".into());
         }
         for (i, id) in self.options.iter().enumerate() {
-            if !options.iter().any(|o| &o.id == id) {
-                return Err(format!("option {id} is not one of the addon's options"));
+            match options.iter().find(|o| &o.id == id) {
+                None => return Err(format!("option {id} is not one of the addon's options")),
+                Some(o) if o.hidden => return Err(format!("option {id} is hidden")),
+                Some(_) => {}
             }
             if self.options[..i].contains(id) {
                 return Err(format!("option {id} is listed twice"));
@@ -510,6 +512,9 @@ pub struct AddonOption {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
     pub binds: Binds,
+    /// Kept off the addon's ADDON SETTINGS page in game, such as a developer option.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -1294,5 +1299,28 @@ mod tests {
             ))
             .is_err()
         );
+        let hidden = with(r#"{ "route": "grid", "options": ["team_livery"] }"#)
+            .replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#);
+        assert_eq!(
+            AddonManifest::parse(&hidden).unwrap_err().to_string(),
+            at("option team_livery is hidden")
+        );
+    }
+
+    #[test]
+    fn an_option_can_be_hidden_from_addon_settings() {
+        let m = AddonManifest::parse(GRID24).unwrap();
+        assert!(!m.options[0].hidden);
+        assert!(
+            serde_json::to_value(&m).unwrap()["options"][0]
+                .get("hidden")
+                .is_none()
+        );
+        let m = AddonManifest::parse(
+            &GRID24.replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#),
+        )
+        .unwrap();
+        assert!(m.options[0].hidden);
+        assert_eq!(serde_json::to_value(&m).unwrap()["options"][0]["hidden"], true);
     }
 }

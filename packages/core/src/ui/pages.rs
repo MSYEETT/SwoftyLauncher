@@ -125,9 +125,9 @@ pub fn entries<'a>(
             .options
             .iter()
             .enumerate()
-            .map(|(local, o)| {
+            .filter_map(|(local, o)| {
                 k += 1;
-                Opt { k: k - 1, local, o }
+                (!o.hidden).then_some(Opt { k: k - 1, local, o })
             })
             .collect();
         out.push(Entry {

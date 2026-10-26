@@ -145,6 +145,8 @@ pub struct SessionOption {
     pub description: String,
     pub current: usize,
     pub states: Vec<SessionState>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -262,6 +264,7 @@ impl SessionSettings {
                                 command: format!("swofty_set:{}:{}:{i}", m.id, o.id),
                             })
                             .collect(),
+                        hidden: o.hidden,
                     })
                     .collect(),
                 career_setup: m.career_setup.clone(),

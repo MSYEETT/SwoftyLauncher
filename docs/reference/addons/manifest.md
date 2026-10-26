@@ -191,6 +191,7 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
+| `hidden` | boolean? | `true` keeps the option off your addon's page in ADDON SETTINGS in game, such as a developer option. The launcher's **Addons** page still lists it. Defaults to `false`. A launcher before 1.5.12 rejects the field. |
 
 ## career_setup
 
@@ -212,7 +213,7 @@ To give players settings they can change, declare them in `options`. They'll app
 |---|---|---|
 | `route` | string | `[a-z0-9_]`, at most 48 characters. The route in the career content select's route group that opens the page; a career content tile opens it through `tile_route`. |
 | `title` | string? | The page's title and its category tile's title, shown in capitals as written. Defaults to the addon's `name`. |
-| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once. |
+| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once, none `hidden`. |
 | `next` | string? | The new-career wizard screen CONFIRM opens. Defaults to `career_wizard_season_length_select`. |
 
 The page needs your addon on in the profile. An addon has at most one `career_setup`. A launcher before 1.5.12 rejects the field; set `"compat": { "launcher": ">=1.5.12" }` when you use it.

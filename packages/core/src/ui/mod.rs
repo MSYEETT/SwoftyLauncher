@@ -698,6 +698,8 @@ mod tests {
         let addon = "t.progressive";
         let years: Vec<String> = (2016..=2026).map(|y| y.to_string()).collect();
         let years: Vec<&str> = years.iter().map(String::as_str).collect();
+        let mut dev = choice("dev_probe", addon, &["off", "on"]);
+        dev["hidden"] = true.into();
         serde_json::from_value(serde_json::json!({
             "schema": 1, "profile": "t", "restart_command": "swofty_restart",
             "addons": [{
@@ -709,6 +711,7 @@ mod tests {
                     choice("start_season", addon, &years),
                     choice("rnd_mode", addon, &["real_life", "base", "hybrid"]),
                     choice("team_moves", addon, &["follow_driver", "choose"]),
+                    dev,
                 ],
                 "career_setup": { "route": SETUP_ROUTE, "title": "Progressive Career",
                                   "options": ["start_season", "rnd_mode", "team_moves"] }
@@ -804,6 +807,13 @@ mod tests {
             );
         }
         assert!(!rows_ui.contains("t.progressive:show_hud"));
+        let page = std::fs::read(&built.screens[&format!("{UI_DIR}/swofty_addon_0.ui")]).unwrap();
+        let page = String::from_utf8_lossy(&page);
+        assert!(page.contains("swofty_next:t.progressive:team_moves"));
+        assert!(
+            !page.contains("t.progressive:dev_probe"),
+            "a hidden option stays off ADDON SETTINGS"
+        );
 
         let (src_p, dst_p) = (
             input(&ui_file("persistent.erp")),
