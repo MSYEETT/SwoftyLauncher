@@ -4,7 +4,8 @@
 // keyed by pg-<seed>-<driver>: the WeatherAndTimeOfDayComponent rnd_seed (+0x2c4), which the game
 // draws once for a career and keeps in its save, and the player's driver stat id. The profile
 // options are copied in when the career is first seen at Team HQ, so later option changes leave
-// running careers alone; the last applied season sits next to them.
+// running careers alone; the last applied season sits next to them, and the seasons the developer
+// option test_next_season added on top of the game's season index.
 
 #pragma once
 #include <cstdint>
@@ -23,6 +24,7 @@ struct Career {
     int created_season = 0;
     int applied_season = -1;
     int applied_year = 0;
+    int test_seasons = 0;
 };
 
 bool load();

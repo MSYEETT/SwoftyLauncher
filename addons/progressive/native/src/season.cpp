@@ -41,6 +41,7 @@ SWOFTY_SETTING(std::string_view, start_season, "2026");
 SWOFTY_SETTING(std::string_view, rnd_mode, "real_life");
 SWOFTY_SETTING(std::string_view, team_moves, "follow_driver");
 SWOFTY_SETTING(bool, season_visuals, true);
+SWOFTY_SETTING(bool, test_next_season, false);
 
 namespace pg {
 
@@ -459,6 +460,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
 }
 
 std::atomic<int> g_rnd{0};
+std::atomic<bool> g_test_armed{false};
 
 int rnd_code(const std::string &m)
 {
@@ -507,18 +509,26 @@ void season_hub(const swofty::career::State &state)
         return;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
         swofty::log("[progressive] R&D mode of this career: %s", c->rnd.c_str());
-    int year = season::year_for(c->start, s.index);
+    if (g_test_armed.exchange(false)) {
+        ++c->test_seasons;
+        store::save();
+        swofty::log("[progressive] TEST test_next_season: career %s moves on one season without racing it: game season "
+                    "index %u + %d test season(s) = %u (turn the option off and on again for another)",
+                    c->key.c_str(), s.index, c->test_seasons, s.index + c->test_seasons);
+    }
+    uint32_t index = s.index + static_cast<uint32_t>(std::max(0, c->test_seasons));
+    int year = season::year_for(c->start, index);
     int shown = c->applied_season >= 0 && c->applied_year ? c->applied_year : season::kLastYear;
     if (g_names_for != c->key || g_names_year != shown) {
         g_names_for = c->key;
         set_names(shown, "career");
     }
-    if (c->applied_season >= static_cast<int>(s.index))
+    if (c->applied_season >= static_cast<int>(index))
         return;
     if (entity_busy(e) || g_failures >= 3)
         return;
-    swofty::log("[progressive] season %u of career %s: year %d (start %d), applying", s.index, c->key.c_str(), year,
-                c->start);
+    swofty::log("[progressive] season %u of career %s: year %d (start %d%s), applying", index, c->key.c_str(), year,
+                c->start, c->test_seasons ? ", includes test seasons" : "");
     season::Plan p = season::plan(g_data, year, view(rows), resolver());
     for (auto &n : p.notes)
         swofty::log("[progressive]   note: %s", n.c_str());
@@ -535,7 +545,7 @@ void season_hub(const swofty::career::State &state)
         ++g_failures;
         return;
     }
-    c->applied_season = static_cast<int>(s.index);
+    c->applied_season = static_cast<int>(index);
     c->applied_year = year;
     store::save();
     set_names(year, "season applied");
@@ -547,4 +557,22 @@ void season_hub(const swofty::career::State &state)
 extern "C" __declspec(dllexport) int ProgressiveRndMode()
 {
     return pg::g_rnd.load();
+}
+
+SWOFTY_ON_CHANGE(test_next_season, bool on)
+{
+    if (on) {
+        pg::g_test_armed = true;
+        swofty::log("[progressive] TEST test_next_season on: the next Team HQ of a Progressive career applies the "
+                    "following season");
+    }
+}
+
+SWOFTY_ON_LOAD
+{
+    if (test_next_season) {
+        pg::g_test_armed = true;
+        swofty::log("[progressive] TEST test_next_season is on at load: the next Team HQ of a Progressive career "
+                    "applies the following season");
+    }
 }

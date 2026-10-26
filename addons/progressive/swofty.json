@@ -107,6 +107,14 @@
       "binds": "native"
     },
     {
+      "id": "test_next_season",
+      "type": "toggle",
+      "label": "Developer: next season now",
+      "description": "Developer test: the next Team HQ of a Progressive career applies the following season's line-ups, cars and looks without racing the season. Turn it off and on again for another season. Leave off.",
+      "default": false,
+      "binds": "native"
+    },
+    {
       "id": "dev_probe",
       "type": "toggle",
       "label": "Developer: seat probe",

@@ -63,6 +63,7 @@ bool load()
         x.created_season = static_cast<int>(c["created_season"].num());
         x.applied_season = static_cast<int>(c["applied_season"].num(-1));
         x.applied_year = static_cast<int>(c["applied_year"].num());
+        x.test_seasons = static_cast<int>(c["test_seasons"].num());
         if (!x.key.empty())
             g_careers.push_back(x);
     }
@@ -76,12 +77,12 @@ bool save()
     std::string out = "{\n  \"careers\": [";
     for (size_t i = 0; i < g_careers.size(); ++i) {
         const Career &c = g_careers[i];
-        char b[256];
+        char b[384];
         std::snprintf(b, sizeof b,
                       "%s\n    {\"key\": %s, \"driver\": %u, \"seed\": %u, \"start\": %d, \"rnd\": %s, \"moves\": %s, "
-                      "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d}",
+                      "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d, \"test_seasons\": %d}",
                       i ? "," : "", quoted(c.key).c_str(), c.driver, c.seed, c.start, quoted(c.rnd).c_str(),
-                      quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year);
+                      quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year, c.test_seasons);
         out += b;
     }
     out += "\n  ]\n}\n";
