@@ -1599,10 +1599,10 @@ mod tests {
         )
     }
 
-    fn setup(server: &FakeServer, token: &str, game: &Arc<FakeGame>, fingerprint: Fingerprint) -> Setup {
+    fn setup(url: &str, token: &str, game: &Arc<FakeGame>, fingerprint: Fingerprint) -> Setup {
         let categories = BTreeMap::from([("okayama".to_owned(), "tracks".to_owned())]);
         Setup {
-            api: Api::with_server(&server.url, token),
+            api: Api::with_server(url, token),
             game_dir: game.dir.clone(),
             game: game.clone(),
             local: Local::new(fingerprint, &categories, Vec::new()),
@@ -1679,7 +1679,7 @@ mod tests {
             name: Some("Sunday league".into()),
             ..RoomSettings::default()
         };
-        let host = Session::create(setup(&server, "host-token", &host_game, print(&[])), settings);
+        let host = Session::create(setup(&server.url, "host-token", &host_game, print(&[])), settings);
         let state = wait_until(&host, "the host's lobby", in_lobby);
         let room = state.room.clone().unwrap();
         assert_eq!(
@@ -1695,7 +1695,10 @@ mod tests {
             ]
         );
 
-        let guest = Session::join(setup(&server, "guest-token", &guest_game, print(&[])), &room.code);
+        let guest = Session::join(
+            setup(&server.url, "guest-token", &guest_game, print(&[])),
+            &room.code,
+        );
         let guest_state = wait_until(&guest, "the guest's lobby", in_lobby);
         assert_eq!(guest_state.self_member, Some(2));
         assert!(guest_state.mismatches.is_empty());
@@ -1752,12 +1755,12 @@ mod tests {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-mm"), FakeGame::new("guest-mm"));
         let host = Session::create(
-            setup(&server, "host-token", &host_game, print(&[])),
+            setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
         let guest = Session::join(
-            setup(&server, "guest-token", &guest_game, print(&["extra"])),
+            setup(&server.url, "guest-token", &guest_game, print(&["extra"])),
             &code,
         );
         let state = wait_until(&guest, "the mismatch", |s| !s.mismatches.is_empty());
@@ -1787,7 +1790,7 @@ mod tests {
         let game = FakeGame::new("menu");
         game.set_screen(Screen::Other);
         let host = Session::create(
-            setup(&server, "host-token", &game, print(&[])),
+            setup(&server.url, "host-token", &game, print(&[])),
             RoomSettings::default(),
         );
         let state = wait_until(&host, "the main menu wait", |s| {
@@ -1809,11 +1812,11 @@ mod tests {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-close"), FakeGame::new("guest-close"));
         let host = Session::create(
-            setup(&server, "host-token", &host_game, print(&[])),
+            setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server, "guest-token", &guest_game, print(&[])), &code);
+        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         wait_until(&guest, "the guest's lobby", in_lobby);
         host.leave();
         let state = wait_until(&guest, "the end", |s| s.phase.is_over());
@@ -1828,11 +1831,11 @@ mod tests {
         let server = server();
         let (host_game, guest_game) = (FakeGame::new("host-relay"), FakeGame::new("guest-relay"));
         let host = Session::create(
-            setup(&server, "host-token", &host_game, print(&[])),
+            setup(&server.url, "host-token", &host_game, print(&[])),
             RoomSettings::default(),
         );
         let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
-        let guest = Session::join(setup(&server, "guest-token", &guest_game, print(&[])), &code);
+        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
         let before = wait_until(&guest, "the guest's lobby", in_lobby);
         wait_until(&host, "the relays", both_relays_ready);
         let old_relay = before.relay.clone().unwrap();
@@ -1852,6 +1855,47 @@ mod tests {
         let (host_base, guest_base) = prime(&host_game, &guest_game);
         deliver(&guest_game, guest_base + 1, &host_game, b"after the swap");
         deliver(&host_game, host_base + 2, &guest_game, b"and back");
+    }
+
+    /// The host and a joiner against a real SwoftyLauncherServer on this machine:
+    /// `SWOFTY_MP_E2E_SERVER` is its URL and `SWOFTY_MP_E2E_TOKENS` two session tokens,
+    /// `host,guest`, from rows in its registry's `sessions` table. The server needs
+    /// `MP_ALLOW_PRIVATE_RELAY=1`, since the relays are UDP sockets on loopback.
+    #[test]
+    #[ignore = "needs a local SwoftyLauncherServer; see the comment"]
+    fn against_a_local_lobby_server() {
+        let url = std::env::var("SWOFTY_MP_E2E_SERVER").expect("SWOFTY_MP_E2E_SERVER");
+        let tokens = std::env::var("SWOFTY_MP_E2E_TOKENS").expect("SWOFTY_MP_E2E_TOKENS");
+        let (host_token, guest_token) = tokens.split_once(',').expect("host,guest");
+        let (host_game, guest_game) = (FakeGame::new("host-e2e"), FakeGame::new("guest-e2e"));
+        let host = Session::create(
+            setup(&url, host_token, &host_game, print(&[])),
+            RoomSettings::default(),
+        );
+        let code = wait_until(&host, "the host's lobby", in_lobby).room.unwrap().code;
+        let listed = Api::with_server(&url, guest_token).rooms().unwrap();
+        let room = listed
+            .iter()
+            .find(|r| r.code == code)
+            .expect("the room is listed");
+        assert_eq!(
+            room.addons.as_ref().map(|a| a.tracks.clone()),
+            Some(vec!["okayama name".to_owned()])
+        );
+        let guest = Session::join(setup(&url, guest_token, &guest_game, print(&[])), &code);
+        wait_until(&guest, "the guest's lobby", in_lobby);
+        wait_until(&host, "the relays at the host", both_relays_ready);
+        wait_until(&guest, "the relays at the guest", both_relays_ready);
+        let (host_base, guest_base) = prime(&host_game, &guest_game);
+        deliver(&guest_game, guest_base + 1, &host_game, b"hello host");
+        deliver(&host_game, host_base + 2, &guest_game, b"welcome");
+        host.mark_race(true);
+        wait_until(&guest, "the race at the guest", |s| s.phase == Phase::Racing);
+        host.mark_race(false);
+        wait_until(&guest, "the race's end at the guest", in_lobby);
+        guest.leave();
+        wait_until(&host, "the guest gone at the host", |s| s.members.len() == 1);
+        assert_eq!(host.leave().phase, Phase::Ended("you left the room".into()));
     }
 
     fn server_relay_is(server: &FakeServer, relay: &str) -> bool {
