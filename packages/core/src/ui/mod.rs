@@ -601,15 +601,25 @@ fn hub_tabs(
     let mut written = Vec::new();
     for rel in hub::ARCHIVES {
         let (src, dst) = (input(&ui_file(rel)), out.join(ui_file(rel)));
-        let ui = match read_frag(&src, hub::UI, hub::UI_FRAGMENT).and_then(|d| hub::build_ui(&d, &pages)) {
-            Ok(ui) => ui,
+        let built = read_frag(&src, hub::UI, hub::UI_FRAGMENT)
+            .and_then(|d| hub::build_ui(&d, &pages))
+            .and_then(|ui| {
+                Ok((
+                    ui,
+                    hub::build_scene(&read_frag(&src, hub::SCENE, hub::SCENE_FRAGMENT)?)?,
+                ))
+            });
+        let (ui, scene) = match built {
+            Ok(b) => b,
             Err(e) => {
-                let Some(addon) = writer(&ui_file(rel), hub::UI) else {
+                let Some(addon) =
+                    writer(&ui_file(rel), hub::UI).or_else(|| writer(&ui_file(rel), hub::SCENE))
+                else {
                     return Err(e);
                 };
                 warnings.push(format!(
-                    "ui: {addon} has its own copy of the laptop's driver details page in {rel}, which Swofty can't \
-                     edit; hub tabs are off there while it's on ({e})"
+                    "ui: {addon} has its own copy of the laptop's inbox page in {rel}, which Swofty can't edit; hub \
+                     tabs are off there while it's on ({e})"
                 ));
                 continue;
             }
@@ -617,7 +627,10 @@ fn hub_tabs(
         write_archive(
             &src,
             &dst,
-            vec![(hub::UI, hub::UI_FRAGMENT, Box::new(move |_| Ok(ui)))],
+            vec![
+                (hub::UI, hub::UI_FRAGMENT, Box::new(move |_| Ok(ui))),
+                (hub::SCENE, hub::SCENE_FRAGMENT, Box::new(move |_| Ok(scene))),
+            ],
             Vec::new(),
         )?;
         written.push(rel);
@@ -1027,7 +1040,7 @@ mod tests {
                 templates(&input(&ui_file(rel))),
                 templates(&out.join(ui_file(rel))),
             );
-            for (name, t) in &before {
+            for (name, t) in before.iter().filter(|(n, _)| n.as_str() != hub::BASE) {
                 assert_eq!(after.get(name), Some(t), "{rel}: {name} changed");
             }
             assert_eq!(after.len(), before.len() + 1, "{rel}");
@@ -1089,16 +1102,59 @@ mod tests {
                 node::canonical(&node::behaviours(node::GROUP_BEHAVIOURS)),
                 "{rel}"
             );
-            let scene = Pkg::parse(
-                &read_frag(
-                    &input(&ui_file(rel)),
-                    "eaid://ui_package/art/components/career/laptop/messages_panel.idf",
-                    0,
-                )
-                .unwrap(),
-            )
-            .unwrap();
+            let mut stock = built
+                .root
+                .o()
+                .unwrap()
+                .at("Templates")
+                .unwrap()
+                .a()
+                .unwrap()
+                .iter()
+                .find(|t| t.name() == hub::BASE)
+                .unwrap()
+                .clone();
+            let kids = stock.slot_mut(node::CHILDREN).unwrap();
+            let rows = kids.pop().unwrap();
+            assert_eq!(rows.name(), hub::ROWS, "{rel}");
+            assert_ne!(
+                node::canonical(rows.props().unwrap().at("visible").unwrap()),
+                on,
+                "{rel}"
+            );
+            assert_eq!(
+                node::canonical(&stock),
+                before[hub::BASE],
+                "{rel}: {} changed",
+                hub::BASE
+            );
+            assert_eq!(visible(hub::ROWS), on, "{rel}");
+            for i in 0..6 {
+                let shown = visible(&format!("{}.{}", hub::ROWS, hub::pill(i))) == on;
+                assert_eq!(shown, i < 2, "{rel}: pill {i}");
+            }
+            let pill = tab.child(hub::ROWS).unwrap().child(&hub::pill(1)).unwrap();
+            assert!(
+                node::canonical(pill.child("value").unwrap()).contains("hud_swofty_hub_progressive.o1.value")
+            );
+            let scene_data = read_frag(&out.join(ui_file(rel)), hub::SCENE, hub::SCENE_FRAGMENT).unwrap();
+            let scene = Pkg::parse(&scene_data).unwrap();
+            assert!(idf::xref_mismatches(&scene).unwrap().is_empty(), "{rel}");
+            assert!(idf::id_problems(&scene).unwrap().is_empty(), "{rel}");
             let scene = idf::scenes(&scene).unwrap()[0].o().unwrap().at("scene").unwrap();
+            let branch = idf::find(scene, hub::ROWS).unwrap();
+            assert!(
+                idf::find(idf::find(scene, "mail").unwrap(), hub::ROWS).is_some(),
+                "{rel}"
+            );
+            for i in 0..6 {
+                let p = idf::find(branch, &hub::pill(i)).unwrap();
+                assert_eq!(
+                    idf::param_str(p, "fileRef"),
+                    Some("eaid://ui_package/art/components/career/laptop/sr_toggle_pill.idf"),
+                    "{rel}"
+                );
+            }
             let parts: Vec<(&str, bool, &Node)> = tab
                 .slot(node::CHILDREN)
                 .unwrap()

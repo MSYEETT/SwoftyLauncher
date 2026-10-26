@@ -1,5 +1,6 @@
-use swofty_formats::pkg::Node;
+use swofty_formats::pkg::{Node, Pkg};
 
+use super::idf;
 use super::node::*;
 use crate::Result;
 use crate::manifest::HubTab;
@@ -12,6 +13,24 @@ pub const UI_FRAGMENT: usize = 0;
 pub const BASE: &str = "tab_content_emails_panel";
 const LIST: &str = "email_list";
 const ENTRIES: usize = 6;
+/// The inbox page's scene. The build adds a branch to its `mail` branch with a value pill over each list row.
+pub const SCENE: &str = "eaid://ui_package/art/components/career/laptop/messages_panel.idf";
+pub const SCENE_FRAGMENT: usize = 0;
+/// The laptop's selector pill (the season selector on STANDINGS): a centred value between two arrows.
+const PILL: &str = "eaid://ui_package/art/components/career/laptop/sr_toggle_pill.idf";
+/// The scene reference the pills are cloned from.
+const PILL_SOURCE: &str = "messages_summary";
+const SCENE_BRANCH: &str = "mail";
+/// The added branch, and the widget on it: hidden on the stock inbox, shown on a hub tab.
+pub const ROWS: &str = "swofty_hub_rows";
+const PILL_SCALE: f64 = 0.66;
+/// The list stack's place in `mail`, the pitch of its rows, and a pill's top left inside a row (over the second
+/// text line), in front of the row.
+const STACK_AT: [f64; 2] = [0.2, -1.06];
+const ROW_PITCH: f64 = 0.86;
+const PILL_IN_ROW: [f64; 2] = [0.1, -0.45];
+const FRONT: f64 = -0.3;
+const LABEL_BEHAVIOURS: &[&str] = &["NBEL", "NBMG", "NBOS", "NBXA", "NBMO"];
 const PANE_TITLE: &str = "reading_pane.subject";
 const PANE_BODY: &str = "reading_pane.message_body";
 const HEADER: &str = "num_unread.num_unread";
@@ -71,6 +90,111 @@ fn drop_contexts(n: &mut Node) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn pill(i: usize) -> String {
+    format!("swofty_hub_pill_{i}")
+}
+
+fn place(e: &mut Node, at: [f64; 3], scale: f64) -> Result<()> {
+    let o = e.o_mut()?;
+    o.set("position", Node::Val(idf::vec3([at[0], at[1], at[2], 0.0])));
+    o.set("scale", Node::Val(idf::vec3([scale, scale, 1.0, 0.0])));
+    Ok(())
+}
+
+fn scene_find_mut<'a>(e: &'a mut Node, name: &str) -> Option<&'a mut Node> {
+    if idf::elem_name(e) == name {
+        return Some(e);
+    }
+    idf::children_mut(e)
+        .ok()?
+        .iter_mut()
+        .find_map(|k| scene_find_mut(k, name))
+}
+
+/// [`SCENE`] with the [`ROWS`] branch in `mail`: one [`PILL`] reference per list row, over the row's second line.
+pub fn build_scene(data: &[u8]) -> Result<Vec<u8>> {
+    let mut doc = Pkg::parse(data)?;
+    let entry = idf::scenes_mut(&mut doc)?
+        .first_mut()
+        .ok_or_else(|| err(format!("{SCENE} has no scenes")))?;
+    if idf::scene_name(entry) != Some(idf::scene_id(SCENE)) {
+        return Err(err(format!("not {SCENE}")));
+    }
+    let root = entry.o_mut()?.at_mut("scene")?;
+    if idf::find(root, ROWS).is_some() {
+        return Err(err(format!("{SCENE} has {ROWS} already")));
+    }
+    let branch = idf::elements(root)
+        .into_iter()
+        .skip(1)
+        .find(|(_, e)| idf::elem_name(e) == SCENE_BRANCH)
+        .map(|(path, _)| path)
+        .ok_or_else(|| err(format!("{SCENE} has no {SCENE_BRANCH}")))?;
+    let source = idf::find(root, PILL_SOURCE).ok_or_else(|| err(format!("{SCENE} has no {PILL_SOURCE}")))?;
+    let mut pills = Vec::new();
+    for i in 0..ENTRIES {
+        let mut e = idf::detached(source);
+        e.o_mut()?.set("name", s(&pill(i)));
+        idf::retarget(&mut e, PILL)?;
+        let y = PILL_IN_ROW[1] - ROW_PITCH * i as f64;
+        place(&mut e, [PILL_IN_ROW[0], y, 0.0], PILL_SCALE)?;
+        pills.push(e);
+    }
+    let mail =
+        scene_find_mut(root, SCENE_BRANCH).ok_or_else(|| err(format!("{SCENE} has no {SCENE_BRANCH}")))?;
+    let mut rows = idf::detached(mail);
+    rows.o_mut()?.set("name", s(ROWS));
+    place(&mut rows, [STACK_AT[0], STACK_AT[1], FRONT], 1.0)?;
+    *idf::children_mut(&mut rows)? = pills;
+    idf::recompute_ids(&mut rows, &format!("{branch}.{ROWS}"))?;
+    idf::children_mut(mail)?.push(rows);
+    idf::relookup(entry)?;
+    let out = doc.to_bytes()?;
+    let back = Pkg::parse(&out)?;
+    if back.to_bytes()? != out {
+        return Err(err(format!("the patched {SCENE} does not round-trip")));
+    }
+    let mut bad = idf::xref_mismatches(&back)?;
+    bad.extend(idf::id_problems(&back)?);
+    if !bad.is_empty() {
+        return Err(err(format!("{SCENE}: {}", bad.join("; "))));
+    }
+    Ok(out)
+}
+
+fn pills(vm: &str, rows: usize) -> Result<Node> {
+    let mut group = node(
+        ROWS,
+        "UIGP",
+        vec![("visible", prop(boolv(true), None))],
+        vec![],
+        &[ROWS],
+        GROUP_BEHAVIOURS,
+    );
+    for i in 0..ENTRIES {
+        let name = pill(i);
+        let mut p = node(
+            &name,
+            "UIGP",
+            vec![("visible", prop(boolv(i < rows), None))],
+            vec![],
+            &[&name],
+            GROUP_BEHAVIOURS,
+        );
+        if i < rows {
+            let mut value = node("value", "UILB", vec![], vec![], &["label"], LABEL_BEHAVIOURS);
+            bind_text(&mut value, &format!("{vm}.o{i}.value"))?;
+            let kids = p.slot_mut(CHILDREN)?;
+            kids.push(value);
+            for (arrow, at) in [("left_arrow", "toggle_left"), ("right_arrow", "toggle_right")] {
+                kids.push(node(arrow, "UIGP", vec![], vec![], &[at], GROUP_BEHAVIOURS));
+            }
+        }
+        group.slot_mut(CHILDREN)?.push(p);
+    }
+    Ok(group)
 }
 
 fn hide(n: &mut Node) -> Result<()> {
@@ -151,7 +275,7 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
         set_bool(entry, "enabled", true)?;
         set_bool(entry, "visible", true)?;
         bind_text(entry.child_mut("from")?, &format!("{vm}.o{i}.label"))?;
-        bind_text(entry.child_mut("subject")?, &format!("{vm}.o{i}.value"))?;
+        hide(entry.child_mut("subject")?)?;
         hide(entry.child_mut("unread_icon")?)?;
         let command = |verb: &str| format!("swofty_{verb}:{}:{}", p.addon, row.id);
         let (next, prev) = (command("next"), command("prev"));
@@ -184,6 +308,7 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
         }
         add_events(entry, evs)?;
     }
+    t.slot_mut(CHILDREN)?.push(pills(&vm, p.rows.len())?);
     add_events(
         &mut t,
         vec![
@@ -196,16 +321,19 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
 }
 
 /// Adds each page's template to the laptop page file `data`, built from [`BASE`]: the inbox header shows the page
-/// title, its entries are the rows (label over value), and the reading pane shows the focused row's label and
-/// description.
+/// title, its entries are the rows (the label, with the value in a pill between arrows under it), and the reading
+/// pane shows the focused row's label and description. [`BASE`] gets a hidden widget on the [`ROWS`] branch that
+/// [`build_scene`] adds.
 pub fn build_ui(data: &[u8], pages: &[Page]) -> Result<Vec<u8>> {
     edit(data, |pkg| {
         let list = templates(pkg)?;
-        let base = list
-            .iter()
+        let stock = list
+            .iter_mut()
             .find(|t| t.is_node() && t.name() == BASE)
-            .cloned()
             .ok_or_else(|| err(format!("the laptop page file has no {BASE}")))?;
+        let base = stock.clone();
+        stock.slot_mut(CHILDREN)?.push(hidden(ROWS, &[ROWS]));
+        fix_ids(stock, None);
         for p in pages {
             let name = p.tab.template();
             if list.iter().any(|t| t.is_node() && t.name() == name) {
