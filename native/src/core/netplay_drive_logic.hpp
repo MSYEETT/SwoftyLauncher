@@ -23,6 +23,8 @@ constexpr uint32_t STATE_FRONTEND = djb2("StateFrontend");
 constexpr uint32_t STATE_ONLINE_LOBBY = djb2("StateOnlineLobby");
 constexpr uint32_t STATE_READY_MONITOR = djb2("StateReadyMonitor");
 
+constexpr int GAME_PORT = 21414;
+
 static_assert(STATE_FRONTEND == 0x957880c6u, "state name hashing drifted");
 static_assert(STATE_ONLINE_LOBBY == 0x5e31bae3u, "state name hashing drifted");
 
@@ -143,6 +145,8 @@ inline Command parse(const std::string &text)
             c.error = "configure needs args.self, a member number from 1 to 254";
         else if (c.base < 1 || c.base > 65281)
             c.error = "configure needs args.base, a port from 1 to 65281";
+        else if (GAME_PORT > c.base && GAME_PORT <= c.base + 254)
+            c.error = "args.base " + std::to_string(c.base) + " puts the game port 21414 inside the bridge's ports (base+1 to base+254)";
     } else if (c.op == Op::join) {
         c.ip = args["ip"].str();
         if (!valid_ipv4(c.ip))
@@ -243,7 +247,8 @@ inline std::string status_json(const State &s)
     return out;
 }
 
-inline std::string reply_json(const Command &c, const State &s, const std::string &error, uint64_t t)
+inline std::string reply_json(const Command &c, const State &s, const std::string &error, uint64_t t,
+                              const std::string &detail = {})
 {
     std::string out = "{\"seq\":" + std::to_string(c.seq) + ",\"op\":\"" + op_name(c.op) + "\",\"ok\":";
     out += error.empty() ? "true" : "false";
@@ -252,9 +257,149 @@ inline std::string reply_json(const Command &c, const State &s, const std::strin
         out += "null";
     else
         quote(out, error);
+    if (!detail.empty()) {
+        out += ",\"detail\":";
+        quote(out, detail);
+    }
     out += ",\"status\":" + status_json(s) + ",\"t\":" + std::to_string(t) + '}';
     return out;
 }
+
+// The steps host and join take, the way the menus go: home fires local_multiplayer, the LAN tile's
+// getAction switches the game to LAN mode and Local Multiplayer fires lan, which opens
+// multiplayer_transition and its LAN Game dialog (multiplayer_lan_msg). The dialog is answered with
+// the button the player would press (open_lan: Host LAN game, join_via_ip: Join via IP address); for
+// join the IP prompt (set_join_via_ip) is answered with ok once the address is in
+// ui_menu_data.lan_ip_address. The job then waits for StateOnlineLobby. Every wait has a deadline,
+// and a popup whose id names an error while the job runs ends it with that id.
+enum class Step { none, open_local_mp, wait_local_mp, switch_lan, check_lan, fire_lan, wait_dialog, answer_dialog,
+                  wait_ip_prompt, answer_ip, wait_lobby, finished };
+enum class Do { nothing, fire_local_mp, mode_switch, fire_lan, answer_dialog, answer_ip };
+
+struct Facts {
+    bool local_mp = false;
+    bool lan_mode = false;
+    bool lobby = false;
+};
+
+constexpr const char *LAN_DIALOG = "multiplayer_lan_msg";
+constexpr const char *IP_PROMPT = "set_join_via_ip";
+constexpr uint64_t OPEN_MS = 10000, PROMPT_MS = 5000, JOIN_LOBBY_MS = 30000, HOST_LOBBY_MS = 120000;
+
+class Job {
+public:
+    void start(const Command &c, uint64_t now)
+    {
+        cmd = c;
+        step = Step::open_local_mp;
+        error.clear();
+        detail.clear();
+        started = now;
+        deadline = 0;
+    }
+
+    bool active() const { return step != Step::none && step != Step::finished; }
+    bool finished() const { return step == Step::finished; }
+    void reset() { step = Step::none; }
+
+    void fail(const std::string &why)
+    {
+        error = why;
+        step = Step::finished;
+    }
+
+    // A popup the game is about to show; true when the job answers it instead.
+    bool popup(const std::string &id, uint64_t now)
+    {
+        if (!active())
+            return false;
+        if (step == Step::wait_dialog && id == LAN_DIALOG) {
+            step = Step::answer_dialog;
+            return true;
+        }
+        if (step == Step::wait_ip_prompt && id == IP_PROMPT) {
+            step = Step::answer_ip;
+            return true;
+        }
+        if (id.find("error") != std::string::npos || id.find("banned") != std::string::npos) {
+            fail("the game showed '" + id + "'");
+            (void)now;
+        }
+        return false;
+    }
+
+    const char *button() const { return cmd.op == Op::host ? "open_lan" : "join_via_ip"; }
+
+    Do tick(const Facts &f, uint64_t now)
+    {
+        auto wait = [&](uint64_t ms) { deadline = now + ms; };
+        auto late = [&](const char *what) {
+            if (now < deadline)
+                return false;
+            fail(what);
+            return true;
+        };
+        switch (step) {
+        case Step::open_local_mp:
+            step = Step::wait_local_mp;
+            wait(OPEN_MS);
+            return Do::fire_local_mp;
+        case Step::wait_local_mp:
+            if (f.local_mp)
+                step = Step::switch_lan;
+            else
+                late("Local Multiplayer did not open");
+            return Do::nothing;
+        case Step::switch_lan:
+            step = Step::check_lan;
+            return Do::mode_switch;
+        case Step::check_lan:
+            if (!f.lan_mode) {
+                fail("the game did not switch to LAN mode");
+                return Do::nothing;
+            }
+            step = Step::fire_lan;
+            return Do::nothing;
+        case Step::fire_lan:
+            step = Step::wait_dialog;
+            wait(OPEN_MS);
+            return Do::fire_lan;
+        case Step::wait_dialog:
+            late("the LAN Game dialog did not open");
+            return Do::nothing;
+        case Step::answer_dialog:
+            if (cmd.op == Op::host) {
+                step = Step::wait_lobby;
+                wait(HOST_LOBBY_MS);
+                detail = "Host LAN game chosen; the car category is picked on the game's Car Category screen";
+            } else {
+                step = Step::wait_ip_prompt;
+                wait(PROMPT_MS);
+            }
+            return Do::answer_dialog;
+        case Step::wait_ip_prompt:
+            late("the Join via IP prompt did not open");
+            return Do::nothing;
+        case Step::answer_ip:
+            step = Step::wait_lobby;
+            wait(JOIN_LOBBY_MS);
+            return Do::answer_ip;
+        case Step::wait_lobby:
+            if (f.lobby)
+                step = Step::finished;
+            else
+                late(cmd.op == Op::host ? "the LAN lobby did not open" : "the host's LAN lobby did not open");
+            return Do::nothing;
+        default:
+            return Do::nothing;
+        }
+    }
+
+    Command cmd;
+    Step step = Step::none;
+    std::string error, detail;
+    uint64_t started = 0, deadline = 0;
+};
 
 // Names of inbox files the launcher writes: <digits>.json, written as .tmp and renamed.
 inline bool inbox_name(const std::string &name, uint64_t *seq)

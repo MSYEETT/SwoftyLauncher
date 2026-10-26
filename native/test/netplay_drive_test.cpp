@@ -102,6 +102,10 @@ int main()
     expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2,"base":65282}})").error.empty(),
            "a base that leaves no room for 254 members is refused");
     expect(drive::parse(R"({"seq":20,"op":"configure","args":{"self":254,"base":65281}})").error.empty(), "the top values parse");
+    expect(drive::parse(R"({"seq":20,"op":"configure","args":{"self":2,"base":21300}})").error.find("game port") != std::string::npos,
+           "a base whose ports cover 21414 is refused");
+    expect(drive::parse(R"({"seq":20,"op":"configure","args":{"self":2,"base":21414}})").error.empty(),
+           "a base just at the game port leaves it outside the range");
     expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2.5,"base":40000}})").error.empty(), "a fraction is refused");
     expect(!drive::parse(R"({"seq":20,"op":"configure","args":{"self":2}})").error.empty(), "configure needs a base");
     auto clear = drive::parse(R"({"seq":21,"op":"clear"})");
@@ -120,6 +124,70 @@ int main()
     json::Value v;
     expect(json::parse(drive::reply_json(status, main_menu(), "", 9), v) && v["ok"].type == json::Value::Bool && v["ok"].b,
            "an ok reply parses back");
+
+    {
+        drive::Job j;
+        drive::Facts f;
+        j.start(host, 1000);
+        expect(j.active() && j.tick(f, 1000) == drive::Do::fire_local_mp, "host starts by firing local_multiplayer");
+        expect(j.tick(f, 2000) == drive::Do::nothing && j.active(), "host waits for Local Multiplayer");
+        f.local_mp = true;
+        j.tick(f, 3000);
+        expect(j.tick(f, 3016) == drive::Do::mode_switch, "then switches to LAN mode");
+        f.lan_mode = true;
+        j.tick(f, 3032);
+        expect(j.tick(f, 3048) == drive::Do::fire_lan, "then fires lan");
+        expect(!j.popup("multiplayer_lan_msg_other", 3050), "another popup is not taken");
+        expect(j.popup(drive::LAN_DIALOG, 3060), "the LAN dialog is taken");
+        expect(j.tick(f, 3070) == drive::Do::answer_dialog && std::string(j.button()) == "open_lan",
+               "host answers Host LAN game");
+        expect(!j.popup(drive::IP_PROMPT, 3080), "host takes no IP prompt");
+        expect(j.tick(f, 50000) == drive::Do::nothing && j.active(), "host waits for the lobby while the player picks");
+        f.lobby = true;
+        j.tick(f, 60000);
+        expect(j.finished() && j.error.empty() && !j.detail.empty(), "host finishes in the lobby with a detail");
+    }
+    {
+        drive::Job j;
+        drive::Facts f;
+        f.local_mp = f.lan_mode = true;
+        j.start(join, 0);
+        j.tick(f, 0);
+        j.tick(f, 1);
+        j.tick(f, 2);
+        j.tick(f, 3);
+        j.tick(f, 4);
+        expect(j.popup(drive::LAN_DIALOG, 5), "join takes the LAN dialog");
+        expect(j.tick(f, 6) == drive::Do::answer_dialog && std::string(j.button()) == "join_via_ip",
+               "join answers Join via IP address");
+        expect(j.popup(drive::IP_PROMPT, 7), "join takes the IP prompt");
+        expect(j.tick(f, 8) == drive::Do::answer_ip, "join answers the prompt");
+        expect(!j.popup("lan_join_via_ip_error", 9) && j.finished() && j.error.find("lan_join_via_ip_error") != std::string::npos,
+               "an error popup ends the job and is shown");
+    }
+    {
+        drive::Job j;
+        drive::Facts f;
+        j.start(join, 0);
+        j.tick(f, 0);
+        j.tick(f, drive::OPEN_MS + 1);
+        expect(j.finished() && j.error == "Local Multiplayer did not open", "a screen that never opens times out");
+        j.reset();
+        expect(!j.active() && !j.popup(drive::LAN_DIALOG, 0), "an idle job takes no popup");
+        f.local_mp = true;
+        j.start(host, 0);
+        j.tick(f, 0);
+        j.tick(f, 1);
+        j.tick(f, 2);
+        j.tick(f, 3);
+        expect(j.finished() && j.error == "the game did not switch to LAN mode", "a mode switch that does not stick fails");
+        drive::Job k;
+        k.start(join, 0);
+        k.fail("no home view model");
+        expect(k.finished() && k.error == "no home view model", "an executor failure ends the job");
+    }
+    expect(drive::reply_json(host, main_menu(), "", 1, "picked by hand").find(R"("detail":"picked by hand")") != std::string::npos,
+           "a reply carries its detail");
 
     uint64_t seq = 0;
     expect(drive::inbox_name("1792467946485.json", &seq) && seq == 1792467946485ull, "a numeric inbox name is read");
