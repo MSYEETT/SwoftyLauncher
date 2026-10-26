@@ -37,6 +37,7 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) `shaders` ([Shader packs](./shader-packs)) and `postfx` ([Post-process passes](./postfx)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 | `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
+| `multiplayer` | string? | `gameplay` or `cosmetic`: whether players in a multiplayer session must match on the addon ([multiplayer](#multiplayer)). |
 
 ## category
 
@@ -130,6 +131,25 @@ The **Addons** page shows the source as Built in, DB Editor, Imported or Install
 
 Leave `saves` out for an addon that doesn't affect saves. The launcher shows the warning in a dialog; `swofty addons disable` and `swofty addons remove` ask on a terminal and need `--yes` otherwise. Turning the addon on is never asked about. A launcher before 1.0.12 rejects the field; set `"compat": { "launcher": ">=1.0.12" }` when you use it.
 
+## multiplayer
+
+`multiplayer` says whether the players in a multiplayer session must match on the addon.
+
+```json
+"multiplayer": "cosmetic"
+```
+
+| Value | Players in a session |
+|---|---|
+| `gameplay` | Have the addon on at the host's version, as the same copy, with the host's settings and the host's load order among the addons that change game data. |
+| `cosmetic` | May each have the addon on or off, at any version, with any settings. |
+
+An addon without `multiplayer` is `cosmetic` when its `category` is `helmets`, `shaders` or `performance`, or when it ships only a `shader` look or `postfx` passes, with no `operations` and no `launcher.build`. Every other addon is `gameplay`. A `multiplayer` value in the manifest takes precedence over these defaults.
+
+An option takes `"multiplayer": "cosmetic"` as well ([options](#options)): players may set that option differently. The options of a `cosmetic` addon never have to match.
+
+`multiplayer` needs launcher 1.5.13 or later; an earlier launcher rejects the manifest. Set `"compat": { "launcher": ">=1.5.13" }` in the same manifest. With it, the Addon Browser of an earlier launcher offers only the addon's versions whose `compat.launcher` that launcher meets, and launchers 1.5.2 to 1.5.12 list an installed copy as unusable with "needs Swofty Launcher >=1.5.13" rather than "unknown field `multiplayer`".
+
 ## compat
 
 ```json
@@ -190,6 +210,7 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
+| `multiplayer` | string? | `cosmetic`: players in a multiplayer session may set the option differently. Defaults to `gameplay`, the host's value. See [multiplayer](#multiplayer). |
 
 ## operations
 
