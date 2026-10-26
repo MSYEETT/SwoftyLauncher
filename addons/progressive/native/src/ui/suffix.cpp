@@ -78,12 +78,28 @@ void wizard_names(int year)
         fn(year);
 }
 
-void rewrite(uintptr_t wizard, const char *when)
+void new_career()
+{
+    static void (*fn)() = nullptr;
+    static bool looked = false;
+    if (!looked) {
+        HMODULE m = GetModuleHandleW(L"progressive.dll");
+        fn = m ? reinterpret_cast<void (*)()>(reinterpret_cast<void *>(GetProcAddress(m, "ProgressiveNewCareer")))
+               : nullptr;
+        looked = m != nullptr;
+    }
+    if (fn)
+        fn();
+}
+
+void rewrite(uintptr_t wizard, const char *when, bool step)
 {
     uintptr_t group = 0, chars = 0;
     uint64_t cap = 0;
     if (!wizard || !swofty::mem::read(wizard + kWizardGroup, group) || text_at(group) != kGroup)
         return;
+    if (step)
+        new_career();
     int year = start_year();
     wizard_names(year);
     if (!swofty::mem::read(wizard + kWizardSuffixCap, cap) || !swofty::mem::read(wizard + kWizardSuffix, chars))
@@ -115,14 +131,14 @@ SWOFTY_WRAP(FeTile_Route_CareerItem, swofty::game::Action *, swofty::game::HomeI
     uintptr_t group = 0, wizard = 0;
     if (at && swofty::mem::read(at + kItemDataGroup, group) && group && text_at(group + kNeStrChars) == kGroup &&
         swofty::mem::read(at + kItemWizard, wizard))
-        rewrite(wizard, "tile press");
+        rewrite(wizard, "tile press", false);
     return r;
 }
 
 SWOFTY_WRAP(Game_CareerWizard_PushNextStep, void, void *wizard)
 {
     orig(wizard);
-    rewrite(reinterpret_cast<uintptr_t>(wizard), "wizard step");
+    rewrite(reinterpret_cast<uintptr_t>(wizard), "wizard step", true);
 }
 
 SWOFTY_ON_LOAD

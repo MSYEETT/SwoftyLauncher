@@ -2,6 +2,7 @@
 //
 // Progressive Career: careers.json (store.hpp).
 
+#include <algorithm>
 #include <cstdio>
 #include <deque>
 
@@ -66,6 +67,7 @@ bool load()
         x.applied_season = static_cast<int>(c["applied_season"].num(-1));
         x.applied_year = static_cast<int>(c["applied_year"].num());
         x.test_seasons = static_cast<int>(c["test_seasons"].num());
+        x.used = static_cast<uint64_t>(c["used"].num());
         if (!x.key.empty())
             g_careers.push_back(x);
     }
@@ -79,12 +81,14 @@ bool save()
     std::string out = "{\n  \"careers\": [";
     for (size_t i = 0; i < g_careers.size(); ++i) {
         const Career &c = g_careers[i];
-        char b[384];
+        char b[448];
         std::snprintf(b, sizeof b,
                       "%s\n    {\"key\": %s, \"driver\": %u, \"seed\": %u, \"start\": %d, \"rnd\": %s, \"moves\": %s, "
-                      "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d, \"test_seasons\": %d}",
+                      "\"created_season\": %d, \"applied_season\": %d, \"applied_year\": %d, \"test_seasons\": %d, "
+                      "\"used\": %llu}",
                       i ? "," : "", quoted(c.key).c_str(), c.driver, c.seed, c.start, quoted(c.rnd).c_str(),
-                      quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year, c.test_seasons);
+                      quoted(c.moves).c_str(), c.created_season, c.applied_season, c.applied_year, c.test_seasons,
+                      static_cast<unsigned long long>(c.used));
         out += b;
     }
     out += "\n  ]\n}\n";
@@ -111,10 +115,36 @@ std::vector<Career *> by_driver(uint32_t driver)
     return out;
 }
 
+Career *by_seed(uint32_t seed, uint32_t driver)
+{
+    for (auto &c : g_careers)
+        if (seed && c.seed == seed && c.driver == driver)
+            return &c;
+    return nullptr;
+}
+
 Career &add(const Career &c)
 {
     g_careers.push_back(c);
     return g_careers.back();
+}
+
+std::string free_key(uint32_t seed, uint32_t driver)
+{
+    char key[64];
+    std::snprintf(key, sizeof key, "pg-%08x-%u", seed, driver);
+    std::string k = key;
+    for (int n = 2; find(k); ++n)
+        k = std::string(key) + "-" + std::to_string(n);
+    return k;
+}
+
+uint64_t next_use()
+{
+    uint64_t m = 0;
+    for (auto &c : g_careers)
+        m = std::max(m, c.used);
+    return m + 1;
 }
 
 } // namespace pg::store

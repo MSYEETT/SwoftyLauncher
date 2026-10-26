@@ -105,43 +105,129 @@ std::string label_or(Kind k, uint32_t stat)
     return l.empty() ? std::to_string(stat) : l + "(" + std::to_string(stat) + ")";
 }
 
-store::Career *career_entry(const swofty::career::State &state, uint32_t season_index, uint32_t driver)
+season::Resolve resolver();
+
+std::atomic<bool> g_new_career{false};
+
+// The years whose real line-up has the most of its race-seat drivers on their own slot's race
+// seats in this career, when that is at least 12; empty otherwise. A career the season apply has
+// run on shows its year (2025 and 2026 share drivers, the best count still tells them apart).
+std::vector<int> seats_years(const std::vector<Row> &rows, int &count)
 {
-    if (!store::load())
+    season::Resolve r = resolver();
+    std::vector<std::pair<int, uint32_t>> seated;
+    for (auto &row : rows)
+        if (has_car(row.rec) && !teamless(row.rec))
+            seated.push_back({season::slot_of_team(g_data, static_cast<int>(stat_of(row.rec.team_stat_id))),
+                              stat_of(driver_of(row.rec))});
+    std::vector<int> best;
+    count = 0;
+    for (auto &[year, y] : g_data.years) {
+        lineup::Grid g = season::grid_of(y, r, nullptr, nullptr);
+        int n = 0;
+        for (auto &[slot, who] : seated)
+            if (slot >= 0)
+                for (auto d : g[slot])
+                    n += d == who;
+        if (n > count) {
+            count = n;
+            best.clear();
+        }
+        if (n == count && n)
+            best.push_back(year);
+    }
+    if (count < 12)
+        best.clear();
+    return best;
+}
+
+std::string years_text(const std::vector<int> &ys)
+{
+    std::string out;
+    for (int y : ys)
+        out += (out.empty() ? "" : "/") + std::to_string(y);
+    return out.empty() ? "no real year" : out;
+}
+
+// The entry of the loaded career. A new career from the Progressive wizard gets a new entry; a
+// loaded one keeps its entry: the one whose seed matches, else the one whose year matches the
+// year its seats show, else (seats still on the stock grid) the driver's last used entry. Only a
+// driver with no entry gets a new one at a load, its start taken from the seats when they show a
+// past year (start = that year - season index), else from the start season option.
+store::Career *career_entry(const swofty::career::State &state, uint32_t season_index, uint32_t driver,
+                            const std::vector<Row> &rows)
+{
+    if (!store::load() || !data())
         return nullptr;
     uint32_t seed = career_seed();
-    char key[64];
-    std::snprintf(key, sizeof key, "pg-%08x-%u", seed, driver);
-    if (store::Career *c = store::find(key))
-        return c;
-    if (season_index > 0) {
-        auto same = store::by_driver(driver);
-        if (same.size() == 1) {
-            swofty::log("[progressive] store: no entry %s at season %u; taking the only entry of this driver (%s), "
-                        "its seed changed from %08x",
-                        key, season_index, same[0]->key.c_str(), same[0]->seed);
-            same[0]->key = key;
-            same[0]->seed = seed;
-            store::save();
-            return same[0];
+    bool fresh = g_new_career.exchange(false);
+    int count = 0;
+    std::vector<int> seen = seats_years(rows, count);
+    int past = 0;
+    for (int y : seen)
+        if (y < season::kLastYear && !past)
+            past = y;
+    auto shows = [&](const store::Career *c) {
+        int y = season::year_for(c->start, season_index + static_cast<uint32_t>(std::max(0, c->test_seasons)));
+        return std::find(seen.begin(), seen.end(), y) != seen.end();
+    };
+    auto latest = [](std::vector<store::Career *> cs) -> store::Career * {
+        store::Career *b = nullptr;
+        for (auto *c : cs)
+            if (!b || c->used >= b->used)
+                b = c;
+        return b;
+    };
+    store::Career *pick = nullptr;
+    std::string how;
+    if (fresh && !past) {
+        how = "new career from the Progressive wizard";
+    } else {
+        store::Career *s = store::by_seed(seed, driver);
+        if (s && (!past || shows(s))) {
+            pick = s;
+            how = "seed";
+        }
+        std::vector<store::Career *> same = store::by_driver(driver), fit;
+        for (auto *c : same)
+            if (past && shows(c))
+                fit.push_back(c);
+        if (!pick && !fit.empty()) {
+            pick = latest(fit);
+            how = "the seats show its year";
+        }
+        if (!pick && !past && !same.empty()) {
+            pick = latest(same);
+            how = "the driver's last used entry (the seats show no past year yet)";
         }
     }
+    if (pick) {
+        if (pick->seed != seed || how != "seed")
+            swofty::log("[progressive] store: career %s (driver %u, season %u, seats %s, %d seats matched) is %s by "
+                        "%s; seed %08x -> %08x",
+                        state.key[0] ? state.key : "-", driver, season_index, years_text(seen).c_str(), count,
+                        pick->key.c_str(), how.c_str(), pick->seed, seed);
+        pick->seed = seed;
+        pick->used = store::next_use();
+        store::save();
+        return pick;
+    }
     store::Career c;
-    c.key = key;
+    c.key = store::free_key(seed, driver);
     c.driver = driver;
     c.seed = seed;
-    c.start = setting_year();
+    c.start = past ? std::max(season::kFirstYear, past - static_cast<int>(season_index)) : setting_year();
     c.rnd = std::string(rnd_mode.get()) == "real_life" ? "real_life" : "hybrid";
     c.moves = std::string(team_moves.get());
     c.created_season = static_cast<int>(season_index);
+    c.used = store::next_use();
     store::Career &added = store::add(c);
     store::save();
-    swofty::log("[progressive] store: %s career %s (career key %s): start %d, R&D %s, team moves %s%s",
-                season_index ? "ADOPTED a running" : "new", key, state.key[0] ? state.key : "-", c.start, c.rnd.c_str(),
-                c.moves.c_str(), season_index ? " (no entry for it; the options as they are now)" : "");
-    if (!seed)
-        swofty::log("[progressive] store: WARNING the career's rnd_seed reads 0, so two careers of this driver share "
-                    "an entry");
+    swofty::log("[progressive] store: new entry %s for career %s (%s) at season %u: start %d (%s), R&D %s, team moves %s; "
+                "seats %s",
+                c.key.c_str(), state.key[0] ? state.key : "-", fresh ? how.c_str() : "no entry of this driver fits",
+                season_index, c.start, past ? "from the seats, which show a past year" : "the start season option",
+                c.rnd.c_str(), c.moves.c_str(), years_text(seen).c_str());
     return &added;
 }
 
@@ -699,6 +785,12 @@ bool progressive_career()
 // The Team HQ tab (manifest hub_tab, built by the core) shows rnd_mode, which is a profile option:
 // on load the career's own mode is pushed into it, and a Real-life career keeps the R&D tab out of the
 // laptop (the core's hide_rnd, applied when the laptop is built at Team HQ entry).
+void new_career()
+{
+    if (!g_new_career.exchange(true))
+        swofty::log("[progressive] store: a Progressive new-career wizard step; the next career load gets a new entry");
+}
+
 void hub_sync(const std::string &rnd, const char *why)
 {
     swofty::hub::Result h = swofty::hub::hide_rnd(rnd == "real_life");
@@ -722,12 +814,18 @@ void season_loaded(const swofty::career::State &state)
     if (!e || !season(e, s) || !entrant_rows(e, rows) || !store::load())
         return;
     uint32_t player = 0;
+    int humans = 0;
     for (auto &r : rows)
-        if (human(r.rec))
+        if (human(r.rec)) {
             player = stat_of(driver_of(r.rec));
-    store::Career *c = career_entry(state, s.index, player);
-    if (c)
-        hub_sync(c->rnd, "career load");
+            ++humans;
+        }
+    if (humans != 1 || !data() || !names::load())
+        return;
+    store::Career *c = career_entry(state, s.index, player, rows);
+    if (!c)
+        return;
+    hub_sync(c->rnd, "career load");
 }
 
 void rnd_option_changed()
@@ -760,6 +858,9 @@ void rnd_frame(double, void *)
 
 void wizard_left(const char *group)
 {
+    if (g_new_career.exchange(false))
+        swofty::log("[progressive] store: the %s tile was pressed; the pending new Progressive career is dropped",
+                    group ? group : "?");
     if (g_current.empty() && g_names_year && !progressive_career()) {
         swofty::log("[progressive] team names: the %s tile was pressed; the 2026 names are back", group ? group : "?");
         clear_names();
@@ -791,10 +892,15 @@ void season_hub(const swofty::career::State &state)
     if (!e || !season(e, s) || !entrant_rows(e, rows) || !data() || !names::load())
         return;
     uint32_t player = 0;
+    int humans = 0;
     for (auto &r : rows)
-        if (human(r.rec))
+        if (human(r.rec)) {
             player = stat_of(driver_of(r.rec));
-    store::Career *c = career_entry(state, s.index, player);
+            ++humans;
+        }
+    if (humans != 1)
+        return;
+    store::Career *c = career_entry(state, s.index, player, rows);
     if (!c)
         return;
     if (g_current != c->key) {
@@ -971,4 +1077,9 @@ SWOFTY_ON_LOAD
     if (r != swofty::events::Result::ok)
         swofty::log("[progressive] R&D: no frame callback (%s); an R&D mode change applies at the next Team HQ",
                     swofty::events::name(r));
+}
+
+extern "C" __declspec(dllexport) void ProgressiveNewCareer()
+{
+    pg::new_career();
 }
