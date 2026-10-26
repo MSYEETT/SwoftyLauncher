@@ -7,7 +7,8 @@ Writes data/years.json (per year and career team slot: line-up, vehicle row, loo
 db/career.json (mode, championship, shared components, data groups, schedule, official lists, content set),
 db/grid.json (career entrant list, driver pool list and entrants, per-year Choose Driver lists, pool looks) and
 lang/career.json. --jolpica refreshes data/participants.json, every driver who qualified per year and constructor,
-from Classic Seasons' qualifying cache.
+from Classic Seasons' qualifying cache. Each real team of 2016-2025 also gets its in-season development curve from
+data/development.json (tools/development.py).
 
 Line-ups 2016-2024 are Classic Seasons' data/seasons.json; its emitted classic-seasons-<year>/db/season.json gives the
 vehicle rows and the look stat ids. 2025 and 2026 are the stock f1_2025 and f1_2026 lists.
@@ -371,6 +372,17 @@ def build_years(stock, participants):
     return out_years, raced, new_drivers
 
 
+def add_development(years):
+    dev = json.loads((ROOT / "data" / "development.json").read_text())["years"]
+    for year, y in years.items():
+        d = dev.get(year, {})
+        for t in y["teams"]:
+            curve = d.get("teams", {}).get(str(t["slot"])) if t["kind"] == "real" else None
+            t["development"] = None if curve is None else {
+                "checkpoints": curve["checkpoints"], "rounds": d["rounds"], "rounds_used": curve["rounds"],
+                "source": "tools/development.py (Jolpica qualifying)"}
+
+
 def pool_rows(stock, years, raced, new_drivers):
     grid_2026 = {e["driver"]: e for e in stock.lineup("f1_2026")}
     pool = []
@@ -670,6 +682,7 @@ def main():
     participants = json.loads((ROOT / "data" / "participants.json").read_text())
     stock = Stock(stockdb.Db(args.db))
     years, raced, new_drivers = build_years(stock, participants)
+    add_development(years)
     pool = pool_rows(stock, years, raced, new_drivers)
     grid, ids = grid_ops(stock, years, pool)
     grid["ops"] += kit_ops(stock, years, pool)
@@ -700,6 +713,9 @@ def main():
                          "and driver_select_team_logos; a season team's cs_team outside this list keeps its stock "
                          "logo",
             "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
+            "development": "in-season pace of a real team relative to the year's car: checkpoints {at: 0..1 of the "
+                           "season, delta_pct: qualifying gap % minus the team's season mean, > 0 slower}; null "
+                           "without data (2026, the filler)",
         },
         "seasons": years,
         "pool": pool,
