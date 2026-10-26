@@ -84,6 +84,8 @@ pub struct Entry<'a> {
     pub description: &'a str,
     pub id: &'a str,
     pub options: Vec<Opt<'a>>,
+    /// Every option of the addon, hidden ones too, for its career setup page.
+    pub all: Vec<Opt<'a>>,
     pub setup: Option<&'a CareerSetup>,
 }
 
@@ -121,13 +123,22 @@ pub fn entries<'a>(
     let mut k = 0;
     let mut out = Vec::new();
     for (i, (full, m)) in addons.iter().enumerate().filter(|(_, m)| m.enabled).enumerate() {
-        let options = m
+        let all: Vec<Opt> = m
             .options
             .iter()
             .enumerate()
-            .filter_map(|(local, o)| {
+            .map(|(local, o)| {
                 k += 1;
-                (!o.hidden).then_some(Opt { k: k - 1, local, o })
+                Opt { k: k - 1, local, o }
+            })
+            .collect();
+        let options = all
+            .iter()
+            .filter(|o| !o.o.hidden)
+            .map(|o| Opt {
+                k: o.k,
+                local: o.local,
+                o: o.o,
             })
             .collect();
         out.push(Entry {
@@ -140,6 +151,7 @@ pub fn entries<'a>(
             description: &m.description,
             id: &m.id,
             options,
+            all,
             setup: m.career_setup.as_ref(),
         });
     }
@@ -154,6 +166,7 @@ pub fn entries<'a>(
             description: &mp.description,
             id: &mp.code,
             options: Vec::new(),
+            all: Vec::new(),
             setup: None,
         });
     }
@@ -168,6 +181,7 @@ pub fn entries<'a>(
             description: &md.description,
             id: &md.id,
             options: Vec::new(),
+            all: Vec::new(),
             setup: None,
         });
     }
@@ -950,6 +964,7 @@ pub fn build_options_page(src: &Sources, e: &Entry, screen: &str) -> Result<Vec<
                 o: o.o,
             })
             .collect(),
+        all: Vec::new(),
         setup: e.setup,
     };
     let rows = addon_rows(&e);
@@ -988,13 +1003,14 @@ fn setup_entry<'a>(e: &Entry<'a>, setup: &'a CareerSetup) -> Entry<'a> {
         options: setup
             .options
             .iter()
-            .filter_map(|id| e.options.iter().find(|o| &o.o.id == id))
+            .filter_map(|id| e.all.iter().find(|o| &o.o.id == id))
             .map(|o| Opt {
                 k: o.k,
                 local: o.local,
                 o: o.o,
             })
             .collect(),
+        all: Vec::new(),
         setup: Some(setup),
     }
 }

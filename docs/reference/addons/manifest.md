@@ -192,7 +192,7 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
-| `hidden` | boolean? | `true` keeps the option off your addon's page in ADDON SETTINGS in game, such as a developer option. The launcher's **Addons** page still lists it. Defaults to `false`. A launcher before 1.5.12 rejects the field. |
+| `hidden` | boolean? | `true` keeps the option off your addon's page in ADDON SETTINGS in game, such as a developer option or a per-career setting. The launcher's **Addons** page still lists it, and [`career_setup`](#career-setup) and [`hub_tab`](#hub-tab) may list it. Defaults to `false`. A launcher before 1.5.12 rejects the field. |
 
 ## career_setup
 
@@ -214,7 +214,7 @@ To give players settings they can change, declare them in `options`. They'll app
 |---|---|---|
 | `route` | string | `[a-z0-9_]`, at most 48 characters. The route in the career content select's route group that opens the page; a career content tile opens it through `tile_route`. |
 | `title` | string? | The page's title and its category tile's title, shown in capitals as written. Defaults to the addon's `name`. |
-| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once, none `hidden`. |
+| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once. `hidden` options may be listed. |
 | `next` | string? | The new-career wizard screen CONFIRM opens. Defaults to `career_wizard_season_length_select`. |
 
 The page needs your addon on in the profile. An addon has at most one `career_setup`. A launcher before 1.5.12 rejects the field; set `"compat": { "launcher": ">=1.5.12" }` when you use it.
@@ -236,7 +236,7 @@ The page needs your addon on in the profile. An addon has at most one `career_se
 |---|---|---|
 | `name` | string | `[a-z0-9_]`, at most 40 characters. The page template is `swofty_hub_<name>` and its data `view_model_data.hud_swofty_hub_<name>`. |
 | `title` | string | The tab's title. |
-| `options` | string[] | 1 to 6 ids from your `options`, in the order the page shows them, each once, none `hidden`. |
+| `options` | string[] | 1 to 6 ids from your `options`, in the order the page shows them, each once. `hidden` options may be listed. |
 | `data_group` | string | `[a-z0-9_]`. The career data group whose careers show the tab. |
 
 The page needs your addon on in the profile. An addon has at most one `hub_tab`. A launcher before 1.5.12 rejects the field.

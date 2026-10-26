@@ -114,10 +114,8 @@ impl HubTab {
 
 fn own_options(ids: &[String], options: &[AddonOption]) -> std::result::Result<(), String> {
     for (i, id) in ids.iter().enumerate() {
-        match options.iter().find(|o| &o.id == id) {
-            None => return Err(format!("option {id} is not one of the addon's options")),
-            Some(o) if o.hidden => return Err(format!("option {id} is hidden")),
-            Some(_) => {}
+        if !options.iter().any(|o| &o.id == id) {
+            return Err(format!("option {id} is not one of the addon's options"));
         }
         if ids[..i].contains(id) {
             return Err(format!("option {id} is listed twice"));
@@ -560,7 +558,8 @@ pub struct AddonOption {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
     pub binds: Binds,
-    /// Kept off the addon's ADDON SETTINGS page in game, such as a developer option.
+    /// Kept off the addon's ADDON SETTINGS page in game, such as a developer option or one only a career setup
+    /// page or hub tab shows.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
 }
@@ -1353,10 +1352,9 @@ mod tests {
         );
         let hidden = with(r#"{ "route": "grid", "options": ["team_livery"] }"#)
             .replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#);
-        assert_eq!(
-            AddonManifest::parse(&hidden).unwrap_err().to_string(),
-            at("option team_livery is hidden")
-        );
+        let m = AddonManifest::parse(&hidden).unwrap();
+        assert!(m.options[0].hidden);
+        assert_eq!(m.career_setup.unwrap().options, ["team_livery"]);
     }
 
     #[test]
@@ -1413,10 +1411,9 @@ mod tests {
         }
         let hidden = with(&tab("p", "T", r#"["team_livery"]"#, "g"))
             .replace(r#""binds": "db" }]"#, r#""binds": "db", "hidden": true }]"#);
-        assert_eq!(
-            AddonManifest::parse(&hidden).unwrap_err().to_string(),
-            at("option team_livery is hidden")
-        );
+        let m = AddonManifest::parse(&hidden).unwrap();
+        assert!(m.options[0].hidden);
+        assert_eq!(m.hub_tab.unwrap().options, ["team_livery"]);
     }
 
     #[test]

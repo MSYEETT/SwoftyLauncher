@@ -576,16 +576,12 @@ fn hub_tabs(
             .options
             .iter()
             .map(|id| {
-                let o = m
-                    .options
-                    .iter()
-                    .find(|o| &o.id == id && !o.hidden)
-                    .ok_or_else(|| {
-                        err(format!(
-                            "{}: hub tab {} names option {id}, which it doesn't show",
-                            m.id, tab.name
-                        ))
-                    })?;
+                let o = m.options.iter().find(|o| &o.id == id).ok_or_else(|| {
+                    err(format!(
+                        "{}: hub tab {} names option {id}, which it doesn't have",
+                        m.id, tab.name
+                    ))
+                })?;
                 Ok(hub::Row {
                     id,
                     label: &o.label,
@@ -806,6 +802,8 @@ mod tests {
         let years: Vec<&str> = years.iter().map(String::as_str).collect();
         let mut dev = choice("dev_probe", addon, &["off", "on"]);
         dev["hidden"] = true.into();
+        let mut start = choice("start_season", addon, &years);
+        start["hidden"] = true.into();
         serde_json::from_value(serde_json::json!({
             "schema": 1, "profile": "t", "restart_command": "swofty_restart",
             "addons": [{
@@ -814,7 +812,7 @@ mod tests {
                 "enable_commands": [format!("swofty_enable:{addon}:0"), format!("swofty_enable:{addon}:1")],
                 "options": [
                     choice("show_hud", addon, &["on", "off"]),
-                    choice("start_season", addon, &years),
+                    start,
                     choice("rnd_mode", addon, &["real_life", "base", "hybrid"]),
                     choice("team_moves", addon, &["follow_driver", "choose"]),
                     dev,
@@ -916,10 +914,12 @@ mod tests {
         let page = std::fs::read(&built.screens[&format!("{UI_DIR}/swofty_addon_0.ui")]).unwrap();
         let page = String::from_utf8_lossy(&page);
         assert!(page.contains("swofty_next:t.progressive:team_moves"));
-        assert!(
-            !page.contains("t.progressive:dev_probe"),
-            "a hidden option stays off ADDON SETTINGS"
-        );
+        for hidden in ["dev_probe", "start_season"] {
+            assert!(
+                !page.contains(&format!("t.progressive:{hidden}")),
+                "a hidden option stays off ADDON SETTINGS: {hidden}"
+            );
+        }
 
         let (src_p, dst_p) = (
             input(&ui_file("persistent.erp")),
@@ -982,6 +982,13 @@ mod tests {
     fn a_hub_tab_page_builds_within_the_loader_rules() {
         let input = stock_input();
         let mut settings = setup_settings();
+        for o in settings.addons[0]
+            .options
+            .iter_mut()
+            .filter(|o| o.id == "rnd_mode")
+        {
+            o.hidden = true;
+        }
         settings.addons[0].hub_tab = Some(crate::manifest::HubTab {
             name: "progressive".into(),
             title: "Progressive Settings".into(),
