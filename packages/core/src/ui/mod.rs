@@ -8,7 +8,7 @@ pub mod node;
 pub mod pages;
 pub mod patch;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use swofty_formats::erp::{Entry, ErpFile, Resource};
@@ -95,7 +95,25 @@ fn write_archive(
     patches: Vec<(&str, usize, Patch)>,
     added: Vec<Added>,
 ) -> Result<()> {
+    write_archive_copying(src, dst, patches, added, Vec::new())
+}
+
+/// [`write_archive`], also appending `copied`, resources of another archive kept byte for byte, under names `src`
+/// doesn't have.
+fn write_archive_copying(
+    src: &Path,
+    dst: &Path,
+    patches: Vec<(&str, usize, Patch)>,
+    added: Vec<Added>,
+    copied: Vec<Resource>,
+) -> Result<()> {
     let file = ErpFile::open(src)?;
+    if let Some(r) = copied
+        .iter()
+        .find(|r| file.erp.resources.iter().any(|s| s.name == r.name))
+    {
+        return Err(err(format!("{} has {} already", src.display(), r.name)));
+    }
     let mut owned: HashMap<String, Resource> = HashMap::new();
     for (name, index, f) in patches {
         let mut res = match owned.remove(name) {
@@ -142,6 +160,7 @@ fn write_archive(
         })
         .collect();
     entries.extend(extra);
+    entries.extend(copied.into_iter().map(Entry::Owned));
     let dir = dst.parent().expect("has parent");
     std::fs::create_dir_all(dir).map_err(io_err(dir))?;
     file.write(entries, dst)?;
@@ -599,39 +618,45 @@ fn hub_tabs(
         return Ok(Vec::new());
     }
     let mut written = Vec::new();
+    let options = input(&ui_file(hub::OPTIONS));
+    let options_file = ErpFile::open(&options)?;
+    let settings = read_frag(&options, hub::SETTINGS_UI, hub::SETTINGS_FRAGMENT)?;
+    let mut shared = BTreeSet::new();
+    for rel in hub::SHARED {
+        let f = ErpFile::open(&input(&ui_file(rel)))?;
+        shared.extend(f.erp.resources.iter().map(|r| r.name.clone()));
+    }
     for rel in hub::ARCHIVES {
         let (src, dst) = (input(&ui_file(rel)), out.join(ui_file(rel)));
-        let built = read_frag(&src, hub::UI, hub::UI_FRAGMENT)
-            .and_then(|d| hub::build_ui(&d, &pages))
-            .and_then(|ui| {
-                Ok((
-                    ui,
-                    hub::build_scene(&read_frag(&src, hub::SCENE, hub::SCENE_FRAGMENT)?)?,
-                ))
-            });
-        let (ui, scene) = match built {
-            Ok(b) => b,
+        let ui = match read_frag(&src, hub::UI, hub::UI_FRAGMENT)
+            .and_then(|d| hub::build_ui(&d, &settings, &pages))
+        {
+            Ok(ui) => ui,
             Err(e) => {
-                let Some(addon) =
-                    writer(&ui_file(rel), hub::UI).or_else(|| writer(&ui_file(rel), hub::SCENE))
-                else {
+                let Some(addon) = writer(&ui_file(rel), hub::UI) else {
                     return Err(e);
                 };
                 warnings.push(format!(
-                    "ui: {addon} has its own copy of the laptop's inbox page in {rel}, which Swofty can't edit; hub \
+                    "ui: {addon} has its own copy of the laptop's overview page in {rel}, which Swofty can't edit; hub \
                      tabs are off there while it's on ({e})"
                 ));
                 continue;
             }
         };
-        write_archive(
+        let mut have = shared.clone();
+        have.extend(ErpFile::open(&src)?.erp.resources.iter().map(|r| r.name.clone()));
+        let plan = hub::copy_plan(&options_file, &have, &hub::SCENES)?;
+        lines.push(format!(
+            "ui: hub tabs copy {} settings screen resources from {} into {rel}",
+            plan.add.len(),
+            hub::OPTIONS
+        ));
+        write_archive_copying(
             &src,
             &dst,
-            vec![
-                (hub::UI, hub::UI_FRAGMENT, Box::new(move |_| Ok(ui))),
-                (hub::SCENE, hub::SCENE_FRAGMENT, Box::new(move |_| Ok(scene))),
-            ],
+            vec![(hub::UI, hub::UI_FRAGMENT, Box::new(move |_| Ok(ui)))],
             Vec::new(),
+            plan.add,
         )?;
         written.push(rel);
     }
@@ -1014,12 +1039,12 @@ mod tests {
         let written = hub_tabs(&settings, &input, &|_, _| None, &out, &mut lines, &mut warnings).unwrap();
         assert_eq!(written, hub::ARCHIVES);
         assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert!(lines[0].starts_with("ui: hub tabs copy "), "{lines:?}");
         assert_eq!(
-            lines,
-            [
-                "ui: t.progressive has a hub tab template swofty_hub_progressive for f1_career_progressive careers in \
-              2 archive(s); its rows read view_model_data.hud_swofty_hub_progressive"
-            ]
+            lines[2],
+            "ui: t.progressive has a hub tab template swofty_hub_progressive for f1_career_progressive careers in 2 \
+             archive(s); its rows read view_model_data.hud_swofty_hub_progressive"
         );
         let templates = |path: &Path| -> BTreeMap<String, String> {
             let p = swofty_formats::pkg::Pkg::parse(&read_frag(path, hub::UI, hub::UI_FRAGMENT).unwrap())
@@ -1035,12 +1060,20 @@ mod tests {
                 .map(|t| (t.name().to_owned(), node::canonical(t)))
                 .collect()
         };
+        let options = input(&ui_file(hub::OPTIONS));
+        let options_file = ErpFile::open(&options).unwrap();
+        let names =
+            |f: &ErpFile| -> BTreeSet<String> { f.erp.resources.iter().map(|r| r.name.clone()).collect() };
+        let mut shared = BTreeSet::new();
+        for rel in hub::SHARED {
+            shared.extend(names(&ErpFile::open(&input(&ui_file(rel))).unwrap()));
+        }
         for rel in hub::ARCHIVES {
             let (before, after) = (
                 templates(&input(&ui_file(rel))),
                 templates(&out.join(ui_file(rel))),
             );
-            for (name, t) in before.iter().filter(|(n, _)| n.as_str() != hub::BASE) {
+            for (name, t) in &before {
                 assert_eq!(after.get(name), Some(t), "{rel}: {name} changed");
             }
             assert_eq!(after.len(), before.len() + 1, "{rel}");
@@ -1050,19 +1083,69 @@ mod tests {
                 "#view_model_data.hud_swofty_hub_progressive.o0.label",
                 "#view_model_data.hud_swofty_hub_progressive.o0.value",
                 "#view_model_data.hud_swofty_hub_progressive.o1.label",
+                "#view_model_data.hud_swofty_hub_progressive.o1.value",
                 "swofty_next:t.progressive:rnd_mode",
                 "swofty_prev:t.progressive:rnd_mode",
                 "swofty_next:t.progressive:team_moves",
                 "About rnd_mode.",
                 "swofty_adjust",
+                "options/options_edit_screen",
             ] {
                 assert!(page.contains(want), "{rel}: {want}");
             }
-            let built = swofty_formats::pkg::Pkg::parse(
-                &read_frag(&out.join(ui_file(rel)), hub::UI, hub::UI_FRAGMENT).unwrap(),
-            )
-            .unwrap();
-            let tab = built
+            for unwanted in [
+                "o2.label",
+                "dataContext",
+                "tab_content_emails_panel",
+                "messages_panel",
+                "email_list",
+            ] {
+                assert!(!page.contains(unwanted), "{rel}: {unwanted}");
+            }
+
+            let (src, dst) = (
+                ErpFile::open(&input(&ui_file(rel))).unwrap(),
+                ErpFile::open(&out.join(ui_file(rel))).unwrap(),
+            );
+            let (stock, built) = (names(&src), names(&dst));
+            assert!(stock.is_subset(&built), "{rel}");
+            let added: BTreeSet<String> = built.difference(&stock).cloned().collect();
+            assert!(!added.is_empty(), "{rel}");
+            for r in &src.erp.resources {
+                if r.name == hub::UI {
+                    continue;
+                }
+                let got = dst.erp.resources.iter().find(|d| d.name == r.name).unwrap();
+                assert_eq!(got.hash, r.hash, "{rel}: {} changed", r.name);
+            }
+            let mut available = shared.clone();
+            available.extend(built.iter().cloned());
+            for name in &added {
+                let copy = dst.load(dst.erp.find(name).unwrap()).unwrap();
+                let original = options_file.load(options_file.erp.find(name).unwrap()).unwrap();
+                assert_eq!(copy.kind, original.kind, "{rel}: {name}");
+                assert_eq!(copy.fragments.len(), original.fragments.len(), "{rel}: {name}");
+                for (a, b) in copy.fragments.iter().zip(&original.fragments) {
+                    let data = a.data().unwrap();
+                    assert_eq!(data, b.data().unwrap(), "{rel}: {name}");
+                    for r in hub::references(&data) {
+                        if !r.starts_with("eaid://ui_package/") || hub::resolves(&available, &r) {
+                            continue;
+                        }
+                        assert!(
+                            !hub::resolves(&names(&options_file), &r),
+                            "{rel}: {name} uses {r}, which the archive lacks"
+                        );
+                    }
+                }
+            }
+            for scene in hub::SCENES {
+                assert!(available.contains(scene), "{rel}: {scene}");
+            }
+
+            let built_ui =
+                Pkg::parse(&read_frag(&out.join(ui_file(rel)), hub::UI, hub::UI_FRAGMENT).unwrap()).unwrap();
+            let tab = built_ui
                 .root
                 .o()
                 .unwrap()
@@ -1073,88 +1156,45 @@ mod tests {
                 .iter()
                 .find(|t| t.name() == "swofty_hub_progressive")
                 .unwrap();
-            let visible = |path: &str| {
-                let mut n = tab;
-                for part in path.split('.') {
-                    n = n.child(part).unwrap();
-                }
-                node::canonical(n.props().unwrap().at("visible").unwrap())
-            };
             let on = node::canonical(&node::prop(node::boolv(true), None));
-            for shown in ["emails_display", "email_list", "reading_pane", "num_unread"] {
-                assert_eq!(visible(shown), on, "{rel}: {shown}");
-            }
-            for hidden in [
-                "no_emails_display",
-                "emails_display.no_mail_label",
-                "scrollbar",
-                "divider",
-                "reading_pane.attachments",
-            ] {
-                assert_ne!(visible(hidden), on, "{rel}: {hidden}");
-            }
-            let attachments = tab.child("reading_pane").unwrap().child("attachments").unwrap();
-            assert!(attachments.slot(node::CHILDREN).unwrap().is_empty(), "{rel}");
-            let entry = tab.child("email_list").unwrap().child("entry_0").unwrap();
-            assert_eq!(entry.type_code(), "UIGP", "{rel}");
-            assert_eq!(
-                node::canonical(&entry.a().unwrap()[node::BEHAVIOURS]),
-                node::canonical(&node::behaviours(node::GROUP_BEHAVIOURS)),
-                "{rel}"
-            );
-            let mut stock = built
-                .root
-                .o()
-                .unwrap()
-                .at("Templates")
-                .unwrap()
-                .a()
+            let shown = |n: &Node| {
+                n.props()
+                    .unwrap()
+                    .get("visible")
+                    .is_none_or(|v| node::canonical(v) == on)
+            };
+            let kids: Vec<&str> = tab
+                .slot(node::CHILDREN)
                 .unwrap()
                 .iter()
-                .find(|t| t.name() == hub::BASE)
-                .unwrap()
-                .clone();
-            let kids = stock.slot_mut(node::CHILDREN).unwrap();
-            let rows = kids.pop().unwrap();
-            assert_eq!(rows.name(), hub::ROWS, "{rel}");
-            assert_ne!(
-                node::canonical(rows.props().unwrap().at("visible").unwrap()),
-                on,
+                .filter(|c| c.is_node())
+                .map(|c| c.name())
+                .collect();
+            assert_eq!(
+                kids,
+                [
+                    "fade_on",
+                    "tool_tip_interface",
+                    "hide_title",
+                    "hide_filter",
+                    "hide_scroll_bar",
+                    "about",
+                    "description",
+                    "row_0",
+                    "row_1"
+                ],
                 "{rel}"
             );
-            assert_eq!(
-                node::canonical(&stock),
-                before[hub::BASE],
-                "{rel}: {} changed",
-                hub::BASE
-            );
-            assert_eq!(visible(hub::ROWS), on, "{rel}");
-            for i in 0..6 {
-                let shown = visible(&format!("{}.{}", hub::ROWS, hub::pill(i))) == on;
-                assert_eq!(shown, i < 2, "{rel}: pill {i}");
+            for r in ["row_0", "row_1"] {
+                let toggle = tab.child(r).unwrap().child("toggle").unwrap();
+                assert_eq!(toggle.type_code(), "UIGP", "{rel}");
+                assert!(!shown(toggle.child("indicator").unwrap()), "{rel}");
             }
-            let pill = tab.child(hub::ROWS).unwrap().child(&hub::pill(1)).unwrap();
-            assert!(
-                node::canonical(pill.child("value").unwrap()).contains("hud_swofty_hub_progressive.o1.value")
-            );
-            let scene_data = read_frag(&out.join(ui_file(rel)), hub::SCENE, hub::SCENE_FRAGMENT).unwrap();
-            let scene = Pkg::parse(&scene_data).unwrap();
+            let scene = read_frag(&out.join(ui_file(rel)), hub::PAGE_SCENE, 0).unwrap();
+            let scene = Pkg::parse(&scene).unwrap();
             assert!(idf::xref_mismatches(&scene).unwrap().is_empty(), "{rel}");
             assert!(idf::id_problems(&scene).unwrap().is_empty(), "{rel}");
             let scene = idf::scenes(&scene).unwrap()[0].o().unwrap().at("scene").unwrap();
-            let branch = idf::find(scene, hub::ROWS).unwrap();
-            assert!(
-                idf::find(idf::find(scene, "mail").unwrap(), hub::ROWS).is_some(),
-                "{rel}"
-            );
-            for i in 0..6 {
-                let p = idf::find(branch, &hub::pill(i)).unwrap();
-                assert_eq!(
-                    idf::param_str(p, "fileRef"),
-                    Some("eaid://ui_package/art/components/career/laptop/sr_toggle_pill.idf"),
-                    "{rel}"
-                );
-            }
             let parts: Vec<(&str, bool, &Node)> = tab
                 .slot(node::CHILDREN)
                 .unwrap()
@@ -1163,14 +1203,11 @@ mod tests {
                 .filter_map(|c| {
                     let step = c.slot(node::LAYOUT).ok()?.first()?.a().ok()?.last()?.o().ok()?;
                     let at = idf::find(scene, step.str_at("debugName").ok()?)?;
-                    let shown = c
-                        .props()
-                        .ok()?
-                        .get("visible")
-                        .is_none_or(|v| node::canonical(v) == on);
-                    Some((c.name(), shown, at))
+                    Some((c.name(), shown(c), at))
                 })
                 .collect();
+            assert!(parts.iter().any(|p| p.0 == "row_0" && p.1), "{rel}");
+            assert!(parts.iter().any(|p| p.0 == "description" && p.1), "{rel}");
             for (shown, _, at) in parts.iter().filter(|p| p.1) {
                 for (hidden, _, over) in parts.iter().filter(|p| !p.1) {
                     assert!(
@@ -1179,9 +1216,6 @@ mod tests {
                     );
                 }
             }
-            assert!(!page.contains("o2.label"), "{rel}");
-            assert!(!page.contains("dataContext"), "{rel}");
-            assert!(!page.contains("tab_content_emails_panel"), "{rel}");
         }
         settings.addons[0].hub_tab = None;
         let none = hub_tabs(
