@@ -61,24 +61,28 @@
   "jolyon_palmer": {
    "source": "f1_2016_career",
    "archive": "heads/male_ls356.erp",
-   "base": "male_ls356",
-   "code": "cs_pal_356"
+   "face": "male_ls356",
+   "base": "male_ls265",
+   "code": "cs_pal_265"
   },
   "marcus_ericsson": {
    "source": "f1_2016_career",
    "archive": "heads/male_ls197.erp",
+   "face": "male_ls197",
    "base": "male_ls197",
    "code": "cs_eri_197"
   },
   "felipe_nasr": {
    "source": "f1_2016_career",
    "archive": "heads/male_ls526.erp",
+   "face": "male_ls526",
    "base": "male_ls526",
    "code": "cs_nas_526"
   },
   "esteban_gutierrez": {
    "source": "f1_2016_career",
    "archive": "heads/male_ls533.erp",
+   "face": "male_ls533",
    "base": "male_ls533",
    "code": "cs_gut_533"
   }
@@ -88,6 +92,6 @@
   "nico_rosberg": "male_ls222"
  },
  "off": {
-  "nico_rosberg": "male_ls204"
+  "nico_rosberg": "male_ls192"
  }
 }

@@ -265,10 +265,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls356]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls265]",
    "set": {
     "_metadata_": "cs_jolyon_palmer",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_pal_356/idf/cs_pal_356_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_pal_265/idf/cs_pal_265_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
@@ -354,7 +354,7 @@
     "last_name_standard": "",
     "initials": "VAN",
     "nationality": "belgium",
-    "head": "male_ls526",
+    "head": "male_ls343",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "227"
@@ -372,7 +372,7 @@
     "last_name_standard": "",
     "initials": "HAR",
     "nationality": "new_zealand",
-    "head": "male_ls356",
+    "head": "male_ls265",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "228"
@@ -390,7 +390,7 @@
     "last_name_standard": "",
     "initials": "SIR",
     "nationality": "default",
-    "head": "male_ls204",
+    "head": "male_ls355",
     "audio_name": "DefaultName",
     "expression_label": "",
     "stat_id": "229"
@@ -418,7 +418,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=nico_rosberg]",
    "field": "head",
-   "value": "male_ls204"
+   "value": "male_ls192"
   },
   {
    "op": "set",
@@ -460,7 +460,7 @@
    "op": "set",
    "select": "entrants.drivers.driver[_metadata_=pascal_wehrlein]",
    "field": "head",
-   "value": "male_ls758"
+   "value": "male_ls487"
   },
   {
    "op": "set",

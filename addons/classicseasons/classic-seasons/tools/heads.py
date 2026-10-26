@@ -33,7 +33,8 @@ driver in data/seasons.json (head_overrides or new_drivers).
 A head with no stock row of its own label (`row_from` in data/heads.json) gets its row from the named stock head, with
 the model_path of its heads archive, has_morph_data True and available_for_customisation False.
 
-A head of `faces` is a stock generic head (`base`, male_ea) with a face map from another archive: both of the base's
+A head of `faces` is a stock generic head (`base`, male_ea) with the head_d surface of `face` in another archive
+(`archive`): both of the base's
 archives, read from the game folder (the baseline's copy of a file the launcher changed), with `base` renamed byte
 for byte to `code` (the same length) in every resource name and fragment. A surface's sidecar description (fragment 2)
 keeps naming the stock .mipmaps file. The face archive's head_d surface, 2048 px with all 10 levels in the archive,
@@ -257,9 +258,9 @@ def face_surface(downloads, face, head):
         path = Path(d) / "face.erp"
         path.write_bytes(z.read(face["archive"]))
         e = erpw.Erp(str(path))
-    images = [r for r in e.res if r.name.endswith(f"/{face['base']}_head_d.tif.image")]
+    images = [r for r in e.res if r.name.endswith(f"/{face['face']}_head_d.tif.image")]
     if len(images) != 1:
-        sys.exit(f"{head}: {face['archive']} holds {len(images)} {face['base']} head_d surfaces")
+        sys.exit(f"{head}: {face['archive']} holds {len(images)} {face['face']} head_d surfaces")
     r = images[0]
     header = struct.unpack_from("<10I", frag(r, 0))
     w, h, levels = header[3], header[4], header[6]
@@ -275,7 +276,7 @@ def build_face(stock, downloads, head):
     if len(base) != len(code):
         sys.exit(f"{head}: {face['code']} is not as long as {face['base']}")
     image = face_surface(downloads, face, head)
-    image.name = image.name.replace(face["base"], face["code"])
+    image.name = image.name.replace(face["face"], face["code"])
     view = image.name[:-len(".image")]
     files = []
     for kind in ("heads", "morph_poses"):
