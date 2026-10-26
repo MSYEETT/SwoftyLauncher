@@ -9,7 +9,7 @@ use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
 use swofty_core::launch;
-use swofty_core::multiplayer::bridge::{ARMED, ENV as NETPLAY_ENV};
+use swofty_core::multiplayer::bridge::{ARMED, armed_env};
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice, Scope, SessionLock};
@@ -248,7 +248,7 @@ impl Launch {
         }
         c.arg("--game").arg(&install.dir);
         if netplay {
-            c.env(NETPLAY_ENV, ARMED);
+            c.envs(armed_env(ARMED));
         }
         #[cfg(windows)]
         std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000);
