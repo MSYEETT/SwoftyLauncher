@@ -11,8 +11,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 use swofty_formats::erp::{Entry, ErpFile, Resource};
+use swofty_formats::pkg::Node;
 
 use crate::builtin::CORE_ID;
+use crate::manifest::CAREER_SETUP_BACK;
 use crate::settings::{SessionScreen, SessionSettings, UI_DIR, screen_file};
 use crate::{Error, Result, io_err};
 use node::err;
@@ -28,6 +30,9 @@ const FE_CAREER: &str = "eaid://ui_package/screens/fe_career.ui";
 const CONTAINER: &str = "eaid://ui_package/screens/settings_container.ui";
 const ROUTES: &str = "eaid://ui_package/routes/routes_frontend_general.uir";
 const GAME_ROUTES: &str = "eaid://ui_package/routes/routes.uir";
+const WIZARD_ROUTES: &str = "eaid://ui_package/routes/routes_career_wizard.uir";
+const SETUP_FLOW_ERP: &str = "flow_career_season_setup";
+const SETUP_BACK_ERP: &str = "flow_frontend";
 const FLOWS: &str = "eaid://ui_package/flows.ui";
 const REGIONS: &str = "eaid://ui_package/region_loading.uiconfig";
 const TOOLTIPS: &str = "eaid://ui_package/databases/tool_tips.uidb";
@@ -142,6 +147,19 @@ fn write_archive(
     Ok(())
 }
 
+fn screen_flow(input: &dyn Fn(&str) -> PathBuf, flows_ui: &[u8], erp: &str, screen: &str) -> Result<String> {
+    let path = input(&ui_file(&format!("{erp}.erp")));
+    let file = ErpFile::open(&path)?;
+    if file
+        .erp
+        .find(&format!("eaid://ui_package/screens/{screen}.ui"))
+        .is_err()
+    {
+        return Err(err(format!("{erp}.erp has no screen {screen}")));
+    }
+    check::flow_loading(flows_ui, erp)?.ok_or_else(|| err(format!("no flow in flows.ui loads {erp}")))
+}
+
 fn panel_shown(settings: &SessionSettings) -> bool {
     settings
         .addons
@@ -201,6 +219,41 @@ pub fn build(
         }
         generated.push((s.name.clone(), anchor, screen));
     }
+    let flows_ui = match flow.iter().any(|e| e.setup.is_some()) {
+        true => read_frag(&input(&ui_file("persistent.erp")), FLOWS, 0)?,
+        false => Vec::new(),
+    };
+    let mut setups: Vec<patch::SetupRoutes> = Vec::new();
+    let mut setup_lines = Vec::new();
+    for e in flow.iter().filter(|e| e.kind == pages::Kind::Addon) {
+        let Some(setup) = e.setup else { continue };
+        let (home, home_ui) = pages::build_setup_home(&src, e, setup)?;
+        let (rows, rows_ui) = pages::build_setup_page(&src, e, setup)?;
+        built.order.push((home.clone(), home_ui));
+        built.order.push((rows.clone(), rows_ui));
+        built.view_models.push(rows.clone());
+        let back = CAREER_SETUP_BACK.to_owned();
+        setups.push(patch::SetupRoutes {
+            route: setup.route.clone(),
+            next_flow: screen_flow(input, &flows_ui, SETUP_FLOW_ERP, &setup.next)?,
+            back_flow: screen_flow(input, &flows_ui, SETUP_BACK_ERP, &back)?,
+            next: setup.next.clone(),
+            back,
+            back_route: setup.back_route(),
+            home,
+            rows,
+        });
+        setup_lines.push(format!(
+            "ui: {} has a career setup page {}: the route {} opens it from the career content select, CONFIRM \
+             opens {}, and {}'s route {} opens it again",
+            e.id,
+            setup.screen(),
+            setup.route,
+            setup.next,
+            setup.next,
+            setup.back_route()
+        ));
+    }
     let names: Vec<String> = built.order.iter().map(|(n, _)| n.clone()).collect();
     // Addon screens in the options flow get the flow entry, region and route group an ADDON
     // SETTINGS page gets, so routes and signals to them open them.
@@ -224,6 +277,7 @@ pub fn build(
     opened.extend(generated.iter().cloned());
     let mut addon_groups = addon_routes.clone();
     addon_groups.extend(generated.iter().map(|(_, a, s)| (s.clone(), a.clone())));
+    let setup_groups: Vec<Node> = setups.iter().flat_map(patch::setup_route_groups).collect();
     let listed: Vec<String> = names.iter().chain(&addon_screens).cloned().collect();
     let mut problems = check::screens(&built.order, &built.view_models)?;
     let no_scenes = catalog::Scenes::default();
@@ -242,8 +296,18 @@ pub fn build(
         .iter()
         .map(|e| (format!("open_{}_{}", e.kind.key(), e.index), e.screen.clone()))
         .collect();
+    let mut setup_ids: Vec<String> = Vec::new();
+    for s in &setups {
+        setup_ids.extend([
+            s.home.clone(),
+            s.rows.clone(),
+            format!("{}.{}", s.back, s.route),
+            format!("{}.{}", s.next, s.back_route),
+        ]);
+    }
     let mut groups: Vec<&str> = vec![HOME, "fe_home.mod_menu"];
     groups.extend(pages.iter().map(|(_, s)| s.as_str()));
+    groups.extend(setup_ids.iter().map(String::as_str));
     let state = pages::state_entries(&flow)?;
     let popup = Popup::for_version(&core_version(settings));
     let show_panel = panel_shown(settings);
@@ -251,41 +315,86 @@ pub fn build(
     let erp = |rel: &str| (input(&ui_file(rel)), out.join(ui_file(rel)));
     let (src_p, dst_p) = erp("persistent.erp");
     let routes_out = std::cell::RefCell::new(Vec::new());
+    let game_routes_out = std::cell::RefCell::new(Vec::new());
+    let wizard_routes_out = std::cell::RefCell::new(Vec::new());
     let flows_out = std::cell::RefCell::new(Vec::new());
-    write_erp(
-        &src_p,
-        &dst_p,
-        vec![
-            (
-                ROUTES,
-                Box::new(|d| {
-                    let b = patch::routes(
-                        d,
-                        patch::route_groups(&pages),
-                        patch::screen_route_groups(&addon_groups),
-                    )?;
-                    *routes_out.borrow_mut() = b.clone();
-                    Ok(b)
-                }),
-            ),
-            (
-                FLOWS,
-                Box::new(|d| {
-                    let b = patch::flow_entries(d, OPTIONS_FLOW, &listed)?;
-                    *flows_out.borrow_mut() = b.clone();
-                    Ok(b)
-                }),
-            ),
-            (REGIONS, Box::new(|d| patch::regions(d, &listed))),
-            (GAME_ROUTES, Box::new(|d| patch::anchor_routes(d, &opened))),
-        ],
-    )?;
+    let placed = std::cell::RefCell::new(Vec::new());
+    let mut persistent: Vec<(&str, Patch)> = vec![
+        (
+            ROUTES,
+            Box::new(|d| {
+                let mut groups = patch::route_groups(&pages);
+                groups.extend(setup_groups);
+                let b = patch::routes(d, groups, patch::screen_route_groups(&addon_groups))?;
+                let b = patch::setup_routes(&b, &setups, &mut placed.borrow_mut())?;
+                *routes_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ),
+        (
+            FLOWS,
+            Box::new(|d| {
+                let b = patch::flow_entries(d, OPTIONS_FLOW, &listed)?;
+                *flows_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ),
+        (REGIONS, Box::new(|d| patch::regions(d, &listed))),
+        (
+            GAME_ROUTES,
+            Box::new(|d| {
+                let b = patch::anchor_routes(d, &opened)?;
+                let b = patch::setup_routes(&b, &setups, &mut placed.borrow_mut())?;
+                *game_routes_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ),
+    ];
+    if !setups.is_empty() {
+        persistent.push((
+            WIZARD_ROUTES,
+            Box::new(|d| {
+                let b = patch::setup_routes(d, &setups, &mut placed.borrow_mut())?;
+                *wizard_routes_out.borrow_mut() = b.clone();
+                Ok(b)
+            }),
+        ));
+    }
+    write_erp(&src_p, &dst_p, persistent)?;
+    for s in &setups {
+        for id in [
+            format!("{}.{}", s.back, s.route),
+            format!("{}.{}", s.next, s.back_route),
+        ] {
+            if !placed.borrow().contains(&id) {
+                return Err(Error::Other(format!(
+                    "career setup {}: the game's routes have no route group {} for {id}",
+                    s.route,
+                    id.split('.').next().unwrap_or_default()
+                )));
+            }
+        }
+    }
     let registered: BTreeMap<String, String> = listed.iter().map(|n| (n.clone(), FLOW.to_owned())).collect();
-    problems.extend(check::routes(
-        &routes_out.borrow(),
+    let stock_screens: std::collections::BTreeSet<String> = setups
+        .iter()
+        .flat_map(|s| [s.back.clone(), s.next.clone()])
+        .collect();
+    let (r, g, w) = (
+        routes_out.borrow(),
+        game_routes_out.borrow(),
+        wizard_routes_out.borrow(),
+    );
+    let mut route_files: Vec<&[u8]> = vec![&r, &g];
+    if !w.is_empty() {
+        route_files.push(&w);
+    }
+    problems.extend(check::route_files(
+        &route_files,
         &flows_out.borrow(),
         &groups,
         &registered,
+        &stock_screens,
     )?);
     if !problems.is_empty() {
         return Err(Error::Other(format!(
@@ -350,6 +459,7 @@ pub fn build(
     write_archive(&src_h, &dst_h, frontend, Vec::new())?;
 
     let mut build = MenuBuild::default();
+    build.lines.extend(setup_lines);
     build.lines.extend(career_lines);
     build.warnings.extend(career_warnings);
     let eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
@@ -570,8 +680,182 @@ mod tests {
         );
         std::fs::remove_dir_all(&out).ok();
     }
+
+    const SETUP_ROUTE: &str = "career_wizard_driver_career_progressive";
+
+    fn choice(id: &str, addon: &str, values: &[&str]) -> serde_json::Value {
+        let states: Vec<serde_json::Value> = values
+            .iter()
+            .enumerate()
+            .map(|(i, v)| serde_json::json!({ "value": v, "text": v, "command": format!("swofty_set:{addon}:{id}:{i}") }))
+            .collect();
+        serde_json::json!({ "id": id, "type": "choice", "binds": "native", "label": id.replace('_', " "),
+                            "description": format!("About {id}."), "current": 0, "states": states })
+    }
+
+    fn setup_settings() -> SessionSettings {
+        let addon = "t.progressive";
+        let years: Vec<String> = (2016..=2026).map(|y| y.to_string()).collect();
+        let years: Vec<&str> = years.iter().map(String::as_str).collect();
+        serde_json::from_value(serde_json::json!({
+            "schema": 1, "profile": "t", "restart_command": "swofty_restart",
+            "addons": [{
+                "id": addon, "name": "Progressive", "version": "0.1.0", "author": "t",
+                "description": "Every season takes that year's grid.", "enabled": true, "locked": false,
+                "enable_commands": [format!("swofty_enable:{addon}:0"), format!("swofty_enable:{addon}:1")],
+                "options": [
+                    choice("show_hud", addon, &["on", "off"]),
+                    choice("start_season", addon, &years),
+                    choice("rnd_mode", addon, &["real_life", "base", "hybrid"]),
+                    choice("team_moves", addon, &["follow_driver", "choose"]),
+                ],
+                "career_setup": { "route": SETUP_ROUTE, "title": "Progressive Career",
+                                  "options": ["start_season", "rnd_mode", "team_moves"] }
+            }]
+        }))
+        .unwrap()
+    }
+
+    fn stock_input() -> impl Fn(&str) -> PathBuf {
+        let data = PathBuf::from(std::env::var_os("SWOFTY_STOCK_DATA").expect("set"));
+        let baseline = std::fs::read_dir(data.join("baseline"))
+            .unwrap()
+            .flatten()
+            .map(|e| e.path().join("baseline.json"))
+            .find(|p| p.is_file())
+            .unwrap();
+        let b: crate::baseline::Baseline = serde_json::from_slice(&std::fs::read(baseline).unwrap()).unwrap();
+        let objects = crate::baseline::Objects {
+            root: data.join("baseline/objects"),
+        };
+        move |rel: &str| {
+            objects.path(
+                &b.files
+                    .get(rel)
+                    .unwrap_or_else(|| panic!("no stock {rel}"))
+                    .sha256,
+            )
+        }
+    }
+
+    fn groupings(path: &Path, res: &str) -> BTreeMap<String, BTreeMap<String, String>> {
+        let p = swofty_formats::pkg::Pkg::parse(&read_frag(path, res, 0).unwrap()).unwrap();
+        let mut out: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+        for g in p.root.o().unwrap().at("RouteGroupings").unwrap().a().unwrap() {
+            let go = g.o().unwrap();
+            let gid = go.str_at("Id").unwrap().to_owned();
+            for r in go.at("Routes").unwrap().a().unwrap() {
+                let rid = r.o().unwrap().str_at("Id").unwrap().to_owned();
+                out.entry(gid.clone())
+                    .or_default()
+                    .insert(rid, node::canonical(r));
+            }
+        }
+        out
+    }
+
+    #[test]
+    #[ignore = "needs SWOFTY_STOCK_DATA, the launcher data folder that holds the game's baseline"]
+    fn a_career_setup_page_builds_within_the_loader_rules() {
+        let input = stock_input();
+        let settings = setup_settings();
+        let out = std::env::temp_dir().join(format!("swofty-career-setup-{}", std::process::id()));
+        std::fs::remove_dir_all(&out).ok();
+        let built = build(&settings, &input, &|_, _| None, &out, false).unwrap();
+        let home = format!("swofty_setup_{SETUP_ROUTE}");
+        let rows = format!("swofty_addon_{SETUP_ROUTE}_0");
+        assert!(
+            built
+                .lines
+                .iter()
+                .any(|l| l.contains(&format!("career setup page {home}"))),
+            "{:?}",
+            built.lines
+        );
+        let session: BTreeMap<&str, bool> = built
+            .session
+            .iter()
+            .map(|s| (s.name.as_str(), s.view_model))
+            .collect();
+        assert_eq!(session.get(home.as_str()), Some(&false));
+        assert_eq!(session.get(rows.as_str()), Some(&true));
+
+        let options = input(&ui_file("flow_options.erp"));
+        let stock = check::ArchiveUi::read("flow_options.erp", &options).unwrap();
+        let mut edited = check::ArchiveUi::read("flow_options.erp", &options).unwrap();
+        for name in [&home, &rows] {
+            let data = std::fs::read(&built.screens[&format!("{UI_DIR}/{name}.ui")]).unwrap();
+            edited.resources.insert(
+                format!("eaid://ui_package/screens/{name}.ui"),
+                ("UIDF".to_owned(), vec![data]),
+            );
+        }
+        let report = check::archives(&[edited], &[stock], catalog::stock(), catalog::engine()).unwrap();
+        let hard: Vec<String> = report.hard.iter().map(ToString::to_string).collect();
+        assert!(hard.is_empty(), "{hard:?}");
+
+        let rows_ui = std::fs::read(&built.screens[&format!("{UI_DIR}/{rows}.ui")]).unwrap();
+        let rows_ui = String::from_utf8_lossy(&rows_ui);
+        for id in ["start_season", "rnd_mode", "team_moves"] {
+            assert!(
+                rows_ui.contains(&format!("swofty_next:t.progressive:{id}")),
+                "{id}"
+            );
+        }
+        assert!(!rows_ui.contains("t.progressive:show_hud"));
+
+        let (src_p, dst_p) = (
+            input(&ui_file("persistent.erp")),
+            out.join(ui_file("persistent.erp")),
+        );
+        for res in [ROUTES, GAME_ROUTES, WIZARD_ROUTES] {
+            let (before, after) = (groupings(&src_p, res), groupings(&dst_p, res));
+            for (gid, routes) in &before {
+                for (rid, r) in routes {
+                    assert_eq!(after[gid].get(rid), Some(r), "{res}: {gid}.{rid} changed");
+                }
+            }
+        }
+        let after = groupings(&dst_p, ROUTES);
+        let entry = &after["fe_career_dlc_select"][SETUP_ROUTE];
+        for want in [home.as_str(), "options_flow"] {
+            assert!(entry.contains(want), "{entry}");
+        }
+        assert!(!entry.contains("career_wizard_season_length_select"), "{entry}");
+        let ids: Vec<&str> = after[&home].keys().map(String::as_str).collect();
+        assert_eq!(
+            ids,
+            [
+                "back",
+                "close",
+                "confirm",
+                "open",
+                "open_no_input",
+                "open_options"
+            ]
+        );
+        assert!(after[&home]["back"].contains("frontend_flow"));
+        assert!(after[&home]["confirm"].contains("career_season_setup_flow"));
+        let wizard = groupings(&dst_p, WIZARD_ROUTES);
+        let back = &wizard["career_wizard_season_length_select"][&format!("back_{SETUP_ROUTE}")];
+        assert!(back.contains(&home) && back.contains("options_flow"), "{back}");
+
+        let stock_built = build(&setup_settings_without(), &input, &|_, _| None, &out, false).unwrap();
+        assert!(!stock_built.lines.iter().any(|l| l.contains("career setup")));
+        assert_eq!(
+            read_frag(&src_p, WIZARD_ROUTES, 0).unwrap(),
+            read_frag(&out.join(ui_file("persistent.erp")), WIZARD_ROUTES, 0).unwrap()
+        );
+        std::fs::remove_dir_all(&out).ok();
+    }
+
+    fn setup_settings_without() -> SessionSettings {
+        let mut s = setup_settings();
+        s.addons[0].career_setup = None;
+        s
+    }
     use super::*;
-    use node::{arr, node, obj, s};
+    use node::{NodeExt, ObjExt, arr, node, obj, s};
     use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED, kind};
     use swofty_formats::pkg::{Node, Pkg};
 
