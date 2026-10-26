@@ -33,6 +33,8 @@ use super::transport::{MAX_DATAGRAM, Transport};
 
 /// The environment variable the launcher sets for the game, to [`Bridge::env_value`].
 pub const ENV: &str = "SWOFTY_NETPLAY";
+/// [`ENV`] for a game started before any room: the hooks go in and pass traffic through.
+pub const ARMED: &str = "armed";
 /// The game's `Network.Transport.SocketPort`.
 pub const DEFAULT_GAME_PORT: u16 = 21414;
 /// Where, under the game folder, the core reports the bridge once the game socket is bound.

@@ -803,6 +803,7 @@ impl Shell {
             &self.library.profile.name,
             &install,
             self.launch_mode(),
+            self.mp.as_ref().is_some_and(|m| m.allowed),
         ) {
             Ok(l) => self.launch = Some(l),
             Err(e) => {
