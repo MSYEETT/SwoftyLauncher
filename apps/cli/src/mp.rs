@@ -9,10 +9,15 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Subcommand};
 use swofty_core::catalog;
+use swofty_core::mpauth;
 use swofty_core::multiplayer::bridge::{self, Bridge, BridgeConfig, Echoed, Stats};
 use swofty_core::multiplayer::direct::DirectUdp;
 use swofty_core::multiplayer::fingerprint::{self, Fingerprint};
 use swofty_core::multiplayer::game::{self as mp_game, Category, Command as GameCommand};
+use swofty_core::multiplayer::rooms::{Api, RoomSettings};
+use swofty_core::multiplayer::session::{
+    self, Local, MemberState, Phase, Relay, Session, SessionState, Setup,
+};
 use swofty_core::multiplayer::transport::{MAX_DATAGRAM, Transport};
 use swofty_core::multiplayer::turn::TurnTransport;
 use swofty_core::store::Store;
@@ -76,6 +81,66 @@ pub enum MpCommand {
         #[command(subcommand)]
         cmd: GameCmd,
     },
+    #[command(about = "List the open multiplayer rooms")]
+    Rooms {
+        #[arg(long, value_name = "URL", help = SERVER_HELP)]
+        server: Option<String>,
+        #[arg(long, help = "Print the rooms as JSON")]
+        json: bool,
+    },
+    #[command(
+        about = "Create or join a multiplayer room and drive the game into its LAN session; prints the room until Ctrl-C, then leaves it"
+    )]
+    Room {
+        #[command(subcommand)]
+        cmd: RoomCmd,
+    },
+}
+
+const SERVER_HELP: &str = "Lobby server (default: the launcher's server, SWOFTY_REGISTRY_URL)";
+
+#[derive(Subcommand)]
+pub enum RoomCmd {
+    #[command(about = "Create a room and host it; the game must be on its main menu")]
+    Create {
+        #[arg(long, help = "Room name (default: <your name>'s room)")]
+        name: Option<String>,
+        #[arg(
+            long,
+            help = "Leave the room out of the room list; players join with its code"
+        )]
+        private: bool,
+        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u8).range(2..=20), help = "Most players, 2 to 20")]
+        max: u8,
+        #[arg(long, default_value = "f1-2026", help = "Car category: f1-2026 or f1-2025")]
+        category: Category,
+        #[command(flatten)]
+        common: RoomArgs,
+    },
+    #[command(about = "Join a room by its invite code once your addons match the host's")]
+    Join {
+        #[arg(help = "The invite code, like F1-7KQ2MX")]
+        code: String,
+        #[command(flatten)]
+        common: RoomArgs,
+    },
+}
+
+#[derive(Args)]
+pub struct RoomArgs {
+    #[arg(long, value_name = "URL", help = SERVER_HELP)]
+    server: Option<String>,
+    #[arg(long, help = crate::GAME_HELP)]
+    game: Option<PathBuf>,
+    #[arg(long, default_value_t = 10, help = "Seconds between traffic stats")]
+    interval: u64,
+    #[arg(
+        long,
+        value_name = "IP:PORT",
+        hide = true,
+        help = "Relay over plain UDP on this address instead of TURN, for a lobby server on this machine"
+    )]
+    direct_udp: Option<SocketAddr>,
 }
 
 #[derive(Subcommand)]
@@ -238,6 +303,205 @@ pub fn command(store: &Store, profile: &str, cmd: MpCommand) -> Result<ExitCode>
             wait,
         } => turn_probe(&ice_json, self_member, &peer, count, Duration::from_secs(wait)),
         MpCommand::Game { game, cmd } => run_game(store, game, cmd),
+        MpCommand::Rooms { server, json } => list_rooms(store, server.as_deref(), json),
+        MpCommand::Room { cmd } => run_room(store, profile, cmd),
+    }
+}
+
+fn api(store: &Store, server: Option<&str>) -> Result<Api> {
+    let session = mpauth::load(&store.root)
+        .context("not signed in to multiplayer; sign in on the launcher's Multiplayer page first")?;
+    Ok(match server {
+        Some(url) => Api::with_server(url, &session.token),
+        None => Api::new(&session.token),
+    })
+}
+
+fn list_rooms(store: &Store, server: Option<&str>, json: bool) -> Result<ExitCode> {
+    let rooms = api(store, server)?.rooms()?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&rooms)?);
+        return Ok(ExitCode::SUCCESS);
+    }
+    if rooms.is_empty() {
+        println!("no open rooms");
+    }
+    for r in &rooms {
+        let addons = r.addons.as_ref().map_or_else(String::new, |a| {
+            let tracks = if a.tracks.is_empty() {
+                String::new()
+            } else {
+                format!(" (tracks: {})", a.tracks.join(", "))
+            };
+            format!(", {} addons{tracks}", a.count)
+        });
+        println!(
+            "{}  {}  host {}  {}/{}  {}{addons}",
+            r.code, r.name, r.host.name, r.members, r.max_members, r.category
+        );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn run_room(store: &Store, profile: &str, cmd: RoomCmd) -> Result<ExitCode> {
+    let common = match &cmd {
+        RoomCmd::Create { common, .. } | RoomCmd::Join { common, .. } => common,
+    };
+    let api = api(store, common.server.as_deref())?;
+    let g = crate::build::game(store, common.game.clone())?;
+    let local = Local::read(store, &store.profile(profile)?, &g.identity)?;
+    let mut setup = Setup::new(api, &g.dir, local);
+    if let Some(addr) = common.direct_udp {
+        setup.relay = Relay::Direct(addr);
+    }
+    let interval = Duration::from_secs(common.interval.max(1));
+    let session = match cmd {
+        RoomCmd::Create {
+            name,
+            private,
+            max,
+            category,
+            ..
+        } => Session::create(
+            setup,
+            RoomSettings {
+                name,
+                public: !private,
+                max_members: max,
+                category,
+            },
+        ),
+        RoomCmd::Join { code, .. } => Session::join(setup, &code),
+    };
+    crate::run::end_on_ctrl_c();
+    let started = Instant::now();
+    let mut next_stats = started + interval;
+    let mut shown: Option<SessionState> = None;
+    while !crate::run::ending() {
+        let state = session.state();
+        show_changes(shown.as_ref(), &state);
+        let over = state.phase.is_over();
+        if Instant::now() >= next_stats {
+            if let Some(stats) = &state.bridge {
+                print_stats(stats, started.elapsed(), None);
+            }
+            next_stats += interval;
+        }
+        shown = Some(state);
+        if over {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    if !crate::run::ending() {
+        println!("leaving the room");
+    }
+    let last = session.leave();
+    show_changes(shown.as_ref(), &last);
+    Ok(match last.phase {
+        Phase::Failed(_) => ExitCode::FAILURE,
+        _ => ExitCode::SUCCESS,
+    })
+}
+
+fn word(value: &impl serde::Serialize) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
+fn show_changes(before: Option<&SessionState>, now: &SessionState) {
+    let changed = |f: &dyn Fn(&SessionState) -> String| before.is_none_or(|b| f(b) != f(now));
+    if changed(&|s| s.phase.to_string()) {
+        println!("{}", now.phase);
+    }
+    if let Some(room) = &now.room
+        && changed(&|s| format!("{:?}", s.room.as_ref().map(|r| (&r.code, &r.name, r.public))))
+    {
+        let listed = if room.public { "listed" } else { "private" };
+        println!(
+            "room {} \"{}\" ({listed}, {}, up to {} players)",
+            room.code, room.name, room.category, room.max_members
+        );
+    }
+    if changed(&|s| format!("{:?}{:?}{:?}", s.self_member, s.base, s.relay)) {
+        if let (Some(me), Some(base)) = (now.self_member, now.base) {
+            println!(
+                "this player is member {me} (10.77.0.{me}); bridge base {base}; relay {}",
+                now.relay.as_deref().unwrap_or("none")
+            );
+        } else if let Some(relay) = &now.relay {
+            println!("relay {relay}");
+        }
+    }
+    let line = |m: &MemberState| {
+        let mut tags = Vec::new();
+        if m.host {
+            tags.push("host");
+        }
+        if m.me {
+            tags.push("you");
+        }
+        if !m.connected {
+            tags.push("offline");
+        }
+        let tags = if tags.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", tags.join(", "))
+        };
+        format!(
+            "member {} {}{tags}: {}, addons {}, relay {}",
+            m.number,
+            m.name,
+            m.ip,
+            word(&m.fingerprint),
+            word(&m.relay)
+        )
+    };
+    let lines = |s: &SessionState| s.members.iter().map(line).collect::<Vec<_>>();
+    let old = before.map(lines).unwrap_or_default();
+    for l in lines(now).iter().filter(|l| !old.contains(l)) {
+        println!("{l}");
+    }
+    let numbers = |s: &SessionState| {
+        s.members
+            .iter()
+            .map(|m| (m.number, m.name.clone()))
+            .collect::<Vec<_>>()
+    };
+    if let Some(b) = before {
+        for (n, name) in numbers(b).into_iter().filter(|m| !numbers(now).contains(m)) {
+            println!("member {n} {name} left");
+        }
+    }
+    if changed(&|s| format!("{:?}", s.mismatches)) && !now.mismatches.is_empty() {
+        println!("your addons differ from the host's:");
+        for m in &now.mismatches {
+            println!("  {}", m.line());
+        }
+        for step in session::fix_plan(&now.mismatches) {
+            println!("  fix: {}", serde_json::to_string(&step).unwrap_or_default());
+        }
+    }
+    if changed(&|s| format!("{:?}", s.game.as_ref().map(|g| (g.screen, g.in_session, g.role))))
+        && let Some(g) = &now.game
+    {
+        println!(
+            "game: {:?}, {}",
+            g.screen,
+            if g.in_session {
+                "in a LAN session"
+            } else {
+                "not in a LAN session"
+            }
+        );
+    }
+    if changed(&|s| format!("{:?}", s.last_error))
+        && let Some(e) = &now.last_error
+    {
+        eprintln!("swofty: {e}");
     }
 }
 
