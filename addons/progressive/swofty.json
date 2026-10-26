@@ -206,6 +206,9 @@
         "dll": "native/progressive_follow.dll"
       },
       {
+        "dll": "native/progressive_cards.dll"
+      },
+      {
         "dll": "native/progressive.dll",
         "files": [
           "data/"
