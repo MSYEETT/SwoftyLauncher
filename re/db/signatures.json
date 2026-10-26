@@ -73538,6 +73538,87 @@
     "addons/progressive/native/src/ui/resume.cpp"
    ],
    "expect": "E8 0F 19 DA FE"
+  },
+  {
+   "id": "game.team_select_team_logo_format",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8F 58 FF FF FF",
+   "match": "0x1418798a5",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1418798a5",
+   "kind": "mid",
+   "expect": "E8 46 98 8E 02",
+   "names": [
+    "site_Game_TeamSelect_TeamLogoFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_badge_format",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 8D 8E 58 FF FF FF",
+   "match": "0x1416a5820",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1416a5820",
+   "kind": "mid",
+   "expect": "E8 CB D8 AB 02",
+   "names": [
+    "site_Game_DriverSelect_BadgeFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
+  },
+  {
+   "id": "game.driver_select_team_logo_format",
+   "section": ".xtls",
+   "pattern": "48 8D 4C 24 60 E8 ?? ?? ?? ?? 48 8B 97 B0 00 00 00",
+   "match": "0x1416a3ae9",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1416a3aee",
+   "kind": "mid",
+   "expect": "E8 FD F5 AB 02",
+   "names": [
+    "site_Game_DriverSelect_TeamLogoFormat"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "progressive-wizvis",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/cards.cpp"
+   ]
   }
  ]
 }

@@ -3294,6 +3294,21 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_DriverSelect_BadgeFormat: Binding = Binding {
+        id: "site_Game_DriverSelect_BadgeFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Game_DriverSelect_TeamLogoFormat: Binding = Binding {
+        id: "site_Game_DriverSelect_TeamLogoFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
+        id: "site_Game_TeamSelect_TeamLogoFormat",
+        kind: "call",
+        status: Status::Experimental,
+    };
     pub const site_Gdb_DeptCountStore: Binding = Binding {
         id: "site_Gdb_DeptCountStore",
         kind: "site",
