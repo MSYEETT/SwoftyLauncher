@@ -379,10 +379,15 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
-    let request: LaunchRequest = std::fs::read(store.root.join("state/launch.json"))
+    let launch_path = store.root.join("state/launch.json");
+    let mut request: LaunchRequest = std::fs::read(&launch_path)
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
+    // A wrapper Steam starts later on its own must not inherit an earlier launch's arming.
+    if request.netplay.is_some() && !written_within(&launch_path, NETPLAY_REQUEST_LIFE) {
+        request.netplay = None;
+    }
     let profile = request.profile.clone().unwrap_or_else(|| profile.to_owned());
     if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
         set_affinity(&cpus);
@@ -594,6 +599,16 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
     if let Err(e) = crate::build::build(store, profile, Some(game.to_path_buf()), false) {
         say("info", &format!("rebuild failed, launching anyway: {e:#}"));
     }
+}
+
+const NETPLAY_REQUEST_LIFE: Duration = Duration::from_secs(600);
+
+fn written_within(path: &Path, max: Duration) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age <= max)
 }
 
 fn play(
@@ -1932,6 +1947,22 @@ fn link(_: &Path, _: &Path) {}
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_old_launch_request_loses_its_arming() {
+        let path = std::env::temp_dir().join(format!("swofty-launch-age-{}", std::process::id()));
+        std::fs::write(&path, "{}").unwrap();
+        assert!(written_within(&path, NETPLAY_REQUEST_LIFE));
+        let file = std::fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+        assert!(!written_within(&path, NETPLAY_REQUEST_LIFE));
+        assert!(!written_within(
+            &path.with_extension("missing"),
+            NETPLAY_REQUEST_LIFE
+        ));
+        std::fs::remove_file(&path).ok();
+    }
 
     fn temp_log(name: &str) -> PathBuf {
         std::env::temp_dir()
