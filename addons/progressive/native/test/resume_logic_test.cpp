@@ -6,6 +6,7 @@
 
 #include <cstdio>
 
+using progressive::resume::card_team;
 using progressive::resume::card_year;
 using progressive::resume::Entry;
 
@@ -83,6 +84,32 @@ int main()
 
     std::vector<Entry> no_year = {entry(7, 3, 2, 0), entry(7, 4, 2, 2021)};
     EXPECT(card_year(no_year, 7, 3, 2) == 2021);
+
+    auto follow = [](Entry e) {
+        e.follow = true;
+        return e;
+    };
+    std::vector<Entry> moved = {follow(entry(7, 476, 0, 2016))};
+    EXPECT(card_team(moved, 7, 477, 0) == 476);
+    EXPECT(card_team(moved, 7, 476, 0) == -1);
+    EXPECT(card_team(moved, 7, 477, 1) == -1);
+    EXPECT(card_team(moved, 7, 477, -1) == -1);
+    EXPECT(card_team(moved, 9, 477, 0) == -1);
+
+    std::vector<Entry> chooses = {entry(7, 476, 0, 2016)};
+    EXPECT(card_team(chooses, 7, 477, 0) == -1);
+
+    std::vector<Entry> one_agrees = {follow(entry(7, 476, 0, 2016)), entry(7, 477, 0, 2020)};
+    EXPECT(card_team(one_agrees, 7, 477, 0) == -1);
+
+    std::vector<Entry> two_others = {follow(entry(7, 476, 0, 2016)), follow(entry(7, 478, 0, 2019))};
+    EXPECT(card_team(two_others, 7, 477, 0) == -1);
+
+    std::vector<Entry> same_other = {follow(entry(7, 476, 0, 2016)), follow(entry(7, 476, 0, 2017))};
+    EXPECT(card_team(same_other, 7, 477, 0) == 476);
+
+    std::vector<Entry> follow_unrecorded = {follow(entry(7, -1, -1, 2016))};
+    EXPECT(card_team(follow_unrecorded, 7, 477, 0) == -1);
 
     if (failures) {
         std::printf("resume_logic_test: %d failure(s)\n", failures);

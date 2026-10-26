@@ -1210,6 +1210,26 @@ extern "C" __declspec(dllexport) int ProgressiveCardYear(uint32_t driver, int te
     return resume::card_year(entries, driver, team, index_ok ? season_index : -1);
 }
 
+// The team a Resume Career card of a Progressive career shows when its save predates the season
+// apply's move of the player (resume_logic.hpp card_team); -1 keeps the slot's own team.
+extern "C" __declspec(dllexport) int ProgressiveCardTeam(uint32_t driver, int team, int season_index)
+{
+    using namespace progressive;
+    if (!pg::store::load())
+        return -1;
+    std::vector<resume::Entry> entries;
+    for (pg::store::Career *c : pg::store::by_driver(driver)) {
+        resume::Entry e;
+        e.driver = c->driver;
+        e.team = c->team;
+        e.season = c->season;
+        e.used = c->used;
+        e.follow = c->moves == "follow_driver";
+        entries.push_back(e);
+    }
+    return resume::card_team(entries, driver, team, season_index);
+}
+
 extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)
 {
     if (!pg::g_current.empty() || pg::progressive_career())
