@@ -45,7 +45,7 @@ for mode in off 1 inline; do
     fi
     read -r RPORT SPORT <"$OUT/game/ports.txt" || true
     if [[ $mode == 1 ]]; then
-        check "header names iat mode" '^# swofty net trace: .* mode iat'
+        check "header names iat mode and 16 data bytes" '^# swofty net trace: .* mode iat, first 16 data bytes'
         check "the fake's WSARecvFrom import slot is hooked in the IAT" '^# iat table 1 slot exe\+0x[0-9a-f]+ \(name\) -> WSARecvFrom$'
         check "WSASendTo is not imported, so it is hooked inline" '^# inline hook on ws2_32!WSASendTo'
         check "WSAEventSelect is not imported, so it is hooked inline" '^# inline hook on ws2_32!WSAEventSelect'

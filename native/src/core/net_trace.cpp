@@ -8,6 +8,7 @@
 #include <swofty/mixin.hpp>
 
 #include <cstdarg>
+#include <cstdlib>
 #include <cstdio>
 #include <unordered_map>
 
@@ -15,8 +16,9 @@
 // through two import descriptors: the clear code's table, and a second one that the .data1 bodies
 // (DirtySock bind/sendto/connect among them) call through. Both are hooked in the IAT. WSASendTo and
 // WSAEventSelect are not imported, so they are hooked inline on the ws2_32 exports.
-// SWOFTY_NET_TRACE=inline hooks every export inline instead. Every hook calls the original with the
-// caller's arguments, returns its result and restores the thread's last error before returning.
+// SWOFTY_NET_TRACE=inline hooks every export inline instead, and SWOFTY_NET_TRACE_BYTES=<n> logs up to
+// n payload bytes instead of 16. Every hook calls the original with the caller's arguments, returns its
+// result and restores the thread's last error before returning.
 
 namespace {
 
@@ -83,6 +85,7 @@ std::unordered_map<void *, Post> posts;
 uintptr_t exe_lo, exe_hi;
 LARGE_INTEGER qpf, qpc0;
 thread_local int busy;
+long long hex_max = 16;
 
 struct Guard {
     DWORD err = GetLastError();
@@ -153,14 +156,14 @@ std::string addr(const sockaddr *a, int len = -1)
     return b;
 }
 
-std::string hex16(const void *p, long long n)
+std::string hexdump(const void *p, long long n)
 {
     if (!p || n <= 0)
         return "-";
     static const char d[] = "0123456789abcdef";
     std::string s;
     auto *b = static_cast<const uint8_t *>(p);
-    for (long long i = 0; i < std::min(n, 16ll); i++) {
+    for (long long i = 0; i < std::min(n, hex_max); i++) {
         s += d[b[i] >> 4];
         s += d[b[i] & 15];
     }
@@ -232,7 +235,7 @@ std::string sock_desc(SOCKET s)
 
 void trace(Call c, SOCKET s, void *ra, int ret, DWORD err, const char *fmt, ...)
 {
-    char body[640];
+    char body[1536];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(body, sizeof body, fmt, ap);
@@ -244,7 +247,7 @@ void trace(Call c, SOCKET s, void *ra, int ret, DWORD err, const char *fmt, ...)
         QueryPerformanceCounter(&q);
         double ms = double(q.QuadPart - qpc0.QuadPart) * 1000.0 / double(qpf.QuadPart);
         std::string sd = sock_desc(s);
-        char line[1200];
+        char line[2048];
         int len = snprintf(line, sizeof line, "%10.3f t%05lu %s #%u %s %s ret=%d err=%lu from=%s\n", ms,
                            GetCurrentThreadId(), hooks[c].name, n, sd.c_str(), body, ret, err, caller(ra).c_str());
         if (len > 0)
@@ -363,7 +366,7 @@ int WSAAPI h_setsockopt(SOCKET s, int level, int name, const char *val, int len)
     int r = orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
     Guard g;
     trace(C_SETSOCKOPT, s, RA, r, r ? g.err : 0, "level=0x%x name=0x%x len=%d val=%s", level, name, len,
-          readable(r, g.err) ? hex16(val, len).c_str() : "?");
+          readable(r, g.err) ? hexdump(val, len).c_str() : "?");
     return r;
 }
 
@@ -401,7 +404,7 @@ int WSAAPI h_sendto(SOCKET s, const char *buf, int len, int flags, const sockadd
     Guard g;
     bool ok = readable(r, g.err);
     trace(C_SENDTO, s, RA, r, r < 0 ? g.err : 0, "to=%s len=%d flags=0x%x data=%s", ok ? addr(to, tolen).c_str() : "?",
-          len, flags, ok ? hex16(buf, len).c_str() : "?");
+          len, flags, ok ? hexdump(buf, len).c_str() : "?");
     return r;
 }
 
@@ -413,7 +416,7 @@ int WSAAPI h_send(SOCKET s, const char *buf, int len, int flags)
     int r = orig<F>(C_SEND)(s, buf, len, flags);
     Guard g;
     trace(C_SEND, s, RA, r, r < 0 ? g.err : 0, "len=%d flags=0x%x data=%s", len, flags,
-          readable(r, g.err) ? hex16(buf, len).c_str() : "?");
+          readable(r, g.err) ? hexdump(buf, len).c_str() : "?");
     return r;
 }
 
@@ -429,7 +432,7 @@ int WSAAPI h_WSASendTo(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD sent, DWORD fla
     bool ok = readable(r, g.err) && bufs && n;
     trace(C_WSASENDTO, s, RA, r, r ? g.err : 0, "to=%s nbufs=%lu len0=%lu sent=%ld data=%s ov=0x%llx ev=0x%llx",
           ok ? addr(to, tolen).c_str() : "?", n, ok ? bufs[0].len : 0, !r && sent ? long(*sent) : -1L,
-          ok ? hex16(bufs[0].buf, bufs[0].len).c_str() : "?", PTR(ov), PTR(event_of(ov)));
+          ok ? hexdump(bufs[0].buf, bufs[0].len).c_str() : "?", PTR(ov), PTR(event_of(ov)));
     return r;
 }
 
@@ -442,7 +445,7 @@ int WSAAPI h_recvfrom(SOCKET s, char *buf, int len, int flags, sockaddr *from, i
     Guard g;
     if (r >= 0)
         trace(C_RECVFROM, s, RA, r, 0, "cap=%d flags=0x%x from=%s data=%s", len, flags,
-              addr(from, fromlen ? *fromlen : -1).c_str(), hex16(buf, r).c_str());
+              addr(from, fromlen ? *fromlen : -1).c_str(), hexdump(buf, r).c_str());
     else
         trace(C_RECVFROM, s, RA, r, g.err, "cap=%d flags=0x%x", len, flags);
     return r;
@@ -456,7 +459,7 @@ int WSAAPI h_recv(SOCKET s, char *buf, int len, int flags)
     int r = orig<F>(C_RECV)(s, buf, len, flags);
     Guard g;
     trace(C_RECV, s, RA, r, r < 0 ? g.err : 0, "cap=%d flags=0x%x data=%s", len, flags,
-          r > 0 ? hex16(buf, r).c_str() : "-");
+          r > 0 ? hexdump(buf, r).c_str() : "-");
     return r;
 }
 
@@ -511,12 +514,12 @@ BOOL WSAAPI h_WSAGetOverlappedResult(SOCKET s, LPWSAOVERLAPPED ov, LPDWORD bytes
     if (r && known && p.recvfrom)
         trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0, "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s from_buf=0x%llx from=%s",
               PTR(ov), PTR(event_of(ov)), bytes ? *bytes : 0, flags ? *flags : 0, PTR(p.buf),
-              hex16(p.buf, bytes ? *bytes : 0).c_str(), PTR(p.from),
+              hexdump(p.buf, bytes ? *bytes : 0).c_str(), PTR(p.from),
               addr(p.from, p.fromlen ? *p.fromlen : -1).c_str());
     else if (r && known)
         trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, 0, "ov=0x%llx ev=0x%llx bytes=%lu flags=0x%lx buf=0x%llx data=%s", PTR(ov),
               PTR(event_of(ov)), bytes ? *bytes : 0, flags ? *flags : 0, PTR(p.buf),
-              hex16(p.buf, bytes ? *bytes : 0).c_str());
+              hexdump(p.buf, bytes ? *bytes : 0).c_str());
     else
         trace(C_WSAGETOVERLAPPEDRESULT, s, RA, r, r ? 0 : g.err, "ov=0x%llx ev=0x%llx wait=%d bytes=%lu post=%s", PTR(ov),
               PTR(event_of(ov)), wait, r && bytes ? *bytes : 0, known ? "seen" : "unseen");
@@ -571,7 +574,7 @@ int WSAAPI h_WSAIoctl(SOCKET s, DWORD code, LPVOID in, DWORD inlen, LPVOID out, 
     int r = orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
     Guard g;
     trace(C_WSAIOCTL, s, RA, r, r ? g.err : 0, "code=0x%lx in=%s inlen=%lu outlen=%lu got=%ld ov=0x%llx", code,
-          readable(r, g.err) ? hex16(in, inlen).c_str() : "?", inlen, outlen, !r && got ? long(*got) : -1L,
+          readable(r, g.err) ? hexdump(in, inlen).c_str() : "?", inlen, outlen, !r && got ? long(*got) : -1L,
           PTR(ov));
     return r;
 }
@@ -706,6 +709,10 @@ void setup()
     if (!n || n >= sizeof v || !strcmp(v, "0"))
         return;
     bool all_inline = !_stricmp(v, "inline");
+    char bytes[16] = {};
+    n = GetEnvironmentVariableA("SWOFTY_NET_TRACE_BYTES", bytes, sizeof bytes);
+    if (n && n < sizeof bytes)
+        hex_max = std::clamp(atoll(bytes), 1ll, 512ll);
     HMODULE ws = LoadLibraryW(L"ws2_32.dll");
     if (!ws) {
         swofty::log("[net-trace] ws2_32.dll did not load (%lu); socket trace off", GetLastError());
@@ -727,9 +734,9 @@ void setup()
     table();
     for (auto &h : hooks)
         h.target = reinterpret_cast<void *>(GetProcAddress(ws, h.name));
-    raw("# swofty net trace: exe timestamp 0x%08lx size 0x%lx, mode %s; per (call, socket) the first 200 calls are "
-        "logged, then every 100th",
-        nt->FileHeader.TimeDateStamp, nt->OptionalHeader.SizeOfImage, all_inline ? "inline" : "iat");
+    raw("# swofty net trace: exe timestamp 0x%08lx size 0x%lx, mode %s, first %lld data bytes; per (call, socket) the "
+        "first 200 calls are logged, then every 100th",
+        nt->FileHeader.TimeDateStamp, nt->OptionalHeader.SizeOfImage, all_inline ? "inline" : "iat", hex_max);
     raw("# columns: ms thread call #count sock=... <call fields> ret err from=<caller>");
     int slots = all_inline ? 0 : hook_iat(ws, base);
     std::string inl;
