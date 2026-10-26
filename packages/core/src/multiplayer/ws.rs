@@ -111,6 +111,11 @@ impl Socket {
             .trim_start_matches('[')
             .trim_end_matches(']')
             .to_owned();
+        if !tls && !loopback(&host) {
+            return Err(ConnectError::Failed(format!(
+                "refusing to send the session token to {host} over plain ws://; use wss://"
+            )));
+        }
         let port = uri.port_u16().unwrap_or(if tls { 443 } else { 80 });
         let tcp =
             dial(&host, port, timeout).map_err(|e| failed(&format!("connecting to {host}:{port}"), &e))?;
@@ -179,6 +184,15 @@ impl Socket {
         let _ = self.ws.close(None);
         let _ = self.ws.flush();
     }
+}
+
+/// Whether `host` is this machine: `localhost`, 127.0.0.0/8 or ::1. Only these get the session
+/// token without TLS.
+pub fn loopback(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.to_canonical().is_loopback())
 }
 
 fn dial(host: &str, port: u16, timeout: Duration) -> io::Result<TcpStream> {
@@ -266,6 +280,23 @@ mod tests {
         assert_eq!(events[0], Event::Text("Bearer tok said hi".into()));
         assert!(matches!(events[1], Event::Closed { code: Some(4002), .. }));
         server.join().unwrap();
+    }
+
+    #[test]
+    fn refuses_plain_ws_to_another_machine() {
+        for url in [
+            "ws://example.com/ws",
+            "ws://10.0.0.5:8471/ws",
+            "ws://[2001:db8::1]:80/ws",
+        ] {
+            match Socket::connect(url, "tok", Duration::from_secs(1)) {
+                Err(ConnectError::Failed(why)) => assert!(why.contains("plain ws://"), "{url}: {why}"),
+                Err(e) => panic!("{url}: unexpected {e}"),
+                Ok(_) => panic!("{url} should be refused"),
+            }
+        }
+        assert!(loopback("127.3.4.5") && loopback("::1") && loopback("LOCALHOST"));
+        assert!(!loopback("127.0.0.1.example.com") && !loopback("192.168.1.2"));
     }
 
     #[test]
