@@ -14,7 +14,8 @@
 //      number-only and car/look rows; every row read back against the plan (written back on a
 //      mismatch); the new seats' contracts signed; numbers for seated rows without one; one
 //      finalise against the line-up from before the batch;
-//   4. the team names of the year through swofty::lang (also on every career load);
+//   4. the team names of the year through swofty::lang (also on every career load), and the race
+//      weekend and season titles with the year in place of 2026 (titles_logic.hpp, data/titles.json);
 //   5. in a hybrid R&D career, each team's resource points for the season.
 // In a Real life R&D career every load and Team HQ also works out the in-season development of the
 // year at the season's current round (development_logic.hpp) for progressive_rnd.dll
@@ -67,6 +68,7 @@
 #include "midseason_logic.hpp"
 #include "names.hpp"
 #include "player_logic.hpp"
+#include "titles_logic.hpp"
 #include "progressive.hpp"
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
@@ -289,6 +291,49 @@ int row_index(const std::vector<Row> &rows, uint32_t stat)
     return hit;
 }
 
+constexpr const char *kTitlesPath = "data/titles.json";
+json::Value g_titles;
+int g_titles_state = 0;
+
+bool titles()
+{
+    if (g_titles_state)
+        return g_titles_state > 0;
+    std::string text;
+    bool ok = swofty::storage::read(kTitlesPath, text) == swofty::storage::Result::ok && json::parse(text, g_titles);
+    g_titles_state = ok ? 1 : -1;
+    swofty::log("[progressive] event titles: %s %s (%zu title(s))", kTitlesPath, ok ? "loaded" : "missing or not JSON",
+                ok ? g_titles["all"].o.size() : size_t(0));
+    return ok;
+}
+
+// The race weekend and season titles show the career's year (titles_logic.hpp); 2026 and later
+// keep the stock titles.
+void set_titles(int year, const char *why)
+{
+    if (!titles())
+        return;
+    size_t set = 0;
+    if (year >= season::kLastYear) {
+        for (auto &key : progressive::titles::keys(g_titles))
+            swofty::lang::clear(key);
+    } else {
+        for (auto &t : progressive::titles::for_year(g_titles, year))
+            if (swofty::lang::set(t.key, t.text, t.language) == swofty::lang::Result::ok)
+                ++set;
+    }
+    swofty::log("[progressive] event titles %d (%s): %zu override(s)%s", year, why, set,
+                year >= season::kLastYear ? ", the stock 2026 titles" : "");
+}
+
+void clear_titles()
+{
+    if (g_titles_state <= 0)
+        return;
+    for (auto &key : progressive::titles::keys(g_titles))
+        swofty::lang::clear(key);
+}
+
 void set_names(int year, const char *why)
 {
     if (!swofty::lang::available() || !data())
@@ -304,6 +349,7 @@ void set_names(int year, const char *why)
             else if (swofty::lang::set(key, y->teams[i].name) == swofty::lang::Result::ok)
                 ++set;
         }
+    set_titles(year, why);
     swofty::lang::refresh();
     g_names_year = year;
     swofty::log("[progressive] team names %d (%s): %zu override(s)%s", year, why, set,
@@ -318,6 +364,7 @@ void clear_names()
         for (auto &key : s.name_keys)
             if (!key.empty())
                 swofty::lang::clear(key);
+    clear_titles();
     swofty::lang::refresh();
     g_names_year = 0;
 }
