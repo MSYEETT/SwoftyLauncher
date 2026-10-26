@@ -13,8 +13,8 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use swofty_core::catalog::{self, Addon};
 use swofty_core::install::Game;
-use swofty_core::multiplayer::bridge::MemberStats;
 use swofty_core::multiplayer::diag;
+use swofty_core::multiplayer::fingerprint::{Mismatch, MismatchKind};
 use swofty_core::multiplayer::game::{self as mp_game, Category, Command, GameStatus, Screen};
 use swofty_core::multiplayer::rooms::{Api, RoomSettings, RoomSummary};
 use swofty_core::multiplayer::session::{
@@ -23,7 +23,7 @@ use swofty_core::multiplayer::session::{
 use swofty_core::store::Store;
 
 use crate::library::plural;
-use crate::pages::{GUTTER, label, monogram, tag};
+use crate::pages::{GUTTER, TRACK, badge, label, monogram, tag};
 use crate::shell::{Page, Shell};
 use crate::theme::{Palette, ScrollArea};
 
@@ -36,7 +36,7 @@ const MAX_PLAYERS: u8 = 20;
 const TRACKS_SHOWN: usize = 3;
 const AVATARS_DIR: &str = "avatars";
 
-/// Where the game is, as the page's status pill names it.
+/// Where the game is, in the page header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GameState {
     NotRunning,
@@ -59,19 +59,10 @@ impl GameState {
 
     pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::NotRunning => "Game not running",
-            Self::MainMenu => "On the main menu",
-            Self::LanLobby => "In a LAN lobby",
-            Self::Busy => "Busy",
-        }
-    }
-
-    fn color(self, p: Palette) -> Hsla {
-        match self {
-            Self::NotRunning => p.text_placeholder,
-            Self::MainMenu => p.success,
-            Self::LanLobby => p.accent,
-            Self::Busy => p.warning,
+            Self::NotRunning => "F1 25 isn't running",
+            Self::MainMenu => "F1 25 is on the main menu",
+            Self::LanLobby => "F1 25 is in a LAN lobby",
+            Self::Busy => "F1 25 is busy",
         }
     }
 
@@ -79,18 +70,11 @@ impl GameState {
     pub(crate) fn not_ready(self) -> Option<&'static str> {
         match self {
             Self::MainMenu => None,
-            Self::NotRunning => Some("Start F1 25 first"),
-            Self::LanLobby => Some("Leave the LAN lobby first"),
-            Self::Busy => Some("Go to F1 25's main menu"),
+            Self::NotRunning => Some("Start F1 25 to create or join a room."),
+            Self::LanLobby => Some("Leave F1 25's LAN lobby to create or join a room."),
+            Self::Busy => Some("Go to F1 25's main menu to create or join a room."),
         }
     }
-}
-
-pub(crate) fn join_blocked(room: &RoomSummary, game: GameState) -> Option<&'static str> {
-    if room.members >= room.max_members {
-        return Some("Room full");
-    }
-    game.not_ready()
 }
 
 pub(crate) fn category_label(category: &str) -> String {
@@ -114,45 +98,48 @@ pub(crate) fn tracks_text(tracks: &[String]) -> Option<String> {
     if tracks.len() > TRACKS_SHOWN {
         text.push_str(&format!(" and {} more", tracks.len() - TRACKS_SHOWN));
     }
-    Some(format!("Tracks: {text}"))
+    Some(text)
 }
 
-/// The room row's second line: host, car category, the host's tracks.
+/// The room row's second line: host, players and cars.
 pub(crate) fn room_meta(room: &RoomSummary) -> String {
-    let mut parts = vec![
-        format!("Hosted by {}", room.host.name),
-        category_label(&room.category),
-    ];
-    if let Some(tracks) = room.addons.as_ref().and_then(|a| tracks_text(&a.tracks)) {
-        parts.push(tracks);
-    }
-    parts.join(" \u{00b7} ")
+    format!(
+        "{} \u{00b7} {}/{} players \u{00b7} {}",
+        room.host.name,
+        room.members,
+        room.max_members,
+        category_label(&room.category)
+    )
 }
 
-pub(crate) fn players_text(room: &RoomSummary) -> String {
-    format!("{}/{}", room.members, room.max_members)
-}
-
+/// What a room's one status line says, and whether it needs the player's attention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Addons {
-    Match,
+pub(crate) enum RoomStatus {
+    Full,
     Differ,
+    Match,
     Unknown,
 }
 
-pub(crate) fn addons_against(room: &RoomSummary, mine: Option<&str>) -> Addons {
-    match (room.digest.as_deref(), mine) {
-        (Some(host), Some(mine)) if host.eq_ignore_ascii_case(mine) => Addons::Match,
-        (Some(_), Some(_)) => Addons::Differ,
-        _ => Addons::Unknown,
+impl RoomStatus {
+    pub(crate) fn of(room: &RoomSummary, mine: Option<&str>) -> Self {
+        if room.members >= room.max_members {
+            return Self::Full;
+        }
+        match (room.digest.as_deref(), mine) {
+            (Some(host), Some(mine)) if host.eq_ignore_ascii_case(mine) => Self::Match,
+            (Some(_), Some(_)) => Self::Differ,
+            _ => Self::Unknown,
+        }
     }
-}
 
-pub(crate) fn addons_text(addons: Addons) -> &'static str {
-    match addons {
-        Addons::Match => "Your addons match",
-        Addons::Differ => "Addons differ",
-        Addons::Unknown => "Checking addons",
+    pub(crate) fn text(self) -> &'static str {
+        match self {
+            Self::Full => "Full",
+            Self::Differ => "Your addons differ",
+            Self::Match => "Your addons match",
+            Self::Unknown => "",
+        }
     }
 }
 
@@ -164,27 +151,103 @@ fn capitalised(text: &str) -> String {
     }
 }
 
-pub(crate) fn phase_text(phase: &Phase) -> String {
-    match phase {
-        Phase::Connecting(step) => format!("Connecting: {step}"),
-        Phase::WaitingForGame(why) => capitalised(why),
-        Phase::InLobby => "In the lobby".into(),
-        Phase::Racing => "Racing".into(),
-        Phase::Ended(why) => capitalised(why),
-        Phase::Failed(why) => format!("The room stopped: {why}"),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Tone {
+    Working,
+    Blocked,
+    Good,
+    Over,
+    Failed,
+}
+
+/// The room's state as the player reads it: a short line and what to do next. The session's
+/// own wording goes to the multiplayer log.
+pub(crate) fn status_text(state: &SessionState) -> (Tone, String, Option<&'static str>) {
+    let host = state.host;
+    match &state.phase {
+        Phase::Connecting(_) if host => (Tone::Working, "Opening your room\u{2026}".into(), None),
+        Phase::Connecting(_) => (Tone::Working, "Joining the room\u{2026}".into(), None),
+        Phase::WaitingForGame(_) if !state.mismatches.is_empty() => {
+            (Tone::Blocked, "Your addons don't match the host's".into(), None)
+        }
+        Phase::WaitingForGame(why) => waiting_text(why, host),
+        Phase::InLobby if host => (
+            Tone::Good,
+            "Your room is open".into(),
+            Some("Pick tracks and settings in F1 25's LAN lobby, then start the race there."),
+        ),
+        Phase::InLobby => (
+            Tone::Good,
+            "You're in the lobby".into(),
+            Some("The host picks the tracks and starts the race."),
+        ),
+        Phase::Racing if host => (
+            Tone::Good,
+            "Racing".into(),
+            Some("Mark the race over when everyone is back in the lobby."),
+        ),
+        Phase::Racing => (Tone::Good, "Racing".into(), None),
+        Phase::Ended(why) => (Tone::Over, capitalised(why), None),
+        Phase::Failed(_) => (
+            Tone::Failed,
+            "The room stopped unexpectedly".into(),
+            Some("Leave it and try again. Send Logs has the details."),
+        ),
     }
 }
 
-/// What the host does next, under the phase.
-pub(crate) fn phase_hint(phase: &Phase, host: bool) -> Option<&'static str> {
-    match phase {
-        Phase::InLobby if host => {
-            Some("Pick tracks and settings in F1 25's LAN lobby, then start the race there.")
-        }
-        Phase::InLobby => Some("The host picks tracks and settings and starts the race."),
-        Phase::Racing if host => Some("Mark the race over when everyone is back in the lobby."),
-        _ => None,
-    }
+fn waiting_text(why: &str, host: bool) -> (Tone, String, Option<&'static str>) {
+    let has = |s: &str| why.contains(s);
+    let (tone, text, hint): (Tone, &str, Option<&'static str>) = if has("didn't host") {
+        (
+            Tone::Blocked,
+            "Couldn't start hosting. Go back to F1 25's main menu and try again.",
+            None,
+        )
+    } else if has("didn't join") {
+        (
+            Tone::Blocked,
+            "Couldn't join the host's lobby. Go back to F1 25's main menu and try again.",
+            None,
+        )
+    } else if has("left the LAN session") {
+        (
+            Tone::Blocked,
+            "F1 25 left the lobby. Try again, or leave the room.",
+            None,
+        )
+    } else if has("room settings") {
+        (
+            Tone::Blocked,
+            "F1 25 didn't take the room. Restart it from the launcher and try again.",
+            None,
+        )
+    } else if has("car category") {
+        (
+            Tone::Working,
+            "Pick the car category in F1 25",
+            Some("F1 25 opens its LAN lobby after that."),
+        )
+    } else if has("joining the host") {
+        (Tone::Working, "Joining the host's lobby in F1 25\u{2026}", None)
+    } else if has("host's addon list") {
+        (Tone::Working, "Waiting for the host\u{2026}", None)
+    } else if has("already in a LAN session") {
+        (Tone::Blocked, "Leave the LAN lobby in F1 25 first.", None)
+    } else if has("start F1 25") {
+        (
+            Tone::Blocked,
+            "Start F1 25 from the launcher.",
+            Some("Play starts it ready for multiplayer."),
+        )
+    } else if has("main menu") {
+        (Tone::Blocked, "Go to F1 25's main menu.", None)
+    } else if host {
+        (Tone::Blocked, "Waiting for F1 25 to host.", None)
+    } else {
+        (Tone::Blocked, "Waiting for F1 25 to join.", None)
+    };
+    (tone, text.to_owned(), hint)
 }
 
 /// Retry drives the game again: offered while the session waits on the game for anything but
@@ -197,38 +260,41 @@ pub(crate) fn retry_offered(state: &SessionState) -> bool {
     }
 }
 
-pub(crate) fn addon_word(m: PrintMatch) -> &'static str {
-    match m {
-        PrintMatch::Unknown => "Checking",
-        PrintMatch::Matches => "Match",
-        PrintMatch::Differs => "Differ",
+/// One word for a member in the player list.
+pub(crate) fn member_status(m: &MemberState, phase: &Phase) -> &'static str {
+    if !m.connected {
+        "Disconnected"
+    } else if m.fingerprint == PrintMatch::Differs {
+        "Addons differ"
+    } else if m.me {
+        match phase {
+            Phase::InLobby | Phase::Racing => "Ready",
+            _ => "Joining\u{2026}",
+        }
+    } else if m.relay == RelayStatus::Ready && (m.host || m.fingerprint == PrintMatch::Matches) {
+        "Ready"
+    } else {
+        "Joining\u{2026}"
     }
 }
 
-pub(crate) fn relay_word(r: RelayStatus) -> &'static str {
-    match r {
-        RelayStatus::None => "None",
-        RelayStatus::Pending => "Pending",
-        RelayStatus::Ready => "Ready",
-    }
-}
-
-fn size_text(bytes: u64) -> String {
-    match bytes {
-        b if b >= 1 << 20 => format!("{:.1} MB", b as f64 / f64::from(1 << 20)),
-        b if b >= 1 << 10 => format!("{:.0} KB", b as f64 / f64::from(1 << 10)),
-        b => format!("{b} B"),
-    }
-}
-
-pub(crate) fn traffic_text(t: Option<&MemberStats>) -> String {
-    match t {
-        Some(t) if t.packets_in + t.packets_out > 0 => format!(
-            "\u{2191} {}  \u{2193} {}",
-            size_text(t.bytes_out),
-            size_text(t.bytes_in)
-        ),
-        _ => "\u{2014}".into(),
+/// A difference from the host in plain words.
+pub(crate) fn difference_text(m: &Mismatch) -> String {
+    match &m.kind {
+        MismatchKind::GameBuild { .. } => "Your F1 25 version is not the host's".into(),
+        MismatchKind::Dlc { .. } => "Your DLC is not the host's".into(),
+        MismatchKind::Launcher { .. } => "Your Swofty Launcher version is not the host's".into(),
+        MismatchKind::MissingAddon { name, version, .. } => format!("{name} {version} is missing"),
+        MismatchKind::ExtraAddon { name, .. } => format!("{name} is on; the host doesn't use it"),
+        MismatchKind::VersionDiffers {
+            name, local, host, ..
+        } => format!("{name}: you have {local}, the host has {host}"),
+        MismatchKind::SourceDiffers { name, .. } => format!("{name} is a different copy from the host's"),
+        MismatchKind::InputsDiffer { name, .. } => format!("{name} has other data than the host's"),
+        MismatchKind::LoadOrder { .. } => "Your addons load in a different order".into(),
+        MismatchKind::OptionDiffers { addon, option, .. } => {
+            format!("A setting differs: {addon} {option}")
+        }
     }
 }
 
@@ -860,227 +926,218 @@ impl Shell {
         }
     }
 
-    fn game_pill(&self, p: Palette) -> Div {
-        let game = self.mp_game_state();
+    fn game_status(&self, p: Palette) -> Div {
+        h_flex()
+            .gap(px(6.))
+            .flex_shrink_0()
+            .text_size(px(13.))
+            .text_color(p.text_muted)
+            .child(
+                Icon::new(IconName::Gamepad2)
+                    .size(px(15.))
+                    .text_color(p.text_placeholder),
+            )
+            .child(self.mp_game_state().text())
+    }
+
+    fn section_head(&self, title: impl Into<SharedString>, p: Palette) -> Div {
         h_flex()
             .h(px(28.))
-            .px(px(10.))
-            .gap(px(7.))
-            .flex_shrink_0()
-            .rounded(px(14.))
-            .border_1()
-            .border_color(p.border)
-            .text_size(px(12.))
-            .font_weight(FontWeight::MEDIUM)
-            .text_color(p.text_muted)
-            .child(div().size(px(7.)).rounded_full().bg(game.color(p)))
-            .child(game.text())
+            .gap(px(10.))
+            .items_center()
+            .child(label(title, p))
     }
 
     fn mp_lobby(&mut self, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let who = self
-            .mp
-            .as_ref()
-            .map_or_else(String::new, |m| format!("Signed in as {}. ", m.name));
-        let subtitle = format!("{who}Join a room, or create one and pick tracks in F1 25's LAN lobby.");
+        let subtitle =
+            "Race with players who use the same addons. The host picks tracks in F1 25's LAN lobby."
+                .to_owned();
         let actions = h_flex()
-            .gap(px(8.))
+            .gap(px(14.))
             .items_center()
-            .child(self.game_pill(p))
+            .child(self.game_status(p))
             .child(
                 Button::new("mp-create-open")
                     .outline()
-                    .icon(if self.mp_page.form {
-                        IconName::X
-                    } else {
-                        IconName::Plus
-                    })
-                    .label(if self.mp_page.form { "Close" } else { "Create room" })
+                    .icon(IconName::Plus)
+                    .label("Create room")
+                    .disabled(self.mp_page.form)
                     .on_click(cx.listener(|this, _, window, cx| this.mp_open_form(window, cx))),
             );
-        let body = if !self.mp_page.rooms_loaded && self.mp_page.rooms_error.is_none() {
+        let rooms: AnyElement = if !self.mp_page.rooms_loaded && self.mp_page.rooms_error.is_none() {
             div()
-                .px(px(GUTTER))
-                .pt(px(8.))
                 .text_size(px(13.))
                 .text_color(p.text_muted)
                 .child("Loading rooms\u{2026}")
                 .into_any_element()
         } else if self.mp_page.rooms.is_empty() {
             let body = match &self.mp_page.rooms_error {
-                Some(e) => format!("Couldn't load the room list: {e}"),
-                None => "Create one, or join a private room with its code.".into(),
+                Some(_) => "The room list didn't load. It tries again in a few seconds.",
+                None => "Create one, or join a private room with its invite code.",
             };
-            self.empty(IconName::Users, "No open rooms", body, div(), p)
+            v_flex()
+                .py(px(40.))
+                .items_center()
+                .gap(px(8.))
+                .rounded(px(6.))
+                .border_1()
+                .border_color(p.border)
+                .child(badge(IconName::Users, 40., p))
+                .child(
+                    div()
+                        .pt(px(6.))
+                        .text_size(px(15.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child("No open rooms"),
+                )
+                .child(div().text_size(px(13.)).text_color(p.text_muted).child(body))
+                .into_any_element()
         } else {
-            let rows = self
-                .mp_page
-                .rooms
-                .clone()
-                .iter()
-                .enumerate()
-                .map(|(i, r)| self.room_row(r, i == 0, p, cx))
-                .collect();
-            self.list("mp-rooms", rows, p).into_any_element()
+            let list = self.mp_page.rooms.clone();
+            v_flex()
+                .rounded(px(6.))
+                .border_1()
+                .border_color(p.border)
+                .overflow_hidden()
+                .children(
+                    list.iter()
+                        .enumerate()
+                        .map(|(i, r)| self.room_row(r, i == 0, p, cx)),
+                )
+                .into_any_element()
         };
+        let hint = self.mp_game_state().not_ready();
         v_flex()
             .size_full()
             .child(self.header(Page::Multiplayer.label(), subtitle, actions, p))
-            .when(self.mp_page.form, |d| d.child(self.create_form(p, cx)))
-            .child(self.rooms_bar(p, cx))
-            .child(body)
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_h_0()
+                    .scroll_y("mp-lobby")
+                    .px(px(GUTTER))
+                    .pt(px(4.))
+                    .pb(px(24.))
+                    .gap(px(24.))
+                    .when(self.mp_page.form, |d| d.child(self.create_form(p, cx)))
+                    .child(
+                        v_flex()
+                            .gap(px(8.))
+                            .child(
+                                self.section_head(
+                                    if self.mp_page.rooms_loaded {
+                                        format!("OPEN ROOMS \u{00b7} {}", self.mp_page.rooms.len())
+                                    } else {
+                                        "OPEN ROOMS".to_owned()
+                                    },
+                                    p,
+                                )
+                                .child(div().flex_1())
+                                .child(self.code_join(p, cx)),
+                            )
+                            .when_some(hint.filter(|_| !self.mp_page.form), |d, h| {
+                                d.child(div().text_size(px(13.)).text_color(p.text_muted).child(h))
+                            })
+                            .when_some(self.mp_page.error.clone(), |d, e| {
+                                d.child(div().text_size(px(13.)).text_color(p.error).child(e))
+                            })
+                            .child(rooms),
+                    ),
+            )
             .into_any_element()
     }
 
-    fn rooms_bar(&self, p: Palette, cx: &mut Context<Self>) -> Div {
+    fn code_join(&self, _p: Palette, cx: &mut Context<Self>) -> Div {
         let game = self.mp_game_state();
         let typed = !self.mp_page.code.read(cx).value().trim().is_empty();
         let joining = self
             .mp_page
             .starting
             .as_ref()
-            .filter(|s| s.as_str() != "create")
-            .is_some();
-        let count = if self.mp_page.rooms_loaded {
-            format!("OPEN ROOMS \u{00b7} {}", self.mp_page.rooms.len())
-        } else {
-            "OPEN ROOMS".into()
-        };
-        v_flex()
-            .px(px(GUTTER))
-            .pb(px(8.))
-            .gap(px(6.))
-            .flex_shrink_0()
+            .is_some_and(|s| s.as_str() != "create");
+        h_flex()
+            .gap(px(8.))
             .child(
-                h_flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .child(label(count, p))
-                    .when_some(
-                        self.mp_page
-                            .rooms_error
-                            .clone()
-                            .filter(|_| self.mp_page.rooms_loaded),
-                        |d, e| {
-                            d.child(
-                                div()
-                                    .text_size(px(12.))
-                                    .text_color(p.error)
-                                    .truncate()
-                                    .child(format!("Couldn't refresh: {e}")),
-                            )
-                        },
-                    )
-                    .child(div().flex_1())
-                    .children(
-                        game.not_ready()
-                            .filter(|_| typed)
-                            .map(|why| div().text_size(px(12.)).text_color(p.text_placeholder).child(why)),
-                    )
-                    .child(
-                        div().w(px(180.)).child(
-                            Input::new(&self.mp_page.code)
-                                .small()
-                                .disabled(self.mp_page.busy()),
-                        ),
-                    )
-                    .child(
-                        Button::new("mp-join-code")
-                            .outline()
-                            .small()
-                            .label("Join with code")
-                            .loading(joining)
-                            .disabled(!typed || game.not_ready().is_some() || self.mp_page.busy())
-                            .on_click(cx.listener(|this, _, _, cx| this.mp_join_code(cx))),
-                    ),
+                div().w(px(170.)).child(
+                    Input::new(&self.mp_page.code)
+                        .small()
+                        .disabled(self.mp_page.busy()),
+                ),
             )
-            .when_some(self.mp_page.error.clone(), |d, e| {
-                d.child(div().text_size(px(13.)).text_color(p.error).child(e))
-            })
+            .child(
+                Button::new("mp-join-code")
+                    .outline()
+                    .small()
+                    .label("Join with code")
+                    .loading(joining && typed)
+                    .disabled(!typed || game.not_ready().is_some() || self.mp_page.busy())
+                    .on_click(cx.listener(|this, _, _, cx| this.mp_join_code(cx))),
+            )
     }
 
     fn room_row(&self, room: &RoomSummary, first: bool, p: Palette, cx: &mut Context<Self>) -> AnyElement {
-        let game = self.mp_game_state();
-        let blocked = join_blocked(room, game);
-        let addons = addons_against(room, self.mp_page.digest.as_deref());
-        let (icon, color) = match addons {
-            Addons::Match => (IconName::CircleCheck, p.success),
-            Addons::Differ => (IconName::TriangleAlert, p.warning),
-            Addons::Unknown => (IconName::CircleDot, p.text_placeholder),
-        };
+        let status = RoomStatus::of(room, self.mp_page.digest.as_deref());
+        let blocked = status == RoomStatus::Full || self.mp_game_state().not_ready().is_some();
         let joining = self.mp_page.starting.as_deref() == Some(room.code.as_str());
         let code = room.code.clone();
-        self.row(first, false, p)
+        let tracks = room.addons.as_ref().and_then(|a| tracks_text(&a.tracks));
+        h_flex()
+            .px(px(16.))
+            .py(px(14.))
+            .gap(px(14.))
+            .items_center()
+            .when(!first, |d| d.border_t_1().border_color(p.border_variant))
+            .child(self.face(&room.host.name, room.host.avatar.as_deref(), 36., p))
             .child(
-                h_flex()
-                    .h(px(58.))
-                    .px(px(14.))
-                    .gap(px(12.))
-                    .child(self.face(&room.host.name, room.host.avatar.as_deref(), 32., p))
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(3.))
                     .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
-                            .child(
-                                div()
-                                    .text_size(px(14.))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .truncate()
-                                    .child(room.name.clone()),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(12.))
-                                    .text_color(p.text_muted)
-                                    .truncate()
-                                    .child(room_meta(room)),
-                            ),
+                        div()
+                            .text_size(px(14.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .truncate()
+                            .child(room.name.clone()),
                     )
                     .child(
-                        h_flex()
-                            .w(px(64.))
-                            .flex_shrink_0()
-                            .gap(px(6.))
+                        div()
                             .text_size(px(13.))
                             .text_color(p.text_muted)
-                            .child(Icon::new(IconName::Users).size(px(14.)))
-                            .child(players_text(room)),
+                            .truncate()
+                            .child(room_meta(room)),
                     )
-                    .child(
-                        h_flex()
-                            .w(px(150.))
-                            .flex_shrink_0()
-                            .gap(px(6.))
-                            .text_size(px(12.))
-                            .text_color(p.text_muted)
-                            .child(Icon::new(icon).size(px(14.)).text_color(color))
-                            .child(addons_text(addons)),
-                    )
-                    .child(
-                        h_flex()
-                            .w(px(220.))
-                            .flex_shrink_0()
-                            .justify_end()
-                            .gap(px(10.))
-                            .children(blocked.map(|why| {
-                                div()
-                                    .text_size(px(12.))
-                                    .text_color(p.text_placeholder)
-                                    .whitespace_nowrap()
-                                    .child(why)
-                            }))
-                            .child(
-                                Button::new(SharedString::from(format!("mp-join-{}", room.code)))
-                                    .small()
-                                    .primary()
-                                    .label("Join")
-                                    .loading(joining)
-                                    .disabled(blocked.is_some() || self.mp_page.busy())
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.mp_start(Start::Join(code.clone()), cx)
-                                    })),
-                            ),
+                    .when_some(tracks, |d, t| {
+                        d.child(
+                            h_flex()
+                                .gap(px(6.))
+                                .text_size(px(12.))
+                                .text_color(p.text_placeholder)
+                                .child(svg().data(TRACK).size(px(13.)).text_color(p.text_placeholder))
+                                .child(div().truncate().child(t)),
+                        )
+                    }),
+            )
+            .child(
+                div()
+                    .flex_shrink_0()
+                    .text_size(px(13.))
+                    .text_color(if status == RoomStatus::Differ {
+                        p.warning
+                    } else {
+                        p.text_muted
+                    })
+                    .child(status.text()),
+            )
+            .child(
+                Button::new(SharedString::from(format!("mp-join-{}", room.code)))
+                    .small()
+                    .outline()
+                    .label("Join")
+                    .loading(joining)
+                    .disabled(blocked || self.mp_page.busy())
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| this.mp_start(Start::Join(code.clone()), cx)),
                     ),
             )
             .into_any_element()
@@ -1162,12 +1219,15 @@ impl Shell {
                         "Private: only people with the code can join"
                     }),
             );
-        let row = |title: &'static str, control: AnyElement| {
+        let row = |title: &'static str, control: AnyElement, first: bool| {
             h_flex()
+                .px(px(16.))
+                .py(px(10.))
                 .gap(px(12.))
+                .when(!first, |d| d.border_t_1().border_color(p.border_variant))
                 .child(
                     div()
-                        .w(px(104.))
+                        .w(px(120.))
                         .flex_shrink_0()
                         .text_size(px(13.))
                         .text_color(p.text_muted)
@@ -1175,72 +1235,104 @@ impl Shell {
                 )
                 .child(h_flex().flex_1().min_w_0().child(control))
         };
-        div().px(px(GUTTER)).pb(px(16.)).flex_shrink_0().child(
-            v_flex()
-                .max_w(px(760.))
-                .p(px(16.))
-                .gap(px(12.))
-                .rounded(px(6.))
-                .border_1()
-                .border_color(p.border)
-                .bg(p.surface)
-                .child(label("NEW ROOM", p))
-                .child(row(
-                    "Name",
-                    div()
-                        .w(px(320.))
-                        .child(Input::new(&m.name).small())
-                        .into_any_element(),
-                ))
-                .child(row("Visibility", public.into_any_element()))
-                .child(row("Players", players.into_any_element()))
-                .child(row("Cars", cars.into_any_element()))
-                .child(
-                    h_flex()
-                        .gap(px(10.))
-                        .pt(px(4.))
-                        .child(
-                            Button::new("mp-create")
-                                .primary()
-                                .small()
-                                .label("Create room")
-                                .loading(creating)
-                                .disabled(blocked.is_some() || m.busy())
-                                .on_click(cx.listener(|this, _, _, cx| this.mp_create(cx))),
-                        )
-                        .child(div().text_size(px(12.)).text_color(p.text_placeholder).child(
-                            blocked.unwrap_or("F1 25 opens its LAN lobby; pick tracks and settings there."),
-                        )),
-                ),
-        )
-    }
-
-    fn fixed_card(&self, f: &Fixed, p: Palette, cx: &mut Context<Self>) -> Div {
-        let blocked = self.mp_game_state().not_ready();
-        let m = &self.mp_page;
-        let (title, icon, color) = if f.failed.is_empty() {
-            ("Addons updated", IconName::CircleCheck, p.success)
-        } else {
-            ("Some changes failed", IconName::TriangleAlert, p.warning)
-        };
-        h_flex()
-            .max_w(px(760.))
-            .p(px(14.))
-            .gap(px(10.))
-            .items_start()
+        v_flex()
             .rounded(px(6.))
-            .bg(p.elevated)
             .border_1()
             .border_color(p.border)
-            .child(Icon::new(icon).size(px(15.)).mt(px(1.)).text_color(color))
             .child(
                 v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(4.))
+                    .px(px(16.))
+                    .pt(px(14.))
+                    .pb(px(12.))
+                    .gap(px(3.))
+                    .border_b_1()
+                    .border_color(p.border_variant)
+                    .child(
+                        div()
+                            .text_size(px(14.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("New room"),
+                    )
                     .child(
                         div()
                             .text_size(px(13.))
+                            .text_color(p.text_muted)
+                            .child("F1 25 opens its LAN lobby, where you pick the tracks and settings."),
+                    ),
+            )
+            .child(row(
+                "Name",
+                div()
+                    .w(px(320.))
+                    .child(Input::new(&m.name).small())
+                    .into_any_element(),
+                true,
+            ))
+            .child(row("Visibility", public.into_any_element(), false))
+            .child(row("Players", players.into_any_element(), false))
+            .child(row("Cars", cars.into_any_element(), false))
+            .child(
+                h_flex()
+                    .px(px(16.))
+                    .py(px(12.))
+                    .gap(px(8.))
+                    .border_t_1()
+                    .border_color(p.border_variant)
+                    .bg(p.surface)
+                    .children(blocked.map(|why| {
+                        div()
+                            .flex_1()
+                            .text_size(px(13.))
+                            .text_color(p.text_muted)
+                            .child(why)
+                    }))
+                    .when(blocked.is_none(), |d| d.child(div().flex_1()))
+                    .child(
+                        Button::new("mp-create-cancel")
+                            .ghost()
+                            .small()
+                            .label("Cancel")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.mp_page.form = false;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("mp-create")
+                            .primary()
+                            .small()
+                            .label("Create room")
+                            .loading(creating)
+                            .disabled(blocked.is_some() || m.busy())
+                            .on_click(cx.listener(|this, _, _, cx| this.mp_create(cx))),
+                    ),
+            )
+    }
+
+    fn mp_card(&self, p: Palette) -> Div {
+        v_flex()
+            .p(px(16.))
+            .gap(px(12.))
+            .rounded(px(6.))
+            .border_1()
+            .border_color(p.border)
+    }
+
+    fn fixed_card(&self, f: &Fixed, p: Palette, cx: &mut Context<Self>) -> Div {
+        let blocked = self.mp_game_state() != GameState::MainMenu;
+        let m = &self.mp_page;
+        let title = if f.failed.is_empty() {
+            "Addons updated"
+        } else {
+            "Some changes didn't work"
+        };
+        self.mp_card(p)
+            .child(
+                v_flex()
+                    .gap(px(4.))
+                    .child(
+                        div()
+                            .text_size(px(14.))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(title),
                     )
@@ -1249,32 +1341,33 @@ impl Shell {
                             .iter()
                             .map(|l| div().text_size(px(13.)).text_color(p.text_muted).child(l.clone())),
                     )
-                    .children(
-                        f.failed
-                            .iter()
-                            .map(|l| div().text_size(px(13.)).text_color(p.error).child(capitalised(l))),
-                    )
-                    .child(
-                        div().pt(px(4.)).text_size(px(13.)).child(
-                            "Close F1 25 and press Play so the game loads them, then press Join again.",
-                        ),
-                    ),
+                    .children(f.failed.iter().map(|l| {
+                        div()
+                            .text_size(px(13.))
+                            .text_color(p.warning)
+                            .child(capitalised(l))
+                    })),
             )
             .child(
-                v_flex()
-                    .items_end()
-                    .gap(px(4.))
+                h_flex()
+                    .gap(px(12.))
+                    .pt(px(12.))
+                    .border_t_1()
+                    .border_color(p.border_variant)
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(px(13.))
+                            .child("Close F1 25 and press Play so it loads them, then join again."),
+                    )
                     .child(
                         Button::new("mp-rejoin")
                             .small()
                             .primary()
                             .label("Join again")
                             .loading(m.refreshing)
-                            .disabled(blocked.is_some() || m.refreshing || m.leaving)
+                            .disabled(blocked || m.refreshing || m.leaving)
                             .on_click(cx.listener(|this, _, _, cx| this.mp_retry(cx))),
-                    )
-                    .children(
-                        blocked.map(|why| div().text_size(px(12.)).text_color(p.text_placeholder).child(why)),
                     ),
             )
     }
@@ -1285,17 +1378,17 @@ impl Shell {
         let room = state.room.clone();
         let title = room
             .as_ref()
-            .map_or_else(|| "Opening the room".to_owned(), |r| r.name.clone());
+            .map_or_else(|| "Multiplayer".to_owned(), |r| r.name.clone());
         let subtitle = room.as_ref().map_or_else(
-            || "Setting up\u{2026}".to_owned(),
+            || "Setting up the room\u{2026}".to_owned(),
             |r| {
                 let mut parts = vec![
                     category_label(&r.category),
-                    format!("up to {}", plural(r.max_members as usize, "player", "players")),
+                    format!("{}/{} players", state.members.len(), r.max_members),
                     if r.public { "Listed" } else { "Private" }.to_owned(),
                 ];
                 if state.host {
-                    parts.push("You host".into());
+                    parts.push("You're the host".into());
                 }
                 parts.join(" \u{00b7} ")
             },
@@ -1304,7 +1397,7 @@ impl Shell {
         let actions = h_flex()
             .gap(px(8.))
             .items_center()
-            .child(self.game_pill(p))
+            .child(div().pr(px(6.)).child(self.game_status(p)))
             .when_some(code, |d, code| {
                 let copy = code.clone();
                 d.child(
@@ -1315,7 +1408,11 @@ impl Shell {
                         } else {
                             IconName::Copy
                         })
-                        .label(code)
+                        .label(if m.copied.is_some() {
+                            "Copied".to_owned()
+                        } else {
+                            code
+                        })
                         .tooltip("Copy the invite code")
                         .on_click(cx.listener(move |this, _, _, cx| this.mp_copy_code(copy.clone(), cx))),
                 )
@@ -1334,114 +1431,93 @@ impl Shell {
                     .disabled(m.leaving || m.fixing)
                     .on_click(cx.listener(|this, _, _, cx| this.mp_leave(cx))),
             );
+        let (tone, headline, hint) = if m.leaving && !over {
+            (Tone::Working, "Leaving the room\u{2026}".to_owned(), None)
+        } else {
+            status_text(state)
+        };
+        let (icon, color) = match tone {
+            Tone::Working => (IconName::LoaderCircle, p.text_placeholder),
+            Tone::Blocked => (IconName::CircleAlert, p.warning),
+            Tone::Good => (IconName::CircleCheck, p.success),
+            Tone::Over => (IconName::Info, p.text_placeholder),
+            Tone::Failed => (IconName::CircleAlert, p.error),
+        };
         let started = room.as_ref().is_some_and(|r| r.started);
-        let race = (state.host && !over && !m.leaving).then(|| {
-            h_flex()
-                .gap(px(8.))
-                .child(
-                    Button::new("mp-race-start")
+        let race =
+            (state.host && !over && !m.leaving && matches!(state.phase, Phase::InLobby | Phase::Racing))
+                .then(|| {
+                    Button::new("mp-race")
                         .outline()
                         .small()
                         .icon(IconName::Flag)
-                        .label("Race started")
-                        .disabled(started)
-                        .on_click(cx.listener(|this, _, _, cx| {
+                        .label(if started { "Race over" } else { "Race started" })
+                        .tooltip(if started {
+                            "Show the room in the list again"
+                        } else {
+                            "Hide the room from the list while you race"
+                        })
+                        .on_click(cx.listener(move |this, _, _, cx| {
                             if let Some(s) = &this.mp_page.session {
-                                s.mark_race(true);
+                                s.mark_race(!started);
                             }
                             cx.notify();
-                        })),
-                )
-                .child(
-                    Button::new("mp-race-over")
-                        .outline()
-                        .small()
-                        .icon(IconName::FlagTriangleRight)
-                        .label("Race over")
-                        .disabled(!started)
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            if let Some(s) = &this.mp_page.session {
-                                s.mark_race(false);
-                            }
-                            cx.notify();
-                        })),
-                )
+                        }))
+                });
+        let retry = (retry_offered(state) && !m.leaving && m.fixed.is_none()).then(|| {
+            Button::new("mp-retry")
+                .outline()
+                .small()
+                .icon(IconName::RefreshCw)
+                .label("Try again")
+                .loading(m.refreshing)
+                .disabled(m.refreshing)
+                .on_click(cx.listener(|this, _, _, cx| this.mp_retry(cx)))
         });
-        let (icon, color) = match &state.phase {
-            _ if m.leaving && !over => (IconName::LoaderCircle, p.accent),
-            Phase::Connecting(_) => (IconName::LoaderCircle, p.accent),
-            Phase::WaitingForGame(_) => (IconName::TriangleAlert, p.warning),
-            Phase::InLobby | Phase::Racing => (IconName::CircleCheck, p.success),
-            Phase::Failed(_) => (IconName::CircleAlert, p.error),
-            Phase::Ended(_) => (IconName::Info, p.text_muted),
-        };
-        let headline = if m.leaving && !over {
-            "Leaving the room\u{2026}".to_owned()
-        } else {
-            phase_text(&state.phase)
-        };
-        let status = v_flex()
-            .max_w(px(760.))
-            .p(px(14.))
-            .gap(px(10.))
-            .rounded(px(6.))
-            .border_1()
-            .border_color(p.border)
-            .child(
-                h_flex()
-                    .gap(px(10.))
-                    .items_start()
-                    .child(Icon::new(icon).size(px(16.)).text_color(color))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(3.))
-                            .child(
-                                div()
-                                    .text_size(px(14.))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(headline),
-                            )
-                            .children(
-                                phase_hint(&state.phase, state.host)
-                                    .filter(|_| !m.leaving)
-                                    .map(|h| div().text_size(px(13.)).text_color(p.text_muted).child(h)),
-                            )
-                            .children(state.last_error.clone().filter(|_| !over).map(|e| {
-                                div()
-                                    .text_size(px(13.))
-                                    .text_color(p.error)
-                                    .child(capitalised(&e))
-                            })),
-                    )
-                    .when(retry_offered(state) && !m.leaving, |d| {
-                        d.child(
-                            Button::new("mp-retry")
-                                .outline()
-                                .small()
-                                .icon(IconName::RefreshCw)
-                                .label("Retry")
-                                .loading(m.refreshing)
-                                .disabled(m.refreshing)
-                                .on_click(cx.listener(|this, _, _, cx| this.mp_retry(cx))),
+        let trouble = state
+            .last_error
+            .as_ref()
+            .filter(|_| !over && !m.leaving)
+            .map(|_| "Having trouble reaching the other players. Still trying.");
+        let status = self.mp_card(p).child(
+            h_flex()
+                .gap(px(12.))
+                .items_center()
+                .child(Icon::new(icon).size(px(18.)).text_color(color))
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap(px(3.))
+                        .child(
+                            div()
+                                .text_size(px(14.))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(headline),
                         )
-                    }),
-            )
-            .children(race);
-        let mismatches = match &m.fixed {
+                        .children(
+                            hint.filter(|_| !m.leaving)
+                                .map(|h| div().text_size(px(13.)).text_color(p.text_muted).child(h)),
+                        )
+                        .children(
+                            trouble.map(|t| div().text_size(px(13.)).text_color(p.text_muted).child(t)),
+                        ),
+                )
+                .children(race)
+                .children(retry),
+        );
+        let differences = match &m.fixed {
             Some(f) => Some(self.fixed_card(f, p, cx)),
-            None if !state.mismatches.is_empty() && !m.leaving => Some(self.mismatch_card(state, p, cx)),
+            None if !state.mismatches.is_empty() && !m.leaving && !over => {
+                Some(self.mismatch_card(state, p, cx))
+            }
             None => None,
         };
-        let members: Vec<AnyElement> = state
+        let players: Vec<AnyElement> = state
             .members
             .iter()
             .enumerate()
-            .map(|(i, member)| {
-                let face = self.face(&member.name, member.avatar.as_deref(), 28., p);
-                member_row(member, face, i == 0, p)
-            })
+            .map(|(i, member)| self.member_row(member, &state.phase, i == 0, p))
             .collect();
         v_flex()
             .size_full()
@@ -1454,14 +1530,14 @@ impl Shell {
                     .px(px(GUTTER))
                     .pt(px(4.))
                     .pb(px(24.))
-                    .gap(px(16.))
+                    .gap(px(24.))
                     .child(status)
-                    .children(mismatches)
+                    .children(differences)
                     .child(
                         v_flex()
-                            .gap(px(6.))
-                            .child(label(format!("PLAYERS \u{00b7} {}", state.members.len()), p))
-                            .child(if members.is_empty() {
+                            .gap(px(8.))
+                            .child(self.section_head(format!("PLAYERS \u{00b7} {}", state.members.len()), p))
+                            .child(if players.is_empty() {
                                 div()
                                     .text_size(px(13.))
                                     .text_color(p.text_muted)
@@ -1473,8 +1549,7 @@ impl Shell {
                                     .border_1()
                                     .border_color(p.border)
                                     .overflow_hidden()
-                                    .child(members_head(p))
-                                    .children(members)
+                                    .children(players)
                                     .into_any_element()
                             }),
                     ),
@@ -1486,189 +1561,110 @@ impl Shell {
         let steps = swofty_core::multiplayer::session::fix_plan(&state.mismatches);
         let (auto, manual) = fixable(&steps);
         let fixing = self.mp_page.fixing;
-        v_flex()
-            .max_w(px(760.))
-            .p(px(14.))
-            .gap(px(10.))
-            .rounded(px(6.))
-            .bg(p.warning.opacity(0.08))
-            .border_1()
-            .border_color(p.warning.opacity(0.4))
+        let note = if manual.is_empty() {
+            "Fix & join installs the host's exact versions. F1 25 then needs a restart."
+        } else if auto > 0 {
+            "Fix & join changes what it can; the rest is up to you. F1 25 then needs a restart."
+        } else {
+            "Change these yourself, then join again."
+        };
+        self.mp_card(p)
             .child(
+                div()
+                    .text_size(px(14.))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child("What's different from the host"),
+            )
+            .child(v_flex().gap(px(6.)).children(state.mismatches.iter().map(|mm| {
                 h_flex()
                     .gap(px(10.))
+                    .items_center()
+                    .text_size(px(13.))
                     .child(
-                        Icon::new(IconName::TriangleAlert)
-                            .size(px(15.))
-                            .text_color(p.warning),
+                        div()
+                            .size(px(4.))
+                            .flex_shrink_0()
+                            .rounded_full()
+                            .bg(p.text_placeholder),
                     )
+                    .child(div().flex_1().min_w_0().child(difference_text(mm)))
+            })))
+            .child(
+                h_flex()
+                    .gap(px(12.))
+                    .pt(px(12.))
+                    .border_t_1()
+                    .border_color(p.border_variant)
                     .child(
                         div()
                             .flex_1()
                             .text_size(px(13.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(format!(
-                                "{} from the host's",
-                                plural(state.mismatches.len(), "thing differs", "things differ")
-                            )),
-                    ),
-            )
-            .child(v_flex().gap(px(4.)).children(state.mismatches.iter().map(|mm| {
-                h_flex()
-                    .gap(px(8.))
-                    .items_start()
-                    .text_size(px(13.))
-                    .child(
-                        Icon::new(if mm.fixable {
-                            IconName::Wrench
-                        } else {
-                            IconName::CircleAlert
-                        })
-                        .size(px(13.))
-                        .mt(px(3.))
-                        .text_color(p.text_placeholder),
+                            .text_color(p.text_muted)
+                            .child(note),
                     )
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .child(capitalised(mm.line().trim_end_matches(" (fixable)"))),
-                    )
-            })))
-            .child(
-                h_flex()
-                    .gap(px(10.))
-                    .pt(px(2.))
                     .when(auto > 0, |d| {
                         d.child(
                             Button::new("mp-fix")
                                 .primary()
                                 .small()
-                                .icon(IconName::Wrench)
                                 .label("Fix & join")
                                 .loading(fixing)
                                 .disabled(fixing)
                                 .on_click(cx.listener(|this, _, _, cx| this.mp_fix(cx))),
                         )
-                    })
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(p.text_muted)
-                            .child(if manual.is_empty() {
-                                "Installs the host's exact versions. F1 25 then needs a restart to load them."
-                            } else if auto > 0 {
-                                "Fixes what it can; change the rest yourself. F1 25 then needs a restart."
-                            } else {
-                                "Change these yourself, then join again."
-                            }),
-                    ),
+                    }),
             )
     }
-}
 
-fn members_head(p: Palette) -> Div {
-    let col = |w: f32, t: &'static str| {
-        div()
-            .w(px(w))
-            .flex_shrink_0()
-            .text_size(px(11.))
-            .font_weight(FontWeight::MEDIUM)
-            .text_color(p.text_placeholder)
-            .child(t)
-    };
-    h_flex()
-        .h(px(30.))
-        .px(px(14.))
-        .gap(px(12.))
-        .bg(p.surface)
-        .border_b_1()
-        .border_color(p.border_variant)
-        .child(div().w(px(28.)).flex_shrink_0())
-        .child(
-            div()
-                .flex_1()
-                .text_size(px(11.))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(p.text_placeholder)
-                .child("PLAYER"),
-        )
-        .child(col(96., "ADDRESS"))
-        .child(col(96., "STATUS"))
-        .child(col(80., "ADDONS"))
-        .child(col(72., "RELAY"))
-        .child(col(140., "TRAFFIC"))
-}
-
-fn member_row(m: &MemberState, face: Div, first: bool, p: Palette) -> AnyElement {
-    let cell = |w: f32| {
-        div()
-            .w(px(w))
-            .flex_shrink_0()
-            .text_size(px(13.))
-            .text_color(p.text_muted)
-            .truncate()
-    };
-    let dot = |color: Hsla, text: &'static str| {
+    fn member_row(&self, m: &MemberState, phase: &Phase, first: bool, p: Palette) -> AnyElement {
+        let word = member_status(m, phase);
         h_flex()
-            .gap(px(6.))
-            .child(div().size(px(6.)).rounded_full().bg(color))
-            .child(text)
-    };
-    let addons = match m.fingerprint {
-        PrintMatch::Matches => p.success,
-        PrintMatch::Differs => p.warning,
-        PrintMatch::Unknown => p.text_placeholder,
-    };
-    let relay = match m.relay {
-        RelayStatus::Ready => p.success,
-        RelayStatus::Pending => p.warning,
-        RelayStatus::None => p.text_placeholder,
-    };
-    h_flex()
-        .h(px(48.))
-        .px(px(14.))
-        .gap(px(12.))
-        .when(!first, |d| d.border_t_1().border_color(p.border_variant))
-        .child(face)
-        .child(
-            h_flex()
-                .flex_1()
-                .min_w_0()
-                .gap(px(8.))
-                .child(
-                    div()
-                        .text_size(px(14.))
-                        .font_weight(FontWeight::MEDIUM)
-                        .truncate()
-                        .child(m.name.clone()),
-                )
-                .when(m.host, |d| d.child(tag("Host", p)))
-                .when(m.me, |d| d.child(tag("You", p))),
-        )
-        .child(cell(96.).child(m.ip.clone()))
-        .child(cell(96.).child(if m.connected {
-            dot(p.success, "Connected")
-        } else {
-            dot(p.text_placeholder, "Offline")
-        }))
-        .child(cell(80.).child(dot(addons, addon_word(m.fingerprint))))
-        .child(cell(72.).child(dot(relay, relay_word(m.relay))))
-        .child(cell(140.).child(traffic_text(m.traffic.as_ref())))
-        .into_any_element()
+            .px(px(16.))
+            .py(px(12.))
+            .gap(px(12.))
+            .when(!first, |d| d.border_t_1().border_color(p.border_variant))
+            .child(self.face(&m.name, m.avatar.as_deref(), 32., p))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .text_size(px(14.))
+                            .font_weight(FontWeight::MEDIUM)
+                            .truncate()
+                            .child(m.name.clone()),
+                    )
+                    .when(m.host, |d| d.child(tag("Host", p)))
+                    .when(m.me, |d| d.child(tag("You", p))),
+            )
+            .child(
+                div()
+                    .text_size(px(13.))
+                    .text_color(if word == "Addons differ" {
+                        p.warning
+                    } else {
+                        p.text_muted
+                    })
+                    .child(word),
+            )
+            .into_any_element()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use swofty_core::multiplayer::bridge::MemberStats;
     use swofty_core::multiplayer::game::{GameStatus, Role, Screen};
     use swofty_core::multiplayer::rooms::{RoomAddons, RoomSummary, User};
-    use swofty_core::multiplayer::session::{FixStep, Phase, SessionState};
+    use swofty_core::multiplayer::session::{
+        FixStep, MemberState, Phase, PrintMatch, RelayStatus, SessionState,
+    };
     use swofty_core::profile::ProfileAddon;
 
     use super::{
-        Addons, GameState, addons_against, addons_text, category_label, fixable, join_blocked, phase_hint,
-        phase_text, players_text, reorder, retry_offered, room_meta, traffic_text,
+        GameState, RoomStatus, Tone, fixable, member_status, reorder, retry_offered, room_meta, status_text,
+        tracks_text,
     };
 
     fn status(screen: Screen) -> GameStatus {
@@ -1682,7 +1678,7 @@ mod tests {
         }
     }
 
-    fn room(members: u32, max: u32, digest: Option<&str>, tracks: &[&str]) -> RoomSummary {
+    fn room(members: u32, max: u32, digest: Option<&str>) -> RoomSummary {
         RoomSummary {
             code: "F1-7KQ2MX".into(),
             name: "Sunday league".into(),
@@ -1697,9 +1693,42 @@ mod tests {
             digest: digest.map(str::to_owned),
             addons: Some(RoomAddons {
                 count: 4,
-                tracks: tracks.iter().map(|t| (*t).to_owned()).collect(),
+                tracks: Vec::new(),
             }),
             created_at: 0,
+        }
+    }
+
+    fn session(phase: Phase, host: bool) -> SessionState {
+        SessionState {
+            phase,
+            host,
+            room: None,
+            self_member: None,
+            members: Vec::new(),
+            mismatches: Vec::new(),
+            lobby_connected: true,
+            relay: None,
+            base: None,
+            bridge: None,
+            game: None,
+            last_error: None,
+        }
+    }
+
+    fn member(connected: bool, print: PrintMatch, relay: RelayStatus) -> MemberState {
+        MemberState {
+            id: "u2".into(),
+            name: "Max".into(),
+            avatar: None,
+            number: 2,
+            ip: "10.77.0.2".into(),
+            host: false,
+            me: false,
+            connected,
+            fingerprint: print,
+            relay,
+            traffic: None,
         }
     }
 
@@ -1719,87 +1748,90 @@ mod tests {
         );
         assert_eq!(GameState::of(true, Some(&status(Screen::Other))), GameState::Busy);
         assert_eq!(GameState::of(true, None), GameState::Busy);
-        assert_eq!(GameState::NotRunning.text(), "Game not running");
         assert_eq!(GameState::MainMenu.not_ready(), None);
+        assert_eq!(
+            GameState::NotRunning.not_ready(),
+            Some("Start F1 25 to create or join a room.")
+        );
     }
 
     #[test]
-    fn join_waits_for_the_main_menu_and_a_free_seat() {
-        let open = room(3, 8, None, &[]);
-        assert_eq!(join_blocked(&open, GameState::MainMenu), None);
+    fn gives_each_room_one_status() {
         assert_eq!(
-            join_blocked(&open, GameState::NotRunning),
-            Some("Start F1 25 first")
+            RoomStatus::of(&room(8, 8, Some("sha256:a")), Some("sha256:a")),
+            RoomStatus::Full
         );
         assert_eq!(
-            join_blocked(&open, GameState::Busy),
-            Some("Go to F1 25's main menu")
+            RoomStatus::of(&room(3, 8, Some("sha256:ABC")), Some("sha256:abc")),
+            RoomStatus::Match
         );
         assert_eq!(
-            join_blocked(&open, GameState::LanLobby),
-            Some("Leave the LAN lobby first")
+            RoomStatus::of(&room(3, 8, Some("sha256:a")), Some("sha256:b")),
+            RoomStatus::Differ
         );
         assert_eq!(
-            join_blocked(&room(8, 8, None, &[]), GameState::MainMenu),
-            Some("Room full")
+            RoomStatus::of(&room(3, 8, None), Some("sha256:b")),
+            RoomStatus::Unknown
         );
+        assert_eq!(RoomStatus::Differ.text(), "Your addons differ");
     }
 
     #[test]
     fn describes_a_room() {
-        let r = room(3, 8, None, &["Okayama", "Bahrain 2024", "Monza 1990", "Imola"]);
-        assert_eq!(players_text(&r), "3/8");
         assert_eq!(
-            room_meta(&r),
-            "Hosted by swofty \u{00b7} F1 2026 \u{00b7} Tracks: Okayama, Bahrain 2024, Monza 1990 and 1 more"
+            room_meta(&room(3, 8, None)),
+            "swofty \u{00b7} 3/8 players \u{00b7} F1 2026"
         );
+        let tracks = ["Okayama", "Bahrain 2024", "Monza 1990", "Imola"].map(String::from);
         assert_eq!(
-            room_meta(&room(1, 2, None, &[])),
-            "Hosted by swofty \u{00b7} F1 2026"
+            tracks_text(&tracks).as_deref(),
+            Some("Okayama, Bahrain 2024, Monza 1990 and 1 more")
         );
-        assert_eq!(category_label("f1-2025"), "F1 2025");
-        assert_eq!(category_label("karts"), "karts");
+        assert_eq!(tracks_text(&[]), None);
     }
 
     #[test]
-    fn compares_addons_by_digest() {
-        let r = room(1, 8, Some("sha256:ABC"), &[]);
-        assert_eq!(addons_against(&r, Some("sha256:abc")), Addons::Match);
-        assert_eq!(addons_against(&r, Some("sha256:def")), Addons::Differ);
-        assert_eq!(addons_against(&r, None), Addons::Unknown);
-        assert_eq!(addons_against(&room(1, 8, None, &[]), Some("x")), Addons::Unknown);
-        assert_eq!(addons_text(Addons::Match), "Your addons match");
-        assert_eq!(addons_text(Addons::Differ), "Addons differ");
+    fn words_the_room_for_the_player() {
+        let refused = session(
+            Phase::WaitingForGame(
+                "the game didn't host the LAN session: timed out; retry or leave the room".into(),
+            ),
+            true,
+        );
+        let (tone, text, _) = status_text(&refused);
+        assert_eq!(tone, Tone::Blocked);
+        assert_eq!(
+            text,
+            "Couldn't start hosting. Go back to F1 25's main menu and try again."
+        );
+        let (_, text, _) = status_text(&session(Phase::Connecting("opening the relay".into()), false));
+        assert_eq!(text, "Joining the room\u{2026}");
+        let (tone, _, hint) = status_text(&session(Phase::InLobby, true));
+        assert_eq!(tone, Tone::Good);
+        assert!(hint.unwrap().contains("tracks"));
+        let (_, text, _) = status_text(&session(Phase::Ended("the host closed the room".into()), false));
+        assert_eq!(text, "The host closed the room");
     }
 
     #[test]
-    fn words_the_phase() {
+    fn gives_each_player_one_word() {
+        let lobby = Phase::InLobby;
         assert_eq!(
-            phase_text(&Phase::Connecting("opening the relay".into())),
-            "Connecting: opening the relay"
+            member_status(&member(true, PrintMatch::Matches, RelayStatus::Ready), &lobby),
+            "Ready"
         );
         assert_eq!(
-            phase_text(&Phase::WaitingForGame("go to the game's main menu".into())),
-            "Go to the game's main menu"
+            member_status(&member(true, PrintMatch::Differs, RelayStatus::Ready), &lobby),
+            "Addons differ"
         );
         assert_eq!(
-            phase_text(&Phase::Ended("the host closed the room".into())),
-            "The host closed the room"
+            member_status(&member(false, PrintMatch::Matches, RelayStatus::Ready), &lobby),
+            "Disconnected"
         );
-        assert!(phase_hint(&Phase::InLobby, true).unwrap().contains("tracks"));
-        assert_eq!(phase_hint(&Phase::Racing, false), None);
-    }
-
-    #[test]
-    fn shows_traffic_once_there_is_some() {
-        assert_eq!(traffic_text(None), "\u{2014}");
-        let t = MemberStats {
-            packets_out: 10,
-            bytes_out: 3 << 20,
-            packets_in: 4,
-            bytes_in: 2048,
-        };
-        assert_eq!(traffic_text(Some(&t)), "\u{2191} 3.0 MB  \u{2193} 2 KB");
+        assert_eq!(
+            member_status(&member(true, PrintMatch::Unknown, RelayStatus::Pending), &lobby),
+            "Joining\u{2026}"
+        );
     }
 
     #[test]
@@ -1834,27 +1866,19 @@ mod tests {
 
     #[test]
     fn offers_retry_when_the_game_refused_but_not_for_addons() {
-        let state = |phase: Phase| SessionState {
-            phase,
-            host: false,
-            room: None,
-            self_member: None,
-            members: Vec::new(),
-            mismatches: Vec::new(),
-            lobby_connected: true,
-            relay: None,
-            base: None,
-            bridge: None,
-            game: None,
-            last_error: None,
-        };
-        let refused = state(Phase::WaitingForGame(
-            "the game didn't join the LAN session: busy; retry or leave the room".into(),
-        ));
+        let refused = session(
+            Phase::WaitingForGame(
+                "the game didn't join the LAN session: busy; retry or leave the room".into(),
+            ),
+            false,
+        );
         assert!(retry_offered(&refused));
-        assert!(!retry_offered(&state(Phase::InLobby)));
-        assert!(!retry_offered(&state(Phase::Ended("you left the room".into()))));
-        let mut failing = state(Phase::Connecting("opening the relay".into()));
+        assert!(!retry_offered(&session(Phase::InLobby, false)));
+        assert!(!retry_offered(&session(
+            Phase::Ended("you left the room".into()),
+            false
+        )));
+        let mut failing = session(Phase::Connecting("opening the relay".into()), false);
         failing.last_error = Some("the relay refused".into());
         assert!(retry_offered(&failing));
     }
