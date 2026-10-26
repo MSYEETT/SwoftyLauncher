@@ -166,7 +166,7 @@ These commands come from the built-in Team Simplified addon. Use them to manage 
 
 Before a session whose profile leaves out an installed addon with [`saves.affects`](/reference/addons/manifest#saves), `swofty run` copies the Steam profile save (`savegame@profile#*` in `userdata/<id>/3059520/remote`) into `$DATA/save-backups/<time>-<profile>/` with a `manifest.json` of the files' sizes and SHA-256 hashes, and prints `saves: backed up the profile save before a session without <addon ids> (their careers are removed if the game saves): <folder>`. It keeps the newest 10 backups. The EA app copy's saves are not backed up.
 
-When the session leaves the profile save changed and smaller than its backup, `swofty run` prints `saves: the profile save shrank from <before> to <after> bytes in a session without <addon ids>; ...` with the backup's name and the restore command, and the Addons page shows the same notice with **Restore** and **Dismiss**.
+When the session leaves the profile save changed and at least 24 KB smaller than its backup, `swofty run` prints `saves: the profile save shrank from <before> to <after> bytes in a session without <addon ids>; ...` with the backup's name and the restore command, and the Addons page shows the same notice with **Restore** and **Dismiss**.
 
 After a restore, Steam may ask which copy to keep the next time F1 25 starts; keep the local files.
 

@@ -272,8 +272,13 @@ pub fn find(root: &Path, name: &str) -> Result<Backup> {
     })
 }
 
+/// Fewer bytes than this is ordinary career play; a career container the game drops
+/// is tens of kilobytes (a Progressive Career container was about 69 KB).
+pub const SHRINK_REPORTED: u64 = 24 * 1024;
+
 /// The session's effect on the profile save: `Some` when a file changed or went
-/// missing and the files now hold fewer bytes than the backup.
+/// missing and the files now hold at least [`SHRINK_REPORTED`] fewer bytes than the
+/// backup.
 pub fn compare(backup: &Backup, save_dir: &Path) -> Result<Option<Shrink>> {
     let mut changed = false;
     let mut after = 0;
@@ -289,7 +294,7 @@ pub fn compare(backup: &Backup, save_dir: &Path) -> Result<Option<Shrink>> {
         }
     }
     let before = backup.manifest.total();
-    Ok((changed && after < before).then(|| Shrink {
+    Ok((changed && after + SHRINK_REPORTED <= before).then(|| Shrink {
         backup: backup.name.clone(),
         profile: backup.manifest.profile.clone(),
         absent: backup.manifest.absent.clone(),
@@ -460,7 +465,7 @@ mod tests {
     #[test]
     fn reports_a_changed_and_smaller_save() {
         let root = tmp("compare");
-        let dir = saves(&root, &[1u8; 900]);
+        let dir = saves(&root, &[1u8; 90_000]);
         let b = take(
             &root,
             &dir,
@@ -472,11 +477,13 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(compare(&b, &dir).unwrap(), None);
-        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 950]).unwrap();
+        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 95_000]).unwrap();
         assert_eq!(compare(&b, &dir).unwrap(), None, "a bigger save is not reported");
-        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 800]).unwrap();
+        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 89_344]).unwrap();
+        assert_eq!(compare(&b, &dir).unwrap(), None, "ordinary play is not reported");
+        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 20_000]).unwrap();
         let s = compare(&b, &dir).unwrap().unwrap();
-        assert_eq!((s.before, s.after), (900 + 416, 800 + 416));
+        assert_eq!((s.before, s.after), (90_000 + 416, 20_000 + 416));
         assert_eq!(s.absent, ["swofty.progressive"]);
         assert!(s.text().contains("swofty saves restore 20261027-010203-default"));
         write_notice(&root, &s).unwrap();
@@ -486,20 +493,20 @@ mod tests {
     #[test]
     fn restore_backs_up_the_current_save_first() {
         let root = tmp("restore");
-        let dir = saves(&root, &[1u8; 900]);
+        let dir = saves(&root, &[1u8; 90_000]);
         let b = take(&root, &dir, "default", &[], "20261027-010203", "session")
             .unwrap()
             .unwrap();
-        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 800]).unwrap();
+        std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 20_000]).unwrap();
         write_notice(&root, &compare(&b, &dir).unwrap().unwrap()).unwrap();
         let pre = restore(&root, &b.name, &dir, "20261027-020000").unwrap().unwrap();
         assert_eq!(
             std::fs::read(dir.join("savegame@profile#NXDSMWW.BWW")).unwrap(),
-            [1u8; 900]
+            [1u8; 90_000]
         );
         assert_eq!(
             std::fs::read(pre.dir.join("savegame@profile#NXDSMWW.BWW")).unwrap(),
-            [2u8; 800]
+            [2u8; 20_000]
         );
         assert_eq!(pre.manifest.reason, format!("before restoring {}", b.name));
         assert_eq!(read_notice(&root), None);
