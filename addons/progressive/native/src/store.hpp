@@ -44,6 +44,7 @@ struct Career {
     int dev_round = -1;
     int dev_rounds = 0;
     std::string dev_applied;
+    int trees_season = -1;
     int mid_year = 0;
     int mid_round = 0;
     std::string mid_applied;

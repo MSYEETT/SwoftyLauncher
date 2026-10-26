@@ -1048,11 +1048,11 @@ void development_apply(uintptr_t e, store::Career *c, int year, const char *when
 }
 
 // The R&D models' type metadata (rnd_model_logic.hpp): model +0x1a38..+0x1a40, 0x20-byte entries
-// with the rating base at +0xc and the fully upgraded rating at +0x10 (decomps 0x141890e60 and
-// 0x143518350 read them; the vehicle fill 0x141238cb0 reads the same entries' +0, +4, +8).
+// with the department at +1, the rating base at +0xc and the fully upgraded rating at +0x10 (decomps
+// 0x141890e60 and 0x143518350 read them; the vehicle fill 0x141238cb0 reads the same entries' +0,
+// +4, +8).
 constexpr uintptr_t kModelTypeMeta = 0x1a38;
 constexpr uintptr_t kMetaStride = 0x20, kMetaDept = 0x1, kMetaBase = 0xc, kMetaFull = 0x10;
-std::map<uintptr_t, std::vector<float>> g_model_room;
 std::string g_models_logged;
 
 bool read_meta(uintptr_t model, uintptr_t &begin, std::vector<rnd_model::Meta> &out)
@@ -1075,10 +1075,29 @@ bool read_meta(uintptr_t model, uintptr_t &begin, std::vector<rnd_model::Meta> &
     return true;
 }
 
+bool team_models(std::vector<uintptr_t> &out, UpgradesComponent &view)
+{
+    out.clear();
+    auto *comp = static_cast<UpgradesComponent *>(
+        swofty::career::component_by_desc(k_Career_UpgradesComponentDesc.get()));
+    if (!comp || !swofty::mem::read(comp, view))
+        return false;
+    auto ub = reinterpret_cast<uintptr_t>(view.upgrades_begin), ue = reinterpret_cast<uintptr_t>(view.upgrades_end);
+    if (ue <= ub || (ue - ub) % sizeof(void *) || (ue - ub) / sizeof(void *) > 64)
+        return false;
+    for (uintptr_t at = ub; at < ue; at += sizeof(void *)) {
+        uintptr_t model = 0;
+        if (swofty::mem::read(at, model) && model && swofty::mem::readable(model, sizeof(Upgrades)))
+            out.push_back(model);
+    }
+    return true;
+}
+
 // Every team's R&D model gets the year's performance (rnd_model_logic.hpp): Real life the season's
 // fixed level plus the in-season development at the current round, upgrades worth nothing; Hybrid
-// the season's baseline with R&D gains on top. Runs at every load, Team HQ and R&D change from the
-// year alone, so a new season takes the new year's order and reloads agree; logged with a read-back.
+// the season's baseline plus a small room for this season's R&D. Runs at every load, Team HQ and
+// R&D change from the year alone, so a new season takes the new year's order and reloads agree;
+// logged with a read-back.
 void rnd_models(uintptr_t e, store::Career *c, int year, const char *when)
 {
     if (!c || !season_rnd_models)
@@ -1091,26 +1110,19 @@ void rnd_models(uintptr_t e, store::Career *c, int year, const char *when)
         dev = development::plan(g_data, year, current, rounds);
         have_dev = development::any_curve(dev);
     }
-    auto *comp = static_cast<UpgradesComponent *>(
-        swofty::career::component_by_desc(k_Career_UpgradesComponentDesc.get()));
     UpgradesComponent view{};
-    if (!comp || !swofty::mem::read(comp, view)) {
-        swofty::log("[progressive] R&D models %d (%s): no UpgradesComponent; left alone", year, when);
+    std::vector<uintptr_t> models;
+    if (!team_models(models, view)) {
+        swofty::log("[progressive] R&D models %d (%s): no UpgradesComponent or team models; left alone", year, when);
         return;
     }
-    auto ub = reinterpret_cast<uintptr_t>(view.upgrades_begin), ue = reinterpret_cast<uintptr_t>(view.upgrades_end);
-    if (ue <= ub || (ue - ub) % sizeof(void *) || (ue - ub) / sizeof(void *) > 64) {
-        swofty::log("[progressive] R&D models %d (%s): no team models; left alone", year, when);
-        return;
-    }
+    double room = real ? 0.0 : rnd_model::kGainRoom;
     const season::Year *y = g_data.year(year);
     std::string teams;
-    size_t models = 0, changed = 0, failed = 0, skipped = 0;
-    for (uintptr_t at = ub; at < ue; at += sizeof(void *)) {
-        uintptr_t model = 0;
+    size_t count = 0, changed = 0, failed = 0, skipped = 0;
+    for (uintptr_t model : models) {
         uint32_t key = 0;
-        if (!swofty::mem::read(at, model) || !model || !swofty::mem::read(model + offsetof(Upgrades, team_key), key))
-            continue;
+        swofty::mem::read(model + offsetof(Upgrades, team_key), key);
         int slot = season::slot_of_team(g_data, static_cast<int>(key >> 16));
         uintptr_t begin = 0;
         std::vector<rnd_model::Meta> m;
@@ -1118,17 +1130,11 @@ void rnd_models(uintptr_t e, store::Career *c, int year, const char *when)
             ++skipped;
             continue;
         }
-        ++models;
-        std::vector<float> &room = g_model_room[model];
-        if (room.size() != m.size()) {
-            room.clear();
-            for (auto &x : m)
-                room.push_back(x.full - x.base);
-        }
+        ++count;
         double delta = have_dev ? dev.teams[slot].delta : 0.0;
         double goal = rnd_model::target(rnd_model::year_gap(g_data, year, slot), delta);
-        double was = rnd_model::base_sum(m);
-        if (rnd_model::apply(m, goal, real, real ? nullptr : &room)) {
+        double was = rnd_model::base_sum(m), was_room = rnd_model::gain_room(m);
+        if (rnd_model::apply(m, goal, room)) {
             ++changed;
             for (size_t i = 0; i < m.size(); ++i) {
                 *reinterpret_cast<float *>(begin + i * kMetaStride + kMetaBase) = m[i].base;
@@ -1138,31 +1144,165 @@ void rnd_models(uintptr_t e, store::Career *c, int year, const char *when)
         std::vector<rnd_model::Meta> back;
         uintptr_t begin2 = 0;
         bool ok = read_meta(model, begin2, back) && begin2 == begin && back.size() == m.size() &&
-                  std::fabs(rnd_model::base_sum(back) - goal) < 0.5 &&
-                  (!real || std::fabs(rnd_model::gain_room(back)) < 0.5);
+                  std::fabs(rnd_model::base_sum(back) - goal) < 0.5 && std::fabs(rnd_model::gain_room(back) - room) < 0.5;
         if (!ok)
             ++failed;
-        char b[160];
-        std::snprintf(b, sizeof b, "%s%s %.0f (was %.0f%s%s)", teams.empty() ? "" : ", ",
+        char b[192];
+        std::snprintf(b, sizeof b, "%s%s(%u) %.0f +%.0f (was %.0f +%.0f)%s", teams.empty() ? "" : ", ",
                       y && !y->teams[slot].name.empty() ? y->teams[slot].name.c_str() : g_data.slots[slot].team.c_str(),
-                      ok ? rnd_model::base_sum(back) : goal, was, real ? "" : ", upgrades +",
-                      ok ? (real ? "" : std::to_string(static_cast<int>(rnd_model::gain_room(back) + 0.5)).c_str())
-                         : "; READ-BACK FAILED");
+                      key >> 16, ok ? rnd_model::base_sum(back) : goal, ok ? rnd_model::gain_room(back) : room, was, was_room,
+                      ok ? "" : " READ-BACK FAILED");
         teams += b;
     }
     std::string logged = c->key + ":" + std::to_string(year) + ":" + teams;
     if (!changed && !failed && g_models_logged == logged)
         return;
     g_models_logged = logged;
-    swofty::log("[progressive] R&D models %d: %s [%s; %s; rating = %.0f - %.0f x (gap %%%s); %zu model(s), %zu "
-                "rewritten, %zu skipped, read-back %s]",
-                year, teams.c_str(), when, real ? "Real life: upgrades add nothing" : "Hybrid: R&D gains on top",
-                rnd_model::kTop, rnd_model::kPerPct, have_dev ? " + development delta %" : "", models, changed,
-                skipped, failed ? "FAILED" : "ok");
+    swofty::log("[progressive] R&D models %d: %s [%s; %s; each of a model's types = rating / n, room for upgrades "
+                "after +; rating = %.0f - %.0f x (gap %%%s); %zu model(s), %zu rewritten, %zu skipped, read-back %s]",
+                year, teams.c_str(), when, real ? "Real life: upgrades add nothing" : "Hybrid: this season's R&D on top",
+                rnd_model::kTop, rnd_model::kPerPct, have_dev ? " + development delta %" : "", count, changed, skipped,
+                failed ? "FAILED" : "ok");
+}
+
+// Every team's R&D tree starts each Progressive season fresh, the way a new car starts a real year:
+// every upgrade past Available (in progress, completed, failed, in development, waiting to be fitted)
+// or fitted goes back through the game's per-instance reset (Car_Reset_LastFittedUpgrade, the one its
+// reset-all and the Career Mode Editor's rnd.reset use), then availability is refreshed and, when a
+// completed upgrade was reset, the team's fitted ratio is re-posted. Covers every tree of a model
+// (the player's per-driver tree too). Once per season index (store trees_season); logged with a
+// read-back.
+constexpr uint8_t kStateAvailable = 1, kStateCompleted = 3, kStateInvalid = 5;
+constexpr uint8_t kDeptTyres = 4;
+constexpr size_t kMaxInstances = 0x180;
+
+template <class F> void each_instance(uintptr_t model, F &&f)
+{
+    uint64_t trees = 0;
+    swofty::mem::read(model + offsetof(Upgrades, tree_count), trees);
+    for (uint64_t k = 0; k < trees && k < 2; ++k) {
+        UpgradeTree tree{};
+        if (!swofty::mem::read(model + offsetof(Upgrades, trees) + k * sizeof(UpgradeTree), tree))
+            continue;
+        auto b = reinterpret_cast<uintptr_t>(tree.instances_begin), en = reinterpret_cast<uintptr_t>(tree.instances_end);
+        if (!b || en < b || (en - b) % sizeof(UpgradeInstance) || (en - b) / sizeof(UpgradeInstance) > kMaxInstances ||
+            !swofty::mem::readable(b, en - b))
+            continue;
+        for (uintptr_t u = b; u < en; u += sizeof(UpgradeInstance))
+            f(u);
+    }
+}
+
+bool last_state(uintptr_t inst, UpgradeStateEntry &out, size_t &count)
+{
+    UpgradeInstance i{};
+    count = 0;
+    if (!swofty::mem::read(inst, i))
+        return false;
+    auto b = reinterpret_cast<uintptr_t>(i.states_begin), en = reinterpret_cast<uintptr_t>(i.states_end);
+    if (b == en)
+        return true;
+    if (!b || en < b || (en - b) % sizeof(UpgradeStateEntry) || (en - b) / sizeof(UpgradeStateEntry) > 0x1000)
+        return false;
+    count = (en - b) / sizeof(UpgradeStateEntry);
+    return swofty::mem::read(en - sizeof(UpgradeStateEntry), out);
+}
+
+bool developed(uintptr_t inst, bool *completed = nullptr)
+{
+    UpgradeInstance i{};
+    UpgradeStateEntry last{};
+    size_t count = 0;
+    if (!swofty::mem::read(inst, i) || i.department >= kDeptTyres || !last_state(inst, last, count) || !count)
+        return false;
+    if (completed)
+        *completed = last.state == kStateCompleted;
+    return last.state != kStateInvalid && (last.state > kStateAvailable || last.adaptation);
+}
+
+void reset_trees(uintptr_t e, store::Career *c, uint32_t index, int year, const char *when)
+{
+    if (!c || !season_rnd_models || c->trees_season == static_cast<int>(index))
+        return;
+    UpgradesComponent view{};
+    std::vector<uintptr_t> models;
+    if (!team_models(models, view) || models.empty()) {
+        swofty::log("[progressive] R&D trees %d (%s): no UpgradesComponent or team models; not reset", year, when);
+        return;
+    }
+    uint32_t minutes = 0;
+    if (!view.career_time ||
+        !swofty::mem::read(reinterpret_cast<uintptr_t>(view.career_time) + offsetof(CareerTimeComponent, current_minutes),
+                           minutes)) {
+        swofty::log("[progressive] R&D trees %d (%s): no career clock; not reset", year, when);
+        return;
+    }
+    uint16_t day = static_cast<uint16_t>(minutes / 1440);
+    std::vector<Row> rows;
+    entrant_rows(e, rows);
+    std::string teams;
+    size_t reset_teams = 0, left_total = 0;
+    for (uintptr_t model : models) {
+        uint32_t key = 0;
+        uint8_t mode = 0;
+        swofty::mem::read(model + offsetof(Upgrades, team_key), key);
+        swofty::mem::read(model + offsetof(Upgrades, mode), mode);
+        int slot = season::slot_of_team(g_data, static_cast<int>(key >> 16));
+        size_t done = 0, completed = 0;
+        uintptr_t first_completed = 0;
+        each_instance(model, [&](uintptr_t u) {
+            bool comp = false;
+            if (!developed(u, &comp))
+                return;
+            ++done;
+            if (comp) {
+                ++completed;
+                if (!first_completed)
+                    first_completed = u;
+            }
+        });
+        if (!done)
+            continue;
+        each_instance(model, [&](uintptr_t u) {
+            if (developed(u))
+                Car_Reset_LastFittedUpgrade(reinterpret_cast<void *>(u));
+        });
+        if (mode == 1 || mode == 2) {
+            Career_Refresh_UpgradeAvailability(reinterpret_cast<void *>(model), day);
+        } else {
+            uint32_t owner = 0x3fff0000;
+            for (auto &r : rows)
+                if (((r.rec.team_stat_id ^ key) & 0xffff00ffu) == 0 && (human(r.rec) || owner == 0x3fff0000))
+                    owner = driver_of(r.rec);
+            if ((owner & 0xffff0000u) != 0x3fff0000u)
+                Career_Set_UpgradesOwner(reinterpret_cast<void *>(model), owner);
+            else
+                reinterpret_cast<Upgrades *>(model)->owner_cache = 0x3fff0000;
+        }
+        if (first_completed)
+            Career_Post_UpgradeFittedRatio(reinterpret_cast<void *>(model), reinterpret_cast<void *>(first_completed), 0);
+        size_t left = 0;
+        each_instance(model, [&](uintptr_t u) { left += developed(u) ? 1 : 0; });
+        left_total += left;
+        ++reset_teams;
+        std::string name = slot >= 0 ? g_data.slots[slot].team : std::to_string(key >> 16);
+        char b[160];
+        std::snprintf(b, sizeof b, "%s%s mode %u: %zu developed (%zu completed) -> %zu", teams.empty() ? "" : ", ",
+                      name.c_str(), mode, done, completed, left);
+        teams += b;
+    }
+    c->trees_season = static_cast<int>(index);
+    store::save();
+    swofty::log("[progressive] R&D trees %d: reset for %zu team(s)%s%s [%s; season index %u, day %u; read-back %s]", year,
+                reset_teams, teams.empty() ? "" : ": ", teams.c_str(), when, index, day,
+                left_total ? "SOME LEFT" : "ok");
 }
 
 void season_performance(uintptr_t e, store::Career *c, int year, const char *when)
 {
+    SeasonInfo s;
+    if (e && c && std::strcmp(when, "Team HQ") == 0 && season(e, s))
+        reset_trees(e, c, s.index + static_cast<uint32_t>(std::max(0, c->test_seasons)), year, when);
     development_apply(e, c, year, when);
     rnd_models(e, c, year, when);
 }
@@ -1540,7 +1680,6 @@ void season_unloaded()
     g_rnd = 0;
     dev_publish(nullptr);
     g_dev_logged.clear();
-    g_model_room.clear();
     g_models_logged.clear();
     g_current.clear();
     g_entry.clear();

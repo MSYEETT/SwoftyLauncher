@@ -14,14 +14,17 @@
 // the upgrade progress, the mass and the bhp. So the stock 2026 trees decide the chart's order (base
 // sums 403-585 across the 46 trees) whatever car a season brings.
 //
-// The plan sets each model's rating base sum to the year's target, target = kTop - kPerPct x (gap %
-// + delta %), gap the team's real median qualifying gap to the fastest team (years.json pace.gap_pct;
-// a slot without one counts as the year's slowest) and delta the in-season development at the
-// current round (Real life only, development_logic.hpp). Every entry's base moves by the same share
-// of the difference. Real life also sets rating_full = rating_base, so completed upgrades (the AI's
-// R&D still runs under the freeze) add nothing and the chart shows exactly the target; Hybrid moves
-// rating_full with the base, so R&D gains keep their size on top of the season's baseline. Targets
-// depend only on the year, the round and the data, so every apply and reload gives the same values.
+// The plan rewrites every entry the same way for every team: rating_base = target / n and
+// rating_full = rating_base + kGainRoom / n, target = kTop - kPerPct x (gap % + delta %), gap the
+// team's real median qualifying gap to the fastest team (years.json pace.gap_pct; a slot without
+// one counts as the year's slowest) and delta the in-season development at the current round (Real
+// life only, development_logic.hpp). Equal entries make every department's sum (the comparison can
+// show one department) follow the same order as the total. Real life gives upgrades no room
+// (rating_full = rating_base), so the chart is exactly the real order; Hybrid gives a fully
+// developed tree kGainRoom points, about one percent of lap time on the gap scale, and the trees are
+// reset at each season start (season.cpp), so only this season's R&D moves a team off the real
+// order. Targets depend only on the year, the round and the data, so every apply and reload gives
+// the same values.
 
 #pragma once
 #include <algorithm>
@@ -37,6 +40,7 @@ constexpr double kTop = 560.0;
 constexpr double kPerPct = 40.0;
 constexpr double kMin = 250.0;
 constexpr double kMax = 700.0;
+constexpr double kGainRoom = 40.0;
 constexpr double kEps = 0.01;
 
 struct Meta {
@@ -77,26 +81,31 @@ inline double gain_room(const std::vector<Meta> &m)
     return s;
 }
 
-// Rewrites m so its base sum is `goal`. flatten: rating_full = rating_base (Real life). Otherwise
-// rating_full keeps its distance to the base, or takes `room[i]` when given (the distance first seen
-// this session, to undo a Real life flatten). Returns whether anything changed.
-inline bool apply(std::vector<Meta> &m, double goal, bool flatten, const std::vector<float> *room = nullptr)
+// Rewrites m: every entry's rating_base = goal / n, rating_full = rating_base + room / n. Returns
+// whether anything changed.
+inline bool apply(std::vector<Meta> &m, double goal, double room)
 {
     if (m.empty())
         return false;
-    double shift = (goal - base_sum(m)) / static_cast<double>(m.size());
+    float base = static_cast<float>(goal / static_cast<double>(m.size()));
+    float full = static_cast<float>(base + room / static_cast<double>(m.size()));
     bool changed = false;
-    for (size_t i = 0; i < m.size(); ++i) {
-        Meta &e = m[i];
-        float base = static_cast<float>(e.base + shift);
-        float gap = room && i < room->size() ? (*room)[i] : e.full - e.base;
-        float full = flatten ? base : base + gap;
+    for (auto &e : m) {
         if (std::fabs(base - e.base) > kEps || std::fabs(full - e.full) > kEps)
             changed = true;
         e.base = base;
         e.full = full;
     }
     return changed;
+}
+
+inline double department_sum(const std::vector<Meta> &m, uint8_t department)
+{
+    double s = 0;
+    for (auto &e : m)
+        if (e.department == department)
+            s += e.base;
+    return s;
 }
 
 } // namespace progressive::rnd_model
