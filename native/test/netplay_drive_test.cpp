@@ -208,6 +208,9 @@ int main()
     expect(!drive::inbox_name("12.json.tmp", &seq), "a temp file is ignored");
     expect(!drive::inbox_name("x1.json", &seq), "a non-numeric name is ignored");
     expect(!drive::inbox_name("0.json", &seq), "seq 0 is ignored");
+    expect(std::string(drive::do_name(drive::Do::answer_ip)) == "enter the host IP" &&
+               std::string(drive::do_name(drive::Do::mode_switch)) == "switch to LAN mode",
+           "each job step has a name for loader.log");
 
     printf("%s\n", fails ? "FAILED" : "all ok");
     return fails ? 1 : 0;

@@ -14,7 +14,7 @@
 //! gone or the server stopped answering). Either way the only recovery is fresh credentials, a new
 //! `connect`, and re-announcing the new relayed address to the lobby.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -22,6 +22,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, mpsc};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+use super::diag;
 use super::stun::{self, Builder, Class, Kind, Message, attr, method};
 use super::transport::{MAX_DATAGRAM, Transport};
 
@@ -229,6 +230,7 @@ struct Shared {
     nudged: Mutex<bool>,
     nudge: Condvar,
     counters: Counters,
+    failing: Mutex<HashSet<(&'static str, IpAddr)>>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -281,6 +283,33 @@ impl Shared {
             nudged: Mutex::new(false),
             nudge: Condvar::new(),
             counters: Counters::default(),
+            failing: Mutex::default(),
+        }
+    }
+
+    fn server(&self) -> String {
+        self.socket
+            .peer_addr()
+            .map_or_else(|_| "?".to_owned(), |a| a.to_string())
+    }
+
+    fn track(&self, what: &'static str, peer: SocketAddr, failed: Option<&Fail>) {
+        match failed {
+            Some(Fail::Stopped) => {}
+            Some(f) => {
+                if lock(&self.failing).insert((what, peer.ip())) {
+                    diag::line(format!(
+                        "turn {}: {what} for {peer} failed: {}",
+                        self.server(),
+                        describe(f)
+                    ));
+                }
+            }
+            None => {
+                if lock(&self.failing).remove(&(what, peer.ip())) {
+                    diag::line(format!("turn {}: {what} for {peer} recovered", self.server()));
+                }
+            }
         }
     }
 
@@ -292,7 +321,14 @@ impl Shared {
     }
 
     fn set_fatal(&self, kind: io::ErrorKind, msg: impl Into<String>) {
-        lock(&self.fatal).get_or_insert((kind, msg.into()));
+        let msg = msg.into();
+        {
+            let mut fatal = lock(&self.fatal);
+            if fatal.is_none() && !self.stop.load(Ordering::Relaxed) {
+                diag::line(format!("turn {}: allocation unusable: {msg}", self.server()));
+            }
+            fatal.get_or_insert((kind, msg));
+        }
         let _inbox = lock(&self.inbox);
         self.arrived.notify_all();
     }
@@ -523,6 +559,7 @@ impl Shared {
             &|b| b.address(attr::XOR_PEER_ADDRESS, peer),
             retry,
         );
+        self.track("permission", peer, result.as_ref().err());
         let now = Instant::now();
         let next = match &result {
             Ok(_) => now + self.timing.permission_every,
@@ -629,6 +666,7 @@ impl Shared {
                 &|b| b.channel(ch).address(attr::XOR_PEER_ADDRESS, addr),
                 PATIENT,
             );
+            self.track("channel bind", addr, result.as_ref().err());
             let now = Instant::now();
             let mut routes = lock(&self.routes);
             if let Some(c) = routes.channels.get_mut(&ch).filter(|c| c.addr == addr) {
@@ -681,7 +719,12 @@ impl Shared {
                     }
                     Err(Fail::Stopped) => return,
                     Err(f) if self.fatal_from(&f) => return,
-                    Err(Fail::Code(..)) if Instant::now() < granted + lifetime => {
+                    Err(f @ Fail::Code(..)) if Instant::now() < granted + lifetime => {
+                        diag::line(format!(
+                            "turn {}: refresh failed: {}; retrying while the allocation lives",
+                            self.server(),
+                            describe(&f)
+                        ));
                         next_refresh = Instant::now() + RETRY_SOON.min(lifetime / 4);
                     }
                     Err(f) => {
@@ -700,6 +743,17 @@ impl Shared {
                 return;
             }
         }
+    }
+}
+
+fn describe(f: &Fail) -> String {
+    match f {
+        Fail::Code(code, reason) => format!("TURN error {code} {reason}"),
+        Fail::Timeout => "the TURN server didn't answer".to_owned(),
+        Fail::Unsigned => "the TURN server's answers failed the integrity check".to_owned(),
+        Fail::Rejected(why) => why.clone(),
+        Fail::Stopped => "the TURN client is closing".to_owned(),
+        Fail::Io(e) => e.to_string(),
     }
 }
 
@@ -783,6 +837,7 @@ impl TurnTransport {
             let mut addrs: Vec<SocketAddr> = match (host.as_str(), port).to_socket_addrs() {
                 Ok(a) => a.collect(),
                 Err(e) => {
+                    diag::line(format!("turn: couldn't resolve {host}:{port}: {e}"));
                     last = Some(e);
                     continue;
                 }
@@ -790,10 +845,26 @@ impl TurnTransport {
             addrs.sort_by_key(SocketAddr::is_ipv6);
             addrs.dedup_by_key(|a| a.is_ipv6());
             for server in addrs {
+                let started = Instant::now();
                 match Self::allocate(server, username, credential, timing) {
-                    Ok(t) => return Ok(t),
-                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => return Err(e),
-                    Err(e) => last = Some(e),
+                    Ok(t) => {
+                        diag::line(format!(
+                            "turn {server}: allocated in {} ms, relayed {}",
+                            started.elapsed().as_millis(),
+                            t.relayed
+                        ));
+                        return Ok(t);
+                    }
+                    Err(e) => {
+                        diag::line(format!(
+                            "turn {server}: allocate failed after {} ms: {e}",
+                            started.elapsed().as_millis()
+                        ));
+                        if e.kind() == io::ErrorKind::PermissionDenied {
+                            return Err(e);
+                        }
+                        last = Some(e);
+                    }
                 }
             }
         }

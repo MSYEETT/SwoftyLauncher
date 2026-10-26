@@ -1,6 +1,7 @@
 //! Multiplayer sessions between launchers.
 
 pub mod bridge;
+pub mod diag;
 pub mod direct;
 pub mod fingerprint;
 pub mod game;

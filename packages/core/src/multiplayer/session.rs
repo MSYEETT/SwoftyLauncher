@@ -22,6 +22,7 @@ use serde_json::{Value, json};
 use zeroize::Zeroize;
 
 use super::bridge::{self, Bridge, BridgeConfig, MemberStats, Stats};
+use super::diag;
 use super::direct::DirectUdp;
 use super::fingerprint::{self, Fingerprint, Mismatch, MismatchKind};
 use super::game::{self, Category, Command, GameStatus, Screen};
@@ -50,6 +51,9 @@ const WS_BACKOFF_MAX: Duration = Duration::from_secs(10);
 const RELAY_BACKOFF: Duration = Duration::from_secs(5);
 const RELAY_BACKOFF_MAX: Duration = Duration::from_secs(60);
 const JOIN_SLOW: Duration = Duration::from_secs(30);
+const STATS_EVERY: Duration = Duration::from_secs(30);
+
+static ACTIVE: Mutex<Option<std::sync::Weak<Inner>>> = Mutex::new(None);
 
 /// The game's netplay command channel, as the session uses it.
 pub trait GameControl: Send + Sync {
@@ -460,10 +464,28 @@ impl Session {
 
     fn spawn(setup: Setup, intent: Intent) -> Session {
         let host = matches!(intent, Intent::Create(_));
+        diag::secret("session-token", &[setup.api.token()]);
+        diag::line(format!(
+            "session start: {}, launcher {}, relay {}, fingerprint {}",
+            match &intent {
+                Intent::Create(r) => format!(
+                    "create room (public {}, max {}, category {})",
+                    r.public, r.max_members, r.category
+                ),
+                Intent::Join(code) => format!("join room {code}"),
+            },
+            crate::update::current_version(),
+            match setup.relay {
+                Relay::Turn => "turn".to_owned(),
+                Relay::Direct(a) => format!("direct {a}"),
+            },
+            diag::digest_prefix(&setup.local.digest()),
+        ));
         let inner = Arc::new(Inner {
             state: Mutex::new(SessionState::new(host)),
             stop: AtomicBool::new(false),
         });
+        *lock(&ACTIVE) = Some(Arc::downgrade(&inner));
         let (actions, inbox) = mpsc::channel();
         let worker = Worker::new(inner.clone(), setup, intent, inbox);
         let spawned = thread::Builder::new()
@@ -519,13 +541,21 @@ impl Session {
     /// leaves the room on the server, each step giving up after a few seconds. When it is done
     /// the phase is [`Phase::Ended`] (or [`Phase::Failed`]) and [`Session::is_finished`] is true.
     pub fn leave(&self) {
-        self.inner.stop.store(true, Ordering::Relaxed);
+        if !self.inner.stop.swap(true, Ordering::Relaxed) {
+            diag::line("session: leave requested");
+        }
     }
 
     /// The worker has stopped: everything is torn down.
     pub fn is_finished(&self) -> bool {
         self.worker.as_ref().is_none_or(JoinHandle::is_finished)
     }
+}
+
+/// The state of the session this process runs, while one exists.
+pub fn active_state() -> Option<SessionState> {
+    let inner = lock(&ACTIVE).as_ref()?.upgrade()?;
+    Some(lock(&inner.state).clone())
 }
 
 impl Drop for Session {
@@ -602,6 +632,10 @@ struct Worker {
     next_step: Instant,
     next_housekeeping: Instant,
     failures: u32,
+    logged: std::cell::RefCell<Option<SessionState>>,
+    print_note: String,
+    next_stats: Instant,
+    game_port: Option<u16>,
 }
 
 impl Worker {
@@ -644,6 +678,10 @@ impl Worker {
             next_step: now,
             next_housekeeping: now,
             failures: 0,
+            logged: std::cell::RefCell::new(None),
+            print_note: String::new(),
+            next_stats: now + STATS_EVERY,
+            game_port: None,
         }
     }
 
@@ -667,11 +705,20 @@ impl Worker {
             thread::sleep(TICK);
         }
         let user_left = !self.over;
+        diag::line(format!(
+            "session: tearing down ({})",
+            if user_left {
+                "the player left"
+            } else {
+                "the room ended"
+            }
+        ));
         self.cleanup();
         if user_left {
             self.phase = Phase::Ended("you left the room".into());
         }
         self.publish();
+        diag::line("session: finished");
     }
 
     fn step(&mut self) {
@@ -768,7 +815,10 @@ impl Worker {
         if self.me.is_none() {
             self.phase = Phase::Connecting("signing in".into());
             self.publish();
-            let me = self.setup.api.me().map_err(|e| self.api_halt(&e))?;
+            let me = self.setup.api.me().map_err(|e| {
+                diag::line(format!("server: sign-in check failed: {e}"));
+                self.api_halt(&e)
+            })?;
             self.me = Some(me);
         }
         let opened = match &self.intent {
@@ -787,13 +837,30 @@ impl Worker {
             Ok(lobby) => lobby,
             Err(e) if e.reason == "in_lobby" && !self.left_stale => {
                 self.left_stale = true;
+                diag::line(format!(
+                    "server: still in an earlier room {}; leaving it",
+                    e.lobby.as_deref().unwrap_or("?")
+                ));
                 if let Some(old) = &e.lobby {
                     let _ = self.setup.api.leave(old);
                 }
                 return Err(Halt::Step("leaving an earlier room".into(), Duration::ZERO));
             }
-            Err(e) => return Err(self.api_halt(&e)),
+            Err(e) => {
+                diag::line(format!(
+                    "server: opening the room failed: {e} (reason {}, status {})",
+                    e.reason, e.status
+                ));
+                return Err(self.api_halt(&e));
+            }
         };
+        diag::line(format!(
+            "room {} opened: {} member(s), category {}, max {}",
+            lobby.code,
+            lobby.members.len(),
+            lobby.category,
+            lobby.max_members
+        ));
         let url = self
             .setup
             .api
@@ -835,10 +902,22 @@ impl Worker {
                 .map(|d| RelayLink::Direct(Arc::new(d)))
                 .map_err(|e| Halt::Fail(format!("couldn't bind {addr}: {e}"))),
             Relay::Turn => {
-                let creds = self.setup.api.turn().map_err(|e| self.api_halt(&e))?;
+                let creds = self.setup.api.turn().map_err(|e| {
+                    diag::line(format!("server: TURN credentials refused: {e}"));
+                    self.api_halt(&e)
+                })?;
+                diag::secret("turn", &[&creds.username, &creds.credential]);
+                diag::line(format!(
+                    "turn: credentials minted for {} (expires_at {:?})",
+                    creds.urls.join(", "),
+                    creds.expires_at
+                ));
                 TurnTransport::connect(&creds.urls, &creds.username, &creds.credential)
                     .map(|t| RelayLink::Turn(Arc::new(t)))
-                    .map_err(|e| Halt::Retry(format!("couldn't reach the relay: {e}"), RELAY_BACKOFF))
+                    .map_err(|e| {
+                        diag::line(format!("turn: no allocation: {e}"));
+                        Halt::Retry(format!("couldn't reach the relay: {e}"), RELAY_BACKOFF)
+                    })
             }
         }
     }
@@ -846,7 +925,13 @@ impl Worker {
     /// Use `link` from now on: give it the members, hand it to the bridge, and announce it.
     fn install_relay(&mut self, link: RelayLink) {
         let transport = link.transport();
+        diag::line(format!(
+            "relay installed: relayed {}, peers {}",
+            transport.local_addr(),
+            peer_list(&self.peers)
+        ));
         if let Err(e) = transport.set_peers(&self.peers) {
+            diag::line(format!("relay peers: {e}"));
             self.last_error = Some(e.to_string());
         }
         if let Some(bridge) = &self.bridge {
@@ -904,8 +989,15 @@ impl Worker {
             key,
             game_port: bridge::DEFAULT_GAME_PORT,
         };
-        let bridge = Bridge::start(cfg, transport)
-            .map_err(|e| Halt::Fail(format!("couldn't start the netplay bridge: {e}")))?;
+        let bridge = Bridge::start(cfg, transport).map_err(|e| {
+            diag::line(format!("bridge: couldn't start: {e}"));
+            Halt::Fail(format!("couldn't start the netplay bridge: {e}"))
+        })?;
+        diag::line(format!(
+            "bridge started: self {me}, members {:?}, base {}",
+            bridge.members(),
+            bridge.base()
+        ));
         self.bridge = Some(bridge);
         Ok(())
     }
@@ -1044,24 +1136,61 @@ impl Worker {
         let host_digest = lobby.host_member().and_then(|h| h.digest.clone());
         if host_digest.as_deref() == Some(self.setup.local.digest().as_str()) {
             self.mismatches.clear();
+            self.note_print(host_digest.as_deref(), true);
             return;
         }
         let host_print = self
             .prints
             .get(&lobby.host)
             .and_then(|blob| serde_json::from_value::<Fingerprint>(blob.clone()).ok());
+        let compared = host_print.is_some();
         self.mismatches = match host_print {
             Some(host) => {
                 fingerprint::compare(&self.setup.local.fingerprint, &host, &self.setup.local.catalog)
             }
             None => Vec::new(),
         };
+        self.note_print(host_digest.as_deref(), compared);
+    }
+
+    fn note_print(&mut self, host: Option<&str>, compared: bool) {
+        let local = self.setup.local.digest();
+        let note = match host {
+            None => format!(
+                "fingerprint: local {}, host's not known yet",
+                diag::digest_prefix(&local)
+            ),
+            Some(h) if h == local => format!(
+                "fingerprint: local {} matches the host",
+                diag::digest_prefix(&local)
+            ),
+            Some(h) if !compared => format!(
+                "fingerprint: local {} differs from host {}; the host's addon list hasn't arrived",
+                diag::digest_prefix(&local),
+                diag::digest_prefix(h)
+            ),
+            Some(h) => format!(
+                "fingerprint: local {} differs from host {}: {} mismatch(es): {}",
+                diag::digest_prefix(&local),
+                diag::digest_prefix(h),
+                self.mismatches.len(),
+                mismatch_list(&self.mismatches)
+            ),
+        };
+        if note != self.print_note {
+            diag::line(&note);
+            self.print_note = note;
+        }
     }
 
     fn handle_actions(&mut self) {
         while let Ok(action) = self.actions.try_recv() {
             match action {
                 Action::Race(started) if self.hosting() => {
+                    diag::line(format!(
+                        "session: race marked {}",
+                        if started { "started" } else { "over" }
+                    ));
                     if let Some(socket) = &self.socket {
                         socket.send(&json!({ "type": if started { "start" } else { "reopen" } }));
                     }
@@ -1070,12 +1199,22 @@ impl Worker {
                     self.last_error = Some("only the host marks a race started or over".into());
                 }
                 Action::Retry => {
+                    diag::line("session: retry requested");
                     self.paused = None;
                     self.driven = None;
                     self.next_step = Instant::now();
                 }
-                Action::Reconnect => self.reconnect_relay(),
-                Action::Local(local) => self.update_local(*local),
+                Action::Reconnect => {
+                    diag::line("relay: reconnect requested");
+                    self.reconnect_relay();
+                }
+                Action::Local(local) => {
+                    diag::line(format!(
+                        "session: fresh fingerprint {}",
+                        diag::digest_prefix(&format!("sha256:{}", local.fingerprint.digest))
+                    ));
+                    self.update_local(*local);
+                }
             }
         }
     }
@@ -1119,12 +1258,14 @@ impl Worker {
                 else {
                     return;
                 };
+                diag::line(format!("lobby: fingerprint from user {member}"));
                 self.prints.insert(member.to_owned(), blob.clone());
                 if self.lobby.as_ref().is_some_and(|l| l.host == member) && !self.hosting() {
                     self.compare_with_host();
                 }
             }
             "start" => {
+                diag::line("lobby: 'start' message");
                 if let Some(key) = msg.get("key").and_then(Value::as_str) {
                     self.take_key(&RoomKey::from(key));
                 }
@@ -1134,8 +1275,25 @@ impl Worker {
                     .get("error")
                     .and_then(Value::as_str)
                     .unwrap_or("the lobby refused a message");
+                diag::line(format!("lobby: error message: {text}"));
                 self.last_error = Some(text.to_owned());
             }
+            "kicked" | "left" | "replaced" | "closed" => {
+                diag::line(format!(
+                    "lobby: '{kind}' message{}",
+                    msg.get("reason")
+                        .and_then(Value::as_str)
+                        .map(|r| format!(", reason {r}"))
+                        .unwrap_or_default()
+                ));
+                self.handle_end(kind, &msg);
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_end(&mut self, kind: &str, msg: &Value) {
+        match kind {
             "kicked" => self.end("the host removed you from the room".into(), true),
             "left" => self.end("you left the room".into(), true),
             "replaced" => self.end("the room was opened in another launcher".into(), true),
@@ -1173,9 +1331,14 @@ impl Worker {
         };
         match self.key {
             Some(current) if current != bytes => {
+                diag::line("room key: the server sent a different key; kept the first");
                 self.last_error = Some("the room key changed; leave and rejoin the room".into());
             }
-            _ => self.key = Some(bytes),
+            Some(_) => {}
+            None => {
+                diag::line("room key: received");
+                self.key = Some(bytes);
+            }
         }
         bytes.zeroize();
     }
@@ -1196,17 +1359,27 @@ impl Worker {
             != lobby.host_member().and_then(|h| h.digest.clone());
         self.lobby = Some(lobby);
         if peers != self.peers {
+            diag::line(format!("relay peers: {}", peer_list(&peers)));
             self.peers = peers;
             if let Some(link) = &self.relay
                 && let Err(e) = link.transport().set_peers(&self.peers)
             {
+                diag::line(format!("relay peers: {e}"));
                 self.last_error = Some(e.to_string());
             }
         }
         if let Some(bridge) = &self.bridge {
             for n in numbers {
-                if let Err(e) = bridge.add_member(n) {
-                    self.last_error = Some(format!("couldn't open the bridge port for member {n}: {e}"));
+                match bridge.add_member(n) {
+                    Ok(true) => diag::line(format!(
+                        "bridge: port {} opened for member {n}",
+                        bridge.port(n).map_or_else(|| "?".to_owned(), |p| p.to_string())
+                    )),
+                    Ok(false) => {}
+                    Err(e) => {
+                        diag::line(format!("bridge: couldn't open the port for member {n}: {e}"));
+                        self.last_error = Some(format!("couldn't open the bridge port for member {n}: {e}"));
+                    }
                 }
             }
         }
@@ -1217,10 +1390,23 @@ impl Worker {
 
     fn housekeeping(&mut self) {
         if let Some(bridge) = &self.bridge {
-            bridge.sync_game_port(&self.setup.game_dir);
-            self.stats = Some(bridge.stats());
+            let port = bridge.sync_game_port(&self.setup.game_dir);
+            if port.is_some() && port != self.game_port {
+                diag::line(format!(
+                    "bridge: game port {} from swofty/netplay.json",
+                    port.unwrap_or_default()
+                ));
+                self.game_port = port;
+            }
+            let stats = bridge.stats();
+            if Instant::now() >= self.next_stats {
+                diag::line(stats_line(&stats));
+                self.next_stats = Instant::now() + STATS_EVERY;
+            }
+            self.stats = Some(stats);
         }
         if self.relay.as_ref().is_some_and(RelayLink::needs_reconnect) && Instant::now() >= self.relay_retry {
+            diag::line("relay: the allocation is unusable; reconnecting");
             self.reconnect_relay();
         }
         if let Some(driven) = self.driven {
@@ -1257,6 +1443,10 @@ impl Worker {
                 self.relay_backoff = RELAY_BACKOFF;
             }
             Err(Halt::Fail(why) | Halt::Retry(why, _) | Halt::Step(why, _) | Halt::Game(why)) => {
+                diag::line(format!(
+                    "relay: reconnect failed: {why}; next try in {}s",
+                    self.relay_backoff.as_secs()
+                ));
                 self.last_error = Some(format!("the relay dropped and reconnecting failed: {why}"));
                 self.relay_retry = Instant::now() + self.relay_backoff;
                 self.relay_backoff = (self.relay_backoff * 2).min(RELAY_BACKOFF_MAX);
@@ -1289,7 +1479,9 @@ impl Worker {
         self.configured = false;
         self.driven = None;
         if let Some(bridge) = self.bridge.take() {
-            self.stats = Some(bridge.stats());
+            let stats = bridge.stats();
+            diag::line(format!("bridge stopping, final {}", stats_line(&stats)));
+            self.stats = Some(stats);
             bridge.stop();
         }
         self.relay = None;
@@ -1297,10 +1489,15 @@ impl Worker {
         self.lobby_connected = false;
         if !self.server_gone
             && let Some(code) = &self.code
-            && let Err(e) = self.setup.api.leave(code)
-            && e.status != 404
         {
-            self.last_error = Some(format!("couldn't leave the room on the server: {e}"));
+            match self.setup.api.leave(code) {
+                Ok(_) => diag::line(format!("room {code}: left on the server")),
+                Err(e) if e.status == 404 => diag::line(format!("room {code}: already gone on the server")),
+                Err(e) => {
+                    diag::line(format!("room {code}: couldn't leave on the server: {e}"));
+                    self.last_error = Some(format!("couldn't leave the room on the server: {e}"));
+                }
+            }
         }
     }
 
@@ -1367,6 +1564,11 @@ impl Worker {
             game: self.game_status.clone(),
             last_error: self.last_error.clone(),
         };
+        let mut logged = self.logged.borrow_mut();
+        if logged.as_ref() != Some(&state) {
+            log_changes(logged.as_ref(), &state);
+            *logged = Some(state.clone());
+        }
         *lock(&self.inner.state) = state;
     }
 }
@@ -1453,9 +1655,23 @@ fn lobby_loop(
 ) {
     let mut backoff = Duration::from_secs(1);
     let mut pending: Option<String> = None;
+    let mut attempt = 0u32;
     while !stop.load(Ordering::Relaxed) {
+        attempt += 1;
+        let started = Instant::now();
         match ws::Socket::connect(url, token, WS_CONNECT_TIMEOUT) {
             Ok(mut socket) => {
+                diag::line(format!(
+                    "lobby: connected in {} ms{}",
+                    started.elapsed().as_millis(),
+                    if attempt > 1 {
+                        format!(" (attempt {attempt})")
+                    } else {
+                        String::new()
+                    }
+                ));
+                attempt = 0;
+                let since = Instant::now();
                 backoff = Duration::from_secs(1);
                 let _ = events.send(WsEvent::Connected);
                 let greeting = lock(hello).clone();
@@ -1479,6 +1695,11 @@ fn lobby_loop(
                             }
                         }
                         Ok(Some(ws::Event::Closed { code, .. })) => {
+                            diag::line(format!(
+                                "lobby: closed by the server with code {} after {}s",
+                                code.map_or_else(|| "none".to_owned(), |c| c.to_string()),
+                                since.elapsed().as_secs()
+                            ));
                             if let Some(why) = final_close(code) {
                                 let _ = events.send(WsEvent::Gone(why.into()));
                                 return;
@@ -1486,6 +1707,10 @@ fn lobby_loop(
                             alive = false;
                         }
                         Err(e) => {
+                            diag::line(format!(
+                                "lobby: connection dropped after {}s: {e}",
+                                since.elapsed().as_secs()
+                            ));
                             let _ = events.send(WsEvent::Disconnected(format!(
                                 "the lobby connection dropped: {e}"
                             )));
@@ -1494,8 +1719,12 @@ fn lobby_loop(
                     }
                 }
                 if stop.load(Ordering::Relaxed) {
+                    diag::line("lobby: closing the connection (leaving)");
                     socket.close();
                     return;
+                }
+                if pending.is_some() {
+                    diag::line("lobby: a send failed; reconnecting");
                 }
                 let _ = events.send(WsEvent::Disconnected(
                     "the lobby connection closed; reconnecting".into(),
@@ -1507,10 +1736,18 @@ fn lobby_loop(
                 } else {
                     ApiError::from_body(status, &body).message
                 };
+                diag::line(format!(
+                    "lobby: refused with HTTP {status}: {why}; not reconnecting"
+                ));
                 let _ = events.send(WsEvent::Gone(why));
                 return;
             }
             Err(e) => {
+                diag::line(format!(
+                    "lobby: connect attempt {attempt} failed after {} ms: {e}; retry in {}s",
+                    started.elapsed().as_millis(),
+                    backoff.as_secs()
+                ));
                 let _ = events.send(WsEvent::Disconnected(format!("couldn't reach the lobby: {e}")));
             }
         }
@@ -1520,6 +1757,162 @@ fn lobby_loop(
         }
         backoff = (backoff * 2).min(WS_BACKOFF_MAX);
     }
+}
+
+fn peer_list(peers: &HashMap<u8, SocketAddr>) -> String {
+    if peers.is_empty() {
+        return "none".into();
+    }
+    let mut list: Vec<_> = peers.iter().collect();
+    list.sort();
+    list.iter()
+        .map(|(m, a)| format!("{m}={a}"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn mismatch_list(mismatches: &[Mismatch]) -> String {
+    mismatches
+        .iter()
+        .map(|m| {
+            let v = serde_json::to_value(&m.kind).unwrap_or_default();
+            let kind = v.get("kind").and_then(Value::as_str).unwrap_or("?");
+            let fix = if m.fixable { "" } else { " (not fixable)" };
+            match v.get("id").and_then(Value::as_str) {
+                Some(id) => format!("{kind} {id}{fix}"),
+                None => format!("{kind}{fix}"),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+pub fn stats_line(stats: &Stats) -> String {
+    let members = if stats.members.is_empty() {
+        "no members".to_owned()
+    } else {
+        stats
+            .members
+            .iter()
+            .map(|(n, m)| {
+                format!(
+                    "member {n} in {}p/{}B out {}p/{}B",
+                    m.packets_in, m.bytes_in, m.packets_out, m.bytes_out
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    let drops = stats.drops.nonzero();
+    let drops = if drops.is_empty() {
+        "none".to_owned()
+    } else {
+        drops
+            .iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    format!(
+        "bridge stats: {members}; drops {drops}; large {}; foreign_from {}",
+        stats.large,
+        stats
+            .foreign_from
+            .map_or_else(|| "none".to_owned(), |a| a.to_string())
+    )
+}
+
+fn log_changes(old: Option<&SessionState>, new: &SessionState) {
+    if old.map(|o| &o.phase) != Some(&new.phase) {
+        diag::line(format!("phase: {}", new.phase));
+    }
+    let old_room = old.and_then(|o| o.room.as_ref());
+    match (old_room, &new.room) {
+        (None, Some(r)) => diag::line(format!(
+            "room {}: category {}, public {}, max {}, started {}, {}",
+            r.code,
+            r.category,
+            r.public,
+            r.max_members,
+            r.started,
+            if new.host { "hosting" } else { "joined" }
+        )),
+        (Some(a), Some(b)) if a.started != b.started => {
+            diag::line(format!("room {}: started {}", b.code, b.started));
+        }
+        (Some(a), None) => diag::line(format!("room {}: no longer shown", a.code)),
+        _ => {}
+    }
+    if old.and_then(|o| o.self_member) != new.self_member
+        && let Some(n) = new.self_member
+    {
+        diag::line(format!("self: member {n} (10.77.0.{n})"));
+    }
+    let before: BTreeMap<u8, &MemberState> = old
+        .map(|o| o.members.iter().map(|m| (m.number, m)).collect())
+        .unwrap_or_default();
+    let after: BTreeMap<u8, &MemberState> = new.members.iter().map(|m| (m.number, m)).collect();
+    for (n, m) in &after {
+        match before.get(n) {
+            None => diag::line(format!(
+                "member {n} joined: ip {}, host {}, me {}, connected {}, fingerprint {:?}, relay {:?}",
+                m.ip, m.host, m.me, m.connected, m.fingerprint, m.relay
+            )),
+            Some(b) => {
+                if b.connected != m.connected {
+                    diag::line(format!("member {n}: connected {}", m.connected));
+                }
+                if b.fingerprint != m.fingerprint {
+                    diag::line(format!("member {n}: fingerprint {:?}", m.fingerprint));
+                }
+                if b.relay != m.relay {
+                    diag::line(format!("member {n}: relay {:?}", m.relay));
+                }
+                if b.host != m.host {
+                    diag::line(format!("member {n}: host {}", m.host));
+                }
+            }
+        }
+    }
+    for (n, b) in &before {
+        if !after.contains_key(n) {
+            diag::line(format!("member {n} left (ip {})", b.ip));
+        }
+    }
+    if old.map(|o| &o.relay) != Some(&new.relay)
+        && let Some(r) = &new.relay
+    {
+        diag::line(format!("relay: relayed address {r}"));
+    }
+    if old.and_then(|o| o.base) != new.base
+        && let Some(b) = new.base
+    {
+        diag::line(format!("bridge: base {b}"));
+    }
+    if old.and_then(|o| o.game.as_ref()) != new.game.as_ref()
+        && let Some(g) = &new.game
+    {
+        diag::line(format!("game status: {}", game::status_line(g)));
+    }
+    if old.and_then(|o| o.last_error.as_ref()) != new.last_error.as_ref()
+        && let Some(e) = &new.last_error
+    {
+        diag::line(format!("error: {e}"));
+    }
+}
+
+/// The session state for a sent logs bundle: member avatars left out, secrets redacted.
+pub fn snapshot(state: &SessionState) -> Value {
+    let mut v = serde_json::to_value(state).unwrap_or_default();
+    if let Some(members) = v.get_mut("members").and_then(Value::as_array_mut) {
+        for m in members {
+            if let Some(obj) = m.as_object_mut() {
+                obj.remove("avatar");
+            }
+        }
+    }
+    crate::send_logs::redact_json(&mut v);
+    v
 }
 
 /// Close codes after which the lobby is gone for this player.
@@ -2221,6 +2614,78 @@ mod tests {
         let api = Api::with_server(&server.url, "host-token");
         api.lobby("F1-TEST22")
             .is_ok_and(|l| l.member("2").and_then(|m| m.relay.clone()).as_deref() == Some(relay))
+    }
+
+    #[test]
+    fn the_session_log_names_each_step_and_never_a_secret() {
+        let tap = diag::tap();
+        let server = FakeServer::start(&[
+            ("log-host-token-1", "u-log-host", "Host"),
+            ("log-guest-token-2", "u-log-guest", "Guest"),
+        ]);
+        let (host_game, guest_game) = (FakeGame::new("log-host"), FakeGame::new("log-guest"));
+        let host = create(
+            setup(&server.url, "log-host-token-1", &host_game, print(&[])),
+            RoomSettings::default(),
+        );
+        let state = wait_until(&host, "the host's lobby", in_lobby);
+        let code = state.room.unwrap().code;
+        let guest = join(
+            setup(&server.url, "log-guest-token-2", &guest_game, print(&[])),
+            &code,
+        );
+        wait_until(&guest, "the guest's lobby", in_lobby);
+        wait_until(&host, "the guest's relay at the host", both_relays_ready);
+        let snapshot = snapshot(&guest.state()).to_string();
+        leave(&guest);
+        leave(&host);
+        let text = tap.text();
+        for want in [
+            "session start: create room".to_owned(),
+            format!("session start: join room {code}"),
+            format!("room {code} opened"),
+            "lobby: connected".to_owned(),
+            "room key: received".to_owned(),
+            "relay installed: relayed 127.0.0.1:".to_owned(),
+            "bridge started: self 1".to_owned(),
+            "phase: in the lobby".to_owned(),
+            "member 2 joined: ip 10.77.0.2".to_owned(),
+            "matches the host".to_owned(),
+            "bridge stopping, final bridge stats".to_owned(),
+            format!("room {code}: left on the server"),
+            "session: finished".to_owned(),
+        ] {
+            assert!(text.contains(&want), "no '{want}' in:\n{text}");
+        }
+        for secret in [
+            "log-host-token-1",
+            "log-guest-token-2",
+            super::super::testserver::KEY,
+        ] {
+            assert!(!text.contains(secret), "{secret} in the log:\n{text}");
+            assert!(!snapshot.contains(secret), "{secret} in the snapshot: {snapshot}");
+        }
+        assert!(!snapshot.contains("avatar"), "{snapshot}");
+    }
+
+    #[test]
+    fn the_stats_line_lists_each_member_and_the_drops() {
+        let mut stats = Stats::default();
+        stats.members.insert(
+            2,
+            MemberStats {
+                packets_out: 3,
+                bytes_out: 300,
+                packets_in: 4,
+                bytes_in: 400,
+            },
+        );
+        stats.drops.bad_tag = 5;
+        stats.large = 1;
+        assert_eq!(
+            stats_line(&stats),
+            "bridge stats: member 2 in 4p/400B out 3p/300B; drops bad_tag=5; large 1; foreign_from none"
+        );
     }
 
     #[test]

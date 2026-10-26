@@ -227,17 +227,56 @@ pub fn wait(game_dir: &Path, seq: u64, timeout: Duration) -> Result<Reply, Error
 
 /// Send `cmd` and wait for core's reply; a refused command is [`Error::Refused`].
 pub fn send(game_dir: &Path, cmd: &Command, timeout: Duration) -> Result<Reply, Error> {
-    let seq = post(game_dir, cmd)?;
-    let reply = wait(game_dir, seq, timeout)?;
-    if reply.ok {
-        Ok(reply)
-    } else {
-        Err(Error::Refused {
-            op: reply.op,
-            why: reply.error.unwrap_or_else(|| "no reason given".into()),
-            status: reply.status,
-        })
+    let logged = *cmd != Command::Status;
+    let started = Instant::now();
+    let seq = post(game_dir, cmd).inspect_err(|e| {
+        if logged {
+            super::diag::line(format!("game {}: not sent: {e}", cmd.op()));
+        }
+    })?;
+    if logged {
+        super::diag::line(format!(
+            "game {} {} sent (seq {seq})",
+            cmd.op(),
+            cmd.to_json(seq)["args"]
+        ));
     }
+    let result = wait(game_dir, seq, timeout).and_then(|reply| {
+        if reply.ok {
+            Ok(reply)
+        } else {
+            Err(Error::Refused {
+                op: reply.op,
+                why: reply.error.unwrap_or_else(|| "no reason given".into()),
+                status: reply.status,
+            })
+        }
+    });
+    if logged {
+        let ms = started.elapsed().as_millis();
+        super::diag::line(match &result {
+            Ok(r) => format!(
+                "game {} seq {seq}: ok in {ms} ms{}, status {}",
+                cmd.op(),
+                r.detail.as_deref().map(|d| format!(" ({d})")).unwrap_or_default(),
+                status_line(&r.status)
+            ),
+            Err(Error::Refused { why, status, .. }) => format!(
+                "game {} seq {seq}: refused in {ms} ms: {why}, status {}",
+                cmd.op(),
+                status_line(status)
+            ),
+            Err(e) => format!("game {} seq {seq}: failed in {ms} ms: {e}", cmd.op()),
+        });
+    }
+    result
+}
+
+pub fn status_line(s: &GameStatus) -> String {
+    format!(
+        "screen={:?} in_session={} role={:?} configured={} self={} base={}",
+        s.screen, s.in_session, s.role, s.configured, s.self_member, s.base
+    )
 }
 
 pub fn status(game_dir: &Path) -> Result<GameStatus, Error> {
