@@ -148,7 +148,7 @@ enum Command {
     Postfx(postfx::PostfxCommand),
     #[command(
         subcommand,
-        about = "Multiplayer: the profile's fingerprint, and what to change to match a host's"
+        about = "Multiplayer: the profile's fingerprint, what to change to match a host's, and the netplay bridge"
     )]
     Mp(mp::MpCommand),
     #[command(about = "Check for a new release and install it into this copy")]

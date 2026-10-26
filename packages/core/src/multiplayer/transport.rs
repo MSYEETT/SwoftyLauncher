@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 /// Largest datagram a transport must carry: the game's 1264-byte receive buffer plus the
-/// bridge's 26 bytes of header and tag, rounded up.
+/// bridge's 34 bytes of header and tag, rounded up.
 pub const MAX_DATAGRAM: usize = 1400;
 
 pub trait Transport: Send + Sync {

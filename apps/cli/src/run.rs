@@ -1879,6 +1879,24 @@ fn end_on_signals() {
 
 static ENDING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// [`end_on_signals`], and on Windows also Ctrl-C, Ctrl-Break and closing the console.
+pub(crate) fn end_on_ctrl_c() {
+    end_on_signals();
+    #[cfg(windows)]
+    unsafe {
+        unsafe extern "system" fn on_ctrl(_: u32) -> i32 {
+            ENDING.store(true, std::sync::atomic::Ordering::Relaxed);
+            1
+        }
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn SetConsoleCtrlHandler(handler: Option<unsafe extern "system" fn(u32) -> i32>, add: i32)
+            -> i32;
+        }
+        SetConsoleCtrlHandler(Some(on_ctrl), 1);
+    }
+}
+
 pub(crate) fn ending() -> bool {
     ENDING.load(std::sync::atomic::Ordering::Relaxed)
 }
