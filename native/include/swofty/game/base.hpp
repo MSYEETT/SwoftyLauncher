@@ -8,6 +8,7 @@ namespace swofty::game {
 inline constexpr const char build_sha256[] = "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae";
 
 struct Action;
+struct ActivityDef;
 struct AiHandlingConfig;
 struct BankAccount;
 struct BankSubAccount;
@@ -32,6 +33,7 @@ struct CostCapSeason;
 struct CostCapTeam;
 struct CurvePoint;
 struct DepartmentData;
+struct DriverCalendar;
 struct DriverCareerContractOwner;
 struct DriverCareerContractsManagerComponent;
 struct DriverContract;
@@ -78,6 +80,8 @@ struct RenownAwardedMessage;
 struct RenownConfig;
 struct ResourcePointsComponent;
 struct RnDDepartmentConfig;
+struct ScheduleComponent;
+struct ScheduleSeason;
 struct Season;
 struct SecretMeeting;
 struct Session;
