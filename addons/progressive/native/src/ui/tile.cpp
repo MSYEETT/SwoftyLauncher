@@ -24,6 +24,10 @@ namespace wz = swofty::career::wizard;
 
 constexpr const char *kGroup = "f1_career_progressive";
 constexpr const char *kSetupRoute = "career_wizard_driver_career_progressive";
+// With Progressive saves the tile opens the save-slot list (career_continue_driver), whose New Career
+// runs this route in its own group; the core renames it to kSetupRoute, which erp/wizard.json adds
+// to that group as a copy that opens the setup page.
+constexpr const char *kSlotListNewCareer = "career_wizard_season_length_select";
 
 bool register_tile()
 {
@@ -35,13 +39,13 @@ bool register_tile()
                                       .mode = "driver_career_progressive",
                                       .model = content::Model::f1_2026,
                                       .careers = content::Career::driver});
-    wz::Result w[6] = {wz::start_in_f1(kGroup), wz::skip_driver_type(kGroup), wz::hide_driver_tab(kGroup, "header_f2"),
+    wz::Result w[7] = {wz::start_in_f1(kGroup), wz::skip_driver_type(kGroup), wz::hide_driver_tab(kGroup, "header_f2"),
                        wz::hide_driver_tab(kGroup, "header_icon"), wz::tile_route(kGroup, kSetupRoute),
-                       wz::skip_driver_icons(kGroup)};
+                       wz::skip_driver_icons(kGroup), wz::tile_route(kGroup, kSetupRoute, kSlotListNewCareer)};
     swofty::log("[progressive] tile: content 'progressive' %s; wizard: start in F1 %s, driver type step %s, F2 tab %s, "
-                "Icons tab %s, setup page route %s, driver icons step %s",
+                "Icons tab %s, setup page route %s, driver icons step %s, save-slot list New Career to the setup page %s",
                 swofty::career::name(r), wz::name(w[0]), wz::name(w[1]), wz::name(w[2]), wz::name(w[3]),
-                wz::name(w[4]), wz::name(w[5]));
+                wz::name(w[4]), wz::name(w[5]), wz::name(w[6]));
     return true;
 }
 
