@@ -23,6 +23,8 @@ constexpr uint32_t STATE_FRONTEND = djb2("StateFrontend");
 constexpr uint32_t STATE_ONLINE_LOBBY = djb2("StateOnlineLobby");
 constexpr uint32_t STATE_READY_MONITOR = djb2("StateReadyMonitor");
 
+constexpr int GAME_PORT = 21414;
+
 static_assert(STATE_FRONTEND == 0x957880c6u, "state name hashing drifted");
 static_assert(STATE_ONLINE_LOBBY == 0x5e31bae3u, "state name hashing drifted");
 
@@ -143,6 +145,8 @@ inline Command parse(const std::string &text)
             c.error = "configure needs args.self, a member number from 1 to 254";
         else if (c.base < 1 || c.base > 65281)
             c.error = "configure needs args.base, a port from 1 to 65281";
+        else if (GAME_PORT > c.base && GAME_PORT <= c.base + 254)
+            c.error = "args.base " + std::to_string(c.base) + " puts the game port 21414 inside the bridge's ports (base+1 to base+254)";
     } else if (c.op == Op::join) {
         c.ip = args["ip"].str();
         if (!valid_ipv4(c.ip))

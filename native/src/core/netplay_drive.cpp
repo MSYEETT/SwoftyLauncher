@@ -249,9 +249,7 @@ drive::State state()
 {
     drive::State s;
     s.armed = armed.load();
-    s.configured = runtime::netplay_session::configured();
-    s.self = runtime::netplay_session::self_member.load();
-    s.base = runtime::netplay_session::base_port.load();
+    s.configured = runtime::netplay_session::snapshot(s.self, s.base);
     s.frontend = frontend.load();
     s.lobby = lobby.load();
     s.home_screen = home_screen.load();
@@ -502,8 +500,10 @@ void netplay_tick()
     if (error.empty()) {
         switch (c.op) {
         case drive::Op::configure:
-            runtime::netplay_session::configure(c.self, c.base);
-            runtime::netplay_bridge_status_changed();
+            if (runtime::netplay_session::configure(c.self, c.base))
+                runtime::netplay_bridge_status_changed();
+            else
+                error = "the room was refused (self " + std::to_string(c.self) + ", base " + std::to_string(c.base) + ")";
             break;
         case drive::Op::clear:
             runtime::netplay_session::clear();
