@@ -59,6 +59,14 @@
 // R&D tab entry are still the ones recorded. Without the visibility signatures the builders fall back to
 // leaving the R&D tab out (laptop: rax points at a zero byte at the gate; Team HQ: resume at the VEHICLE
 // block), which only changes at the next Team HQ entry.
+//
+// The game also shows the tabs again on its own: Team HQ's command handler (0x1422d6d40) answers one
+// message (0xcc3dd6bb) by showing every tab and raising enable_navigation (0x1422d7a20) and another
+// (0x3cc065a8) by hiding every tab (0x1422d7bb0), most likely what undid the hide on the Overview tab. So a
+// hook at the show-all tail (0x1422d7b2b, before enable_navigation, rsi = the container) hides the R&D tab
+// again while hide_rnd is on, and the flow tick re-hides it about twice a second while Team HQ stays open,
+// which covers any other path that rewrites header_states. A hide_rnd(false) is never undone: both only act
+// while it is on.
 
 bool settings_command(uint32_t hash);
 bool settings_state(const std::string &addon, const std::string &option, size_t &current,
@@ -134,6 +142,9 @@ const runtime::Sig S_TAB_VISIBLE{"Vm_Set_TabEnabled (tab visibility)",
                                  "48 8D 9E E8 02 00 00 EB 27 0F 1F 00 31 C0 48 8D 90 68 02 00 00 48 85 C0 48 0F 44 D0 48 "
                                  "89 D9 45 31 C0 E8 ?? ?? ?? ??",
                                  0x431f470, runtime::Sig::rel32, 0x22, 0x23, 5};
+const runtime::Sig S_TQ_SHOW_ALL{"team HQ show all tabs tail",
+                                "41 B0 01 E8 ?? ?? ?? ?? 49 83 C6 18 4D 39 FE 74 37 48 8B 47 10 48 8B 4F 18", 0x22d7b2b,
+                                runtime::Sig::addr, 0, 0x48, 0};
 const runtime::Sig S_TQ_PUSH{"team HQ tab push",
                              "4C 89 7C 24 60 48 8D 94 24 E0 00 00 00 4C 8D 44 24 58 48 8B 8C 24 D8 00 00 00 E8 ?? ?? ?? "
                              "?? 48 8B 86 D8 02 00 00 4C 8B 68 F8",
@@ -154,6 +165,11 @@ struct Bar {
     uintptr_t begin, end, model;
     uint32_t rnd_key;
     uintptr_t owner = 0, owner_vt = 0, rnd = 0, rnd_vt = 0;
+    bool told = false;
+};
+
+struct Target {
+    uintptr_t model = 0, tab = 0;
 };
 
 std::vector<HubTab> tabs;
@@ -161,7 +177,7 @@ std::atomic<bool> hide{false}, live{false}, pending{false}, laptop_flag{false}, 
 const uint8_t zero_byte = 0;
 uintptr_t a_tab_ctor, a_push, a_page_ctor, a_add_page, a_set_visible;
 uintptr_t a_tq_ctor, a_tq_vt0, a_tq_vt260, a_tq_vt268, a_tq_init, a_tq_push, a_tq_vehicle;
-safetyhook::MidHook h_end, h_rnd, h_tq_end, h_tq_rnd, h_tq_registered, h_laptop_registered;
+safetyhook::MidHook h_end, h_rnd, h_tq_end, h_tq_rnd, h_tq_registered, h_laptop_registered, h_tq_show_all;
 SRWLOCK bars_lock = SRWLOCK_INIT;
 Bar laptop_bar{"laptop", 0x2b8, 0x2c0, 0x2d0, 0xb88a669}, team_hq_bar{"Team HQ", 0x2d0, 0x2d8, 0x2e8, 0xf4482186};
 void **page_vt, **page_vt_src;
@@ -405,10 +421,21 @@ uintptr_t rnd_tab(const Bar &b, uintptr_t owner)
     return 0;
 }
 
-void set_visible(Bar &b, bool visible)
+void set_visible(const Target &t, bool visible)
 {
-    reinterpret_cast<SetVisible_t *>(a_set_visible)(reinterpret_cast<void *>(b.owner + b.model),
-                                                    reinterpret_cast<void *>(b.rnd + 0x268), visible ? 1 : 0);
+    reinterpret_cast<SetVisible_t *>(a_set_visible)(reinterpret_cast<void *>(t.model), reinterpret_cast<void *>(t.tab),
+                                                    visible ? 1 : 0);
+}
+
+Target target(const Bar &b)
+{
+    return {b.owner + b.model, b.rnd + 0x268};
+}
+
+bool still_open(const Bar &b)
+{
+    return b.owner && swofty::mem::object_like(b.owner) && at<uintptr_t>(b.owner) == b.owner_vt &&
+           rnd_tab(b, b.owner) == b.rnd && swofty::mem::object_like(b.rnd) && at<uintptr_t>(b.rnd) == b.rnd_vt;
 }
 
 void registered(Bar &b, uintptr_t owner)
@@ -416,19 +443,24 @@ void registered(Bar &b, uintptr_t owner)
     if (!owner || !swofty::mem::object_like(owner))
         return;
     uintptr_t rnd = rnd_tab(b, owner);
+    Target t;
+    bool hidden = false;
     AcquireSRWLockExclusive(&bars_lock);
     b.owner = 0;
+    b.told = false;
     if (rnd && swofty::mem::object_like(rnd)) {
         b.owner = owner;
         b.owner_vt = at<uintptr_t>(owner);
         b.rnd = rnd;
         b.rnd_vt = at<uintptr_t>(rnd);
-        if (hide.load()) {
-            set_visible(b, false);
-            swofty::log("[hub] %s: the R&D tab is built hidden (hide_rnd); it follows live from here", b.name);
-        }
+        hidden = hide.load();
+        t = target(b);
     }
     ReleaseSRWLockExclusive(&bars_lock);
+    if (hidden) {
+        set_visible(t, false);
+        swofty::log("[hub] %s: the R&D tab is built hidden (hide_rnd); it follows live from here", b.name);
+    }
 }
 
 void team_hq_registered(safetyhook::Context &c)
@@ -441,19 +473,52 @@ void laptop_registered(safetyhook::Context &c)
     registered(laptop_bar, c.rsi);
 }
 
-void follow(Bar &b, bool on)
+void reassert(Bar &b, uintptr_t owner, const char *who)
 {
-    if (!b.owner)
+    if (!hide.load())
         return;
-    bool same = swofty::mem::object_like(b.owner) && at<uintptr_t>(b.owner) == b.owner_vt &&
-                rnd_tab(b, b.owner) == b.rnd && swofty::mem::object_like(b.rnd) && at<uintptr_t>(b.rnd) == b.rnd_vt;
-    if (!same) {
-        b.owner = 0;
-        swofty::log("[hub] %s: no longer open; its R&D tab follows at the next build", b.name);
-        return;
+    Target t;
+    bool open = false, first = false;
+    AcquireSRWLockExclusive(&bars_lock);
+    if (b.owner && b.owner == owner && still_open(b)) {
+        open = true;
+        first = !b.told;
+        b.told = true;
+        t = target(b);
     }
-    set_visible(b, !on);
-    swofty::log("[hub] %s: R&D tab %s live", b.name, on ? "hidden" : "shown");
+    ReleaseSRWLockExclusive(&bars_lock);
+    if (!open)
+        return;
+    set_visible(t, false);
+    if (first)
+        swofty::log("[hub] %s: the game showed the R&D tab again (%s); hidden again", b.name, who);
+}
+
+void team_hq_show_all(safetyhook::Context &c)
+{
+    reassert(team_hq_bar, c.rsi, "Team HQ showed all its tabs, enable_navigation");
+}
+
+void keep(Bar &b, bool change, bool on)
+{
+    Target t;
+    bool open = false, closed = false;
+    AcquireSRWLockExclusive(&bars_lock);
+    if (b.owner) {
+        open = still_open(b);
+        closed = !open;
+        if (open)
+            t = target(b);
+        else
+            b.owner = 0;
+    }
+    ReleaseSRWLockExclusive(&bars_lock);
+    if (open) {
+        set_visible(t, !on);
+        if (change)
+            swofty::log("[hub] %s: R&D tab %s live", b.name, on ? "hidden" : "shown");
+    } else if (closed && change)
+        swofty::log("[hub] %s: no longer open; its R&D tab follows at the next build", b.name);
 }
 
 void tabs_end(safetyhook::Context &c)
@@ -533,7 +598,8 @@ void setup()
     uintptr_t tq_end = runtime::find(S_TQ_END, "hub tabs", "hub"), tq_rnd = runtime::find(S_TQ_RND, "hub tabs", "hub");
     a_set_visible = runtime::find(S_TAB_VISIBLE, "hub tabs", "hub");
     uintptr_t tq_registered = runtime::find(S_TQ_REGISTERED, "hub tabs", "hub"),
-              laptop_reg = runtime::find(S_LAPTOP_REGISTERED, "hub tabs", "hub");
+              laptop_reg = runtime::find(S_LAPTOP_REGISTERED, "hub tabs", "hub"),
+              tq_show_all = runtime::find(S_TQ_SHOW_ALL, "hub tabs", "hub");
     bool laptop = a_tab_ctor && a_push && a_page_ctor && a_add_page && end && gate;
     bool team_hq = a_push && a_page_ctor && a_tq_ctor && a_tq_vt0 && a_tq_vt260 && a_tq_vt268 && a_tq_init && a_tq_push &&
                    a_tq_vehicle && tq_end && tq_rnd;
@@ -568,6 +634,11 @@ void setup()
             h_tq_registered = std::move(*r);
             team_hq_flag = true;
         }
+    }
+    if (team_hq_flag && tq_show_all) {
+        auto r = safetyhook::MidHook::create(reinterpret_cast<void *>(tq_show_all), team_hq_show_all);
+        if (r)
+            h_tq_show_all = std::move(*r);
     }
     swofty::log("[hub] builders: Driver Career Team HQ (team_hq_container) %s, laptop (laptop_container) %s",
                 team_hq ? "hooked" : "NOT hooked", laptop ? "hooked" : "NOT hooked");
@@ -643,15 +714,14 @@ namespace runtime {
 
 void hub_tick()
 {
-    if (!pending.load() || !pending.exchange(false))
+    static uint32_t ticks;
+    bool change = pending.load() && pending.exchange(false), on = hide.load();
+    if (!change && !(on && ++ticks % 30 == 0))
         return;
-    bool on = hide.load();
-    AcquireSRWLockExclusive(&bars_lock);
     if (team_hq_flag.load())
-        follow(team_hq_bar, on);
+        keep(team_hq_bar, change, on);
     if (laptop_flag.load())
-        follow(laptop_bar, on);
-    ReleaseSRWLockExclusive(&bars_lock);
+        keep(laptop_bar, change, on);
 }
 
 }
