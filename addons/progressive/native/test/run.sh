@@ -20,3 +20,7 @@ export ZIG_GLOBAL_CACHE_DIR=$OUT/zig-cache ZIG_LOCAL_CACHE_DIR=$OUT/zig-cache
 "${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -I../src \
     -o "$OUT/season_logic_test" season_logic_test.cpp
 "$OUT/season_logic_test" ../../data/years.json
+
+"${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -I../src \
+    -o "$OUT/resume_logic_test" resume_logic_test.cpp
+"$OUT/resume_logic_test"
