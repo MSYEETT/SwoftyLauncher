@@ -199,8 +199,14 @@ void netplay_tick()
     std::string error = drive::refuse(c, s);
     if (error.empty()) {
         switch (c.op) {
-        case drive::Op::configure: runtime::netplay_session::configure(c.self, c.base); break;
-        case drive::Op::clear: runtime::netplay_session::clear(); break;
+        case drive::Op::configure:
+            runtime::netplay_session::configure(c.self, c.base);
+            runtime::netplay_bridge_status_changed();
+            break;
+        case drive::Op::clear:
+            runtime::netplay_session::clear();
+            runtime::netplay_bridge_status_changed();
+            break;
         case drive::Op::host: error = run_host(c); break;
         case drive::Op::join: error = run_join(c); break;
         case drive::Op::leave: error = run_leave(c); break;
