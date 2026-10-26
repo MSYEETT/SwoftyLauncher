@@ -110,8 +110,9 @@ bool off()
 }
 
 struct Guard {
-    DWORD err = 0;
+    DWORD in = GetLastError(), err = 0;
     Guard() { busy++; }
+    void pre() const { SetLastError(in); }
     void done() { err = GetLastError(); }
     ~Guard()
     {
@@ -411,6 +412,7 @@ SOCKET WSAAPI h_socket(int af, int type, int proto)
     if (off())
         return orig<F>(C_SOCKET)(af, type, proto);
     Guard g;
+    g.pre();
     SOCKET r = orig<F>(C_SOCKET)(af, type, proto);
     g.done();
     note_socket(r, af, type, proto);
@@ -425,6 +427,7 @@ SOCKET WSAAPI h_WSASocketW(int af, int type, int proto, LPWSAPROTOCOL_INFOW info
     if (off())
         return orig<F>(C_WSASOCKETW)(af, type, proto, info, group, flags);
     Guard g;
+    g.pre();
     SOCKET r = orig<F>(C_WSASOCKETW)(af, type, proto, info, group, flags);
     g.done();
     note_socket(r, af, type, proto);
@@ -439,6 +442,7 @@ int WSAAPI h_bind(SOCKET s, const sockaddr *a, int len)
     if (off())
         return orig<F>(C_BIND)(s, a, len);
     Guard g;
+    g.pre();
     int r = orig<F>(C_BIND)(s, a, len);
     g.done();
     if (!r)
@@ -453,6 +457,7 @@ int WSAAPI h_connect(SOCKET s, const sockaddr *a, int len)
     if (off())
         return orig<F>(C_CONNECT)(s, a, len);
     Guard g;
+    g.pre();
     int r = orig<F>(C_CONNECT)(s, a, len);
     g.done();
     if (readable(r, g.err))
@@ -467,6 +472,7 @@ int WSAAPI h_setsockopt(SOCKET s, int level, int name, const char *val, int len)
     if (off())
         return orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
     Guard g;
+    g.pre();
     int r = orig<F>(C_SETSOCKOPT)(s, level, name, val, len);
     g.done();
     trace(C_SETSOCKOPT, s, RA, r, r ? g.err : 0, "level=0x%x name=0x%x len=%d val=%s", level, name, len,
@@ -480,6 +486,7 @@ int WSAAPI h_ioctlsocket(SOCKET s, long cmd, u_long *arg)
     if (off())
         return orig<F>(C_IOCTLSOCKET)(s, cmd, arg);
     Guard g;
+    g.pre();
     int r = orig<F>(C_IOCTLSOCKET)(s, cmd, arg);
     g.done();
     trace(C_IOCTLSOCKET, s, RA, r, r ? g.err : 0, "cmd=0x%lx arg=%lu", (unsigned long)cmd,
@@ -493,6 +500,7 @@ int WSAAPI h_getsockname(SOCKET s, sockaddr *a, int *len)
     if (off())
         return orig<F>(C_GETSOCKNAME)(s, a, len);
     Guard g;
+    g.pre();
     int r = orig<F>(C_GETSOCKNAME)(s, a, len);
     g.done();
     if (!r && len)
@@ -507,6 +515,7 @@ int WSAAPI h_sendto(SOCKET s, const char *buf, int len, int flags, const sockadd
     if (off())
         return orig<F>(C_SENDTO)(s, buf, len, flags, to, tolen);
     Guard g;
+    g.pre();
     int r = orig<F>(C_SENDTO)(s, buf, len, flags, to, tolen);
     g.done();
     bool ok = readable(r, g.err);
@@ -521,6 +530,7 @@ int WSAAPI h_send(SOCKET s, const char *buf, int len, int flags)
     if (off())
         return orig<F>(C_SEND)(s, buf, len, flags);
     Guard g;
+    g.pre();
     int r = orig<F>(C_SEND)(s, buf, len, flags);
     g.done();
     trace(C_SEND, s, RA, r, r < 0 ? g.err : 0, "len=%d flags=0x%x data=%s", len, flags,
@@ -539,6 +549,7 @@ int WSAAPI h_WSASendTo(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD sent, DWORD fla
     WSABUF b0 = first_buf(bufs, n);
     std::string data = hexdump_safe(b0.buf, b0.len), dest = addr_safe(to, tolen);
     void *ev = event_of(ov);
+    g.pre();
     int r = orig<F>(C_WSASENDTO)(s, bufs, n, sent, flags, to, tolen, ov, cr);
     g.done();
     trace(C_WSASENDTO, s, RA, r, r ? g.err : 0, "to=%s nbufs=%lu len0=%lu sent=%ld data=%s ov=0x%llx ev=0x%llx",
@@ -552,6 +563,7 @@ int WSAAPI h_recvfrom(SOCKET s, char *buf, int len, int flags, sockaddr *from, i
     if (off())
         return orig<F>(C_RECVFROM)(s, buf, len, flags, from, fromlen);
     Guard g;
+    g.pre();
     int r = orig<F>(C_RECVFROM)(s, buf, len, flags, from, fromlen);
     g.done();
     if (r >= 0)
@@ -568,6 +580,7 @@ int WSAAPI h_recv(SOCKET s, char *buf, int len, int flags)
     if (off())
         return orig<F>(C_RECV)(s, buf, len, flags);
     Guard g;
+    g.pre();
     int r = orig<F>(C_RECV)(s, buf, len, flags);
     g.done();
     trace(C_RECV, s, RA, r, r < 0 ? g.err : 0, "cap=%d flags=0x%x data=%s", len, flags,
@@ -586,6 +599,7 @@ int WSAAPI h_WSARecvFrom(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD got, LPDWORD 
     WSABUF b0 = first_buf(bufs, n);
     int fl_in = fromlen ? read_int(fromlen) : -1;
     void *ev = event_of(ov);
+    g.pre();
     int r = orig<F>(C_WSARECVFROM)(s, bufs, n, got, flags, from, fromlen, ov, cr);
     g.done();
     if (ov && pending(r, g.err))
@@ -606,6 +620,7 @@ int WSAAPI h_WSARecv(SOCKET s, LPWSABUF bufs, DWORD n, LPDWORD got, LPDWORD flag
     Guard g;
     WSABUF b0 = first_buf(bufs, n);
     void *ev = event_of(ov);
+    g.pre();
     int r = orig<F>(C_WSARECV)(s, bufs, n, got, flags, ov, cr);
     g.done();
     if (ov && pending(r, g.err))
@@ -622,6 +637,7 @@ BOOL WSAAPI h_WSAGetOverlappedResult(SOCKET s, LPWSAOVERLAPPED ov, LPDWORD bytes
         return orig<F>(C_WSAGETOVERLAPPEDRESULT)(s, ov, bytes, wait, flags);
     Guard g;
     void *ev = event_of(ov);
+    g.pre();
     BOOL r = orig<F>(C_WSAGETOVERLAPPEDRESULT)(s, ov, bytes, wait, flags);
     g.done();
     Post p{};
@@ -648,6 +664,7 @@ DWORD WSAAPI h_WSAWaitForMultipleEvents(DWORD n, const WSAEVENT *ev, BOOL all, D
     if (off())
         return orig<F>(C_WSAWAITFORMULTIPLEEVENTS)(n, ev, all, timeout, alertable);
     Guard g;
+    g.pre();
     DWORD r = orig<F>(C_WSAWAITFORMULTIPLEEVENTS)(n, ev, all, timeout, alertable);
     g.done();
     char list[160] = "";
@@ -665,6 +682,7 @@ int WSAAPI h_WSAEventSelect(SOCKET s, WSAEVENT e, long mask)
     if (off())
         return orig<F>(C_WSAEVENTSELECT)(s, e, mask);
     Guard g;
+    g.pre();
     int r = orig<F>(C_WSAEVENTSELECT)(s, e, mask);
     g.done();
     trace(C_WSAEVENTSELECT, s, RA, r, r ? g.err : 0, "event=0x%llx mask=0x%lx", PTR(e), (unsigned long)mask);
@@ -677,6 +695,7 @@ WSAEVENT WSAAPI h_WSACreateEvent()
     if (off())
         return orig<F>(C_WSACREATEEVENT)();
     Guard g;
+    g.pre();
     WSAEVENT r = orig<F>(C_WSACREATEEVENT)();
     g.done();
     trace(C_WSACREATEEVENT, INVALID_SOCKET, RA, r ? 0 : -1, r ? 0 : g.err, "event=0x%llx", PTR(r));
@@ -692,6 +711,7 @@ int WSAAPI h_WSAIoctl(SOCKET s, DWORD code, LPVOID in, DWORD inlen, LPVOID out, 
         return orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
     Guard g;
     std::string data = hexdump_safe(in, inlen);
+    g.pre();
     int r = orig<F>(C_WSAIOCTL)(s, code, in, inlen, out, outlen, got, ov, cr);
     g.done();
     trace(C_WSAIOCTL, s, RA, r, r ? g.err : 0, "code=0x%lx in=%s inlen=%lu outlen=%lu got=%ld ov=0x%llx", code,
@@ -706,6 +726,7 @@ int WSAAPI h_closesocket(SOCKET s)
         return orig<F>(C_CLOSESOCKET)(s);
     Guard g;
     std::string before = sock_desc(s);
+    g.pre();
     int r = orig<F>(C_CLOSESOCKET)(s);
     g.done();
     trace_desc(C_CLOSESOCKET, s, before, RA, r, r ? g.err : 0, "closed");
