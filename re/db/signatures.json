@@ -73511,6 +73511,33 @@
    "used_by": [
     "native/src/core/career_content.cpp"
    ]
+  },
+  {
+   "id": "game.career_continue_driver_slot_title",
+   "section": ".xtls",
+   "pattern": "4C 69 EE 40 05 00 00 F6 82 71 01 00 00 20 4A 8D 8C 29 B8 03 00 00 44 88 44 24 37 0F 85 ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? E8 ?? ?? ?? ?? C6 84 24 08 04 00 00 01",
+   "match": "0x141a0f784",
+   "anchor": "0x28",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a0f7ac",
+   "kind": "mid",
+   "names": [
+    "site_Game_CareerContinue_DriverSlotTitle"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-26",
+     "by": "resume-card",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/resume.cpp"
+   ],
+   "expect": "E8 0F 19 DA FE"
   }
  ]
 }
