@@ -43,6 +43,14 @@ pub struct AddonPrint {
     pub name: String,
     pub version: Version,
     pub source: Source,
+    /// The SHA-256 of the Addon Browser download the copy was installed from, which says what
+    /// a fix installs; the digest and the comparison leave it out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registry: Option<String>,
+    /// For an addon with a build hook, a SHA-256 of what the hook reads: its addon data and its
+    /// state in the profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<String>,
     /// Its place in the load order among the gameplay addons that change game data, where
     /// a later one can override an earlier one; `None` for one that only loads code.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -53,8 +61,6 @@ pub struct AddonPrint {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
-    /// The Addon Browser download it was installed from.
-    Registry(String),
     /// Its installed files: each one's path and SHA-256, in path order.
     Content(String),
     /// Built into the launcher: the core's DLL, or the manifest of another built-in addon.
@@ -81,8 +87,8 @@ impl Fingerprint {
         f
     }
 
-    /// SHA-256 of the fingerprint as JSON with sorted keys and addons, without names or
-    /// `digest`.
+    /// SHA-256 of the fingerprint as JSON with sorted keys and addons, without `name`,
+    /// `registry` or `digest`.
     pub fn canonical_digest(&self) -> String {
         let mut addons: Vec<&AddonPrint> = self.addons.iter().collect();
         addons.sort_by(|a, b| a.id.cmp(&b.id));
@@ -93,6 +99,7 @@ impl Fingerprint {
                     "id": a.id,
                     "version": a.version.to_string(),
                     "source": a.source,
+                    "inputs": a.inputs,
                     "order": a.order,
                 })
             })
@@ -141,6 +148,10 @@ pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> R
             name: m.name.clone(),
             version: m.version.clone(),
             source: source(store, m, &mut hashes)?,
+            registry: (!crate::dbedit::package::is_package(store, &m.id))
+                .then(|| catalog::installed_from(store, m))
+                .flatten(),
+            inputs: hook_inputs(store, m, profile, &mut hashes)?,
             order,
         });
         let values: BTreeMap<String, Value> = m
@@ -179,21 +190,50 @@ fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Sourc
             None => sha256_bytes(&serde_json::to_vec(m).expect("serialisable")),
         }));
     }
-    if !crate::dbedit::package::is_package(store, &m.id)
-        && let Some(sha) = catalog::installed_from(store, m)
-    {
-        return Ok(Source::Registry(sha));
-    }
     content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
 }
 
 /// SHA-256 over each file under `dir` as `path\0sha256\n`, paths relative with `/`, in order.
 pub fn content_hash(dir: &Path, hashes: &mut Hashes) -> Result<String> {
     let mut h = Sha256::new();
-    for (rel, path) in loader_files(dir)? {
+    hash_files(&mut h, dir, hashes, |_| false)?;
+    Ok(hex(&h.finalize()))
+}
+
+fn hash_files(h: &mut Sha256, dir: &Path, hashes: &mut Hashes, skip: impl Fn(&str) -> bool) -> Result<()> {
+    for (rel, path) in loader_files(dir)?.into_iter().filter(|(rel, _)| !skip(rel)) {
         h.update(format!("{rel}\0{}\n", hashes.sha256(&path)?));
     }
-    Ok(hex(&h.finalize()))
+    Ok(())
+}
+
+/// The addon data files and profile state a build hook reads, leaving out hidden entries, `logs`
+/// folders and `.log` and `.tmp` files.
+fn hook_inputs(
+    store: &Store,
+    m: &AddonManifest,
+    profile: &Profile,
+    hashes: &mut Hashes,
+) -> Result<Option<String>> {
+    let builtin = store.builtins().iter().any(|b| b.addon.manifest().id == m.id);
+    if !builtin && !m.launcher.as_ref().is_some_and(|l| l.build) {
+        return Ok(None);
+    }
+    let mut h = Sha256::new();
+    let dir = store.addon_data_dir(&m.id);
+    if dir.is_dir() {
+        hash_files(&mut h, &dir, hashes, |rel| {
+            rel.split('/').any(|c| c.starts_with('.') || c == "logs")
+                || rel.ends_with(".log")
+                || rel.ends_with(".tmp")
+        })?;
+    }
+    let state = profile.state.get(&m.id).cloned().map(sorted);
+    h.update(format!(
+        "\0state\0{}",
+        serde_json::to_string(&state).expect("serialisable")
+    ));
+    Ok(Some(hex(&h.finalize())))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -217,11 +257,13 @@ pub enum MismatchKind {
         local: bool,
         host: bool,
     },
+    /// `registry` in these is the host's download, the one a fix installs.
     MissingAddon {
         id: String,
         name: String,
         version: Version,
         source: Source,
+        registry: Option<String>,
     },
     ExtraAddon {
         id: String,
@@ -233,6 +275,7 @@ pub enum MismatchKind {
         name: String,
         local: Version,
         host: Version,
+        registry: Option<String>,
     },
     SourceDiffers {
         id: String,
@@ -240,6 +283,12 @@ pub enum MismatchKind {
         version: Version,
         local: Source,
         host: Source,
+        registry: Option<String>,
+    },
+    /// What the addon's build hook reads differs, such as Driver Manager's drivers.
+    InputsDiffer {
+        id: String,
+        name: String,
     },
     /// The data addons both sides have, in each side's load order.
     LoadOrder {
@@ -275,10 +324,14 @@ impl Mismatch {
                 name,
                 local,
                 host,
+                ..
             } => format!("{name} ({id}) is {local}; the host has {host}"),
             MismatchKind::SourceDiffers {
                 id, name, version, ..
             } => format!("{name} ({id}) {version} is not the same copy as the host's"),
+            MismatchKind::InputsDiffer { id, name } => {
+                format!("{name} ({id}) has other data or profile state than the host's")
+            }
             MismatchKind::LoadOrder { local, host } => format!(
                 "load order {} is not the host's {}",
                 local.join(", "),
@@ -325,13 +378,14 @@ fn same_game(a: &Identity, b: &Identity) -> bool {
 /// the load order and options. `catalog` is the Addon Browser's listing.
 pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Vec<Mismatch> {
     let launcher = crate::update::current_version();
-    let listed = |a: &AddonPrint| match &a.source {
-        Source::Registry(sha) => catalog
-            .iter()
-            .find(|c| c.id == a.id)
-            .and_then(|c| c.listed().into_iter().find(|v| v.version == a.version))
-            .is_some_and(|v| v.sha256.trim().eq_ignore_ascii_case(sha) && v.accepts(&launcher)),
-        _ => false,
+    let listed = |a: &AddonPrint| {
+        a.registry.as_ref().is_some_and(|sha| {
+            catalog
+                .iter()
+                .find(|c| c.id == a.id)
+                .and_then(|c| c.listed().into_iter().find(|v| v.version == a.version))
+                .is_some_and(|v| v.sha256.trim().eq_ignore_ascii_case(sha) && v.accepts(&launcher))
+        })
     };
     let mut out = Vec::new();
     let mut push = |kind, fixable| out.push(Mismatch { kind, fixable });
@@ -360,6 +414,7 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
                     name,
                     version: h.version.clone(),
                     source: h.source.clone(),
+                    registry: h.registry.clone(),
                 },
                 listed(h),
             ),
@@ -369,6 +424,7 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
                     name,
                     local: l.version.clone(),
                     host: h.version.clone(),
+                    registry: h.registry.clone(),
                 },
                 listed(h),
             ),
@@ -379,10 +435,22 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
                     version: h.version.clone(),
                     local: l.source.clone(),
                     host: h.source.clone(),
+                    registry: h.registry.clone(),
                 },
                 listed(h),
             ),
             Some(_) => {}
+        }
+        if let Some(l) = mine.get(h.id.as_str())
+            && l.inputs != h.inputs
+        {
+            push(
+                MismatchKind::InputsDiffer {
+                    id: h.id.clone(),
+                    name: h.name.clone(),
+                },
+                false,
+            );
         }
     }
     for l in mine.values().filter(|l| !theirs.contains_key(l.id.as_str())) {
@@ -509,12 +577,19 @@ mod tests {
             name: format!("{id} name"),
             version: Version::parse(version).unwrap(),
             source,
+            registry: None,
+            inputs: None,
             order,
         }
     }
 
-    fn registry(sha: &str) -> Source {
-        Source::Registry(sha.repeat(64))
+    fn content(sha: &str) -> Source {
+        Source::Content(sha.repeat(64))
+    }
+
+    fn installed_from(mut a: AddonPrint, sha: &str) -> AddonPrint {
+        a.registry = Some(sha.repeat(64));
+        a
     }
 
     fn options(entries: &[(&str, &str, Value)]) -> BTreeMap<String, BTreeMap<String, Value>> {
@@ -531,9 +606,9 @@ mod tests {
         Fingerprint::new(
             game(),
             vec![
-                print("t.a", "1.0.0", registry("a"), Some(0)),
-                print("t.b", "2.0.0", registry("b"), Some(1)),
-                print("t.code", "1.0.0", Source::Content("c".repeat(64)), None),
+                installed_from(print("t.a", "1.0.0", content("a"), Some(0)), "1"),
+                installed_from(print("t.b", "2.0.0", content("b"), Some(1)), "2"),
+                print("t.code", "1.0.0", content("c"), None),
             ],
             options(&[("t.a", "laps", json!(5)), ("t.a", "mode", json!("full"))]),
             None,
@@ -563,7 +638,7 @@ mod tests {
         let f = host();
         assert_eq!(
             f.digest,
-            "28a1f9d010613f642b92b16e6bb9dd430b9de2ab9e1d0e52c965993049607730"
+            "cc9f627c838ee70a4e8a8e13b4f7a29bf53f36660a5f9e10bb004d8f8c6a920f"
         );
         let mut shuffled = f.addons.clone();
         shuffled.reverse();
@@ -584,7 +659,8 @@ mod tests {
         };
         for d in [
             changed(&|c| c.addons[0].version = Version::new(1, 0, 1)),
-            changed(&|c| c.addons[1].source = registry("d")),
+            changed(&|c| c.addons[1].source = content("d")),
+            changed(&|c| c.addons[1].inputs = Some("d".repeat(64))),
             changed(&|c| c.addons[0].order = Some(1)),
             changed(&|c| {
                 c.options.get_mut("t.a").unwrap().insert("laps".into(), json!(6));
@@ -594,6 +670,7 @@ mod tests {
         ] {
             assert_ne!(d, f.digest);
         }
+        assert_eq!(changed(&|c| c.addons[0].registry = None), f.digest);
     }
 
     #[test]
@@ -709,6 +786,9 @@ mod tests {
         assert_eq!(m(json!({})), Gameplay);
         assert_eq!(m(json!({ "category": "helmets" })), Cosmetic);
         assert_eq!(m(json!({ "category": "shaders" })), Cosmetic);
+        assert_eq!(m(json!({ "category": "performance" })), Cosmetic);
+        let bundled = include_str!("../../../../addons/re-optimization/swofty.json");
+        assert_eq!(AddonManifest::parse(bundled).unwrap().multiplayer(), Cosmetic);
         assert_eq!(m(json!({ "category": "cars" })), Gameplay);
         assert_eq!(
             m(json!({ "category": "helmets", "multiplayer": "gameplay" })),
@@ -724,23 +804,27 @@ mod tests {
     }
 
     #[test]
-    fn a_registry_install_prints_its_download_until_installed_otherwise() {
+    fn a_registry_install_is_recorded_beside_the_content_hash() {
         let store = store("registry");
         put(&store, data("t.a"), &[("db/ops.json", "1")]);
         let p = profile(&["t.a"]);
-        let source = |store: &Store| fingerprint(store, &p, &game()).unwrap().addons[1].source.clone();
-        assert!(matches!(source(&store), Source::Content(_)));
+        let print = |store: &Store| fingerprint(store, &p, &game()).unwrap().addons[1].clone();
+        let before = print(&store);
+        assert!(matches!(before.source, Source::Content(_)));
+        assert_eq!(before.registry, None);
 
         let mut v: catalog::Version = serde_json::from_value(json!({
             "version": "1.0.0", "size": 1, "sha256": "AB".repeat(32), "url": "u",
         }))
         .unwrap();
         catalog::record_install(&store, "t.a", &v).unwrap();
-        assert_eq!(source(&store), Source::Registry("ab".repeat(32)));
+        let recorded = print(&store);
+        assert_eq!(recorded.registry, Some("ab".repeat(32)));
+        assert_eq!(recorded.source, before.source);
 
         v.version = Version::new(0, 9, 0);
         catalog::record_install(&store, "t.a", &v).unwrap();
-        assert!(matches!(source(&store), Source::Content(_)));
+        assert_eq!(print(&store).registry, None);
 
         v.version = Version::new(1, 0, 0);
         catalog::record_install(&store, "t.a", &v).unwrap();
@@ -748,8 +832,85 @@ mod tests {
         write(&copy, data("t.a"), &[("db/ops.json", "1")]);
         store.install_addon(&copy).unwrap();
         assert!(!store.registry_install_path("t.a").exists());
-        assert!(matches!(source(&store), Source::Content(_)));
+        assert_eq!(print(&store), before);
         std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn the_same_files_match_however_they_were_installed() {
+        let (dropped, downloaded) = (store("dropped"), store("downloaded"));
+        for s in [&dropped, &downloaded] {
+            put(s, data("t.a"), &[("db/ops.json", "1")]);
+        }
+        let v: catalog::Version = serde_json::from_value(json!({
+            "version": "1.0.0", "size": 1, "sha256": "ab".repeat(32), "url": "u",
+        }))
+        .unwrap();
+        catalog::record_install(&downloaded, "t.a", &v).unwrap();
+        let p = profile(&["t.a"]);
+        let (local, host) = (
+            fingerprint(&dropped, &p, &game()).unwrap(),
+            fingerprint(&downloaded, &p, &game()).unwrap(),
+        );
+        assert_eq!(host.addons[1].registry, Some("ab".repeat(32)));
+        assert_eq!(local.digest, host.digest);
+        assert!(compare(&local, &host, &[]).is_empty());
+        for s in [dropped, downloaded] {
+            std::fs::remove_dir_all(&s.root).ok();
+        }
+    }
+
+    #[test]
+    fn a_build_hook_prints_its_addon_data_and_profile_state() {
+        let store = store("hook");
+        let hook = json!({
+            "id": "t.hook", "kind": ["database"],
+            "launcher": { "program": { "linux": "bin/hook", "windows": "bin/hook.exe" }, "build": true },
+        });
+        put(&store, hook, &[]);
+        put(&store, data("t.plain"), &[("db/ops.json", "1")]);
+        let data_dir = store.addon_data_dir("t.hook");
+        std::fs::create_dir_all(data_dir.join("logs")).unwrap();
+        std::fs::write(data_dir.join("drivers.json"), r#"{"drivers":["a"]}"#).unwrap();
+        let mut p = profile(&["t.hook", "t.plain"]);
+        let inputs = |p: &Profile| {
+            let f = fingerprint(&store, p, &game()).unwrap();
+            assert_eq!(f.addons[2].inputs, None);
+            f.addons[1].inputs.clone().unwrap()
+        };
+        let first = inputs(&p);
+
+        std::fs::write(data_dir.join("logs/build.log"), "noise").unwrap();
+        std::fs::write(data_dir.join("run.log"), "noise").unwrap();
+        std::fs::create_dir_all(data_dir.join(".cache")).unwrap();
+        std::fs::write(data_dir.join(".cache/view.json"), "noise").unwrap();
+        assert_eq!(inputs(&p), first);
+
+        std::fs::write(data_dir.join("drivers.json"), r#"{"drivers":["b"]}"#).unwrap();
+        let other_drivers = inputs(&p);
+        assert_ne!(other_drivers, first);
+
+        std::fs::write(data_dir.join("drivers.json"), r#"{"drivers":["a"]}"#).unwrap();
+        p.set_state("t.hook", json!({ "mods": ["x"] })).unwrap();
+        let other_state = inputs(&p);
+        assert_ne!(other_state, first);
+        p.set_state("t.hook", json!({ "mods": ["y"] })).unwrap();
+        assert_ne!(inputs(&p), other_state);
+        std::fs::remove_dir_all(&store.root).ok();
+    }
+
+    #[test]
+    fn different_build_hook_inputs_are_not_fixable() {
+        let mut local = host();
+        local.addons[1].inputs = Some("1".repeat(64));
+        let mut h = host();
+        h.addons[1].inputs = Some("2".repeat(64));
+        let found = compare(&local, &h, &[]);
+        assert_eq!(kinds(&found), [("inputs_differ".into(), false)]);
+        assert_eq!(
+            found[0].line(),
+            "t.b name (t.b) has other data or profile state than the host's"
+        );
     }
 
     #[test]
@@ -786,7 +947,7 @@ mod tests {
     fn a_missing_addon_is_fixable_when_the_registry_lists_that_download() {
         let mut local = host();
         local.addons.retain(|a| a.id != "t.b");
-        let listed = [listing("t.b", &[("2.0.0", "b"), ("1.0.0", "e")])];
+        let listed = [listing("t.b", &[("2.0.0", "2"), ("1.0.0", "e")])];
         let found = compare(&local, &host(), &listed);
         assert_eq!(
             found[0].kind,
@@ -794,13 +955,14 @@ mod tests {
                 id: "t.b".into(),
                 name: "t.b name".into(),
                 version: Version::new(2, 0, 0),
-                source: registry("b"),
+                source: content("b"),
+                registry: Some("2".repeat(64)),
             }
         );
         assert!(found[0].fixable);
         assert_eq!(found[0].line(), "t.b name (t.b) 2.0.0 is missing (fixable)");
         assert!(!compare(&local, &host(), &[listing("t.b", &[("2.0.0", "f")])])[0].fixable);
-        assert!(!compare(&local, &host(), &[listing("t.b", &[("1.0.0", "b")])])[0].fixable);
+        assert!(!compare(&local, &host(), &[listing("t.b", &[("1.0.0", "2")])])[0].fixable);
         assert!(!compare(&local, &host(), &[])[0].fixable);
 
         let mut code_host = host();
@@ -850,11 +1012,11 @@ mod tests {
     fn a_version_difference_is_fixable_when_the_registry_has_the_hosts_version() {
         let mut local = host();
         local.addons[1].version = Version::new(1, 0, 0);
-        local.addons[1].source = registry("e");
+        local.addons[1].source = content("e");
         let found = compare(
             &local,
             &host(),
-            &[listing("t.b", &[("2.0.0", "b"), ("1.0.0", "e")])],
+            &[listing("t.b", &[("2.0.0", "2"), ("1.0.0", "e")])],
         );
         assert_eq!(
             found[0].kind,
@@ -863,6 +1025,7 @@ mod tests {
                 name: "t.b name".into(),
                 local: Version::new(1, 0, 0),
                 host: Version::new(2, 0, 0),
+                registry: Some("2".repeat(64)),
             }
         );
         assert_eq!(kinds(&found), [("version_differs".into(), true)]);
@@ -875,23 +1038,25 @@ mod tests {
     #[test]
     fn a_source_difference_is_fixable_by_installing_the_hosts_download() {
         let mut local = host();
-        local.addons[0].source = Source::Content("9".repeat(64));
-        let found = compare(&local, &host(), &[listing("t.a", &[("1.0.0", "a")])]);
+        local.addons[0].source = content("9");
+        let listed = [listing("t.a", &[("1.0.0", "1")])];
+        let found = compare(&local, &host(), &listed);
         assert_eq!(
             found[0].kind,
             MismatchKind::SourceDiffers {
                 id: "t.a".into(),
                 name: "t.a name".into(),
                 version: Version::new(1, 0, 0),
-                local: Source::Content("9".repeat(64)),
-                host: registry("a"),
+                local: content("9"),
+                host: content("a"),
+                registry: Some("1".repeat(64)),
             }
         );
         assert_eq!(kinds(&found), [("source_differs".into(), true)]);
         let mut h = host();
-        h.addons[0].source = Source::Content("8".repeat(64));
+        h.addons[0].registry = None;
         assert_eq!(
-            kinds(&compare(&local, &h, &[])),
+            kinds(&compare(&local, &h, &listed)),
             [("source_differs".into(), false)]
         );
     }

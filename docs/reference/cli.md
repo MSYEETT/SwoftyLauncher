@@ -180,25 +180,26 @@ swofty mp compare <local.json> <host.json> [--json]
   "game_build": { "build_id": "25251167", "exe_sha256": "d873a1c8…" },
   "addons": [
     { "id": "swofty.core", "name": "SwoftyMod", "version": "0.2.13", "source": { "builtin": "41c0…" }, "order": 0 },
-    { "id": "author.grid", "name": "Grid", "version": "1.2.0", "source": { "registry": "9f2c…" }, "order": 1 }
+    { "id": "author.grid", "name": "Grid", "version": "1.2.0", "source": { "content": "5b1e…" }, "registry": "9f2c…", "order": 1 },
+    { "id": "swofty.driver-manager", "name": "Driver Manager", "version": "0.1.3", "source": { "content": "c07a…" }, "inputs": "e4d2…", "order": 2 }
   ],
   "options": { "author.grid": { "laps": 5 } },
   "dlc": null,
-  "digest": "28a1…"
+  "digest": "cc9f…"
 }
 ```
 
 | Field | Value |
 |---|---|
 | `game_build` | Steam's build id, or `exe-` and the first 12 hex digits of `F1_25.exe`'s SHA-256 for a copy Steam didn't install, and the SHA-256 of `F1_25.exe`. |
-| `addons` | Sorted by id. `source` is `registry` with the SHA-256 of the Addon Browser download the addon was installed from, `content` with a SHA-256 of its installed files (each file's path and SHA-256, in path order) for an addon installed another way or a DB Editor addon, or `builtin` with the SHA-256 of SwoftyMod's DLL. `order` is the addon's place in the load order among the gameplay addons that change game data; an addon that only loads code has none. |
+| `addons` | Sorted by id. `source` is `content` with a SHA-256 of the addon's installed files (each file's path and SHA-256, in path order), or `builtin` with the SHA-256 of SwoftyMod's DLL. `registry` is the SHA-256 of the Addon Browser download the installed copy came from, absent for an addon installed another way and for a DB Editor addon. `inputs`, for an addon with a build hook, is a SHA-256 of its files in `$DATA/addon-data/<id>/` (without hidden entries, `logs` folders and `.log` and `.tmp` files) and its state in the profile. `order` is the addon's place in the load order among the gameplay addons that change game data; an addon that only loads code has none. |
 | `options` | Addon id to option id to value. |
 | `dlc` | `null`. |
-| `digest` | The SHA-256 of the fingerprint as compact JSON with sorted keys, without `name` and `digest`. |
+| `digest` | The SHA-256 of the fingerprint as compact JSON with sorted keys, without `name`, `registry` and `digest`. |
 
 The first run hashes each addon's files; `$DATA/state/fingerprint-hashes.json` keeps the digests, and a file is hashed again once its size or times change.
 
-`compare` lists what the first fingerprint must change to match the second, the host's: a different game build or DLC, a missing addon, an extra addon to turn off, a different version or copy of an addon, a different load order and different option values. `(fixable)` marks the ones the launcher can fix itself: turning an addon off, setting an option, reordering, and installing the host's version of an addon when the Addon Browser lists that version with the host's download. `compare` reads the Addon Browser listing the launcher last saved. `--json` prints the list as JSON, each entry with a `kind` and `fixable`. The exit code is 1 when the fingerprints differ.
+`compare` lists what the first fingerprint must change to match the second, the host's: a different game build or DLC, a missing addon, an extra addon to turn off, a different version or copy of an addon, different build hook inputs, a different load order and different option values. Copies match on `source`, so the same files installed from the Addon Browser and from a file match. `(fixable)` marks the ones the launcher can fix itself: turning an addon off, setting an option, reordering, and installing the host's version of an addon when the host's copy has a `registry` download that the Addon Browser lists for that version. `compare` reads the Addon Browser listing the launcher last saved. `--json` prints the list as JSON, each entry with a `kind` and `fixable`. The exit code is 1 when the fingerprints differ.
 
 ## `swofty db`
 
