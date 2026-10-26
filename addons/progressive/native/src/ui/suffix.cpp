@@ -9,7 +9,10 @@
 // PG26; after the router, and after every wizard step (the setup page sets the start season after
 // the press), a wizard of f1_career_progressive whose suffix reads PG + two digits gets the start
 // season's two digits written over them, in place: same length, inside the capacity, so nothing is
-// reallocated. Lists F1CAREER_PG16 .. F1CAREER_PG26 come with the addon's data.
+// reallocated. Lists F1CAREER_PG16 .. F1CAREER_PG26 come with the addon's data. At the same points
+// the start season's team names are set (progressive.dll ProgressiveWizardNames, the season apply's
+// overrides), so Team Select and the rest of the wizard show them; pressing another career tile
+// puts the 2026 names back.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -61,15 +64,31 @@ int start_year()
     return y < 2016 ? 2016 : y > 2026 ? 2026 : y;
 }
 
+void wizard_names(int year)
+{
+    static void (*fn)(int) = nullptr;
+    static bool looked = false;
+    if (!looked) {
+        HMODULE m = GetModuleHandleW(L"progressive.dll");
+        fn = m ? reinterpret_cast<void (*)(int)>(reinterpret_cast<void *>(GetProcAddress(m, "ProgressiveWizardNames")))
+               : nullptr;
+        looked = m != nullptr;
+    }
+    if (fn)
+        fn(year);
+}
+
 void rewrite(uintptr_t wizard, const char *when)
 {
     uintptr_t group = 0, chars = 0;
     uint64_t cap = 0;
-    if (!wizard || !swofty::mem::read(wizard + kWizardGroup, group) || text_at(group) != kGroup ||
-        !swofty::mem::read(wizard + kWizardSuffixCap, cap) || !swofty::mem::read(wizard + kWizardSuffix, chars))
+    if (!wizard || !swofty::mem::read(wizard + kWizardGroup, group) || text_at(group) != kGroup)
+        return;
+    int year = start_year();
+    wizard_names(year);
+    if (!swofty::mem::read(wizard + kWizardSuffixCap, cap) || !swofty::mem::read(wizard + kWizardSuffix, chars))
         return;
     std::string now = text_at(chars);
-    int year = start_year();
     char want[8];
     std::snprintf(want, sizeof want, "PG%02d", year % 100);
     bool shape = now.size() == 4 && now[0] == 'P' && now[1] == 'G' && now[2] >= '0' && now[2] <= '9' && now[3] >= '0' &&

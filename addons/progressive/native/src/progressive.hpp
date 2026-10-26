@@ -20,6 +20,7 @@ void forget_career();
 bool progressive_career();
 void season_loaded(const swofty::career::State &state);
 void season_unloaded();
+void wizard_left(const char *group);
 void season_hub(const swofty::career::State &state);
 
 } // namespace pg

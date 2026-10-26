@@ -55,6 +55,13 @@ void on_career(const SwoftyEvent *ev, void *)
     pg::probe(state);
 }
 
+void on_content(const SwoftyEvent *ev, void *)
+{
+    auto *group = static_cast<const char *>(ev->data);
+    if (!group || std::strcmp(group, "f1_career_progressive"))
+        pg::wizard_left(group);
+}
+
 void subscribe(const char *event)
 {
     uint32_t token = 0;
@@ -71,6 +78,9 @@ SWOFTY_ON_LOAD
     subscribe(SWOFTY_EVENT_CAREER_LOADED);
     subscribe(SWOFTY_EVENT_CAREER_UNLOADED);
     subscribe(SWOFTY_EVENT_CAREER_HUB);
+    uint32_t token = 0;
+    swofty::events::Result r = swofty::events::subscribe(SWOFTY_EVENT_CAREER_CONTENT_PRESSED, on_content, nullptr, &token);
+    swofty::log("[progressive] subscribe %s: %s", SWOFTY_EVENT_CAREER_CONTENT_PRESSED, swofty::events::name(r));
 }
 
 SWOFTY_ADDON()

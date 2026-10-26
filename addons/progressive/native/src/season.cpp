@@ -670,6 +670,14 @@ void season_loaded(const swofty::career::State &)
     names::load();
 }
 
+void wizard_left(const char *group)
+{
+    if (g_current.empty() && g_names_year && !progressive_career()) {
+        swofty::log("[progressive] team names: the %s tile was pressed; the 2026 names are back", group ? group : "?");
+        clear_names();
+    }
+}
+
 void season_unloaded()
 {
     g_rnd = 0;
@@ -838,4 +846,13 @@ extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat,
 extern "C" __declspec(dllexport) uint32_t ProgressivePlayerTeam()
 {
     return pg::g_player_team.load();
+}
+
+extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)
+{
+    if (!pg::g_current.empty() || pg::progressive_career())
+        return;
+    year = progressive::season::clamp_year(year);
+    if (pg::g_names_year != year)
+        pg::set_names(year, "new-career wizard");
 }
