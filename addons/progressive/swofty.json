@@ -154,6 +154,9 @@
         "dll": "native/progressive_rnd.dll"
       },
       {
+        "dll": "native/progressive_follow.dll"
+      },
+      {
         "dll": "native/progressive.dll",
         "files": [
           "data/"

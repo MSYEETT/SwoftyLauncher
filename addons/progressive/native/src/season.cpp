@@ -461,6 +461,7 @@ bool apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, boo
 
 std::atomic<int> g_rnd{0};
 std::atomic<bool> g_test_armed{false};
+std::string g_current;
 
 int rnd_code(const std::string &m)
 {
@@ -486,6 +487,7 @@ void season_loaded(const swofty::career::State &)
 void season_unloaded()
 {
     g_rnd = 0;
+    g_current.clear();
     clear_names();
     g_names_for.clear();
     g_failures = 0;
@@ -507,6 +509,7 @@ void season_hub(const swofty::career::State &state)
     store::Career *c = career_entry(state, s.index, player);
     if (!c)
         return;
+    g_current = c->key;
     if (g_rnd.exchange(rnd_code(c->rnd)) != rnd_code(c->rnd))
         swofty::log("[progressive] R&D mode of this career: %s", c->rnd.c_str());
     if (g_test_armed.exchange(false)) {
@@ -575,4 +578,42 @@ SWOFTY_ON_LOAD
         swofty::log("[progressive] TEST test_next_season is on at load: the next Team HQ of a Progressive career "
                     "applies the following season");
     }
+}
+
+extern "C" __declspec(dllexport) int ProgressiveFollowMode()
+{
+    pg::store::Career *c = pg::g_current.empty() ? nullptr : pg::store::find(pg::g_current);
+    return !c ? -1 : c->moves == "follow_driver" ? 1 : 0;
+}
+
+extern "C" __declspec(dllexport) int ProgressiveFollowTeam(uint32_t driver_stat, uint32_t *team_stat, int *year)
+{
+    using namespace progressive;
+    pg::store::Career *c = pg::g_current.empty() ? nullptr : pg::store::find(pg::g_current);
+    if (!c || c->moves != "follow_driver" || !pg::data())
+        return 0;
+    int now = c->applied_season >= 0 && c->applied_year ? c->applied_year : season::clamp_year(c->start);
+    int next = now + 1;
+    if (year)
+        *year = next;
+    if (next > season::kLastYear)
+        return 0;
+    for (auto &p : pg::g_data.pool) {
+        uint32_t s = 0;
+        int stat = pg::names::stat(pg::names::Kind::driver, p.driver, s) ? static_cast<int>(s) : p.stat;
+        if (stat < 0 || static_cast<uint32_t>(stat) != driver_stat)
+            continue;
+        auto it = p.slot_by_year.find(next);
+        if (it == p.slot_by_year.end() || it->second < 1 || it->second > season::kSlots)
+            return 0;
+        int team = pg::g_data.slots[it->second - 1].team_stat;
+        if (team < 0)
+            return 0;
+        if (team_stat)
+            *team_stat = static_cast<uint32_t>(team);
+        swofty::log("[progressive] follow: driver %u races for %s in %d", driver_stat,
+                    pg::g_data.slots[it->second - 1].team.c_str(), next);
+        return 1;
+    }
+    return 0;
 }
