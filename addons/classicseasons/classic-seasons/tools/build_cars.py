@@ -11,7 +11,7 @@ every car and showroom model layer gets a Tyres override naming it (tyres.py): t
 tyre set, whose resources share their names with the zip's tyre set and its larger buffers. Each car then gets the
 frame-rate pass (carperf: shadow casters rebuilt from a lower LOD, non-livery textures and shipped sidecars capped
 at 1024 px), and its handling files take the wheel positions from themselves instead of the model (handling.py) their aero and mass
-from the team's real qualifying gap (pace.py), and their power unit the stock 2025 one (powerunit.py). The build checks that every renamed reference resolves inside the season's archives, writes
+from the team's real qualifying gap (pace.py), and their power unit the stock 2025 one (powerunit.py), and each model layer names its team's engine sound bundle of the season (sounds.py). The build checks that every renamed reference resolves inside the season's archives, writes
 them to the season addon's cars/ folder (layout.py), whose asset ops gen.py writes. A team with its own car archive in data/seasons.json ("car", a file in the downloads
 folder, shipped in the slot of the team named by "folder") gets the same passes in the season's second package
 (layout.py), with its shared references on the season's shared archive.
@@ -39,6 +39,7 @@ import carperf
 import handling
 import pace
 import powerunit
+import sounds
 import tyres
 from layout import FOLDERS, SOURCE, STOCK_COMMON, cars_dir, extra_package, package
 
@@ -145,6 +146,9 @@ def build_season(year, src_zip, out_dir, game):
                           for folder, key in pace.teams(year)[0].items()}
         parts = powerunit.stock(game)
         report["power_unit"] = sum(powerunit.apply(loaded[f], parts) for f in FOLDERS)
+        makers = sounds.engines(year)
+        report["sounds"] = {key: [new for _, _, new in sounds.apply(loaded[folder], year, makers[key])]
+                            for folder, key in pace.teams(year)[0].items()}
 
         shipped = set()
         for key, e in loaded.items():
@@ -225,6 +229,7 @@ def build_extra(year, team, downloads, out_dir, game):
     handling.use_handling_positions(e)
     powerunit.apply(e, powerunit.stock(game))
     pace.apply(e, pace.values(year, team["key"]))
+    sounds.apply(e, year, sounds.engines(year)[team["key"]])
     known = {r.name.split("?")[0] for r in e.res}
     common = out_dir / "teams" / "common.erp" if own_common else game / STOCK_COMMON
     known |= {r.name.split("?")[0] for r in erpw.Erp(str(common)).res}
