@@ -1045,6 +1045,35 @@ mod tests {
             ] {
                 assert!(page.contains(want), "{rel}: {want}");
             }
+            let built = swofty_formats::pkg::Pkg::parse(
+                &read_frag(&out.join(ui_file(rel)), hub::UI, hub::UI_FRAGMENT).unwrap(),
+            )
+            .unwrap();
+            let tab = built
+                .root
+                .o()
+                .unwrap()
+                .at("Templates")
+                .unwrap()
+                .a()
+                .unwrap()
+                .iter()
+                .find(|t| t.name() == "swofty_hub_progressive")
+                .unwrap();
+            let visible = |path: &str| {
+                let mut n = tab;
+                for part in path.split('.') {
+                    n = n.child(part).unwrap();
+                }
+                node::canonical(n.props().unwrap().at("visible").unwrap())
+            };
+            let on = node::canonical(&node::prop(node::boolv(true), None));
+            for shown in ["emails_display", "email_list", "reading_pane", "num_unread"] {
+                assert_eq!(visible(shown), on, "{rel}: {shown}");
+            }
+            for hidden in ["no_emails_display", "emails_display.no_mail_label", "scrollbar"] {
+                assert_ne!(visible(hidden), on, "{rel}: {hidden}");
+            }
             assert!(!page.contains("o2.label"), "{rel}");
             assert!(!page.contains("dataContext"), "{rel}");
             assert!(!page.contains("tab_content_emails_panel"), "{rel}");

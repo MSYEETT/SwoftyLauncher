@@ -15,10 +15,13 @@ const ENTRIES: usize = 6;
 const PANE_TITLE: &str = "reading_pane.subject";
 const PANE_BODY: &str = "reading_pane.message_body";
 const HEADER: &str = "num_unread.num_unread";
+/// The group on the scene's `mail` branch, which holds the list, the reading pane and the header. Stock shows it
+/// through a negated binding (visible unless the inbox is empty), so the page sets it visible.
+const MAIL: &str = "emails_display";
 const HIDDEN: [&str; 6] = [
     "scrollbar",
     "no_emails_display",
-    "emails_display",
+    "emails_display.no_mail_label",
     "reading_pane.from",
     "reading_pane.from_image",
     "tool_tip_interface.tutorial_tooltip",
@@ -117,6 +120,7 @@ fn page(base: &Node, p: &Page) -> Result<Node> {
             p.rows.len()
         )));
     }
+    set_bool(t.child_mut(MAIL)?, "visible", true)?;
     for path in HIDDEN {
         hide(t.find_mut(path)?)?;
     }
