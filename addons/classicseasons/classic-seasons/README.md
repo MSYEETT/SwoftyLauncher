@@ -19,8 +19,9 @@ The car, suit and head archives are not in the repository. The built packages, e
 | `data/helmets.json` | Season helmets from mods: each one's season, driver, base look and mod |
 | `tools/build_helmets.py` | Builds the season helmets into `helmets/` (not committed) |
 | `tools/helmet_sheet.py` | Contact sheet of the `helmet_d` every season driver's look wears |
-| `data/heads.json` | The real heads, each with its mod zip |
-| `tools/heads.py` | Copies the heads into `heads/` (not committed) and writes `assets/heads.json` |
+| `data/heads.json` | The real heads, each with its mod zip; the face maps on copies of generic heads (`faces`); heads that are off (`off`) |
+| `tools/heads.py` | Copies and builds the heads into `heads/` (not committed) and writes `assets/heads.json` |
+| `tools/head_sheet.py` | Contact sheet of the face map of every driver whose head `data/seasons.json` sets |
 | `tools/gen.py` | Writes the core's `db/core.json`, `lang/core.json` and `native/src/seasons.hpp`, and each season addon's `swofty.json`, `db/season.json`, `lang/season.json` and `assets/cars.json` |
 | `tools/layout.py` | Season addon folders and the asset ops that ship a season's cars |
 | `tools/build_cars.py` | Builds a season addon's `cars/` from the season zips, and an extra team's car (`car` in `data/seasons.json`) into `cars/extra/` |
@@ -106,26 +107,79 @@ At load it registers one box per season with `swofty::era::add_box` (`swofty/era
 | Nikita Mazepin | `nikita_mazepin` | 2021 | More Driver Models |
 | Nyck de Vries | `nyck_de-vries` | 2023 | More Driver Models |
 | Robert Kubica | `robert_kubica` | 2019 | F1 25 Kubica Face Mod (Cap On) |
+| Rio Haryanto | `rio_haryanto` | 2016 | Rio Haryanto face mod |
 
-The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads. The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
+The stock database has an `entrants.animation.driver_heads.driver_head` row for each of these heads but Rio Haryanto's (see `row_from` below). The row's `model_path` is `eaid://[CHARACTER_PACKAGE]/heads/male_driver/<head>/idf/<head>_rig_head_morph_v1`, and its asset group path formats give two groups named after the row's label. The stock manifest lists the groups of the stock labels, so the core never registers an addon's group under them, and a player's game folder can hold other files at their archive paths. Each head ships under its own label `cs_<head>`:
 
 - `db/core.json` adds a `cs_<head>` row copied from the stock `<head>` row and sets the driver's `head` to it.
 - `2025_asset_groups/animation_package/scenes/cinematics/drivers/heads/cs_<head>.erp`: the model, materials and textures.
 - `2025_asset_groups/animation_package/scenes/cinematics/drivers/morph_poses/cs_<head>.erp`: the facial morph clips.
 
-Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`. The More Driver Models heads hold their textures in the heads archive.
+Kubica's head also has three `.2025.mipmaps` textures in `character_package/heads/male_driver/robert_kubica/textures/`, and Haryanto's three `.2024.mipmaps` in `character_package/heads/male_driver/rio_haryanto/textures/`. The More Driver Models heads hold their textures in the heads archive.
 
-`assets/heads.json` adds each file with `file.put` and registers both `cs_<head>` groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the zips named in `data/heads.json` from the downloads folder. It fails when `--game` is not the F1 25 folder, when a target exists in it, or when no driver in `data/seasons.json` has the head.
+A head with `row_from` in `data/heads.json` (Haryanto's) has no stock row of its own label: its `cs_<head>` row is a copy of the named stock head's (`male_ls222`) with the `model_path` of its heads archive, `has_morph_data` `True` and `available_for_customisation` `False`.
 
-```sh
-python3 tools/heads.py --downloads ~/Downloads --game <F1 25>
-```
+`assets/heads.json` adds each file with `file.put` and registers both `cs_<head>` groups with `group.register`, with `lando_norris`'s groups as templates. `tools/heads.py` reads the archives named in `data/heads.json` from the `--downloads` folders. It fails when `--game` is not the F1 25 folder, when a target exists in it that the launcher's `placed.json` does not list, or when no driver in `data/seasons.json` has the head.
 
 More Driver Models' Sebastian Vettel, Mick Schumacher, Nicholas Latifi and Nyck de Vries archives have materials in an older format (`.sampler` resources, head textures under the driver's name). `tools/heads.py` replaces each such material with Kimi Räikkönen's of the same name, its texture folder code renamed (`repair_from` in `data/heads.json`).
+
+`SchumacherToVettel.zip` holds the stock `michael_schumacher` archives with More Driver Models' Sebastian Vettel head and morph poses added byte for byte, and `michael_schumacher`'s model, render, material binding and animation set replaced by Vettel's. Classic Seasons ships the More Driver Models archives.
 
 More Driver Models labels its F1 25 `eye`, `head` and `head_cutscene` materials with resource version 1, and a replaced material keeps the version of the one it replaces. F1 25 parses a material of any version but 2 as the F1 23 layout. `tools/heads.py` gives every material in the F1 25 layout version 2, changing only that version.
 
 A suit entry in `data/real_suits.json` with `"off": true` is left out. The 18 converted 2017 driver suits whose F1 25 base wears its team's glove, livery and boots textures crash the Grand Prix team picker, so those drivers wear their team's converted 2017 suit.
+
+### Face maps on generic heads
+
+Four drivers wear their F1 2016 face map on a copy of a stock generic head with short straight hair (`faces` in `data/heads.json`). The face maps come from the F1 2016 Driver Career addon (AGPL-3.0), `heads/male_ls<n>.erp`: F1 2016's colour map, 2048 px BC1 with all 10 levels in the archive.
+
+| Driver | Head | Seasons | Copy of | Resource name |
+|---|---|---|---|---|
+| Jolyon Palmer | `cs_jolyon_palmer` | 2016, 2017 | `male_ls356` | `cs_pal_356` |
+| Marcus Ericsson | `cs_marcus_ericsson` | 2016 to 2018 | `male_ls197` | `cs_eri_197` |
+| Felipe Nasr | `cs_felipe_nasr` | 2016 | `male_ls526` | `cs_nas_526` |
+| Esteban Gutiérrez | `cs_esteban_gutierrez` | 2016 | `male_ls533` | `cs_gut_533` |
+
+`tools/heads.py` reads the generic head's heads and morph poses archives from the game folder (the launcher baseline's copy of a file it changed) and:
+
+- Renames the generic head's label to the resource name, which has the same length, byte for byte in every resource name and fragment. A surface's sidecar description (fragment 2) keeps naming the stock `.mipmaps` file.
+- Puts the face archive's `head_d` surface in place of the copy's, and sets the `head_d` view to 10 levels.
+- Writes `heads/cs_<driver>` and `morph_poses/cs_<driver>` archives, and fails when the base label is left in any other place.
+
+`db/core.json` adds a `cs_<driver>` row copied from the generic head's row with the copy's `model_path`, `has_morph_data` `True` and `available_for_customisation` `False`. The stock generic heads are unchanged.
+
+The addon's `heads/male_ls204.erp`, a face for Stoffel Vandoorne built from a photo for personal use, is not used.
+
+### Generic heads
+
+| Driver | Head | Seasons |
+|---|---|---|
+| Nico Rosberg | `male_ls204` | 2016 |
+| Pascal Wehrlein | `male_ls758` | 2016, 2017 |
+| Stoffel Vandoorne | `male_ls526` | 2017, 2018 |
+| Brendon Hartley | `male_ls356` | 2018 |
+| Sergey Sirotkin | `male_ls204` | 2018 |
+
+No stock driver or character row wears these heads. `tools/test_heads.py` checks that no two drivers of a season wear the same generic head or a copy of it.
+
+### Heads that are off
+
+A head in `off` in `data/heads.json` ships nothing, and its drivers wear the head it names. Nico Rosberg's head from the F1 2012 Season mod is off: its licence reserves all rights and needs its author's permission to redistribute. Removing the `nico_rosberg` line from `off` ships it as `cs_nico_rosberg`, a `row_from` head with three `.2024.mipmaps` in `character_package/heads/male_driver/nico_rosberg/textures/`.
+
+```sh
+python3 tools/heads.py --downloads ~/Downloads [--downloads <folder>] --game <F1 25> [--baseline <launcher baseline>/<build>] [--placed <launcher state>/placed.json]
+python3 tools/head_sheet.py --out <png> --game <F1 25>
+```
+
+| Archive | Heads |
+|---|---|
+| `More Driver Models.zip` | The More Driver Models heads |
+| `F1 25 Kubica Face Mod.zip` | Robert Kubica |
+| `Rio_Haryanto_facemod.zip` | Rio Haryanto |
+| `tails.f1-2016.swoftyaddon` | The face maps of Palmer, Ericsson, Nasr and Gutiérrez |
+| `F1_2012_Season_v1.0.1_ByDaniX(1).zip`, `F1 2012 Temporada.zip` inside it (`inner`) | Nico Rosberg (off) |
+
+`--downloads` repeats; each archive is read from the first folder that holds it.
 
 ## Helmets
 
