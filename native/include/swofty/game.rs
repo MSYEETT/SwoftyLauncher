@@ -1759,6 +1759,7 @@ pub type Game_EntrantsUi_OnCharacterListLoaded_t =
     unsafe extern "C" fn(ctx: *mut c_void, message: *const c_void) -> i64;
 pub type Game_F1WorldActivityContainer_SelectEntrantList_t =
     unsafe extern "C" fn(container: *mut c_void, entrant_list: *const c_char);
+pub type Game_Refresh_PerformanceComparison_t = unsafe extern "C" fn(comparison: *mut c_void);
 pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
 pub type Game_Rnd_FillVehicleUpgrades_t =
@@ -2197,6 +2198,11 @@ pub mod bindings {
     };
     pub const Game_F1WorldActivityContainer_SelectEntrantList: Binding = Binding {
         id: "Game_F1WorldActivityContainer_SelectEntrantList",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Refresh_PerformanceComparison: Binding = Binding {
+        id: "Game_Refresh_PerformanceComparison",
         kind: "func",
         status: Status::Experimental,
     };
