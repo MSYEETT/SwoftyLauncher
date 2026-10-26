@@ -12,6 +12,7 @@ use swofty_core::catalog;
 use swofty_core::multiplayer::bridge::{self, Bridge, BridgeConfig, Echoed, Stats};
 use swofty_core::multiplayer::direct::DirectUdp;
 use swofty_core::multiplayer::fingerprint::{self, Fingerprint};
+use swofty_core::multiplayer::game::{self as mp_game, Category, Command as GameCommand};
 use swofty_core::multiplayer::transport::Transport;
 use swofty_core::store::Store;
 
@@ -43,6 +44,35 @@ pub enum MpCommand {
         about = "Run the netplay bridge with no relay: print what the game sends to each member, and send the game captured datagrams"
     )]
     Echo(EchoArgs),
+    #[command(
+        about = "Drive the running game's LAN session: status, host from the main menu, join a host, or leave"
+    )]
+    Game {
+        #[arg(long, help = crate::GAME_HELP)]
+        game: Option<PathBuf>,
+        #[command(subcommand)]
+        cmd: GameCmd,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum GameCmd {
+    #[command(
+        about = "Print the game's screen (main_menu, lan_lobby, other), whether it is in a LAN session, and its role"
+    )]
+    Status,
+    #[command(about = "Host a LAN game with a car category; the game must be on its main menu")]
+    Host {
+        #[arg(long, default_value = "f1-2026", help = "Car category: f1-2026 or f1-2025")]
+        category: Category,
+    },
+    #[command(about = "Join the LAN game hosted at an IPv4 address; the game must be on its main menu")]
+    Join {
+        #[arg(help = "The host's IPv4 address")]
+        ip: std::net::Ipv4Addr,
+    },
+    #[command(about = "Leave the LAN session for the main menu")]
+    Leave,
 }
 
 #[derive(Args)]
@@ -160,6 +190,29 @@ pub fn command(store: &Store, profile: &str, cmd: MpCommand) -> Result<ExitCode>
         }
         MpCommand::Bridge(args) => run_bridge(args),
         MpCommand::Echo(args) => run_echo(args),
+        MpCommand::Game { game, cmd } => run_game(store, game, cmd),
+    }
+}
+
+fn run_game(store: &Store, game: Option<PathBuf>, cmd: GameCmd) -> Result<ExitCode> {
+    let dir = crate::build::game(store, game)?.dir;
+    let cmd = match cmd {
+        GameCmd::Status => GameCommand::Status,
+        GameCmd::Host { category } => GameCommand::Host { category },
+        GameCmd::Join { ip } => GameCommand::Join { ip },
+        GameCmd::Leave => GameCommand::Leave,
+    };
+    match mp_game::send(&dir, &cmd, mp_game::REPLY_TIMEOUT) {
+        Ok(reply) => {
+            println!("{}", serde_json::to_string_pretty(&reply.status)?);
+            Ok(ExitCode::SUCCESS)
+        }
+        Err(mp_game::Error::Refused { op, why, status }) => {
+            eprintln!("swofty: the game refused {op}: {why}");
+            println!("{}", serde_json::to_string_pretty(&status)?);
+            Ok(ExitCode::FAILURE)
+        }
+        Err(e) => Err(e.into()),
     }
 }
 
