@@ -1096,6 +1096,25 @@ fn finds_a_crash_report_kept_in_a_session_folder() {
 }
 
 #[test]
+fn sends_the_career_editor_snapshot_a_game_that_cant_write_its_folder_left_in_the_data_folder() {
+    let root = tmp("snapshot-kept");
+    let (store, game) = fake_data(&root);
+    std::fs::File::options()
+        .write(true)
+        .open(game.join(SNAPSHOT))
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - Duration::from_secs(3600))
+        .unwrap();
+    let kept = crate::addon_storage::addon_dir(&store.root, "swofty.career-editor").join("snapshot.json");
+    put(&kept, r#"{"status":{"career":false}}"#);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    assert_eq!(
+        entry(&bundle.zip().unwrap(), "game/career-editor/snapshot.json"),
+        r#"{"status":{"career":false}}"#
+    );
+}
+
+#[test]
 fn sends_the_loaders_fallback_log_and_says_why_it_was_used() {
     let root = tmp("fallback");
     let (store, game) = fake_data(&root);

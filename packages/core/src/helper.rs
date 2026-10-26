@@ -507,11 +507,7 @@ fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
             .and_then(|g| g.original_lang(&code))
             .map(|p| Value::String(p.to_string_lossy().into_owned())),
         HostCall::GameDir => Ok(path_value(cx.game.and_then(|g| g.dir()))),
-        HostCall::AddonGameDir => Ok(path_value(cx.game.and_then(|g| g.dir()).map(|d| {
-            d.join(crate::install::LOADER_DIR)
-                .join(crate::build::ADDONS_DIR)
-                .join(cx.addon)
-        }))),
+        HostCall::AddonGameDir => Ok(path_value(cx.game.and_then(|g| g.addon_dir(cx.addon)))),
         HostCall::GameStatus => {
             let status = cx
                 .game

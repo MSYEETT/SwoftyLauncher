@@ -316,6 +316,10 @@ impl GameFiles for GameDir {
         Some(self.game.dir.clone())
     }
 
+    fn addon_dir(&self, id: &str) -> Option<PathBuf> {
+        Some(crate::addon_storage::live_dir(&self.data, &self.game.dir, id))
+    }
+
     fn status(&self) -> GameStatus {
         crate::process::game_status(Some(&self.data))
     }

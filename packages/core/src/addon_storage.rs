@@ -21,6 +21,11 @@ use crate::{Result, io_err, placed, with_retry};
 
 pub const DIR: &str = "addon-storage";
 
+/// The file the core writes in an addon's storage when the game can't create
+/// files in the addon's game folder: the game reads and writes that addon's
+/// files in the data folder for the session. The next install removes it.
+pub const MARK: &str = ".swofty-data-folder";
+
 /// The loader's own folder under `swofty/addons/`.
 const CORE_DIR: &str = "core";
 
@@ -42,6 +47,29 @@ fn game_rel(id: &str, rel: &str) -> String {
 
 fn valid(id: &str) -> bool {
     !id.is_empty() && id != "." && id != ".." && id != CORE_DIR
+}
+
+/// The folder the game keeps the addon `id`'s files in: its storage in the
+/// data folder when the core left [`MARK`] there, otherwise its game folder.
+pub fn live_dir(data: &Path, game: &Path, id: &str) -> PathBuf {
+    let kept = addon_dir(data, id);
+    if kept.join(MARK).is_file() {
+        kept
+    } else {
+        game_dir(game, id)
+    }
+}
+
+/// The copy of the addon `id`'s file `rel` modified last, in its game folder
+/// or in its storage in the data folder.
+pub fn newest(data: &Path, game: &Path, id: &str, rel: &str) -> Option<PathBuf> {
+    let (here, kept) = (game_dir(game, id).join(rel), addon_dir(data, id).join(rel));
+    match (here.is_file(), kept.is_file()) {
+        (true, true) if newer(&kept, &here) => Some(kept),
+        (true, _) => Some(here),
+        (false, true) => Some(kept),
+        (false, false) => None,
+    }
 }
 
 /// The addon whose folder holds the game path `rel`, `swofty/addons/<id>/…`;
@@ -114,8 +142,9 @@ pub fn keep(data: &Path, game: &Path, id: &str, managed: &BTreeSet<String>) -> R
 /// in `planned` (keys as [`placed::key`] makes them), where the install's
 /// file wins. Where the game folder already holds a file, which a session
 /// that ended without handing it back left there, the newer copy wins: a
-/// newer stored copy replaces it, and an older one goes. Returns the game
-/// paths it moved.
+/// newer stored copy replaces it, and an older one goes. [`MARK`] goes too:
+/// the core writes it again when the game still can't write in its folder.
+/// Returns the game paths it moved.
 pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) -> Result<Vec<String>> {
     let from = addon_dir(data, id);
     if !from.is_dir() {
@@ -125,10 +154,14 @@ pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) 
     let mut moved = Vec::new();
     for rel in files(&from)? {
         let at = game_rel(id, &rel);
+        let (src, dst) = (from.join(&rel), to.join(&rel));
+        if rel == MARK {
+            with_retry(&src, || std::fs::remove_file(&src))?;
+            continue;
+        }
         if planned.contains(&placed::key(&at)) {
             continue;
         }
-        let (src, dst) = (from.join(&rel), to.join(&rel));
         match std::fs::symlink_metadata(&dst) {
             Ok(m) if !m.is_file() => continue,
             Ok(_) if !newer(&src, &dst) => {

@@ -23,6 +23,7 @@ pub const TOTAL_CAP: u64 = 40 << 20;
 pub const PART_LIMIT: usize = 9 << 20;
 pub const SESSIONS: usize = 3;
 pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
+const CAREER_EDITOR: &str = "swofty.career-editor";
 pub const PERF_LINES: usize = 60;
 const LOADER_HEAD: u64 = 16 << 10;
 pub const LOADER_DIR: &str = "swofty";
@@ -377,8 +378,11 @@ impl Bundle {
         for (id, log) in addon_logs(store) {
             c.file(format!("addons/{id}/logs/{}", file_name(&log)), &log, None);
         }
-        if let Some(snapshot) = report.game.dir.as_ref().map(|d| d.join(SNAPSHOT))
-            && snapshot.is_file()
+        if let Some(snapshot) = report
+            .game
+            .dir
+            .as_ref()
+            .and_then(|d| crate::addon_storage::newest(&store.root, d, CAREER_EDITOR, "snapshot.json"))
         {
             c.file("game/career-editor/snapshot.json".into(), &snapshot, None);
         }
