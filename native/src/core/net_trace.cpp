@@ -2,6 +2,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+#include "imports.hpp"
 #include "runtime.hpp"
 
 #include <tlhelp32.h>
@@ -764,60 +765,31 @@ void table()
     set(C_CLOSESOCKET, "closesocket", reinterpret_cast<void *>(&h_closesocket));
 }
 
-int hook_iat(HMODULE ws, uint8_t *base)
+int hook_iat(HMODULE ws)
 {
-    auto nt = reinterpret_cast<IMAGE_NT_HEADERS *>(base + reinterpret_cast<IMAGE_DOS_HEADER *>(base)->e_lfanew);
-    auto &dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    if (!dir.VirtualAddress)
-        return 0;
-    int total = 0, table_no = 0;
-    for (auto *d = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR *>(base + dir.VirtualAddress); d->Name; d++) {
-        if (_stricmp(reinterpret_cast<const char *>(base + d->Name), "ws2_32.dll"))
-            continue;
-        table_no++;
-        auto *iat = reinterpret_cast<IMAGE_THUNK_DATA *>(base + d->FirstThunk);
-        auto *names = d->OriginalFirstThunk ? reinterpret_cast<IMAGE_THUNK_DATA *>(base + d->OriginalFirstThunk) : iat;
-        int here = 0;
-        for (; names->u1.AddressOfData; names++, iat++) {
-            void *want = nullptr;
-            char label[48];
-            if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal)) {
-                want = reinterpret_cast<void *>(
-                    GetProcAddress(ws, MAKEINTRESOURCEA(IMAGE_ORDINAL(names->u1.Ordinal))));
-                snprintf(label, sizeof label, "ordinal %u", unsigned(IMAGE_ORDINAL(names->u1.Ordinal)));
-            } else if (d->OriginalFirstThunk) {
-                auto *by = reinterpret_cast<IMAGE_IMPORT_BY_NAME *>(base + names->u1.AddressOfData);
-                want = reinterpret_cast<void *>(GetProcAddress(ws, reinterpret_cast<const char *>(by->Name)));
-                snprintf(label, sizeof label, "name");
-            } else {
-                want = reinterpret_cast<void *>(iat->u1.Function);
-                snprintf(label, sizeof label, "bound");
-            }
-            for (auto &h : hooks) {
-                if (!want || want != h.target)
-                    continue;
-                void *cur = reinterpret_cast<void *>(iat->u1.Function);
-                if (h.orig && h.orig != cur) {
-                    raw("# iat table %d slot exe+0x%llx (%s) %s holds 0x%llx, not 0x%llx; left alone", table_no,
-                        (unsigned long long)(reinterpret_cast<uint8_t *>(&iat->u1.Function) - base), label, h.name,
-                        PTR(cur), PTR(h.orig));
-                    break;
-                }
-                DWORD old;
-                if (!VirtualProtect(&iat->u1.Function, sizeof(void *), PAGE_READWRITE, &old))
-                    break;
-                h.orig = cur;
-                iat->u1.Function = reinterpret_cast<ULONG_PTR>(h.detour);
-                VirtualProtect(&iat->u1.Function, sizeof(void *), old, &old);
-                h.slots++;
-                here++;
-                raw("# iat table %d slot exe+0x%llx (%s) -> %s", table_no,
-                    (unsigned long long)(reinterpret_cast<uint8_t *>(&iat->u1.Function) - base), label, h.name);
+    int total = 0;
+    runtime::each_import(ws, "ws2_32.dll", [&](const runtime::ImportSlot &s) {
+        for (auto &h : hooks) {
+            if (!s.fn || s.fn != h.target)
+                continue;
+            void *cur = reinterpret_cast<void *>(*s.slot);
+            if (h.orig && h.orig != cur) {
+                raw("# iat table %d slot exe+0x%llx (%s) %s holds 0x%llx, not 0x%llx; left alone", s.table,
+                    (unsigned long long)s.rva, s.how, h.name, PTR(cur), PTR(h.orig));
                 break;
             }
+            void *was = h.orig;
+            h.orig = cur;
+            if (!runtime::write_slot(s.slot, h.detour)) {
+                h.orig = was;
+                break;
+            }
+            h.slots++;
+            total++;
+            raw("# iat table %d slot exe+0x%llx (%s) -> %s", s.table, (unsigned long long)s.rva, s.how, h.name);
+            break;
         }
-        total += here;
-    }
+    });
     return total;
 }
 
@@ -933,7 +905,7 @@ void setup()
         nt->FileHeader.TimeDateStamp, nt->OptionalHeader.SizeOfImage, all_inline ? "inline" : "iat", hex_max,
         (unsigned long long)cap);
     raw("# columns: ms thread call #count sock=... <call fields> ret err from=<caller>");
-    int slots = all_inline ? 0 : hook_iat(ws, base);
+    int slots = all_inline ? 0 : hook_iat(ws);
     std::string inl;
     for (auto &h : hooks)
         if (!h.slots && hook_inline(h))
