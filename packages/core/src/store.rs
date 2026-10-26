@@ -584,6 +584,21 @@ impl Store {
         crate::write_json(&self.config_path(), config)
     }
 
+    pub fn folders_path(&self) -> PathBuf {
+        self.root.join(crate::folders::FILE)
+    }
+
+    pub fn folders(&self) -> crate::folders::Folders {
+        match crate::load_json(&self.folders_path()) {
+            Ok(crate::Loaded::Found(f)) => f,
+            _ => Default::default(),
+        }
+    }
+
+    pub fn save_folders(&self, folders: &crate::folders::Folders) -> Result<()> {
+        crate::write_json(&self.folders_path(), folders)
+    }
+
     pub fn active_profile(&self) -> String {
         let names = self.profile_names().unwrap_or_default();
         self.config()
