@@ -1110,11 +1110,17 @@ mod tests {
         assert_eq!(bridge.members(), vec![1, 2]);
         assert_eq!(bridge.port(1), Some(base + 1));
         assert!(UdpSocket::bind(loopback(base + 1)).is_err());
+        let sockets: Vec<std::sync::Weak<UdpSocket>> =
+            bridge.shared.sockets().values().map(Arc::downgrade).collect();
+        assert_eq!(sockets.len(), 2);
         let started = Instant::now();
         bridge.stop();
         assert!(started.elapsed() < Duration::from_secs(2));
-        UdpSocket::bind(loopback(base + 1)).unwrap();
-        UdpSocket::bind(loopback(base + 2)).unwrap();
+        assert!(
+            sockets.iter().all(|s| s.upgrade().is_none()),
+            "stop closes every member socket, which frees its port; re-binding the port could race \
+             another test's socket"
+        );
     }
 
     #[test]
