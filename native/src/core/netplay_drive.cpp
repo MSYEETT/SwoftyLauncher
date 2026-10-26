@@ -347,7 +347,7 @@ namespace runtime {
 // populate-loop capture for a home screen whose list was built before the core could see it.
 void netplay_home_vm(void *vm)
 {
-    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8))
+    if (!armed || !vm || !runtime::readable(vm, VM_TILE_LIST + 8))
         return;
     if (home_vm.self.load() != vm)
         swofty::log("[netplay] home view model %p (home command)", vm);
@@ -359,10 +359,10 @@ void netplay_drive_setup()
     char v[256] = {};
     DWORD n = GetEnvironmentVariableA("SWOFTY_NETPLAY", v, sizeof v);
     armed = n > 0 && n < sizeof v;
-    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave %s",
-                armed ? "accepted (SWOFTY_NETPLAY set)" : "refused (SWOFTY_NETPLAY unset), status and clear only");
-    if (armed)
-        probe_setup();
+    if (!armed)
+        return;
+    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave accepted");
+    probe_setup();
     if (!started.exchange(true))
         std::thread(watch).detach();
 }
