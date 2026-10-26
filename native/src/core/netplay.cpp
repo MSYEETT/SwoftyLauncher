@@ -51,10 +51,20 @@ bool patch(uintptr_t at, const uint8_t *bytes, size_t n)
     return true;
 }
 
-void setup()
+// The LAN Game entry is hidden for everyone; the session patches only go in when the launcher arms the
+// game for a player with multiplayer access (SWOFTY_NETPLAY set), so other games run as before.
+bool armed()
+{
+    char v[256] = {};
+    DWORD n = GetEnvironmentVariableA("SWOFTY_NETPLAY", v, sizeof v);
+    return n > 0 && n < sizeof v;
+}
+
+void session_patches()
 {
     static const uint8_t open_gate[] = {0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
     static const uint8_t force_null_ssl[] = {0x45, 0x31, 0xFF, 0x90, 0x90};
+    static const uint8_t skip_lobby_kick[] = {0xEB};
 
     bool gate = patch(runtime::find(S_HOST_GATE, "netplay", "netplay"), open_gate, sizeof open_gate);
     swofty::log("[netplay] host-session gate %s", gate ? "opened" : "not patched (signature did not resolve)");
@@ -63,6 +73,14 @@ void setup()
     swofty::log("[netplay] transport encryption %s",
                 enc ? "forced to the null-SSL provider" : "left unchanged (signature did not resolve)");
 
+    bool lobby = patch(runtime::find(S_LOBBY_KICK, "netplay", "netplay"), skip_lobby_kick, sizeof skip_lobby_kick);
+    swofty::log("[netplay] lobby privilege re-check %s",
+                lobby ? "neutralised (no kicked-for-cheating at lobby enter)"
+                      : "left unchanged (signature did not resolve)");
+}
+
+void setup()
+{
     uintptr_t lan = runtime::find(S_LAN_TILE, "netplay", "netplay"), tail = runtime::find(S_TILE_TAIL, "netplay", "netplay");
     bool hidden = false;
     if (lan && tail && tail > lan && tail - lan < 0x10000) {
@@ -74,11 +92,10 @@ void setup()
     swofty::log("[netplay] LAN Game entry in Local Multiplayer %s",
                 hidden ? "hidden (Splitscreen only)" : "left in place (signature did not resolve)");
 
-    static const uint8_t skip_lobby_kick[] = {0xEB};
-    bool lobby = patch(runtime::find(S_LOBBY_KICK, "netplay", "netplay"), skip_lobby_kick, sizeof skip_lobby_kick);
-    swofty::log("[netplay] lobby privilege re-check %s",
-                lobby ? "neutralised (no kicked-for-cheating at lobby enter)"
-                      : "left unchanged (signature did not resolve)");
+    if (armed())
+        session_patches();
+    else
+        swofty::log("[netplay] session patches off (SWOFTY_NETPLAY unset)");
 
     runtime::netplay_bridge_setup();
 }
