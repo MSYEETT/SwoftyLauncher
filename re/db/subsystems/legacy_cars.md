@@ -13,7 +13,7 @@ Evidence: file-format analysis only; no exe addresses. Corpora:
 
 No sample of F1 2018 or F1 2021. The `F1 20xx Cars for F1 25` mod archives of 2016, 2017, 2018, 2020, 2021 and 22 hold F1 25 slot resources only and sample no older format.
 
-Not tested in game yet.
+In game (2026-10-26, Grand Prix team select, Ferrari slot): with the root model under the source car's name, only the template tyres drew. Retest of the renamed root model pending.
 
 ## Resource versions
 
@@ -110,6 +110,13 @@ F1 2016 sidecars hold raw levels, largest first. The stock `felipe_nasr_helmet_n
 
 The SRV (`GfxSRVResource`) of a surface holds its level count at byte 12.
 
+## Links between a car's resources
+
+- A layer (`WOInstances`, `<car>-carmodel.layer`, `<car>-carshowroommodel.layer`) names `<car>.idf?context=render`, `<car>.emb` and `<car>.emb?context=default`. `<car>.idf?context=render` reads the proxy `<car>.idf?render`.
+- A `ModelProxyRes` holds no names. The model of `X?render` is `X?model`, for the root (`<car>.idf?render`) and every part (`<car>.idf&<part>?render`). With the root proxy under the slot's name and the root model under the source car's name, the game logged nothing for the car and drew only the template tyres.
+- A `GfxModelRes` names its meshes (`<car>.idf?lod=N&mesh`, `<car>.idf?lod=N&<part>&mesh`), and a mesh names its buffers in its string pool.
+- The models of stock F1 25 cars have 3 to 7 LODs (the first u32 of a `GfxModelRes`); those of the F1 24 port have up to 9, those of F1 2019 and F1 23 cars up to 8.
+
 ## GfxMaterialRes
 
 Version 1 is the F1 23 layout (`re/db/subsystems/gfx_material.md`) in F1 2017 to F1 23. Every vehicle shader the corpora name exists in F1 25 except `tyre_sidewall/tyre_sidewall_no_logo.nefx2`.
@@ -123,7 +130,7 @@ Version 1 is the F1 23 layout (`re/db/subsystems/gfx_material.md`) in F1 2017 to
 - Fragments: read as zlib, zstd (0x10 or 0x11) or stored, written as zstd 0x11.
 - Versions outside the table's F1 2017 to F1 25 values stop the conversion with an error naming them.
 - Dropped: `GfxSampleState`, `VTF`, `World`, `WOInstances`, `EventGraph`.
-- Models, proxies and material bindings named after the source car's `.idf`/`.emb` take the slot's names. Every other resource keeps its source name.
+- The root model and proxy (`<car>.idf?model`, `<car>.idf?render`), the part models and proxies (`<car>.idf&<part>?…`) and the material bindings (`<car>.emb?context=…`) take the slot's names. Meshes, buffers and every other resource keep their source names; models and meshes name them.
 - From the slot's archive: `World`, `WOInstances`, `EventGraph` and the resources they reference, such as the handling file. The slot's layers name `<car>.idf?context=render`, `<car>.emb` and `<car>.emb?context=default`.
 - Every material-binding context the slot has and the source lacks is a copy of the source's `default`.
 
@@ -133,8 +140,9 @@ Version 1 is the F1 23 layout (`re/db/subsystems/gfx_material.md`) in F1 2017 to
 - buffers are version 4 with kind bit 0x1000, meshes 0x60000, materials 2 with a shader of `tools/gfx_material_layouts.json`, surfaces 9;
 - a surface has two or three fragments, a third is a version 9 descriptor, and its SRV's level count equals its own;
 - no `GfxSampleState`;
+- every proxy `X?render` has its model `X?model`, every mesh a model names exists, and every `.idf?context=render` a layer names has its proxy;
 - declaration slots, every stream's semantic and format against those F1 25 uses, and every index and vertex inside its buffers.
 
-Stock F1 25 car archives pass it (`ferrari`, `ferrari_monza_25`, `mclaren`, `mclaren_silverstone_25`, `sauber`, `sauber_barcelona_25`, `sauber_miami_25`, F2 `artgp`), as do the six conversions and the `ferrari.erp` of the 2016, 2018, 2021, 22 and 24 third-party ports.
+Stock F1 25 car archives pass it (`ferrari`, `ferrari_monza_25`, `mclaren`, `mclaren_silverstone_25`, `sauber`, `sauber_barcelona_25`, `sauber_miami_25`, F2 `artgp`), as do the six conversions, the `ferrari.erp` of the 2016, 2018, 2021, 22 and 24 third-party ports, and the F1 1990 addon's porter-built `ferrari.erp`.
 
 `legacy_car.py selftest` runs the fragment, LZ4, descriptor, mesh and check code on synthetic resources.
