@@ -6,7 +6,8 @@
 //
 //   year_for   season i of a career that starts in `start` is min(start + i, 2026).
 //   parse      data/years.json (tools/gen.py): per year and career slot 1-11 the real line-up,
-//              vehicle row, team name and looks; the career slots (team rows); the driver pool.
+//              vehicle row, team name, looks and in-season development curve; the career slots (team
+//              rows); the driver pool.
 //   plan       the target seat of every race seat for year Y: the real line-up fitted around the
 //              player (lineup_logic.hpp), restricted to drivers the career can move (a single
 //              entrant row that is a race seat or a free agent; never a reserve, never the player),
@@ -58,12 +59,17 @@ struct SeatDriver {
     double rating = -1;
 };
 
+struct DevPoint {
+    double at = 0, delta_pct = 0;
+};
+
 struct Team {
     int slot = 0;
     std::string kind, name, lang, vehicle;
     int vehicle_stat = -1;
     double gap_pct = -1;
     std::vector<SeatDriver> drivers;
+    std::vector<DevPoint> development;
 };
 
 struct Year {
@@ -169,6 +175,11 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
             o.vehicle_stat = num(t["vehicle"]["stat_id"]);
             const json::Value &pace = t["pace"];
             o.gap_pct = pace.type == json::Value::Obj && pace["gap_pct"].type == json::Value::Num ? pace["gap_pct"].n : -1;
+            const json::Value &dev = t["development"];
+            if (dev.type == json::Value::Obj)
+                for (auto &c : dev["checkpoints"].a)
+                    if (c["at"].type == json::Value::Num && c["delta_pct"].type == json::Value::Num)
+                        o.development.push_back({c["at"].n, c["delta_pct"].n});
             for (auto &d : t["drivers"].a) {
                 SeatDriver sd;
                 sd.driver = d["driver"].str();
