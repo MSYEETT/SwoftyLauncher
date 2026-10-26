@@ -362,6 +362,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               },
               { text: "ERP archives", link: "/reference/erp", icon: "file" },
               { text: "!pkg resources", link: "/reference/pkg", icon: "file" },
+              { text: "Assets from older F1 games", link: "/reference/old-games", icon: "file" },
               { text: "How tracks are installed", link: "/reference/installing-tracks", icon: "file" },
             ],
           },
