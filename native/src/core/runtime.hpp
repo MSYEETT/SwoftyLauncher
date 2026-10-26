@@ -105,6 +105,7 @@ void tile_route_commit();
 void tile_route_want();
 TileRoute tile_route_state();
 void wizard_tile_routed(const std::string &group, void *out);
+bool wizard_route_running(const std::string &route, void *name);
 bool core_mixins_active(const char *name);
 bool core_mixins_closed();
 void career_setup();

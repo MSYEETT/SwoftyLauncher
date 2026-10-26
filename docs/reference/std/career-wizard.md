@@ -63,6 +63,8 @@ Step bytes (`step::`): 3 experience, 4 season length, 5 settings, 6 confirm, 14 
 
 then call `tile_route(group, "career_wizard_driver_career_1990")`. A wizard that skips the season length step records no season length option.
 
+When the content has saves, its tile opens the save-slot list (`career_continue_driver`) instead, and that screen's New Career runs `career_wizard_season_length_select` in its own route group. A `tile_route` entry whose `from` is that name applies when the route runs after a press of the group's tile: `tile_route(group, "my_route", "career_wizard_season_length_select")` runs `my_route` instead, which you add to the `career_continue_driver` group with the same kind of erp copy. The log has `[wizard] <group>: route <from> runs as <to>`.
+
 ## How it applies
 
 | Hook | Binding | Does |
