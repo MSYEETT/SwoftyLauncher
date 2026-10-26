@@ -260,6 +260,7 @@ struct Plan {
     std::vector<std::string> notes;
     uint32_t player = lineup::kNone;
     int player_slot = -1;
+    bool player_moves = false;
 };
 
 inline int slot_of_team(const Data &d, int team_stat)
@@ -381,7 +382,9 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
     return out;
 }
 
-inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, const Resolve &r)
+// move_player (follow mode, the career's first season): when the player raced in the year for
+// another slot, he moves to his real seat and the real line-ups stand around him.
+inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, const Resolve &r, bool move_player = false)
 {
     Plan p;
     p.year = clamp_year(year);
@@ -456,6 +459,13 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     }
     in.player = p.player;
     in.player_slot = p.player_slot;
+    int real_slot = -1;
+    if (move_player && p.player_slot >= 0 && lineup::in_grid(in.real, p.player, &real_slot) && real_slot != p.player_slot) {
+        in.player_slot = real_slot;
+        p.player_moves = true;
+        p.notes.push_back("follow mode: the player moves to his real " + std::to_string(p.year) + " team (" +
+                          d.slots[real_slot].team + ")");
+    }
     for (auto &pd : d.pool) {
         int s = r.driver_stat(pd.driver);
         if (s >= 0 && usable(static_cast<uint32_t>(s)) && static_cast<uint32_t>(s) != p.player)
@@ -489,7 +499,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     for (int i = 0; i < kSlots; ++i)
         for (int k = 0; k < lineup::kSeats; ++k)
             p.target[i][k] = p.fit.at(i, k);
-    if (player_seat.slot >= 0) {
+    if (player_seat.slot >= 0 && !p.player_moves) {
         auto &t = p.target[player_seat.slot];
         if (t[player_seat.index] != p.player)
             std::swap(t[0], t[1]);
@@ -519,7 +529,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     for (int i = 0; i < kSlots; ++i)
         for (int k = 0; k < lineup::kSeats; ++k) {
             uint32_t dr = p.target[i][k];
-            if (dr == p.player)
+            if (dr == p.player && !p.player_moves)
                 continue;
             auto it = seat_of.find(dr);
             Seat from = it == seat_of.end() ? Seat{} : it->second;

@@ -4,7 +4,8 @@
 // store has not applied yet, in a career filed under f1_career_progressive:
 //   1. year = min(start + Championship.season_index, 2026) (season_logic.hpp);
 //   2. the plan: the year's line-up fitted around the player, its moves, releases and numbers, each
-//      slot's car and each seated driver's look (season_logic.hpp, data/years.json);
+//      slot's car and each seated driver's look (season_logic.hpp, data/years.json); in follow mode
+//      the career's first season also moves the player's own row to his real team of that year;
 //   3. one batch through the Career Mode Editor's Driver Career sequence (seats.hpp): every move
 //      announced (MessageDriverMoveConfirmed) and written with the seat's team and car keys, every
 //      released driver's contract released, announced to no team and written teamless; then the
@@ -551,7 +552,8 @@ void season_hub(const swofty::career::State &state)
         return;
     swofty::log("[progressive] season %u of career %s: year %d (start %d%s), applying", index, c->key.c_str(), year,
                 c->start, c->test_seasons ? ", includes test seasons" : "");
-    season::Plan p = season::plan(g_data, year, view(rows), resolver());
+    bool move_player = c->moves == "follow_driver" && c->applied_season < 0;
+    season::Plan p = season::plan(g_data, year, view(rows), resolver(), move_player);
     for (auto &n : p.notes)
         swofty::log("[progressive]   note: %s", n.c_str());
     if (!p.error.empty()) {

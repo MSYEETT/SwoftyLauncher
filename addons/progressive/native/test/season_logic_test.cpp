@@ -172,6 +172,27 @@ void hamilton_at_ferrari_in_2016()
     EXPECT(kimi_look);
 }
 
+void follow_mode_moves_the_player_in_the_first_season()
+{
+    auto rows = career("lewis_hamilton");
+    season::Plan p = season::plan(g_data, 2016, rows, resolver(), true);
+    EXPECT(p.error.empty());
+    EXPECT(p.player_moves);
+    EXPECT(seated_once(p));
+    EXPECT(at(p, 1, 0) == 7u || at(p, 1, 1) == 7u);
+    uint32_t vettel = static_cast<uint32_t>(stat("sebastian_vettel")), kimi = static_cast<uint32_t>(stat("kimi_raikkonen"));
+    EXPECT((at(p, 2, 0) == vettel && at(p, 2, 1) == kimi) || (at(p, 2, 0) == kimi && at(p, 2, 1) == vettel));
+    EXPECT(p.fit.displaced == lineup::kNone);
+    bool moved = false;
+    for (auto &m : p.moves)
+        moved = moved || (m.driver == 7u && m.from.slot == 1 && m.to.slot == 0);
+    EXPECT(moved);
+    season::Plan same = season::plan(g_data, 2016, career("max_verstappen"), resolver(), true);
+    EXPECT(!same.player_moves);
+    for (auto &m : same.moves)
+        EXPECT(m.driver != static_cast<uint32_t>(stat("max_verstappen")));
+}
+
 void ten_team_year_fills_manor()
 {
     auto rows = career("lando_norris");
@@ -228,6 +249,7 @@ int main(int argc, char **argv)
     parsed();
     stock_2026_unchanged_for_its_own_year();
     hamilton_at_ferrari_in_2016();
+    follow_mode_moves_the_player_in_the_first_season();
     ten_team_year_fills_manor();
     missing_year_addon_falls_back();
     numbers_never_collide();
