@@ -404,6 +404,11 @@ void on_event(const SwoftyEvent *ev, void *)
     if (pc::takes_back(ev->name, ev->a)) {
         take_back(ev->name);
     } else if (ev->name == pc::kEventLoaded && g_mode) {
+        auto *st = static_cast<const SwoftyCareerState *>(ev->data);
+        if (st && st->key[0]) {
+            take_back("career.loaded of a saved career");
+            return;
+        }
         g_live = true;
         swap_cars("career.loaded", false);
     }
