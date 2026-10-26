@@ -156,7 +156,7 @@ void capture_vm(safetyhook::Context &c)
         bool home = reinterpret_cast<uintptr_t>(vt[10]) == swofty::game::FeHome_Handle_Command.address();
         Vm &slot = home ? home_vm : local_mp_vm;
         if (!home && !lone_splitscreen(list))
-            return;
+            continue;
         if (slot.self.load() != v)
             swofty::log("[netplay] %s view model %p", home ? "home" : "Local Multiplayer", v);
         slot.set(v);
@@ -342,6 +342,17 @@ void watch()
 }
 
 namespace runtime {
+
+// FeHome_Handle_Command receives the home view model on every home command, so it backs up the
+// populate-loop capture for a home screen whose list was built before the core could see it.
+void netplay_home_vm(void *vm)
+{
+    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8))
+        return;
+    if (home_vm.self.load() != vm)
+        swofty::log("[netplay] home view model %p (home command)", vm);
+    home_vm.set(vm);
+}
 
 void netplay_drive_setup()
 {
