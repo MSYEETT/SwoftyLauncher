@@ -104,6 +104,8 @@ pub struct Shell {
     pub(crate) processes: Vec<GameProcess>,
     pub(crate) owners: Vec<Owner>,
     pub(crate) session: Option<SessionRecord>,
+    pub(crate) mp: Option<swofty_core::mpauth::Session>,
+    pub(crate) mp_busy: bool,
     pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
@@ -385,6 +387,22 @@ impl Shell {
         });
         let browser = crate::browser::Browser::new(&store.root, window, cx);
         let catalog = Self::watch_catalog(cx);
+        let mp = swofty_core::mpauth::load(&store.root);
+        if let Some(current) = mp.clone() {
+            let dir = store.root.clone();
+            cx.spawn(async move |this, cx| {
+                let refreshed = cx
+                    .background_executor()
+                    .spawn(async move { swofty_core::mpauth::refresh(&dir, &current) })
+                    .await;
+                this.update(cx, |s, cx| {
+                    s.mp = refreshed;
+                    cx.notify();
+                })
+                .ok();
+            })
+            .detach();
+        }
         let mut shell = Self {
             library,
             store,
@@ -398,6 +416,8 @@ impl Shell {
             processes: Vec::new(),
             owners: Vec::new(),
             session: None,
+            mp,
+            mp_busy: false,
             crash: None,
             dismissed: None,
             launch: None,
@@ -1107,14 +1127,104 @@ impl Shell {
         });
     }
 
+    fn mp_hotkey(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.mp_busy {
+            return;
+        }
+        if self.mp.is_some() {
+            self.mp_sign_out(window, cx);
+        } else {
+            self.mp_sign_in(window, cx);
+        }
+    }
+
+    fn mp_sign_in(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let (pending, url) = match swofty_core::mpauth::begin() {
+            Ok(v) => v,
+            Err(e) => {
+                window.push_notification(Notification::error(format!("Sign-in failed: {e}")), cx);
+                return;
+            }
+        };
+        self.mp_busy = true;
+        window.push_notification(Notification::info("Opening Discord to sign in\u{2026}"), cx);
+        cx.open_url(&url);
+        let dir = self.store.root.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { pending.wait(&dir) })
+                .await;
+            this.update_in(cx, |s, window, cx| {
+                s.mp_busy = false;
+                match result {
+                    Ok(session) => {
+                        let note = if session.allowed {
+                            Notification::success(format!(
+                                "Signed in as {} \u{2014} multiplayer unlocked",
+                                session.name
+                            ))
+                        } else {
+                            Notification::warning(format!(
+                                "Signed in as {} \u{2014} you don't have the Multiplayer Access role yet",
+                                session.name
+                            ))
+                        };
+                        window.push_notification(note, cx);
+                        s.mp = Some(session);
+                    }
+                    Err(e) => {
+                        window.push_notification(Notification::error(format!("Sign-in failed: {e}")), cx);
+                    }
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    fn mp_sign_out(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = self.mp.take() else {
+            return;
+        };
+        let name = session.name.clone();
+        let dir = self.store.root.clone();
+        cx.background_executor()
+            .spawn(async move { swofty_core::mpauth::sign_out(&dir, &session) })
+            .detach();
+        window.push_notification(Notification::info(format!("Signed out {name}")), cx);
+        cx.notify();
+    }
+
     fn title_bar(&self, p: Palette) -> impl IntoElement {
+        let badge = self.mp.as_ref().map(|sess| {
+            let (mark, color) = if sess.allowed {
+                ("\u{25c6} ", p.text)
+            } else {
+                ("\u{25c7} ", p.text_placeholder)
+            };
+            let suffix = if sess.allowed { "" } else { " \u{00b7} no access" };
+            div()
+                .text_size(px(12.))
+                .text_color(color)
+                .child(format!("{mark}{}{suffix}", sess.name))
+        });
         TitleBar::new().bg(p.chrome).child(
-            h_flex().flex_1().justify_end().pr(px(8.)).child(
-                div()
-                    .text_size(px(12.))
-                    .text_color(p.text_placeholder)
-                    .child(concat!("v", env!("CARGO_PKG_VERSION"))),
-            ),
+            h_flex()
+                .flex_1()
+                .justify_end()
+                .items_center()
+                .gap(px(12.))
+                .pr(px(8.))
+                .when_some(badge, |el, b| el.child(b))
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(p.text_placeholder)
+                        .child(concat!("v", env!("CARGO_PKG_VERSION"))),
+                ),
         )
     }
 
@@ -1452,6 +1562,11 @@ impl Render for Shell {
             .id("shell")
             .relative()
             .size_full()
+            .capture_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
+                if ev.keystroke.modifiers.shift && ev.keystroke.key == "8" {
+                    this.mp_hotkey(window, cx);
+                }
+            }))
             .on_drag_move::<ExternalPaths>(cx.listener(|this, _, _, cx| {
                 if !this.dropping {
                     this.dropping = true;

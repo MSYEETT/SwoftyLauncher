@@ -93,7 +93,17 @@ fn urldecode(s: &str) -> String {
 /// Run the full sign-in: open the browser at the server's start URL and wait for
 /// the loopback redirect, then persist and return the session. `open` is called
 /// with the URL to open; it must not block (e.g. hand it to `cx.open_url`).
-pub fn sign_in(data_dir: &Path, open: impl FnOnce(&str)) -> Result<Session, String> {
+/// A loopback waiting for the sign-in redirect. [`begin`] returns it together
+/// with the URL to open in the browser; [`Pending::wait`] blocks for the result,
+/// so the browser-open can happen on the UI thread and the wait on a worker.
+pub struct Pending {
+    listener: TcpListener,
+    nonce: String,
+}
+
+/// Open a loopback port and build the URL the browser should visit. Call this on
+/// the UI thread, open the returned URL, then run [`Pending::wait`] off-thread.
+pub fn begin() -> Result<(Pending, String), String> {
     let listener =
         TcpListener::bind("127.0.0.1:0").map_err(|e| format!("couldn't open a local port: {e}"))?;
     let port = listener
@@ -101,62 +111,76 @@ pub fn sign_in(data_dir: &Path, open: impl FnOnce(&str)) -> Result<Session, Stri
         .map_err(|e| format!("couldn't read the local port: {e}"))?
         .port();
     listener.set_nonblocking(true).map_err(|e| format!("{e}"))?;
-
-    let nonce: String = {
+    let nonce = {
         let mut raw = [0u8; 18];
         getrandom(&mut raw);
         base64url(&raw)
     };
+    let url = format!("{}/v1/auth/launcher/start?port={port}&nonce={nonce}", base_url());
+    Ok((Pending { listener, nonce }, url))
+}
 
-    let start = format!("{}/v1/auth/launcher/start?port={port}&nonce={nonce}", base_url());
-    open(&start);
+/// Run the whole flow on one thread: open a port, hand the URL to `open`, and
+/// block for the result. Convenient for the CLI; the GPUI layer uses
+/// [`begin`] + [`Pending::wait`] instead.
+pub fn sign_in(data_dir: &Path, open: impl FnOnce(&str)) -> Result<Session, String> {
+    let (pending, url) = begin()?;
+    open(&url);
+    pending.wait(data_dir)
+}
 
-    let deadline = Instant::now() + WAIT;
-    loop {
-        match listener.accept() {
-            Ok((mut stream, _)) => {
-                let mut buf = [0u8; 4096];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let request = String::from_utf8_lossy(&buf[..n]);
-                let first = request.lines().next().unwrap_or("");
-                let pairs = query_pairs(first);
-                let get = |k: &str| pairs.iter().find(|(p, _)| p == k).map(|(_, v)| v.clone());
+impl Pending {
+    /// Block until the browser hits the loopback with a matching nonce, persist
+    /// the session, and return it.
+    pub fn wait(self, data_dir: &Path) -> Result<Session, String> {
+        let Pending { listener, nonce } = self;
+        let deadline = Instant::now() + WAIT;
+        loop {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    let mut buf = [0u8; 4096];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&buf[..n]);
+                    let first = request.lines().next().unwrap_or("");
+                    let pairs = query_pairs(first);
+                    let get = |k: &str| pairs.iter().find(|(p, _)| p == k).map(|(_, v)| v.clone());
 
-                let ok = get("nonce").as_deref() == Some(nonce.as_str());
-                let body = if ok {
-                    DONE_PAGE
-                } else {
-                    "sign-in could not be verified"
-                };
-                let _ = write!(
-                    stream,
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\
+                    let ok = get("nonce").as_deref() == Some(nonce.as_str());
+                    let body = if ok {
+                        DONE_PAGE
+                    } else {
+                        "sign-in could not be verified"
+                    };
+                    let _ = write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\
                      Content-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    body.len(),
-                    body
-                );
-                let _ = stream.flush();
-                let _ = stream.shutdown(Shutdown::Both);
+                        body.len(),
+                        body
+                    );
+                    let _ = stream.flush();
+                    let _ = stream.shutdown(Shutdown::Both);
 
-                if !ok {
-                    continue;
+                    if !ok {
+                        continue;
+                    }
+                    let token = get("token").ok_or("the server sent no session token")?;
+                    let session = Session {
+                        token,
+                        name: get("name").unwrap_or_else(|| "Player".into()),
+                        allowed: get("allowed").as_deref() == Some("1"),
+                    };
+                    let _ = save(data_dir, &session);
+                    return Ok(session);
                 }
-                let token = get("token").ok_or("the server sent no session token")?;
-                let session = Session {
-                    token,
-                    name: get("name").unwrap_or_else(|| "Player".into()),
-                    allowed: get("allowed").as_deref() == Some("1"),
-                };
-                let _ = save(data_dir, &session);
-                return Ok(session);
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                if Instant::now() >= deadline {
-                    return Err("sign-in timed out; try again".into());
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    if Instant::now() >= deadline {
+                        return Err("sign-in timed out; try again".into());
+                    }
+                    std::thread::sleep(Duration::from_millis(120));
                 }
-                std::thread::sleep(Duration::from_millis(120));
+                Err(e) => return Err(format!("sign-in failed: {e}")),
             }
-            Err(e) => return Err(format!("sign-in failed: {e}")),
         }
     }
 }
