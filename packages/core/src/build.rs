@@ -33,7 +33,7 @@ use crate::planner::{
 use crate::profile::Profile;
 use crate::registry::Host;
 use crate::resolver::resolve;
-use crate::runtime::{Prebuilt, Runtime, db_edits, overlay_fits};
+use crate::runtime::{Prebuilt, Runtime, db_edits, overlay_fits, runtime_record_room};
 use crate::settings::{
     SessionMod, SessionSettings, SessionUi, render_ops, render_text, screen_file, screens,
 };
@@ -936,7 +936,13 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         let cars = grid_size(&db);
         if let Some(staged) = staged {
+            let room = runtime_record_room(staged.records.len());
+            let created = db.records.len().saturating_sub(staged.records.len());
             match db_edits(&staged, &db) {
+                Ok(_) if created > room => built.lines.push(format!(
+                    "database: built into the game file; the addons add {created} record(s) and the game's \
+                     database takes {room} more once it has loaded"
+                )),
                 Ok(edits) => {
                     runtime.db(edits);
                     db = staged;
