@@ -5,6 +5,14 @@
 //! ChannelData once the channel is bound and as Send indications before that. A background thread
 //! keeps the allocation, permissions and channels alive; a reader thread routes everything the
 //! server sends.
+//!
+//! The credentials and the relayed address are fixed for the life of a [`TurnTransport`]. When the
+//! credentials expire (TURN REST credentials carry a TTL), the server rejects the next refresh, or
+//! when the server loses the allocation (restart, failover, NAT rebinding), the transport turns
+//! fatal: every call fails, [`TurnTransport::needs_reconnect`] reports true, and the error kind says
+//! why (`PermissionDenied`: the credentials were rejected; `ConnectionAborted`: the allocation is
+//! gone or the server stopped answering). Either way the only recovery is fresh credentials, a new
+//! `connect`, and re-announcing the new relayed address to the lobby.
 
 use std::collections::{HashMap, VecDeque};
 use std::io;
@@ -21,12 +29,11 @@ const CHANNEL_BASE: u16 = 0x4000;
 const READ_TICK: Duration = Duration::from_millis(100);
 const INBOX_LIMIT: usize = 1024;
 const RETRY_SOON: Duration = Duration::from_secs(5);
+/// How long to wait before asking again for a peer the server forbids (403).
+const RETRY_FORBIDDEN: Duration = Duration::from_secs(60);
 /// A channel may not be rebound to another address until this long after its binding expired.
 const CHANNEL_QUARANTINE: Duration = Duration::from_secs(300);
 const DEFAULT_LIFETIME: u32 = 600;
-/// Send something to the server at least this often so the NAT mapping for the allocation's
-/// 5-tuple doesn't lapse while the lobby is idle.
-const KEEPALIVE: Duration = Duration::from_secs(15);
 /// MD5 in PASSWORD-ALGORITHM: algorithm 1, no parameters.
 const ALGORITHM_MD5: [u8; 4] = [0, 1, 0, 0];
 
@@ -35,18 +42,20 @@ struct Timing {
     permission_every: Duration,
     channel_every: Duration,
     channel_lifetime: Duration,
+    /// Refresh at least this often: the answer proves the allocation still exists for this
+    /// 5-tuple, and the request keeps the NAT mapping open.
+    liveness: Duration,
     tick: Duration,
     channels: bool,
-    refresh_cap: Option<Duration>,
 }
 
 const TIMING: Timing = Timing {
     permission_every: Duration::from_secs(240),
     channel_every: Duration::from_secs(540),
     channel_lifetime: Duration::from_secs(600),
+    liveness: Duration::from_secs(20),
     tick: Duration::from_secs(1),
     channels: true,
-    refresh_cap: None,
 };
 
 /// Request retransmission (RFC 8489 §6.2.1): `sends` requests with the wait doubling from `rto`,
@@ -87,6 +96,9 @@ const PARTING: Retry = Retry {
 enum Fail {
     Code(u16, String),
     Timeout,
+    /// Answers came back but none carried a valid MESSAGE-INTEGRITY.
+    Unsigned,
+    Rejected(String),
     Stopped,
     Io(io::Error),
 }
@@ -94,15 +106,50 @@ enum Fail {
 impl From<Fail> for io::Error {
     fn from(f: Fail) -> io::Error {
         match f {
-            Fail::Code(401, reason) => io::Error::new(
+            Fail::Code(code @ (401 | 441), reason) => io::Error::new(
                 io::ErrorKind::PermissionDenied,
-                format!("TURN credentials rejected (401 {reason})"),
+                format!("TURN credentials expired or rejected ({code} {reason})"),
             ),
             Fail::Code(code, reason) => io::Error::other(format!("TURN error {code} {reason}")),
             Fail::Timeout => io::Error::new(io::ErrorKind::TimedOut, "the TURN server didn't answer"),
+            Fail::Unsigned => io::Error::new(
+                io::ErrorKind::InvalidData,
+                "the TURN server's answers failed the integrity check",
+            ),
+            Fail::Rejected(why) => io::Error::new(io::ErrorKind::InvalidData, why),
             Fail::Stopped => io::Error::new(io::ErrorKind::Interrupted, "the TURN client is closing"),
             Fail::Io(e) => e,
         }
+    }
+}
+
+/// What to do with an answer that matched a pending transaction.
+#[derive(Debug, PartialEq, Eq)]
+enum Verdict {
+    Accept,
+    Ignore { unsigned: bool },
+    Reject(String),
+}
+
+/// With credentials in play, everything but the 401 and 438 challenges must carry a valid
+/// MESSAGE-INTEGRITY; the method must match the request; unknown comprehension-required
+/// attributes fail the transaction.
+fn judge(msg: &Message, method: u16, key: Option<&[u8; 16]>) -> Verdict {
+    if msg.method != method {
+        return Verdict::Ignore { unsigned: false };
+    }
+    let challenge = msg.class == Class::Error && matches!(msg.error(), Some((401 | 438, _)));
+    if let Some(key) = key
+        && !challenge
+        && !msg.check_integrity(key)
+    {
+        return Verdict::Ignore { unsigned: true };
+    }
+    match msg.unknown_required() {
+        Some(t) => Verdict::Reject(format!(
+            "TURN answer has an unknown comprehension-required attribute 0x{t:04x}"
+        )),
+        None => Verdict::Accept,
     }
 }
 
@@ -136,9 +183,8 @@ impl Routes {
             .map(|(ch, _)| *ch)
     }
 
-    fn member_on(&self, channel: u16) -> Option<u8> {
-        let c = self.channels.get(&channel)?;
-        self.by_addr.get(&c.addr).copied()
+    fn is_member(&self, member: u8, addr: SocketAddr) -> bool {
+        self.members.get(&member) == Some(&addr)
     }
 }
 
@@ -171,7 +217,7 @@ struct Shared {
     auth: Mutex<Auth>,
     pending: Mutex<HashMap<[u8; 12], mpsc::Sender<Message>>>,
     routes: Mutex<Routes>,
-    inbox: Mutex<VecDeque<(u8, Vec<u8>)>>,
+    inbox: Mutex<VecDeque<(u8, SocketAddr, Vec<u8>)>>,
     arrived: Condvar,
     fatal: Mutex<Option<(io::ErrorKind, String)>>,
     stop: AtomicBool,
@@ -179,8 +225,6 @@ struct Shared {
     nudged: Mutex<bool>,
     nudge: Condvar,
     counters: Counters,
-    born: Instant,
-    last_send_ms: AtomicU64,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -216,6 +260,26 @@ impl Drop for PendingGuard<'_> {
 }
 
 impl Shared {
+    fn new(socket: UdpSocket, username: &str, password: &str, timing: Timing) -> Shared {
+        Shared {
+            socket,
+            username: username.to_owned(),
+            password: password.to_owned(),
+            timing,
+            auth: Mutex::default(),
+            pending: Mutex::default(),
+            routes: Mutex::default(),
+            inbox: Mutex::default(),
+            arrived: Condvar::new(),
+            fatal: Mutex::default(),
+            stop: AtomicBool::new(false),
+            closed: AtomicBool::new(false),
+            nudged: Mutex::new(false),
+            nudge: Condvar::new(),
+            counters: Counters::default(),
+        }
+    }
+
     fn check(&self) -> io::Result<()> {
         match &*lock(&self.fatal) {
             Some((kind, msg)) => Err(io::Error::new(*kind, msg.clone())),
@@ -244,23 +308,6 @@ impl Shared {
         true
     }
 
-    fn send_raw(&self, packet: &[u8]) -> io::Result<usize> {
-        let ms = self.born.elapsed().as_millis() as u64;
-        self.last_send_ms.store(ms, Ordering::Relaxed);
-        self.socket.send(packet)
-    }
-
-    fn keep_mapping(&self) {
-        let now = self.born.elapsed().as_millis() as u64;
-        let idle = now.saturating_sub(self.last_send_ms.load(Ordering::Relaxed));
-        if Duration::from_millis(idle) >= KEEPALIVE {
-            let ping = Builder::new(method::BINDING, Class::Indication, transaction_id())
-                .fingerprint()
-                .finish();
-            let _ = self.send_raw(&ping);
-        }
-    }
-
     fn poke(&self) {
         *lock(&self.nudged) = true;
         self.nudge.notify_all();
@@ -275,12 +322,12 @@ impl Shared {
         *guard = false;
     }
 
-    fn deliver(&self, member: u8, data: &[u8]) {
+    fn deliver(&self, member: u8, from: SocketAddr, data: &[u8]) {
         let mut inbox = lock(&self.inbox);
         if inbox.len() >= INBOX_LIMIT {
             inbox.pop_front();
         }
-        inbox.push_back((member, data.to_vec()));
+        inbox.push_back((member, from, data.to_vec()));
         self.arrived.notify_one();
     }
 
@@ -290,9 +337,15 @@ impl Shared {
                 let Some((channel, data)) = stun::parse_channel_data(buf) else {
                     return;
                 };
-                let member = lock(&self.routes).member_on(channel);
-                if let Some(member) = member {
-                    self.deliver(member, data);
+                let source = {
+                    let routes = lock(&self.routes);
+                    routes
+                        .channels
+                        .get(&channel)
+                        .and_then(|c| Some((*routes.by_addr.get(&c.addr)?, c.addr)))
+                };
+                if let Some((member, from)) = source {
+                    self.deliver(member, from, data);
                 }
             }
             Kind::Stun => {
@@ -313,7 +366,7 @@ impl Shared {
                         };
                         let member = lock(&self.routes).by_addr.get(&peer).copied();
                         if let Some(member) = member {
-                            self.deliver(member, data);
+                            self.deliver(member, peer, data);
                         }
                     }
                     _ => {}
@@ -336,6 +389,7 @@ impl Shared {
 
     fn exchange(
         &self,
+        method: u16,
         bytes: &[u8],
         transaction: [u8; 12],
         key: Option<[u8; 16]>,
@@ -348,8 +402,9 @@ impl Shared {
             transaction,
         };
         let mut wait = retry.rto;
+        let mut unsigned = false;
         for attempt in 0..retry.sends {
-            match self.send_raw(bytes) {
+            match self.socket.send(bytes) {
                 Ok(_) => {}
                 Err(e) if transient(&e) => {}
                 Err(e) => return Err(Fail::Io(e)),
@@ -369,20 +424,18 @@ impl Shared {
                     break;
                 }
                 match rx.recv_timeout(left.min(READ_TICK)) {
-                    Ok(msg) => {
-                        let forged =
-                            key.is_some_and(|k| msg.has(attr::MESSAGE_INTEGRITY) && !msg.check_integrity(&k));
-                        if !forged {
-                            return Ok(msg);
-                        }
-                    }
+                    Ok(msg) => match judge(&msg, method, key.as_ref()) {
+                        Verdict::Accept => return Ok(msg),
+                        Verdict::Reject(why) => return Err(Fail::Rejected(why)),
+                        Verdict::Ignore { unsigned: u } => unsigned |= u,
+                    },
                     Err(mpsc::RecvTimeoutError::Timeout) => {}
                     Err(mpsc::RecvTimeoutError::Disconnected) => return Err(Fail::Stopped),
                 }
             }
             wait *= 2;
         }
-        Err(Fail::Timeout)
+        Err(if unsigned { Fail::Unsigned } else { Fail::Timeout })
     }
 
     /// Run one request to completion, answering the 401 challenge and 438 stale nonces.
@@ -417,7 +470,7 @@ impl Shared {
                     auth.nonce.clone(),
                 )
             };
-            let resp = self.exchange(&bytes, transaction, key, retry)?;
+            let resp = self.exchange(method, &bytes, transaction, key, retry)?;
             if resp.class == Class::Success {
                 return Ok(resp);
             }
@@ -460,48 +513,63 @@ impl Shared {
         Ok(())
     }
 
-    fn permit(&self, peers: &[SocketAddr], retry: Retry) -> Result<(), Fail> {
-        if peers.is_empty() {
-            return Ok(());
-        }
+    fn permit_one(&self, peer: SocketAddr, retry: Retry) -> Result<(), Fail> {
         let result = self.transact(
             method::CREATE_PERMISSION,
-            &|b| peers.iter().fold(b, |b, p| b.address(attr::XOR_PEER_ADDRESS, *p)),
+            &|b| b.address(attr::XOR_PEER_ADDRESS, peer),
             retry,
         );
         let now = Instant::now();
-        let mut routes = lock(&self.routes);
         let next = match &result {
             Ok(_) => now + self.timing.permission_every,
+            Err(Fail::Code(403, _)) => now + RETRY_FORBIDDEN,
             Err(_) => now + RETRY_SOON,
         };
-        for p in peers {
-            routes.next_permission.insert(p.ip(), next);
-        }
+        lock(&self.routes).next_permission.insert(peer.ip(), next);
         if result.is_ok() {
             self.counters.permissions.fetch_add(1, Ordering::Relaxed);
         }
         result.map(|_| ())
     }
 
-    fn keep_permissions(&self) -> Result<(), Fail> {
-        let now = Instant::now();
-        let due: Vec<SocketAddr> = {
-            let routes = lock(&self.routes);
-            let mut seen = Vec::new();
-            routes
-                .members
-                .values()
-                .filter(|a| routes.next_permission.get(&a.ip()).is_none_or(|t| now >= *t))
-                .filter(|a| {
-                    let new = !seen.contains(&a.ip());
-                    seen.push(a.ip());
-                    new
+    /// One CreatePermission per IP, all at once, so a peer the server forbids doesn't take the
+    /// others down with it. Returns the ones that failed.
+    fn permit(&self, peers: &[SocketAddr], retry: Retry) -> Vec<(SocketAddr, Fail)> {
+        std::thread::scope(|s| {
+            let asks: Vec<_> = peers
+                .iter()
+                .map(|p| (*p, s.spawn(move || self.permit_one(*p, retry))))
+                .collect();
+            asks.into_iter()
+                .filter_map(|(p, ask)| match ask.join() {
+                    Ok(Ok(())) => None,
+                    Ok(Err(f)) => Some((p, f)),
+                    Err(_) => Some((p, Fail::Stopped)),
                 })
-                .copied()
                 .collect()
-        };
-        self.permit(&due, PATIENT)
+        })
+    }
+
+    fn due_permissions(&self, now: Instant) -> Vec<SocketAddr> {
+        let routes = lock(&self.routes);
+        let mut due: Vec<SocketAddr> = Vec::new();
+        for a in routes.members.values() {
+            let expiring = routes.next_permission.get(&a.ip()).is_none_or(|t| now >= *t);
+            if expiring && !due.iter().any(|d| d.ip() == a.ip()) {
+                due.push(*a);
+            }
+        }
+        due
+    }
+
+    fn keep_permissions(&self) -> Result<(), Fail> {
+        let due = self.due_permissions(Instant::now());
+        for (_, f) in self.permit(&due, PATIENT) {
+            if self.fatal_from(&f) || matches!(f, Fail::Stopped) {
+                return Err(f);
+            }
+        }
+        Ok(())
     }
 
     fn keep_channels(&self) -> Result<(), Fail> {
@@ -562,6 +630,7 @@ impl Shared {
                         c.bound = Some(now);
                         c.next = now + t.channel_every;
                     }
+                    Err(Fail::Code(403, _)) => c.next = now + RETRY_FORBIDDEN,
                     Err(_) => c.next = now + RETRY_SOON,
                 }
             }
@@ -579,20 +648,18 @@ impl Shared {
         Ok(())
     }
 
-    fn refresh_after(&self, lifetime: Duration) -> Duration {
-        let after = refresh_after(lifetime);
-        self.timing.refresh_cap.map_or(after, |cap| after.min(cap))
+    fn refresh_every(&self, lifetime: Duration) -> Duration {
+        refresh_after(lifetime).min(self.timing.liveness)
     }
 
     fn maintain(&self, mut lifetime: Duration) {
         let mut granted = Instant::now();
-        let mut next_refresh = granted + self.refresh_after(lifetime);
+        let mut next_refresh = granted + self.refresh_every(lifetime);
         loop {
             self.nap(self.timing.tick);
             if self.stop.load(Ordering::Relaxed) {
                 return;
             }
-            self.keep_mapping();
             let now = Instant::now();
             if now >= next_refresh {
                 let asked = lifetime.as_secs() as u32;
@@ -601,28 +668,24 @@ impl Shared {
                         let secs = resp.u32(attr::LIFETIME).unwrap_or(asked);
                         lifetime = Duration::from_secs(u64::from(secs));
                         granted = now;
-                        next_refresh = now + self.refresh_after(lifetime);
+                        next_refresh = now + self.refresh_every(lifetime);
                         self.counters.refreshes.fetch_add(1, Ordering::Relaxed);
                     }
                     Err(Fail::Stopped) => return,
-                    Err(f) => {
-                        if self.fatal_from(&f) {
-                            return;
-                        }
-                        if Instant::now() >= granted + lifetime {
-                            self.set_fatal(
-                                io::ErrorKind::ConnectionAborted,
-                                format!("TURN allocation expired: {}", io::Error::from(f)),
-                            );
-                            return;
-                        }
+                    Err(f) if self.fatal_from(&f) => return,
+                    Err(Fail::Code(..)) if Instant::now() < granted + lifetime => {
                         next_refresh = Instant::now() + RETRY_SOON.min(lifetime / 4);
+                    }
+                    Err(f) => {
+                        self.set_fatal(
+                            io::ErrorKind::ConnectionAborted,
+                            format!("TURN allocation lost: {}", io::Error::from(f)),
+                        );
+                        return;
                     }
                 }
             }
-            if let Err(f) = self.keep_permissions()
-                && self.fatal_from(&f)
-            {
+            if self.keep_permissions().is_err() && self.check().is_err() {
                 return;
             }
             if self.timing.channels && self.keep_channels().is_err() && self.check().is_err() {
@@ -743,25 +806,7 @@ impl TurnTransport {
         let socket = UdpSocket::bind(SocketAddr::new(any, 0))?;
         socket.connect(server)?;
         socket.set_read_timeout(Some(READ_TICK))?;
-        let shared = Arc::new(Shared {
-            socket,
-            username: username.to_owned(),
-            password: credential.to_owned(),
-            timing,
-            auth: Mutex::default(),
-            pending: Mutex::default(),
-            routes: Mutex::default(),
-            inbox: Mutex::default(),
-            arrived: Condvar::new(),
-            fatal: Mutex::default(),
-            stop: AtomicBool::new(false),
-            closed: AtomicBool::new(false),
-            nudged: Mutex::new(false),
-            nudge: Condvar::new(),
-            counters: Counters::default(),
-            born: Instant::now(),
-            last_send_ms: AtomicU64::new(0),
-        });
+        let shared = Arc::new(Shared::new(socket, username, credential, timing));
         let reader = {
             let shared = shared.clone();
             std::thread::Builder::new()
@@ -807,6 +852,12 @@ impl TurnTransport {
         self.mapped
     }
 
+    /// True once the allocation is unusable (credentials expired or rejected, allocation lost,
+    /// server gone). Mint fresh credentials, `connect` again and announce the new relayed address.
+    pub fn needs_reconnect(&self) -> bool {
+        self.shared.check().is_err()
+    }
+
     pub fn stats(&self) -> TurnStats {
         let c = &self.shared.counters;
         TurnStats {
@@ -835,6 +886,9 @@ impl Transport for TurnTransport {
         self.relayed
     }
 
+    /// Installs every peer it can; an `AddrNotAvailable` error names the members whose
+    /// permission the server refused (they are retried in the background), while the others
+    /// work. A credential or allocation failure is fatal instead.
     fn set_peers(&self, peers: &HashMap<u8, SocketAddr>) -> io::Result<()> {
         self.shared.check()?;
         let due: Vec<SocketAddr> = {
@@ -852,14 +906,31 @@ impl Transport for TurnTransport {
             }
             due
         };
-        lock(&self.shared.inbox).retain(|(m, _)| peers.contains_key(m));
-        let result = self.shared.permit(&due, QUICK);
+        lock(&self.shared.inbox).retain(|(m, from, _)| peers.get(m) == Some(from));
+        let failures = self.shared.permit(&due, QUICK);
         self.shared.poke();
-        if let Err(f) = result {
-            self.shared.fatal_from(&f);
-            return Err(f.into());
+        let mut refused = Vec::new();
+        for (addr, f) in failures {
+            if self.shared.fatal_from(&f) {
+                return self.shared.check();
+            }
+            let mut members: Vec<u8> = peers
+                .iter()
+                .filter(|(_, a)| a.ip() == addr.ip())
+                .map(|(m, _)| *m)
+                .collect();
+            members.sort_unstable();
+            let error = io::Error::from(f);
+            refused.extend(members.iter().map(|m| format!("member {m} ({addr}): {error}")));
         }
-        Ok(())
+        if refused.is_empty() {
+            Ok(())
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::AddrNotAvailable,
+                format!("no TURN permission for {}", refused.join("; ")),
+            ))
+        }
     }
 
     fn send(&self, to: u8, payload: &[u8]) -> io::Result<()> {
@@ -898,7 +969,7 @@ impl Transport for TurnTransport {
                     .finish()
             }
         };
-        match self.shared.send_raw(&packet) {
+        match self.shared.socket.send(&packet) {
             Ok(_) => Ok(()),
             Err(e) if transient(&e) => Ok(()),
             Err(e) => Err(e),
@@ -909,7 +980,10 @@ impl Transport for TurnTransport {
         let deadline = Instant::now().checked_add(timeout);
         let mut inbox = lock(&self.shared.inbox);
         loop {
-            if let Some((member, data)) = inbox.pop_front() {
+            while let Some((member, from, data)) = inbox.pop_front() {
+                if !lock(&self.shared.routes).is_member(member, from) {
+                    continue;
+                }
                 let n = data.len().min(buf.len());
                 buf[..n].copy_from_slice(&data[..n]);
                 return Ok(Some((member, n)));
@@ -1076,6 +1150,118 @@ mod tests {
         }
     }
 
+    fn offline() -> TurnTransport {
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let addr = socket.local_addr().unwrap();
+        TurnTransport {
+            shared: Arc::new(Shared::new(socket, "u", "p", TIMING)),
+            server: addr,
+            relayed: addr,
+            mapped: None,
+            reader: None,
+            keeper: None,
+        }
+    }
+
+    fn data_indication(from: SocketAddr, payload: &[u8]) -> Vec<u8> {
+        Builder::new(method::DATA, Class::Indication, transaction_id())
+            .address(attr::XOR_PEER_ADDRESS, from)
+            .attr(attr::DATA, payload)
+            .finish()
+    }
+
+    #[test]
+    fn queued_datagrams_follow_the_address_not_the_slot() {
+        let t = offline();
+        let x: SocketAddr = "198.51.100.1:5000".parse().unwrap();
+        let y: SocketAddr = "198.51.100.2:6000".parse().unwrap();
+        let far = Instant::now() + Duration::from_secs(3600);
+        let permitted = |ip: SocketAddr| {
+            lock(&t.shared.routes).next_permission.insert(ip.ip(), far);
+        };
+        permitted(x);
+        t.set_peers(&HashMap::from([(3, x)])).unwrap();
+        t.shared.dispatch(&data_indication(x, b"from x"));
+        permitted(y);
+        t.set_peers(&HashMap::from([(3, y)])).unwrap();
+        let mut buf = [0u8; 64];
+        assert_eq!(t.recv(&mut buf, Duration::from_millis(20)).unwrap(), None);
+
+        t.shared.deliver(3, x, b"raced the change");
+        assert_eq!(t.recv(&mut buf, Duration::from_millis(20)).unwrap(), None);
+        t.shared.dispatch(&data_indication(y, b"from y"));
+        assert_eq!(t.recv(&mut buf, Duration::from_millis(20)).unwrap(), Some((3, 6)));
+        assert_eq!(&buf[..6], b"from y");
+
+        for (ch, addr) in [(0x4003, x), (0x4004, y)] {
+            let bound = Channel {
+                addr,
+                bound: Some(Instant::now()),
+                next: far,
+            };
+            lock(&t.shared.routes).channels.insert(ch, bound);
+        }
+        t.shared.dispatch(&stun::channel_data(0x4003, b"old", false));
+        t.shared.dispatch(&stun::channel_data(0x4004, b"new", false));
+        assert_eq!(t.recv(&mut buf, Duration::from_millis(20)).unwrap(), Some((3, 3)));
+        assert_eq!(&buf[..3], b"new");
+        assert_eq!(t.recv(&mut buf, Duration::from_millis(20)).unwrap(), None);
+    }
+
+    #[test]
+    fn answers_need_integrity_and_the_right_method() {
+        let key = stun::long_term_key("u", "test", "p");
+        let tid = [9u8; 12];
+        let relayed: SocketAddr = "203.0.113.5:50000".parse().unwrap();
+        let allocated = || {
+            Builder::new(method::ALLOCATE, Class::Success, tid).address(attr::XOR_RELAYED_ADDRESS, relayed)
+        };
+        let parse = |b: Builder| Message::parse(&b.finish()).unwrap();
+        let error = |code: u16| {
+            let value = [0, 0, (code / 100) as u8, (code % 100) as u8];
+            Builder::new(method::REFRESH, Class::Error, tid).attr(attr::ERROR_CODE, &value)
+        };
+        let signed = parse(allocated().integrity(&key));
+        let unsigned = Verdict::Ignore { unsigned: true };
+
+        assert_eq!(judge(&signed, method::ALLOCATE, Some(&key)), Verdict::Accept);
+        assert_eq!(judge(&parse(allocated()), method::ALLOCATE, Some(&key)), unsigned);
+        assert_eq!(
+            judge(
+                &parse(allocated().integrity(b"other")),
+                method::ALLOCATE,
+                Some(&key)
+            ),
+            unsigned
+        );
+        assert_eq!(
+            judge(&signed, method::REFRESH, Some(&key)),
+            Verdict::Ignore { unsigned: false }
+        );
+        assert_eq!(judge(&parse(error(437)), method::REFRESH, Some(&key)), unsigned);
+        assert_eq!(
+            judge(&parse(error(437).integrity(&key)), method::REFRESH, Some(&key)),
+            Verdict::Accept
+        );
+        assert_eq!(
+            judge(&parse(error(401)), method::REFRESH, Some(&key)),
+            Verdict::Accept
+        );
+        assert_eq!(
+            judge(&parse(error(438)), method::REFRESH, Some(&key)),
+            Verdict::Accept
+        );
+        assert_eq!(
+            judge(&parse(allocated()), method::ALLOCATE, None),
+            Verdict::Accept
+        );
+        let unknown = parse(allocated().attr(0x0031, b"?").integrity(&key));
+        assert!(matches!(
+            judge(&unknown, method::ALLOCATE, Some(&key)),
+            Verdict::Reject(_)
+        ));
+    }
+
     #[test]
     #[ignore = "needs docker and the coturn/coturn image"]
     fn docker_coturn_members_exchange_datagrams() {
@@ -1132,6 +1318,32 @@ mod tests {
         assert_eq!(b.recv(&mut buf, Duration::from_millis(500)).unwrap(), None);
     }
 
+    fn ping_pong(a: &TurnTransport, b: &TurnTransport, run: Duration) {
+        let start = Instant::now();
+        let mut round = 0u32;
+        while start.elapsed() < run {
+            a.send(2, &round.to_be_bytes()).unwrap();
+            expect(b, 1, &round.to_be_bytes());
+            b.send(1, &round.to_be_bytes()).unwrap();
+            expect(a, 2, &round.to_be_bytes());
+            round += 1;
+            std::thread::sleep(Duration::from_millis(250));
+        }
+    }
+
+    fn until_fatal(t: &TurnTransport, within: Duration) -> io::Error {
+        let start = Instant::now();
+        loop {
+            match t.send(2, b"is anyone there") {
+                Err(e) => return e,
+                Ok(()) => {
+                    assert!(start.elapsed() < within, "the failure never surfaced");
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+        }
+    }
+
     #[test]
     #[ignore = "needs docker and the coturn/coturn image"]
     fn docker_coturn_refresh_keeps_short_lifetimes_alive() {
@@ -1149,51 +1361,127 @@ mod tests {
             permission_every: Duration::from_secs(3),
             channel_every: Duration::from_secs(3),
             channel_lifetime: Duration::from_secs(6),
+            liveness: Duration::from_secs(3),
             tick: Duration::from_millis(250),
             channels: true,
-            refresh_cap: Some(Duration::from_secs(3)),
         };
         let (a, b) = (server.connect(short), server.connect(short));
         pair(&a, &b);
         wait_bound(&a, 2);
         wait_bound(&b, 1);
-        let start = Instant::now();
-        let mut round = 0u32;
-        while start.elapsed() < Duration::from_secs(20) {
-            a.send(2, &round.to_be_bytes()).unwrap();
-            expect(&b, 1, &round.to_be_bytes());
-            b.send(1, &round.to_be_bytes()).unwrap();
-            expect(&a, 2, &round.to_be_bytes());
-            round += 1;
-            std::thread::sleep(Duration::from_millis(250));
-        }
+        ping_pong(&a, &b, Duration::from_secs(20));
         let stats = a.stats();
         assert!(stats.refreshes >= 4, "{stats:?}");
         assert!(stats.bindings >= 4, "{stats:?}");
         assert!(stats.stale_nonces >= 2, "{stats:?}");
         assert_eq!(stats.indication_sends, 0, "{stats:?}");
         assert!(a.channel_bound(2) && b.channel_bound(1));
+    }
 
+    #[test]
+    #[ignore = "needs docker and the coturn/coturn image"]
+    fn docker_coturn_forbidden_peer_does_not_block_the_others() {
+        let server = Coturn::start(
+            "swofty-turn-test-forbidden",
+            34980,
+            &["--permission-lifetime=6", "--denied-peer-ip=10.99.0.1"],
+        );
+        let timing = Timing {
+            permission_every: Duration::from_secs(3),
+            tick: Duration::from_millis(250),
+            channels: false,
+            ..TIMING
+        };
+        let (a, b) = (server.connect(timing), server.connect(timing));
+        let bogus: SocketAddr = "10.99.0.1:5000".parse().unwrap();
+        let err = a
+            .set_peers(&HashMap::from([(2, b.local_addr()), (3, bogus)]))
+            .unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::AddrNotAvailable, "{err}");
+        assert!(err.to_string().contains("member 3"), "{err}");
+        assert!(!err.to_string().contains("member 2"), "{err}");
+        b.set_peers(&HashMap::from([(1, a.local_addr())])).unwrap();
+        ping_pong(&a, &b, Duration::from_secs(14));
+        assert!(a.stats().permissions >= 4, "{:?}", a.stats());
+        assert!(!a.needs_reconnect());
+    }
+
+    #[test]
+    #[ignore = "needs docker and the coturn/coturn image"]
+    fn docker_coturn_lost_allocation_surfaces_within_seconds() {
+        let server = Coturn::start("swofty-turn-test-liveness", 35180, &[]);
+        let timing = Timing {
+            liveness: Duration::from_secs(2),
+            tick: Duration::from_millis(250),
+            ..TIMING
+        };
+        let (a, b) = (server.connect(timing), server.connect(timing));
+        pair(&a, &b);
+        wait_bound(&a, 2);
+        ping_pong(&a, &b, Duration::from_secs(1));
         let restart = std::process::Command::new("docker")
             .args(["restart", "-t", "0", server.name])
             .output()
             .unwrap();
         assert!(restart.status.success());
-        let start = Instant::now();
-        let err = loop {
-            match a.send(2, b"after the server forgot us") {
-                Err(e) => break e,
-                Ok(()) => {
-                    assert!(
-                        start.elapsed() < Duration::from_secs(15),
-                        "allocation loss never surfaced"
-                    );
-                    std::thread::sleep(Duration::from_millis(100));
-                }
-            }
-        };
+        let err = until_fatal(&a, Duration::from_secs(10));
         assert_eq!(err.kind(), io::ErrorKind::ConnectionAborted, "{err}");
+        assert!(a.needs_reconnect());
         let mut buf = [0u8; 16];
         assert!(a.recv(&mut buf, Duration::from_secs(1)).is_err());
+    }
+
+    fn fake_turn_rejecting_refreshes() -> SocketAddr {
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let addr = socket.local_addr().unwrap();
+        socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 2048];
+            let mut nonces = 0u32;
+            while let Ok((n, from)) = socket.recv_from(&mut buf) {
+                let Some(req) = Message::parse(&buf[..n]).filter(|m| m.class == Class::Request) else {
+                    continue;
+                };
+                let reply = if req.method == method::ALLOCATE {
+                    Builder::new(req.method, Class::Success, req.transaction)
+                        .address(attr::XOR_RELAYED_ADDRESS, "127.0.0.1:40000".parse().unwrap())
+                        .u32(attr::LIFETIME, 600)
+                        .finish()
+                } else {
+                    nonces += 1;
+                    Builder::new(req.method, Class::Error, req.transaction)
+                        .attr(attr::ERROR_CODE, b"\0\0\x04\x01Unauthorized")
+                        .attr(attr::REALM, b"fake")
+                        .attr(attr::NONCE, format!("nonce-{nonces}").as_bytes())
+                        .finish()
+                };
+                let _ = socket.send_to(&reply, from);
+            }
+        });
+        addr
+    }
+
+    #[test]
+    fn rejected_credentials_on_refresh_need_a_reconnect() {
+        let server = fake_turn_rejecting_refreshes();
+        let timing = Timing {
+            liveness: Duration::from_millis(200),
+            tick: Duration::from_millis(50),
+            ..TIMING
+        };
+        let urls = [format!("turn:{server}?transport=udp")];
+        let t = TurnTransport::connect_with(&urls, "u", "expired", timing).unwrap();
+        let start = Instant::now();
+        while !t.needs_reconnect() {
+            assert!(start.elapsed() < Duration::from_secs(5), "{:?}", t.stats());
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let err = t.send(1, b"x").unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::PermissionDenied, "{err}");
+        let mut buf = [0u8; 8];
+        assert_eq!(
+            t.recv(&mut buf, Duration::ZERO).unwrap_err().kind(),
+            io::ErrorKind::PermissionDenied
+        );
     }
 }
