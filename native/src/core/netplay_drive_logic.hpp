@@ -280,6 +280,19 @@ enum class Step { none, open_local_mp, wait_local_mp, switch_lan, check_lan, fir
                   wait_ip_prompt, answer_ip, wait_lobby, finished };
 enum class Do { nothing, fire_local_mp, mode_switch, fire_lan, answer_dialog, answer_ip };
 
+inline const char *do_name(Do d)
+{
+    switch (d) {
+    case Do::nothing: return "nothing";
+    case Do::fire_local_mp: return "open Local Multiplayer";
+    case Do::mode_switch: return "switch to LAN mode";
+    case Do::fire_lan: return "open LAN Game";
+    case Do::answer_dialog: return "answer the LAN Game dialog";
+    case Do::answer_ip: return "enter the host IP";
+    default: return "unknown";
+    }
+}
+
 struct Facts {
     bool local_mp = false;
     bool lan_mode = false;
