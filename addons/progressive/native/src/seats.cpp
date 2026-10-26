@@ -264,6 +264,142 @@ bool patch_u8(uintptr_t at, size_t offset, uint8_t value)
     return true;
 }
 
+namespace {
+
+constexpr uintptr_t kVtRegistryValue = 0x108; // entity component registry vtable slot: the contract state value
+constexpr uint8_t kContractReleased = 3;
+constexpr uint8_t kContractRenewed = 4;
+constexpr uint8_t kContractLeft = 5;
+constexpr size_t kContractSlot = 16;
+static_assert(kContractRecord == 0x2c && sizeof(DriverContractChangedMessage) == 0x78);
+
+using RegistryValueFn = uint32_t (*)(void *registry);
+
+bool same_key(uint32_t a, uint32_t b)
+{
+    return ((a ^ b) & 0xffff00ffu) == 0;
+}
+
+bool contract_clock(uintptr_t e, uintptr_t manager, uint16_t &day, uint32_t &value)
+{
+    uintptr_t time = rdv<uintptr_t>(manager + offsetof(DriverCareerContractsManagerComponent, career_time));
+    uintptr_t registry = e + offsetof(CareerEntity, component_registry);
+    uintptr_t vt = rdv<uintptr_t>(registry);
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtRegistryValue) : 0;
+    if (!time || !swofty::mem::in_image(fn))
+        return false;
+    value = reinterpret_cast<RegistryValueFn>(fn)(reinterpret_cast<void *>(registry));
+    day = static_cast<uint16_t>(rdv<uint32_t>(time + offsetof(CareerTimeComponent, current_minutes)) / kMinutesPerDay);
+    return true;
+}
+
+} // namespace
+
+bool contract_objects(uintptr_t manager, std::vector<uintptr_t> &out)
+{
+    out.clear();
+    uintptr_t owner = manager ? rdv<uintptr_t>(manager + offsetof(DriverCareerContractsManagerComponent, contract_owner)) : 0;
+    uintptr_t b = owner ? rdv<uintptr_t>(owner + offsetof(DriverCareerContractOwner, contracts_begin)) : 0;
+    uintptr_t en = owner ? rdv<uintptr_t>(owner + offsetof(DriverCareerContractOwner, contracts_end)) : 0;
+    if (!b || en < b || (en - b) % kContractSlot || (en - b) / kContractSlot > 4096 || !swofty::mem::readable(b, en - b))
+        return false;
+    for (uintptr_t p = b; p < en; p += kContractSlot)
+        if (uintptr_t c = rdv<uintptr_t>(p + sizeof(void *)); c && swofty::mem::readable(c, sizeof(DriverContract)))
+            out.push_back(c);
+    return true;
+}
+
+uintptr_t contract_of(const std::vector<uintptr_t> &objects, uint32_t driver)
+{
+    for (uintptr_t c : objects)
+        if (same_key(rdv<uint32_t>(c + offsetof(DriverContract, driver)), driver))
+            return c;
+    return 0;
+}
+
+bool contract_fits(uintptr_t contract, uint32_t team)
+{
+    return contract && rdv<uint8_t>(contract + offsetof(DriverContract, active)) &&
+           same_key(rdv<uint32_t>(contract + offsetof(DriverContract, team)), team);
+}
+
+const char *plan_signing(const std::vector<uintptr_t> &objects, uint32_t human, uint32_t driver, uint32_t outgoing,
+                         uint32_t team, Signing &s)
+{
+    s.driver = driver;
+    s.contract = contract_of(objects, driver);
+    if (!s.contract)
+        return "the game keeps no contract for him";
+    if (!writable(s.contract, offsetof(DriverContract, active) + 1))
+        return "his contract is not writable";
+    uintptr_t terms = 0;
+    for (uintptr_t c : objects) {
+        uint32_t d = rdv<uint32_t>(c + offsetof(DriverContract, driver));
+        if (!contract_fits(c, team))
+            continue;
+        if (same_key(d, outgoing)) {
+            terms = c;
+            break;
+        }
+        if (!terms && !same_key(d, human))
+            terms = c;
+    }
+    if (!terms || !swofty::mem::read(terms, s.offer))
+        return "no driver holds an active contract with that team to copy the terms from";
+    return nullptr;
+}
+
+bool sign_contract(uintptr_t e, uintptr_t manager, const Signing &s)
+{
+    using C = DriverContract;
+    uint16_t day;
+    uint32_t value;
+    if (!contract_clock(e, manager, day, value) || !writable(s.contract, offsetof(C, active) + 1) ||
+        !vt_Career_MessageDriverContractChanged.address())
+        return false;
+    uint8_t offer[kContractRecord];
+    std::memcpy(offer, s.offer, sizeof offer);
+    std::memcpy(offer + offsetof(C, signed_day), &day, sizeof day);
+    uint32_t team;
+    std::memcpy(&team, offer + offsetof(C, team), sizeof team);
+    bool same = same_key(rdv<uint32_t>(s.contract + offsetof(C, team)), team);
+    Career_Set_DriverContractState(reinterpret_cast<void *>(s.contract), day, same ? kContractRenewed : kContractLeft,
+                                   value);
+    if (rdv<uint8_t>(s.contract + offsetof(C, active)))
+        return false;
+    DriverContractChangedMessage m{};
+    m.vtable = vt_Career_MessageDriverContractChanged.get();
+    m.driver = rdv<uint32_t>(s.contract + offsetof(C, driver));
+    std::memcpy(m.before, reinterpret_cast<const void *>(s.contract), sizeof m.before);
+    std::memcpy(reinterpret_cast<void *>(s.contract), offer, sizeof offer);
+    *reinterpret_cast<uint8_t *>(s.contract + offsetof(C, active)) = 1;
+    std::memcpy(m.after, offer, sizeof m.after);
+    m.kind = offer[offsetof(C, kind)];
+    return swofty::career::post(&m) == swofty::career::Result::ok;
+}
+
+bool release_contract(uintptr_t e, uintptr_t manager, uint32_t driver, bool &found)
+{
+    found = false;
+    std::vector<uintptr_t> objects;
+    uint16_t day;
+    uint32_t value;
+    if (!contract_objects(manager, objects) || !contract_clock(e, manager, day, value))
+        return false;
+    uintptr_t contract = contract_of(objects, driver);
+    if (!contract)
+        return true;
+    Career_Set_DriverContractState(reinterpret_cast<void *>(contract), day, kContractReleased, value);
+    found = true;
+    return true;
+}
+
+uintptr_t car_numbers(uintptr_t e, uintptr_t manager)
+{
+    uintptr_t c = manager ? rdv<uintptr_t>(manager + offsetof(DriverCareerContractsManagerComponent, car_numbers)) : 0;
+    return c && swofty::mem::object_like(c) && rdv<uintptr_t>(c + offsetof(CarNumberComponent, entity)) == e ? c : 0;
+}
+
 Baseline::Baseline(const std::vector<Row> &rows)
 {
     for (auto &r : rows)

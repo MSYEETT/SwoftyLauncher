@@ -2,21 +2,126 @@
   "schema_version": 1,
   "id": "swofty.progressive",
   "name": "Progressive Career",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Swofty",
   "description": "A Driver Career that starts in any season from 2016 to 2026 as a real driver and moves through the real seasons: each year's cars, liveries, helmets and line-ups, then 2026 from there on.",
   "license": "AGPL-3.0-or-later",
   "category": "seasons",
-  "kind": ["native", "database", "text"],
-  "compat": { "game": "f1_25", "game_builds": [">=25251167"], "seasons": ["f1_2026"], "launcher": ">=1.5.10" },
-  "requires": [
-    { "id": "swofty.core", "version": ">=0.2.13" },
-    { "id": "swofty.classic-seasons", "version": ">=0.5.1" }
+  "kind": [
+    "native",
+    "database",
+    "text"
   ],
-  "saves": { "affects": true, "message": "Progressive careers won't load without it." },
+  "compat": {
+    "game": "f1_25",
+    "game_builds": [
+      ">=25251167"
+    ],
+    "seasons": [
+      "f1_2026"
+    ],
+    "launcher": ">=1.5.10"
+  },
+  "requires": [
+    {
+      "id": "swofty.core",
+      "version": ">=0.2.13"
+    },
+    {
+      "id": "swofty.classic-seasons",
+      "version": ">=0.5.1"
+    }
+  ],
+  "saves": {
+    "affects": true,
+    "message": "Progressive careers won't load without it."
+  },
+  "options": [
+    {
+      "id": "start_season",
+      "type": "choice",
+      "label": "Starting season",
+      "description": "The real season a new Progressive career starts in. Each new season moves on a year, up to 2026.",
+      "default": "2026",
+      "values": [
+        "2016",
+        "2017",
+        "2018",
+        "2019",
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "binds": "native"
+    },
+    {
+      "id": "rnd_mode",
+      "type": "choice",
+      "label": "R&D",
+      "description": "Real life: each season's car brings that year's pace and R&D is off. Base: the stock R&D on top of the year's car. Hybrid: per-season budgets from the year's real pace.",
+      "default": "real_life",
+      "values": [
+        {
+          "value": "real_life",
+          "label": "Real life"
+        },
+        {
+          "value": "base",
+          "label": "Base"
+        },
+        {
+          "value": "hybrid",
+          "label": "Hybrid"
+        }
+      ],
+      "binds": "native"
+    },
+    {
+      "id": "team_moves",
+      "type": "choice",
+      "label": "Team moves",
+      "description": "Follow your driver's real career from team to team, or choose your team from the offers.",
+      "default": "follow_driver",
+      "values": [
+        {
+          "value": "follow_driver",
+          "label": "Follow your driver's real career"
+        },
+        {
+          "value": "choose",
+          "label": "Choose your team"
+        }
+      ],
+      "binds": "native"
+    },
+    {
+      "id": "season_visuals",
+      "type": "toggle",
+      "label": "Season cars and helmets",
+      "description": "Experimental: each season also brings that year's cars, liveries and helmets.",
+      "default": false,
+      "binds": "native"
+    }
+  ],
   "operations": {
-    "database": ["db/career.json", "db/grid.json"],
-    "assets": ["lang/career.json"],
-    "native": [{ "dll": "native/progressive.dll", "files": ["data/"] }]
+    "database": [
+      "db/career.json",
+      "db/grid.json"
+    ],
+    "assets": [
+      "lang/career.json"
+    ],
+    "native": [
+      {
+        "dll": "native/progressive.dll",
+        "files": [
+          "data/"
+        ]
+      }
+    ]
   }
 }

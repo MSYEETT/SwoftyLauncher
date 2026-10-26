@@ -116,6 +116,32 @@ class Baseline {
     Vec vec_;
 };
 
+// Driver Career contracts (DriverCareerContractsManagerComponent +0x350 owner, a DriverContract per
+// row). A driver who takes a race seat signs that team's terms the way the game's signing
+// (0x140d77a70..0x140d77cbb) adds a contract: the terms of the outgoing driver's active contract for
+// the team, else another AI driver's; his own contract ends (state 4 same team, 5 another team), the
+// terms are copied in, set active and announced with MessageDriverContractChanged. A driver taken off
+// the grid has his contract released (state 3), as the game's replace does.
+constexpr size_t kContractRecord = offsetof(swofty::game::DriverContract, active);
+
+struct Signing {
+    uint32_t driver = 0;
+    uintptr_t contract = 0;
+    uint8_t offer[kContractRecord] = {};
+};
+
+bool contract_objects(uintptr_t manager, std::vector<uintptr_t> &out);
+uintptr_t contract_of(const std::vector<uintptr_t> &objects, uint32_t driver);
+bool contract_fits(uintptr_t contract, uint32_t team);
+const char *plan_signing(const std::vector<uintptr_t> &objects, uint32_t human, uint32_t driver, uint32_t outgoing,
+                         uint32_t team, Signing &s);
+bool sign_contract(uintptr_t entity, uintptr_t manager, const Signing &s);
+bool release_contract(uintptr_t entity, uintptr_t manager, uint32_t driver, bool &found);
+
+// Career_DriverNumbers_CheckExisting(CarNumberComponent, driver): the game's signings give a seated
+// row without a number a free one after its entrant write.
+uintptr_t car_numbers(uintptr_t entity, uintptr_t manager);
+
 uint64_t lineup_changes(uintptr_t entity, const Baseline &baseline);
 bool finalise(uintptr_t entity, const Baseline &baseline, uint64_t &changes);
 

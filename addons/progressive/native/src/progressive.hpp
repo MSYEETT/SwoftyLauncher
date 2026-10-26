@@ -17,4 +17,9 @@ void report(const char *why, const swofty::career::State &state);
 void probe(const swofty::career::State &state);
 void forget_career();
 
+bool progressive_career();
+void season_loaded(const swofty::career::State &state);
+void season_unloaded();
+void season_hub(const swofty::career::State &state);
+
 } // namespace pg
