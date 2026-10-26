@@ -70,6 +70,8 @@ const SwoftyTelemetry *telemetry_table();
 const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
 const SwoftyCareer *career_table();
+const SwoftyLang *lang_table();
+void lang_override_setup();
 const json::Value &sdk();
 void ready();
 void assets_setup();

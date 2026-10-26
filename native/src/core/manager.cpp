@@ -29,6 +29,7 @@ const SwoftyTelemetry *telemetry_table();
 const SwoftyDb *db_table();
 const SwoftyStorage *storage_table();
 const SwoftyCareer *career_table();
+const SwoftyLang *lang_table();
 struct CoreMixins {
     const char *name;
     std::vector<SwoftyMixin> mixins;
@@ -1307,6 +1308,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->db = runtime::db_table();
     a->storage = runtime::storage_table();
     a->career = runtime::career_table();
+    a->lang = runtime::lang_table();
     a->version = SWOFTY_API_VERSION;
     for (auto &c : runtime::career_mixins()) {
         Addon own{c.name, {}, true};
