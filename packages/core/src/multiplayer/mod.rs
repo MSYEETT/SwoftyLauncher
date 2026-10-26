@@ -8,3 +8,4 @@ pub mod seal;
 pub mod stun;
 pub mod transport;
 pub mod turn;
+pub mod ws;
