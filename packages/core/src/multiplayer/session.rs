@@ -573,6 +573,7 @@ struct Worker {
     game_status: Option<GameStatus>,
     configured: bool,
     driven: Option<Instant>,
+    entering: Option<mpsc::Receiver<Result<GameStatus, game::Error>>>,
     seen_in_session: bool,
     paused: Option<String>,
     mismatches: Vec<Mismatch>,
@@ -615,6 +616,7 @@ impl Worker {
             game_status: None,
             configured: false,
             driven: None,
+            entering: None,
             seen_in_session: false,
             paused: None,
             mismatches: Vec::new(),
@@ -670,7 +672,12 @@ impl Worker {
             }
             Err(Halt::Game(why)) => {
                 self.phase = Phase::WaitingForGame(why);
-                self.next_step = now + GAME_RETRY;
+                let after = if self.entering.is_some() {
+                    TICK * 4
+                } else {
+                    GAME_RETRY
+                };
+                self.next_step = now + after;
             }
             Err(Halt::Retry(why, after)) => {
                 self.failures += 1;
@@ -886,17 +893,46 @@ impl Worker {
             .collect()
     }
 
+    /// Configure the game's room, then host or join on a thread of its own: the game answers
+    /// those only once its LAN lobby is up (the host first picks a car category), and the lobby
+    /// and bridge must keep up with members meanwhile.
     fn drive_game(&mut self) -> Result<(), Halt> {
+        let what = if self.hosting() { "host" } else { "join" };
+        if let Some(pending) = &self.entering {
+            let answer = match pending.try_recv() {
+                Ok(answer) => answer,
+                Err(mpsc::TryRecvError::Empty) => {
+                    return Err(Halt::Game(if self.hosting() {
+                        "pick the car category in the game to open the LAN lobby".into()
+                    } else {
+                        "joining the host's LAN lobby in the game".into()
+                    }));
+                }
+                Err(mpsc::TryRecvError::Disconnected) => Err(game::Error::Timeout(Duration::ZERO)),
+            };
+            self.entering = None;
+            return match answer {
+                Ok(status) => {
+                    self.game_status = Some(status);
+                    self.driven = Some(Instant::now());
+                    self.seen_in_session = false;
+                    Ok(())
+                }
+                Err(e) => {
+                    let (why, status) = refused(e);
+                    self.game_status = status.or(self.game_status.take());
+                    Err(Halt::Game(format!(
+                        "the game didn't {what} the LAN session: {why}"
+                    )))
+                }
+            };
+        }
         if !self.hosting() {
             self.check_host()?;
         }
         self.require_main_menu()?;
         let me = self.self_number().expect("bridge started");
         let base = self.bridge.as_ref().map(Bridge::base).expect("bridge started");
-        let refused = |e: game::Error| match e {
-            game::Error::Refused { why, status, .. } => (why, Some(status)),
-            e => (e.to_string(), None),
-        };
         match self.setup.game.configure(me, base) {
             Ok(status) => self.game_status = Some(status),
             Err(e) => {
@@ -908,26 +944,25 @@ impl Worker {
             }
         }
         self.configured = true;
-        let sent = if self.hosting() {
-            let category = self.category();
-            self.setup.game.host(category)
-        } else {
-            self.setup.game.join(HOST_IP)
-        };
-        match sent {
-            Ok(status) => self.game_status = Some(status),
-            Err(e) => {
-                let (why, status) = refused(e);
-                self.game_status = status.or(self.game_status.take());
-                let what = if self.hosting() { "host" } else { "join" };
-                return Err(Halt::Game(format!(
-                    "the game didn't {what} the LAN session: {why}"
-                )));
-            }
+        let (tx, rx) = mpsc::channel();
+        let game = self.setup.game.clone();
+        let command = if self.hosting() { None } else { Some(HOST_IP) };
+        let category = self.category();
+        let spawned = thread::Builder::new().name("mp-game".into()).spawn(move || {
+            let answer = match command {
+                None => game.host(category),
+                Some(ip) => game.join(ip),
+            };
+            let _ = tx.send(answer);
+        });
+        if let Err(e) = spawned {
+            return Err(Halt::Retry(
+                format!("couldn't start the game command: {e}"),
+                GAME_RETRY,
+            ));
         }
-        self.driven = Some(Instant::now());
-        self.seen_in_session = false;
-        Ok(())
+        self.entering = Some(rx);
+        Err(Halt::Step(format!("asking the game to {what}"), Duration::ZERO))
     }
 
     fn category(&self) -> Category {
@@ -1456,6 +1491,13 @@ fn final_close(code: Option<u16>) -> Option<&'static str> {
     }
 }
 
+fn refused(e: game::Error) -> (String, Option<GameStatus>) {
+    match e {
+        game::Error::Refused { why, status, .. } => (why, Some(status)),
+        e => (e.to_string(), None),
+    }
+}
+
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
@@ -1478,6 +1520,7 @@ mod tests {
         socket: UdpSocket,
         status: Mutex<GameStatus>,
         log: Mutex<Vec<String>>,
+        host_delay: Mutex<Duration>,
     }
 
     impl FakeGame {
@@ -1499,6 +1542,7 @@ mod tests {
                     base: 0,
                 }),
                 log: Mutex::new(Vec::new()),
+                host_delay: Mutex::new(Duration::ZERO),
             })
         }
 
@@ -1550,6 +1594,8 @@ mod tests {
         }
 
         fn host(&self, category: Category) -> Result<GameStatus, game::Error> {
+            let delay = *lock(&self.host_delay);
+            thread::sleep(delay);
             self.enter(format!("host {category}"), Role::Host)
         }
 
@@ -1805,6 +1851,28 @@ mod tests {
         game.set_screen(Screen::MainMenu);
         wait_until(&host, "the lobby", in_lobby);
         assert!(server.has_room());
+    }
+
+    #[test]
+    fn the_session_keeps_up_while_the_game_opens_its_lobby() {
+        let server = server();
+        let (host_game, guest_game) = (FakeGame::new("host-slow"), FakeGame::new("guest-slow"));
+        *lock(&host_game.host_delay) = Duration::from_millis(1500);
+        let host = Session::create(
+            setup(&server.url, "host-token", &host_game, print(&[])),
+            RoomSettings::default(),
+        );
+        let state = wait_until(
+            &host,
+            "the category pick",
+            |s| matches!(&s.phase, Phase::WaitingForGame(why) if why.contains("car category")),
+        );
+        let code = state.room.unwrap().code;
+        let guest = Session::join(setup(&server.url, "guest-token", &guest_game, print(&[])), &code);
+        let during = wait_until(&host, "the guest's relay while hosting", both_relays_ready);
+        assert!(matches!(during.phase, Phase::WaitingForGame(_)));
+        wait_until(&host, "the host's lobby", in_lobby);
+        wait_until(&guest, "the guest's lobby", in_lobby);
     }
 
     #[test]
