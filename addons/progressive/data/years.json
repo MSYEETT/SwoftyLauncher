@@ -239,6 +239,7 @@
   "filler": "slot 11 in 2017-2025: the 2016 Manor car, drivers chosen at run time (DESIGN D7)",
   "logo_keys": "Classic Seasons team logo keys present in driver_career_2024_team_select, badges_broadcast and driver_select_team_logos; a season team's cs_team outside this list keeps its stock logo",
   "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
+  "development": "in-season pace of a real team relative to the year's car: checkpoints {at: 0..1 of the season, delta_pct: qualifying gap % minus the team's season mean, > 0 slower}; null without data (2026, the filler)",
   "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries (data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track `track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his real `number` and `look` (that team and year, else that team's nearest year, else his look that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in (`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
   "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver"
  },
@@ -289,7 +290,34 @@
        },
        "rating": 88.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.0
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -335,7 +363,34 @@
        },
        "rating": 86.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.229
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.211
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.107
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.008
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.081
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -381,7 +436,34 @@
        },
        "rating": 90.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.802
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.238
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.028
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.282
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.31
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -427,7 +509,34 @@
        },
        "rating": 85.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.389
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.002
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.135
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.295
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.038
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -473,7 +582,34 @@
        },
        "rating": 87.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.372
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.222
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.201
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.093
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.042
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -519,7 +655,34 @@
        },
        "rating": 76.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.439
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.005
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.41
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.348
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.383
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -565,7 +728,34 @@
        },
        "rating": 87.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.298
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.152
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.215
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.038
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.399
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -611,7 +801,34 @@
        },
        "rating": 84.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.2
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.204
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.076
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.451
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.028
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -657,7 +874,34 @@
        },
        "rating": 80.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.211
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.167
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.122
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.112
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.388
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -703,7 +947,34 @@
        },
        "rating": 77.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.391
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.117
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.416
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.143
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.286
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -749,7 +1020,34 @@
        },
        "rating": 80.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.485
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.421
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.611
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.102
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.398
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     }
    ],
    "stand_ins": [
@@ -1021,7 +1319,34 @@
        },
        "rating": 86.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.0
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -1067,7 +1392,34 @@
        },
        "rating": 85.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.088
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.086
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.026
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.127
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.021
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -1113,7 +1465,34 @@
        },
        "rating": 91.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.614
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.077
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.009
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.398
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.284
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -1159,7 +1538,34 @@
        },
        "rating": 82.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 1.1
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.301
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.157
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.749
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.495
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -1205,7 +1611,34 @@
        },
        "rating": 85.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.599
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.304
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.278
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.14
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.432
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -1251,7 +1684,34 @@
        },
        "rating": 76.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.047
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.576
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.025
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.413
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.185
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -1297,7 +1757,34 @@
        },
        "rating": 76.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.432
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.325
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 1.129
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.1
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.272
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 17,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -1343,7 +1830,34 @@
        },
        "rating": 85.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.097
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.145
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.041
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.127
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.411
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -1389,7 +1903,34 @@
        },
        "rating": 83.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.118
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.175
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.454
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.25
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.412
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 17,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -1435,7 +1976,34 @@
        },
        "rating": 76.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.503
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.037
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.113
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.582
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.071
+       }
+      ],
+      "rounds": 20,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -1453,7 +2021,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -1782,7 +2351,34 @@
        },
        "rating": 87.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.099
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.018
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.06
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.058
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.083
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -1828,7 +2424,34 @@
        },
        "rating": 85.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.172
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.076
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.146
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.132
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.11
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -1874,7 +2497,34 @@
        },
        "rating": 92.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.165
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.302
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.042
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.486
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.061
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -1920,7 +2570,34 @@
        },
        "rating": 82.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.34
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.364
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.097
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.507
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.294
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -1966,7 +2643,34 @@
        },
        "rating": 86.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.143
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.076
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.349
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.011
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.119
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -2012,7 +2716,34 @@
        },
        "rating": 86.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.525
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.072
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.014
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.505
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.079
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -2058,7 +2789,34 @@
        },
        "rating": 78.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.041
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.442
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.119
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.113
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.17
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -2104,7 +2862,34 @@
        },
        "rating": 80.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.155
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.173
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.004
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.245
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.232
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -2150,7 +2935,34 @@
        },
        "rating": 88.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.919
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.074
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.218
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.077
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.698
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -2196,7 +3008,34 @@
        },
        "rating": 76.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.114
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.268
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.501
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.148
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.2
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -2214,7 +3053,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [],
@@ -2374,7 +3214,34 @@
        },
        "rating": 87.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.119
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.119
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.107
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.2
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.144
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -2420,7 +3287,34 @@
        },
        "rating": 88.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.043
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.565
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.004
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.358
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.168
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -2466,7 +3360,34 @@
        },
        "rating": 84.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.149
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.563
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.303
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.171
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.579
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -2512,7 +3433,34 @@
        },
        "rating": 87.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.126
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.195
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.219
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.071
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.032
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -2558,7 +3506,34 @@
        },
        "rating": 79.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.327
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.507
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.027
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.096
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.057
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -2604,7 +3579,34 @@
        },
        "rating": 87.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.066
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.188
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.054
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.164
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.231
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -2650,7 +3652,34 @@
        },
        "rating": 84.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.214
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.562
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.566
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.178
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.387
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -2696,7 +3725,34 @@
        },
        "rating": 83.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.349
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.2
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.063
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.325
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.239
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -2742,7 +3798,34 @@
        },
        "rating": 86.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.299
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.49
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.507
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.06
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.376
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -2788,7 +3871,34 @@
        },
        "rating": 78.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.215
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.175
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.338
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.138
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.24
+       }
+      ],
+      "rounds": 21,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -2806,7 +3916,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -3020,7 +4131,34 @@
        },
        "rating": 87.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.0
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -3066,7 +4204,34 @@
        },
        "rating": 89.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.242
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.401
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.435
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.423
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.655
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -3112,7 +4277,34 @@
        },
        "rating": 84.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.244
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.326
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.006
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.071
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.506
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -3158,7 +4350,34 @@
        },
        "rating": 88.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.152
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.465
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.121
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.016
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.418
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -3204,7 +4423,34 @@
        },
        "rating": 82.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.584
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.05
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.129
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.006
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.411
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -3250,7 +4496,34 @@
        },
        "rating": 85.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.38
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.0
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.103
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.104
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.173
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -3296,7 +4569,34 @@
        },
        "rating": 80.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.211
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.032
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.109
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.341
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.011
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -3342,7 +4642,34 @@
        },
        "rating": 83.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.621
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.058
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.308
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.336
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.652
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -3388,7 +4715,34 @@
        },
        "rating": 87.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.932
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.081
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.043
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.272
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.621
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 14,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -3434,7 +4788,34 @@
        },
        "rating": 77.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.384
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.128
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.121
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.2
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.065
+       }
+      ],
+      "rounds": 17,
+      "rounds_used": 15,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -3452,7 +4833,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -3725,7 +5107,34 @@
        },
        "rating": 86.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.065
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.231
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.037
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.065
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.065
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -3771,7 +5180,34 @@
        },
        "rating": 88.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.197
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.004
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.219
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.214
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.188
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -3817,7 +5253,34 @@
        },
        "rating": 85.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.186
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.233
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.028
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.163
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.228
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -3863,7 +5326,34 @@
        },
        "rating": 87.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.216
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.394
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.274
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.092
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.244
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -3909,7 +5399,34 @@
        },
        "rating": 81.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.233
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.351
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.091
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.133
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.543
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -3955,7 +5472,34 @@
        },
        "rating": 85.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.307
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.236
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.054
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.503
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.013
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -4001,7 +5545,34 @@
        },
        "rating": 81.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.063
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.647
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.619
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.535
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.668
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -4047,7 +5618,34 @@
        },
        "rating": 80.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.014
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.286
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.178
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.013
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.107
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -4093,7 +5691,34 @@
        },
        "rating": 89.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.076
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.326
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.171
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.29
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.283
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -4139,7 +5764,34 @@
        },
        "rating": 65.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.154
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.248
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.292
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.045
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.066
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -4157,7 +5809,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -4352,7 +6005,34 @@
        },
        "rating": 88.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.116
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.122
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.111
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.155
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.282
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -4398,7 +6078,34 @@
        },
        "rating": 88.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.016
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.016
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.035
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.001
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.003
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -4444,7 +6151,34 @@
        },
        "rating": 86.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.002
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.221
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.034
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.123
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.134
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -4490,7 +6224,34 @@
        },
        "rating": 86.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.398
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.481
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.203
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.033
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.254
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -4536,7 +6297,34 @@
        },
        "rating": 81.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.146
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.317
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.706
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.45
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.693
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -4582,7 +6370,34 @@
        },
        "rating": 85.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.284
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.332
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.038
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.171
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.257
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -4628,7 +6443,34 @@
        },
        "rating": 81.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.215
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.748
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.013
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.631
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.319
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -4674,7 +6516,34 @@
        },
        "rating": 82.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.603
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.193
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.456
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.067
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.114
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -4720,7 +6589,34 @@
        },
        "rating": 83.5
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.717
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.316
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.034
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.466
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.1
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -4766,7 +6662,34 @@
        },
        "rating": 72.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.464
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.174
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.077
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.288
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.079
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -4784,7 +6707,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -5007,7 +6931,34 @@
        },
        "rating": 89.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.206
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.166
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.247
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.0
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.125
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -5053,7 +7004,34 @@
        },
        "rating": 88.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.062
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.089
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.252
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.136
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.238
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -5099,7 +7077,34 @@
        },
        "rating": 85.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.042
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.042
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.04
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.034
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.159
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -5145,7 +7150,34 @@
        },
        "rating": 89.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 1.06
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.05
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.553
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.115
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.343
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -5191,7 +7223,34 @@
        },
        "rating": 79.4
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.285
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.035
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.004
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.237
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.079
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -5237,7 +7296,34 @@
        },
        "rating": 85.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.118
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.227
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.383
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.054
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.221
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -5283,7 +7369,34 @@
        },
        "rating": 79.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.007
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.009
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.354
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.24
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.597
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -5329,7 +7442,34 @@
        },
        "rating": 67.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.182
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.212
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.219
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.043
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.571
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -5375,7 +7515,34 @@
        },
        "rating": 83.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.474
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.305
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.988
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.568
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.359
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 18,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -5421,7 +7588,34 @@
        },
        "rating": 76.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.17
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.073
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.234
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.532
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.523
+       }
+      ],
+      "rounds": 22,
+      "rounds_used": 19,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -5439,7 +7633,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -5660,7 +7855,34 @@
        },
        "rating": 89.8
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.288
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.092
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.17
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.035
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.33
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 24,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -5706,7 +7928,34 @@
        },
        "rating": 88.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.016
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.081
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.333
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.133
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.103
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 24,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -5752,7 +8001,34 @@
        },
        "rating": 85.9
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.168
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.14
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.138
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.254
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.192
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 23,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -5798,7 +8074,34 @@
        },
        "rating": 89.2
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.228
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.08
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.138
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.299
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.014
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 24,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -5844,7 +8147,34 @@
        },
        "rating": 79.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.462
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.09
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.045
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.078
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.249
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 23,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -5890,7 +8220,34 @@
        },
        "rating": 85.3
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.466
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.473
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.043
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.275
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.225
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -5936,7 +8293,34 @@
        },
        "rating": 81.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.277
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.148
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.032
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.186
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.09
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 24,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -5982,7 +8366,34 @@
        },
        "rating": 80.7
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.04
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.353
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.242
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.263
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.192
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 24,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -6028,7 +8439,34 @@
        },
        "rating": 83.1
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.121
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.358
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.055
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.324
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.617
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -6074,7 +8512,34 @@
        },
        "rating": 78.6
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.18
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.008
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.171
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.014
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.346
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 23,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -6092,7 +8557,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -6425,7 +8891,34 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.145
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.149
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.083
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.01
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.201
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 2,
@@ -6472,7 +8965,34 @@
        },
        "rating": 87.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.123
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.296
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.158
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.157
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.142
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 3,
@@ -6519,7 +9039,34 @@
        },
        "rating": 85.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.044
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.086
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.101
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.238
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.095
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 4,
@@ -6566,7 +9113,34 @@
        },
        "rating": 94.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.041
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.041
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.041
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.162
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.041
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 5,
@@ -6613,7 +9187,34 @@
        },
        "rating": 87.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.199
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.068
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.132
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.226
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.091
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 6,
@@ -6660,7 +9261,34 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.241
+       },
+       {
+        "at": 0.3,
+        "delta_pct": -0.087
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.141
+       },
+       {
+        "at": 0.7,
+        "delta_pct": 0.317
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.152
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 20,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 7,
@@ -6707,7 +9335,34 @@
        },
        "rating": 88.0
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.085
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.317
+       },
+       {
+        "at": 0.5,
+        "delta_pct": 0.067
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.14
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.159
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 8,
@@ -6754,7 +9409,34 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": -0.134
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.346
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.126
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.104
+       },
+       {
+        "at": 0.9,
+        "delta_pct": 0.017
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 22,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 9,
@@ -6801,7 +9483,34 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.456
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.602
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.439
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.266
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.354
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 10,
@@ -6848,7 +9557,34 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": {
+      "checkpoints": [
+       {
+        "at": 0.1,
+        "delta_pct": 0.167
+       },
+       {
+        "at": 0.3,
+        "delta_pct": 0.804
+       },
+       {
+        "at": 0.5,
+        "delta_pct": -0.298
+       },
+       {
+        "at": 0.7,
+        "delta_pct": -0.426
+       },
+       {
+        "at": 0.9,
+        "delta_pct": -0.248
+       }
+      ],
+      "rounds": 24,
+      "rounds_used": 21,
+      "source": "tools/development.py (Jolpica qualifying)"
+     }
     },
     {
      "slot": 11,
@@ -6866,7 +9602,8 @@
       "source": "classic-seasons-2016"
      },
      "pace": null,
-     "drivers": []
+     "drivers": [],
+     "development": null
     }
    ],
    "stand_ins": [
@@ -7128,7 +9865,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 2,
@@ -7175,7 +9913,8 @@
        },
        "rating": 87.0
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 3,
@@ -7222,7 +9961,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 4,
@@ -7269,7 +10009,8 @@
        },
        "rating": 94.0
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 5,
@@ -7316,7 +10057,8 @@
        },
        "rating": 87.0
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 6,
@@ -7363,7 +10105,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 7,
@@ -7410,7 +10153,8 @@
        },
        "rating": 88.0
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 8,
@@ -7457,7 +10201,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 9,
@@ -7504,7 +10249,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 10,
@@ -7551,7 +10297,8 @@
        },
        "rating": null
       }
-     ]
+     ],
+     "development": null
     },
     {
      "slot": 11,
@@ -7598,7 +10345,8 @@
        },
        "rating": 83.0
       }
-     ]
+     ],
+     "development": null
     }
    ],
    "stand_ins": []

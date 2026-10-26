@@ -10,9 +10,12 @@
 // seats decide), and the seasons the developer option test_next_season added on top of the game's
 // season index. Each load and Team HQ also records the player's team and the game's season index,
 // which the Resume Career cards (save slots carry the driver, team and season index but no seed)
-// use to tell careers of one driver apart (resume_logic.hpp). The mid-season changes in force at the
-// last applied Team HQ (year, career race, change ids) are kept too: the seats follow the round the
-// save is at, the record names what changed since and stands in when the calendar can't be read.
+// use to tell careers of one driver apart (resume_logic.hpp). A Real life career also keeps the
+// last in-season development it applied (development_logic.hpp): year, round (0-based) of rounds,
+// and each curved slot's delta ("<slot>:<delta %>,..."), so a load or Team HQ only logs a change.
+// The mid-season changes in force at the last applied Team HQ (year, career race, change ids) are
+// kept too: the seats follow the round the save is at, the record names what changed since and
+// stands in when the calendar can't be read.
 
 #pragma once
 #include <cstdint>
@@ -35,6 +38,10 @@ struct Career {
     uint64_t used = 0;
     int team = -1;
     int season = -1;
+    int dev_year = 0;
+    int dev_round = -1;
+    int dev_rounds = 0;
+    std::string dev_applied;
     int mid_year = 0;
     int mid_round = 0;
     std::string mid_applied;

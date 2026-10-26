@@ -10,9 +10,10 @@
 //
 // Rules:
 //   1. The player's real team in Y is his slot: the real line-ups stand as they are.
-//   2. Otherwise the player takes the seat of his slot's lower-rated real driver D (on a tie the
-//      seat-2 driver). D takes the player's real seat in Y when the player raced in Y; otherwise
-//      D has no seat.
+//   2. Otherwise the player takes the seat of his slot's real driver D on the seat he holds in the
+//      career (player_seat: the teammate he kept at Team Select stays), or with no such seat the
+//      lower-rated real driver (on a tie the seat-2 driver). D takes the player's real seat in Y
+//      when the player raced in Y; otherwise D has no seat.
 //   3. A driver never sits twice: a repeat in the input keeps its first seat.
 //   4. Every seat still empty (slot 10 in the 10-team years, a seat the player's move left
 //      empty, a repeat) gets a driver without a seat, best first: drivers who raced in Y but lost
@@ -56,6 +57,7 @@ struct Input {
     Grid real = empty_grid();
     Driver player = kNone;
     int player_slot = -1;
+    int player_seat = -1;
     std::vector<Rating> ratings;
     std::vector<Driver> pool;
     const Grid *prev = nullptr;
@@ -123,7 +125,7 @@ inline Grid dedupe(const Grid &in, std::vector<std::string> &notes)
     return out;
 }
 
-inline int take_seat(const Grid &real, Driver player, int slot, const std::vector<Rating> &ratings)
+inline int take_seat(const Grid &real, Driver player, int slot, const std::vector<Rating> &ratings, int held = -1)
 {
     if (player == kNone || slot < 0 || slot >= kSlots)
         return -1;
@@ -133,6 +135,8 @@ inline int take_seat(const Grid &real, Driver player, int slot, const std::vecto
     for (int p = 0; p < kSeats; ++p)
         if (real[slot][p] == kNone)
             return p;
+    if (held >= 0 && held < kSeats)
+        return held;
     return rating_of(ratings, real[slot][0]) < rating_of(ratings, real[slot][1]) ? 0 : 1;
 }
 
@@ -164,8 +168,12 @@ inline Output fit(const Input &in)
                     break;
                 }
         if (take < 0) {
-            float r0 = rating_of(in.ratings, g[S][0]), r1 = rating_of(in.ratings, g[S][1]);
-            take = r0 < r1 ? 0 : 1;
+            if (in.player_seat >= 0 && in.player_seat < kSeats) {
+                take = in.player_seat;
+            } else {
+                float r0 = rating_of(in.ratings, g[S][0]), r1 = rating_of(in.ratings, g[S][1]);
+                take = r0 < r1 ? 0 : 1;
+            }
         }
         Driver d = g[S][take];
         if (raced)

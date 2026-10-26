@@ -420,6 +420,34 @@ void choose_fits_changes_around_the_player()
     EXPECT(k9p.moves.empty());
 }
 
+void changes_fill_an_empty_seat()
+{
+    season::Resolve r = resolver();
+    auto seats = season_seats(2016);
+    seats[2][1] = "daniil_kvyat";
+    seats[7][1] = "max_verstappen";
+    auto rows = rows_for(seats, "lewis_hamilton");
+    for (auto &row : rows)
+        if (row.driver == st("max_verstappen")) {
+            row.car = false;
+            row.team = -1;
+            row.position = -1;
+        }
+    auto is = player_is("lewis_hamilton");
+    auto opening = midseason::at_round(g_data, 2016, kLong, 1, is);
+    auto r9 = midseason::at_round(g_data, 2016, kLong, 9, is);
+    season::Plan p = season::plan(g_data, 2016, rows, r, true, &r9.line_up, &opening.line_up);
+    EXPECT(p.error.empty() && seated_once(p));
+    EXPECT(p.holder[7][1] < 0);
+    EXPECT(p.target[7][1] == st("daniil_kvyat") && p.target[2][1] == st("max_verstappen"));
+    bool kvyat = false, max = false;
+    for (auto &m : p.moves) {
+        kvyat = kvyat || (m.driver == st("daniil_kvyat") && m.to.slot == 7 && m.to.index == 1);
+        max = max || (m.driver == st("max_verstappen") && m.from.slot < 0 && m.to.slot == 2);
+    }
+    EXPECT(kvyat && max);
+}
+
 void recorded_ids_round_trip()
 {
     auto a = midseason::at_round(g_data, 2016, kLong, 4, player_is(""));
@@ -450,6 +478,7 @@ int main(int argc, char **argv)
     player_rules();
     follow_moves_the_player_with_his_driver();
     choose_fits_changes_around_the_player();
+    changes_fill_an_empty_seat();
     recorded_ids_round_trip();
     if (failures) {
         std::printf("midseason_logic_test: %d failure(s)\n", failures);

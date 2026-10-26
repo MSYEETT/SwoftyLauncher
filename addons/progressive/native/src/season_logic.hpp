@@ -6,11 +6,16 @@
 //
 //   year_for   season i of a career that starts in `start` is min(start + i, 2026).
 //   parse      data/years.json (tools/gen.py): per year and career slot 1-11 the real line-up,
-//              vehicle row, team name and looks; the career slots (team rows); the driver pool.
+//              vehicle row, team name, looks and in-season development curve; the career slots (team
+//              rows); the driver pool.
 //   plan       the target seat of every race seat for year Y: the real line-up fitted around the
 //              player (lineup_logic.hpp), restricted to drivers the career can move (a single
 //              entrant row that is a race seat or a free agent; never a reserve, never the player),
 //              the player kept on his own row and seat; then the moves, releases, racing numbers,
+//              (a slot's race seats as the career has them: its rows on positions 0 and 1, the
+//              player's first; a seat with no row is empty and its target driver's row is written
+//              into it; a third race row of a slot is an extra, moved or released like any driver;
+//              a holder whose row sits on another position is written onto its seat), and
 //              and per slot the year's vehicle and per seated driver the year's look (each falling
 //              back to the nearest year that resolves, and never to no look).
 //   Mid-season (midseason_logic.hpp): plan takes the year's line-up at the career's round in place
@@ -61,12 +66,17 @@ struct SeatDriver {
     double rating = -1;
 };
 
+struct DevPoint {
+    double at = 0, delta_pct = 0;
+};
+
 struct Team {
     int slot = 0;
     std::string kind, name, lang, vehicle;
     int vehicle_stat = -1;
     double gap_pct = -1;
     std::vector<SeatDriver> drivers;
+    std::vector<DevPoint> development;
 };
 
 // A real line-up change of the year (tools/gen.py from the Jolpica race entries): from real round
@@ -185,6 +195,11 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
             o.vehicle_stat = num(t["vehicle"]["stat_id"]);
             const json::Value &pace = t["pace"];
             o.gap_pct = pace.type == json::Value::Obj && pace["gap_pct"].type == json::Value::Num ? pace["gap_pct"].n : -1;
+            const json::Value &dev = t["development"];
+            if (dev.type == json::Value::Obj)
+                for (auto &c : dev["checkpoints"].a)
+                    if (c["at"].type == json::Value::Num && c["delta_pct"].type == json::Value::Num)
+                        o.development.push_back({c["at"].n, c["delta_pct"].n});
             for (auto &d : t["drivers"].a) {
                 SeatDriver sd;
                 sd.driver = d["driver"].str();
@@ -313,6 +328,8 @@ struct Plan {
     lineup::Output fit;
     std::array<std::array<uint32_t, lineup::kSeats>, kSlots> target{};
     std::array<std::array<int, lineup::kSeats>, kSlots> holder{};
+    std::vector<int> extras;
+    std::vector<Move> repositions;
     std::vector<Move> moves;
     std::vector<uint32_t> releases;
     std::vector<NumberSet> numbers;
@@ -452,7 +469,8 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
 // for another slot, he moves to his real seat and the real line-ups stand around him.
 // at: the year's line-up at the career's round (midseason_logic.hpp); the season's own otherwise.
 // opening: the line-up at the season's first race. The player's seat in his slot is fixed for the
-// year: his own seat when the season's line-up has him there, else the one the opening's fit takes.
+// year: his own seat when the season's line-up has him there, else the one the opening's fit takes
+// (the seat he holds in the career, lineup_logic.hpp rule 2).
 // A later change of that seat's real driver sends the newcomer to the player's real seat (the fit's
 // D7 rule); when the player has no real seat it is skipped, along with the change that filled the
 // newcomer's old seat with the driver the player displaced.
@@ -481,16 +499,40 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         for (size_t k = 0; k < rows.size(); ++k)
             if (rows[k].car && slot_of_team(d, rows[k].team) == i)
                 race.push_back(static_cast<int>(k));
-        std::stable_sort(race.begin(), race.end(), [&](int a, int b) { return rows[a].position < rows[b].position; });
-        if (race.size() != lineup::kSeats) {
-            p.error = "career slot " + std::to_string(i + 1) + " (" + d.slots[i].team + ") has " +
-                      std::to_string(race.size()) + " race seats, not 2";
-            return p;
+        std::stable_sort(race.begin(), race.end(), [&](int a, int b) {
+            if (rows[a].human != rows[b].human)
+                return rows[a].human;
+            return rows[a].position < rows[b].position;
+        });
+        std::vector<int> left;
+        for (int k : race) {
+            int pos = rows[k].position;
+            if (pos >= 0 && pos < lineup::kSeats && p.holder[i][pos] < 0)
+                p.holder[i][pos] = k;
+            else
+                left.push_back(k);
         }
-        for (int k = 0; k < lineup::kSeats; ++k) {
-            p.holder[i][k] = race[k];
-            seat_of[rows[race[k]].driver] = {i, k};
+        for (size_t n = 0; n < left.size(); ++n) {
+            int k = left[n];
+            int free = p.holder[i][0] < 0 ? 0 : p.holder[i][1] < 0 ? 1 : -1;
+            if (free < 0 && rows[k].human) {
+                free = lineup::kSeats - 1;
+                left.push_back(p.holder[i][free]);
+            } else if (free < 0) {
+                p.extras.push_back(k);
+                continue;
+            }
+            p.holder[i][free] = k;
+            p.repositions.push_back({rows[k].driver, {i, rows[k].position}, {i, free}});
         }
+        for (int k = 0; k < lineup::kSeats; ++k)
+            if (p.holder[i][k] >= 0)
+                seat_of[rows[p.holder[i][k]].driver] = {i, k};
+        if (race.size() != lineup::kSeats)
+            p.notes.push_back("career slot " + std::to_string(i + 1) + " (" + d.slots[i].team + ") has " +
+                              std::to_string(race.size()) + " race seat(s): " +
+                              (race.size() < lineup::kSeats ? "the empty seat is filled"
+                                                            : "the extra race row is moved or released"));
     }
     int human = -1;
     for (size_t k = 0; k < rows.size(); ++k)
@@ -533,6 +575,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     }
     in.player = p.player;
     in.player_slot = p.player_slot;
+    in.player_seat = player_seat.index;
     int real_slot = -1;
     if (move_player && p.player_slot >= 0 && lineup::in_grid(in.real, p.player, &real_slot) && real_slot != p.player_slot) {
         in.player_slot = real_slot;
@@ -571,7 +614,7 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         for (int k = 0; k < lineup::kSeats; ++k)
             if (main[p.player_slot][k] == p.player)
                 own = k;
-        in.take = own >= 0 ? own : lineup::take_seat(first, p.player, p.player_slot, in.ratings);
+        in.take = own >= 0 ? own : lineup::take_seat(first, p.player, p.player_slot, in.ratings, in.player_seat);
         lineup::Driver d0 = in.take >= 0 ? first[p.player_slot][in.take] : lineup::kNone;
         lineup::Driver o = in.take >= 0 ? in.real[p.player_slot][in.take] : lineup::kNone;
         int s2 = -1, k2 = -1;
@@ -604,6 +647,11 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
         for (int k = 0; k < lineup::kSeats; ++k) {
             uint32_t want = p.target[i][k];
             if (want == lineup::kNone) {
+                if (p.holder[i][k] < 0) {
+                    p.error = "slot " + std::to_string(i + 1) + " (" + d.slots[i].team + ") seat " +
+                              std::to_string(k + 1) + " is empty and the pool has no driver left to race it";
+                    return p;
+                }
                 uint32_t keep = rows[p.holder[i][k]].driver;
                 bool used = false;
                 for (auto &s : p.target)
@@ -635,6 +683,18 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     for (auto &[dr, s] : seat_of)
         if (dr != p.player && std::find(seated.begin(), seated.end(), dr) == seated.end())
             p.releases.push_back(dr);
+    for (int k : p.extras)
+        if (std::find(seated.begin(), seated.end(), rows[k].driver) == seated.end())
+            p.releases.push_back(rows[k].driver);
+    p.repositions.erase(std::remove_if(p.repositions.begin(), p.repositions.end(),
+                                       [&](const Move &m) {
+                                           for (auto &mv : p.moves)
+                                               if (mv.driver == m.driver)
+                                                   return true;
+                                           return std::find(p.releases.begin(), p.releases.end(), m.driver) !=
+                                                  p.releases.end();
+                                       }),
+                        p.repositions.end());
 
     std::map<uint8_t, std::vector<uint32_t>> holders;
     std::map<uint32_t, uint8_t> number_of;

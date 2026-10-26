@@ -49,7 +49,7 @@ int main()
         Verdict v = judge(teams(476, 477, true, kNone, 477));
         EXPECT(v.fix == Fix::sign_row_team);
         EXPECT(v.store_stale);
-        EXPECT(v.text.find("STALE contract") != std::string::npos);
+        EXPECT(v.text.find("contract for another team than his seat") != std::string::npos);
         EXPECT(v.text.find("store team updated") != std::string::npos);
     }
     {
