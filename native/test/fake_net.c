@@ -3,18 +3,121 @@
 // waited on with WSAWaitForMultipleEvents and completed with WSAGetOverlappedResult) against a second
 // socket's sendto, plus the other traced calls, and checks that every result, buffer and last error is
 // what plain ws2_32 gives. WSASendTo and WSAEventSelect go through GetProcAddress so they reach the
-// trace's inline hooks.
+// trace's inline hooks. t2_bind, t2_sendto and t2_closesocket come from a second ws2_32 import
+// descriptor, by ordinal, as the game's .data1 code imports them. Before the trigger it records every
+// ws2_32 import slot and the first bytes of every traced export, and after it checks which of them the
+// trace changed for the mode it runs in.
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
 
+__declspec(dllimport) int WSAAPI t2_bind(SOCKET, const struct sockaddr *, int);
+__declspec(dllimport) int WSAAPI t2_sendto(SOCKET, const char *, int, int, const struct sockaddr *, int);
+__declspec(dllimport) int WSAAPI t2_closesocket(SOCKET);
+
+static const char *traced[] = {"socket", "WSASocketW", "bind", "connect", "setsockopt", "ioctlsocket", "getsockname",
+                               "sendto", "send", "WSASendTo", "recvfrom", "recv", "WSARecvFrom", "WSARecv",
+                               "WSAGetOverlappedResult", "WSAWaitForMultipleEvents", "WSAEventSelect",
+                               "WSACreateEvent", "WSAIoctl", "closesocket"};
+#define NTRACED (sizeof traced / sizeof *traced)
+
+typedef struct {
+    void **slot;
+    void *value, *fn;
+    int table;
+} Slot;
+static Slot slots[256];
+static int nslots, ntables;
+static void *exports[NTRACED];
+static unsigned char export_bytes[NTRACED][16];
+
 static int fails;
 static void expect(int ok, const char *what)
 {
     printf("%s %s\n", ok ? "ok  :" : "FAIL:", what);
     fails += !ok;
+}
+
+static void scan(HMODULE ws)
+{
+    BYTE *base = (BYTE *)GetModuleHandleW(NULL);
+    IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)(base + ((IMAGE_DOS_HEADER *)base)->e_lfanew);
+    IMAGE_DATA_DIRECTORY *dir = &nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+    for (IMAGE_IMPORT_DESCRIPTOR *d = (IMAGE_IMPORT_DESCRIPTOR *)(base + dir->VirtualAddress); d->Name; d++) {
+        if (_stricmp((char *)base + d->Name, "ws2_32.dll"))
+            continue;
+        ntables++;
+        IMAGE_THUNK_DATA *names = (IMAGE_THUNK_DATA *)(base + d->OriginalFirstThunk);
+        IMAGE_THUNK_DATA *iat = (IMAGE_THUNK_DATA *)(base + d->FirstThunk);
+        for (; names->u1.AddressOfData && nslots < 256; names++, iat++) {
+            void *fn = IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal)
+                           ? (void *)GetProcAddress(ws, MAKEINTRESOURCEA(IMAGE_ORDINAL(names->u1.Ordinal)))
+                           : (void *)GetProcAddress(ws, (char *)((IMAGE_IMPORT_BY_NAME *)(base + names->u1.AddressOfData))->Name);
+            slots[nslots++] = (Slot){(void **)&iat->u1.Function, (void *)iat->u1.Function, fn, ntables};
+        }
+    }
+    for (size_t i = 0; i < NTRACED; i++) {
+        exports[i] = (void *)GetProcAddress(ws, traced[i]);
+        if (exports[i])
+            memcpy(export_bytes[i], exports[i], 16);
+    }
+}
+
+static int is_traced(void *fn)
+{
+    for (size_t i = 0; i < NTRACED; i++)
+        if (fn && fn == exports[i])
+            return 1;
+    return 0;
+}
+
+static int imported(void *fn)
+{
+    for (int i = 0; i < nslots; i++)
+        if (slots[i].fn == fn)
+            return 1;
+    return 0;
+}
+
+static void check_patches(HMODULE ws, const char *mode)
+{
+    int iat = !strcmp(mode, "1"), inl = !strcmp(mode, "inline");
+    int bad_slots = 0, hooked = 0, per_table[3] = {0};
+    for (int i = 0; i < nslots; i++) {
+        int changed = *slots[i].slot != slots[i].value, want = iat && is_traced(slots[i].fn);
+        hooked += changed;
+        if (changed && slots[i].table < 3)
+            per_table[slots[i].table]++;
+        if (changed != want) {
+            bad_slots++;
+            printf("  slot %d of table %d: changed=%d, want %d\n", i, slots[i].table, changed, want);
+        }
+    }
+    char what[160];
+    snprintf(what, sizeof what, "every ws2_32 import slot in %d table(s) is as the mode leaves it (%d hooked)", ntables, hooked);
+    expect(ntables == 2 && !bad_slots, what);
+    if (iat)
+        expect(per_table[1] && per_table[2], "both ws2_32 import tables have hooked slots");
+    int bad_exports = 0, forwarded = 0;
+    for (size_t i = 0; i < NTRACED; i++) {
+        if (!exports[i])
+            continue;
+        HMODULE m = NULL;
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCWSTR)exports[i], &m);
+        int inside = m == ws, changed = memcmp(export_bytes[i], exports[i], 16) != 0;
+        int want = inside && (inl || (iat && !imported(exports[i])));
+        forwarded += !inside;
+        if (changed != want) {
+            bad_exports++;
+            printf("  export %s: inside=%d changed=%d, want %d\n", traced[i], inside, changed, want);
+        }
+    }
+    snprintf(what, sizeof what, "every traced export's code is as the mode leaves it (%d forwarded out of ws2_32, never patched)",
+             forwarded);
+    expect(!bad_exports, what);
 }
 
 static int read_log(const wchar_t *path, char *out, DWORD cap)
@@ -58,6 +161,8 @@ int main(void)
 
     DWORD dummy;
     expect(GetFileVersionInfoSizeW(L"C:\\windows\\system32\\kernel32.dll", &dummy) != 0, "version.dll forwarding works");
+    HMODULE ws = GetModuleHandleW(L"ws2_32.dll");
+    scan(ws);
     WNDCLASSEXW wc = {.cbSize = sizeof wc, .lpfnWndProc = DefWindowProcW, .hInstance = GetModuleHandleW(NULL),
                       .lpszClassName = L"EGO_WindowClass"};
     extern void *__imp_RegisterClassExW;
@@ -71,11 +176,9 @@ int main(void)
         if (!ready)
             Sleep(on ? 100 : 20);
     }
+    check_patches(ws, on ? mode : "off");
     if (!on) {
         expect(!ready && read_log(log_path, text, sizeof text) < 0, "without SWOFTY_NET_TRACE no trace log is written");
-        HMODULE ws = GetModuleHandleW(L"ws2_32.dll");
-        extern void *__imp_sendto;
-        expect(ws && __imp_sendto == (void *)GetProcAddress(ws, "sendto"), "without SWOFTY_NET_TRACE the IAT is untouched");
         printf("%s (%d failure(s))\n", fails ? "FAILED" : "ALL PASSED", fails);
         ExitProcess(fails != 0);
     }
@@ -134,7 +237,6 @@ int main(void)
     expect(from.sin_family == AF_INET && ntohs(from.sin_port) == sport && fromlen == sizeof from,
            "the from address is the sender's 127.0.0.1 port");
 
-    HMODULE ws = GetModuleHandleW(L"ws2_32.dll");
     typedef int(WSAAPI * SendToFn)(SOCKET, LPWSABUF, DWORD, LPDWORD, DWORD, const struct sockaddr *, int,
                                    LPWSAOVERLAPPED, LPWSAOVERLAPPED_COMPLETION_ROUTINE);
     typedef int(WSAAPI * SelectFn)(SOCKET, WSAEVENT, long);
@@ -165,6 +267,19 @@ int main(void)
             Sleep(10);
     }
     expect(rn == 16 && !memcmp(rb, "connected-send!!", 16), "recv got the connected datagram");
+
+    SOCKET t2s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    expect(t2_bind(t2s, (struct sockaddr *)&any, sizeof any) == 0, "bind through the ordinal import table");
+    expect(t2_sendto(t2s, "table-two-sendto", 16, 0, (struct sockaddr *)&to, sizeof to) == 16,
+           "sendto through the ordinal import table");
+    rn = -1;
+    for (int i = 0; i < 100 && rn < 0; i++) {
+        rn = recvfrom(rs, rb, sizeof rb, 0, (struct sockaddr *)&rf, &rfl);
+        if (rn < 0)
+            Sleep(10);
+    }
+    expect(rn == 16 && !memcmp(rb, "table-two-sendto", 16), "recvfrom got the ordinal-table datagram");
+    expect(t2_closesocket(t2s) == 0, "closesocket through the ordinal import table");
 
     SOCKET es = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     WSAEVENT ev2 = WSACreateEvent();
