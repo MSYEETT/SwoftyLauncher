@@ -298,10 +298,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls265]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_jolyon_palmer",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_pal_265/idf/cs_pal_265_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_jolyon_pal/idf/cs_jolyon_pal_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
@@ -309,10 +309,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls197]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_marcus_ericsson",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_eri_197/idf/cs_eri_197_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_marcus_ericsso/idf/cs_marcus_ericsso_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
@@ -320,10 +320,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls526]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_felipe_nasr",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_nas_526/idf/cs_nas_526_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_felipe_nasr_/idf/cs_felipe_nasr__rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
@@ -331,10 +331,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls533]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_esteban_gutierrez",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_gut_533/idf/cs_gut_533_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_esteban_gutier/idf/cs_esteban_gutier_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }
@@ -342,10 +342,10 @@
   {
    "op": "add-row",
    "table": "entrants.animation.driver_heads",
-   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls204]",
+   "from": "entrants.animation.driver_heads.driver_head[_metadata_=male_ls222]",
    "set": {
     "_metadata_": "cs_stoffel_vandoorne",
-    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_ea/cs_van_204/idf/cs_van_204_rig_head_morph_v1",
+    "model_path": "eaid://[CHARACTER_PACKAGE]/heads/male_driver/cs_stoffel_vandoo/idf/cs_stoffel_vandoo_rig_head_morph_v1",
     "has_morph_data": "True",
     "available_for_customisation": "False"
    }

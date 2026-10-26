@@ -116,13 +116,17 @@ class Heads(unittest.TestCase):
         self.assertEqual(heads.row_op(table, "kimi_raikkonen"), {
             "op": "add-row", "table": table, "from": f"{table}.driver_head[_metadata_=kimi_raikkonen]",
             "set": {"_metadata_": "cs_kimi_raikkonen"}})
-        face = heads.row_op(table, "jolyon_palmer")
-        code = heads.FACES["jolyon_palmer"]["code"]
-        self.assertEqual(face["from"], f"{table}.driver_head[_metadata_={heads.FACES['jolyon_palmer']['base']}]")
-        self.assertEqual(face["set"], {
-            "_metadata_": "cs_jolyon_palmer",
-            "model_path": f"eaid://[CHARACTER_PACKAGE]/heads/male_ea/{code}/idf/{code}_rig_head_morph_v1",
-            "has_morph_data": "True", "available_for_customisation": "False"})
+        for head, f in heads.FACES.items():
+            face = heads.row_op(table, head)
+            code = f["code"]
+            scanned = not heads.generic(f["base"])
+            folder = "male_driver" if scanned else "male_ea"
+            template = heads.ROW_TEMPLATE if scanned else f["base"]
+            self.assertEqual(face["from"], f"{table}.driver_head[_metadata_={template}]")
+            self.assertEqual(face["set"], {
+                "_metadata_": heads.label(head),
+                "model_path": f"eaid://[CHARACTER_PACKAGE]/heads/{folder}/{code}/idf/{code}_rig_head_morph_v1",
+                "has_morph_data": "True", "available_for_customisation": "False"})
         rio = heads.row_op(table, "rio_haryanto")
         self.assertEqual(rio["from"], f"{table}.driver_head[_metadata_={heads.DATA['row_from']['rio_haryanto']}]")
         self.assertEqual(rio["set"]["model_path"],
@@ -141,6 +145,12 @@ class Heads(unittest.TestCase):
         for head, f in heads.FACES.items():
             self.assertEqual(len(f["code"]), len(f["base"]), head)
             self.assertTrue(f["code"].startswith("cs_"), head)
+
+    def test_no_face_base_is_a_driver_of_any_season(self):
+        seasons = json.loads((heads.ROOT / "data" / "seasons.json").read_text())
+        grid = {d for s in seasons["seasons"] for team in s["teams"] for d, _ in team["drivers"]}
+        for head, f in heads.FACES.items():
+            self.assertNotIn(f["base"], grid, head)
 
     def test_no_two_drivers_of_a_season_wear_the_same_head_or_generic_base(self):
         seasons = json.loads((heads.ROOT / "data" / "seasons.json").read_text())

@@ -33,12 +33,13 @@ driver in data/seasons.json (head_overrides or new_drivers).
 A head with no stock row of its own label (`row_from` in data/heads.json) gets its row from the named stock head, with
 the model_path of its heads archive, has_morph_data True and available_for_customisation False.
 
-A head of `faces` is a stock generic head (`base`, male_ea) with the head_d surface of `face` in another archive
-(`archive`): both of the base's
+A head of `faces` is a stock head (`base`: a scanned head under heads/male_driver/, or a generic one under
+heads/male_ea/) with the head_d surface of `face` in another archive (`archive`): both of the base's
 archives, read from the game folder (the baseline's copy of a file the launcher changed), with `base` renamed byte
 for byte to `code` (the same length) in every resource name and fragment. A surface's sidecar description (fragment 2)
-keeps naming the stock .mipmaps file. The face archive's head_d surface, 2048 px with all 10 levels in the archive,
-replaces the copy's, and the head_d view lists 10 levels. gen.py copies the row from the base row.
+keeps naming the stock .mipmaps file. The face archive's head_d surface, 2048 px with all 10 levels in the archive and
+no sidecar, replaces the copy's under the copy's name, and the head_d view takes its format and 10 levels. gen.py copies
+the row of a generic base, or male_ls222's for a scanned base, with the copy's model_path.
 
 A head of `off` ships nothing; its drivers wear the head it names.
 """
@@ -76,6 +77,7 @@ OFF = DATA.get("off", {})
 SURFACE = b"GfxSurfaceRes"
 SRV = b"GfxSRVResource"
 FACE_LEVELS = 10
+ROW_TEMPLATE = "male_ls222"
 BASELINE = "~/.local/share/swofty/baseline/25251167-d873a1c8d204"
 PLACED = "~/.local/share/swofty/state/placed.json"
 
@@ -92,15 +94,23 @@ def worn(head):
     return OFF.get(head, head)
 
 
+def generic(label):
+    return label.startswith("male_ls")
+
+
 def model_path(head):
     if head in FACES:
         code = FACES[head]["code"]
-        return f"eaid://[CHARACTER_PACKAGE]/heads/male_ea/{code}/idf/{code}_rig_head_morph_v1"
+        folder = "male_ea" if generic(FACES[head]["base"]) else "male_driver"
+        return f"eaid://[CHARACTER_PACKAGE]/heads/{folder}/{code}/idf/{code}_rig_head_morph_v1"
     return f"eaid://[CHARACTER_PACKAGE]/heads/male_driver/{head}/idf/{head}_rig_head_morph_v1"
 
 
 def row_op(table, head):
-    base = FACES[head]["base"] if head in FACES else DATA.get("row_from", {}).get(head, head)
+    if head in FACES:
+        base = FACES[head]["base"] if generic(FACES[head]["base"]) else ROW_TEMPLATE
+    else:
+        base = DATA.get("row_from", {}).get(head, head)
     op = {"op": "add-row", "table": table, "from": f"{table}.driver_head[_metadata_={base}]",
           "set": {"_metadata_": label(head)}}
     if base != head:
@@ -276,9 +286,9 @@ def build_face(stock, downloads, head):
     if len(base) != len(code):
         sys.exit(f"{head}: {face['code']} is not as long as {face['base']}")
     image = face_surface(downloads, face, head)
-    image.name = image.name.replace(face["face"], face["code"])
-    view = image.name[:-len(".image")]
+    fmt, levels = struct.unpack_from("<10I", frag(image, 0))[2], FACE_LEVELS
     files = []
+    placed = 0
     for kind in ("heads", "morph_poses"):
         src = f"2025_asset_groups/{SCENES}/{kind}/{face['base']}.erp"
         e = erpw.Erp(str(stock.path(src)))
@@ -286,17 +296,34 @@ def build_face(stock, downloads, head):
             sys.exit(f"{head}: {src} already names {face['code']}")
         rename(e, base, code)
         for i, r in enumerate(e.res):
-            if r.name == image.name:
-                e.res[i] = image
-            elif r.name == view and r.type.rstrip(b"\0") == SRV:
+            if r.name.endswith(f"/{face['code']}_head_d.tif.image") and r.type.rstrip(b"\0") == SURFACE:
+                copy = copy_res(image)
+                copy.name = r.name
+                e.res[i] = copy
+                placed += 1
+            elif r.name.endswith(f"/{face['code']}_head_d.tif") and r.type.rstrip(b"\0") == SRV:
                 srv = bytearray(frag(r, 0))
-                struct.pack_into("<I", srv, 12, FACE_LEVELS)
+                struct.pack_into("<I", srv, 4, fmt)
+                struct.pack_into("<I", srv, 12, levels)
                 put_frag(r, 0, bytes(srv))
         rel = f"2025_asset_groups/{SCENES}/{kind}/{label(head)}.erp"
         (OUT / rel).parent.mkdir(parents=True, exist_ok=True)
         e.to_file(str(OUT / rel))
         files.append(rel)
+    if not placed:
+        sys.exit(f"{head}: {face['base']} has no head_d surface")
     return files
+
+
+def copy_res(r):
+    out = erpw.Res()
+    out.name, out.type, out.unk, out.hash = r.name, r.type, r.unk, r.hash
+    out.frags = []
+    for f in r.frags:
+        g = erpw.Frag()
+        g.name, g.flags, g.comp, g.size, g.packed, g.raw = f.name, f.flags, f.comp, f.size, f.packed, f.raw
+        out.frags.append(g)
+    return out
 
 
 def face_leftovers(head, game=None):
@@ -313,8 +340,10 @@ def face_leftovers(head, game=None):
                     side = data[1:1 + data[0]].rstrip(b"\0").decode()
                     if game and face["base"] in side and not (Path(game) / side).is_file():
                         out.append(side)
-                elif base in data or base in r.name.encode():
+                elif base in data or base in r.name.encode() or face["face"].encode() in r.name.encode():
                     out.append(r.name)
+            if r.name.endswith(f"/{face['code']}_head_d.tif.image") and len(r.frags) != 2:
+                out.append(f"{r.name} (a sidecar)")
     return sorted(set(out))
 
 
