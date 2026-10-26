@@ -22,10 +22,12 @@
 //
 // Team Select's 3D cars do not come from +0xe18. Its team list (0x141873a30) builds one carousel
 // item per team (0x141879310), which spawns the car of the team's first line-up row (the game
-// mode's entrant rows, team +0x58, position +0x80, Sess_Find_Vehicle on +0x5c). So once the
-// career components exist (career.loaded, which fires in the wizard at the Choose Driver pick) and
-// at every later Choose Driver command, those line-up rows wear their team's start season car from
-// the view. The R&D team models were made from the career's cars before Choose Driver. The rows
+// mode's entrant rows, team +0x58, position +0x80, Sess_Find_Vehicle on +0x5c). The first Team
+// Select is built in the same frames as the Choose Driver pick, before the core's poll publishes
+// career.loaded, so the rows are dressed right after every Choose Driver command once the career
+// component exists (the pick makes it), and again at career.loaded: each line-up row wears its
+// team's start season car from the view. The R&D team models were made from the career's cars
+// before Choose Driver. The rows
 // get the career's cars back at the next Choose Driver populate and at every take-back (Team HQ,
 // a tile press); the career's own line-up copy when the career is built replaces them anyway, and
 // the take-back logs how many rows still wore a start season car.
@@ -50,6 +52,7 @@
 #include <string_view>
 #include <vector>
 
+#include <swofty/career.hpp>
 #include <swofty/events.hpp>
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
@@ -87,8 +90,6 @@ constexpr uintptr_t kListCapacity = 0x20;
 constexpr size_t kListHeader = 0x100;
 constexpr size_t kMaxRows = pc::kMaxRows;
 constexpr uintptr_t kModeEntrants = 0x2e0;
-constexpr uintptr_t kModeComponents = 0x1030;
-constexpr uintptr_t kSetupEntrantSource = 0x270;
 constexpr uintptr_t kContractsGameMode = 0x278;
 constexpr uintptr_t kContractsOffers = 0x3c8;
 constexpr size_t kOfferSize = 0x48;
@@ -284,15 +285,6 @@ uint32_t season_car(uint32_t team)
     return any;
 }
 
-uintptr_t component(uintptr_t owner, uintptr_t desc)
-{
-    uintptr_t reg = owner ? owner + kModeComponents : 0;
-    auto **vt = reinterpret_cast<void **>(rd<uintptr_t>(reg));
-    if (!vt || !desc || !swofty::mem::in_image(reinterpret_cast<uintptr_t>(vt[2])))
-        return 0;
-    return reinterpret_cast<uintptr_t (*)(uintptr_t, uintptr_t, int)>(vt[2])(reg, desc, 1);
-}
-
 size_t swap_cars(const char *why, bool quiet)
 {
     uintptr_t mode = g_mode;
@@ -322,15 +314,6 @@ size_t swap_cars(const char *why, bool quiet)
             }
         }
         total = g_swaps.size();
-    }
-    if (!quiet) {
-        uintptr_t setup = component(mode, swofty::game::k_Career_CareerSetupComponentDesc.address());
-        uintptr_t source = setup ? rd<uintptr_t>(setup + kSetupEntrantSource) : 0;
-        swofty::log("[progressive] cards: Team Select %d (%s): the carousel lists the line-up of 0x%llx (career setup "
-                    "0x%llx +0x270); the dressed line-up is the game mode's (+0x1030 = 0x%llx)%s",
-                    g_year, why, static_cast<unsigned long long>(source), static_cast<unsigned long long>(setup),
-                    static_cast<unsigned long long>(mode + kModeComponents),
-                    source == mode + kModeComponents ? ", the same" : ", NOT the same: send this log");
     }
     if (!quiet || added)
         swofty::log("[progressive] cards: Team Select %d (%s): %zu more line-up row(s) wear their team's %d car, %zu in "
@@ -480,7 +463,13 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 10, void *, void *vm, void *cmd, void *data)
 {
     void *r = orig(vm, cmd, data);
-    if (g_live && g_mode && progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
+    if (!g_mode || !progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
+        return r;
+    if (!g_live && swofty::career::component_by_desc(swofty::game::k_Career_CareerComponentDesc.get())) {
+        g_live = true;
+        swofty::log("[progressive] cards: Team Select %d: the Choose Driver pick made the career component", g_year);
+    }
+    if (g_live)
         swap_cars("Choose Driver command", true);
     return r;
 }
