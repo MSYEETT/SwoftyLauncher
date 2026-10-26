@@ -4,14 +4,17 @@
 // Select read (progressive_cards.dll). Pure logic, no game access, so native/test builds it on the
 // host. R is any record with the EntrantRecord field names this file reads.
 //
-// build(): every team seated in the career list keeps exactly two seated rows, positions 0 and 1
-// (Team Select's 0x141877ec0 reads a team's first two rows with no count check):
+// build(): every team seated in the career list that the season or the first season list names
+// keeps exactly two seated rows, positions 0 and 1 (Team Select's 0x141877ec0 reads a team's first
+// two rows with no count check). A team neither list names (the F2 teams of the career list's F2
+// drivers) keeps its rows as they are.
 //   1. the season list's drivers of that team on their season seats, with the season row's look,
 //      car, livery and number (the career row keeps its identity, ordinal and driver key);
 //   2. a seat the season leaves empty gets a career row of that team's 2026 seats whose driver is
 //      not in the season, else a free row whose driver is not in the season, with the team's car
 //      of the season, else of the first season list, else the team's 2026 car;
-//   3. every other career row follows unchanged, except that a 2026 seat is taken off the grid.
+//   3. every other career row follows unchanged, except that a 2026 seat of a dressed team is taken
+//      off the grid.
 // So the view has as many rows as the career list (when every season driver is in it), and no
 // driver twice.
 //
@@ -96,16 +99,24 @@ template <class R> size_t build(const Rows<R> &career, const Rows<R> &season, co
     uint32_t teams[kMaxTeams];
     size_t team_count = 0, n = 0;
     uint16_t free_position = 0x00ff;
+    auto listed = [&](uint32_t team) {
+        for (const Rows<R> *rows : {&season, &first_season})
+            for (size_t i = 0; i < rows->count; ++i)
+                if (same_team(rows->begin[i].team_stat_id, team))
+                    return true;
+        return false;
+    };
+    auto dressed = [&](uint32_t team) {
+        for (size_t t = 0; t < team_count; ++t)
+            if (same_team(teams[t], team))
+                return true;
+        return false;
+    };
     for (size_t i = 0; i < career.count; ++i) {
         const R &c = career.begin[i];
         if (none(c.team_stat_id))
             free_position = c.team_position;
-        if (!seated(c))
-            continue;
-        bool known = false;
-        for (size_t t = 0; t < team_count; ++t)
-            known = known || same_team(teams[t], c.team_stat_id);
-        if (!known && team_count < kMaxTeams)
+        if (seated(c) && !dressed(c.team_stat_id) && listed(c.team_stat_id) && team_count < kMaxTeams)
             teams[team_count++] = c.team_stat_id;
     }
     st.teams = team_count;
@@ -189,7 +200,7 @@ template <class R> size_t build(const Rows<R> &career, const Rows<R> &season, co
         if (used[i])
             continue;
         R r = career.begin[i];
-        if (seated(r)) {
+        if (seated(r) && dressed(r.team_stat_id)) {
             r.team_stat_id = kNoKey;
             r.vehicle_ref = kNoKey;
             r.vehicle_customisation = kNoKey;
