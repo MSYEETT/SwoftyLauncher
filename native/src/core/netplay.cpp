@@ -55,6 +55,8 @@ void setup()
     swofty::log("[netplay] lobby privilege re-check %s",
                 lobby ? "neutralised (no kicked-for-cheating at lobby enter)"
                       : "left unchanged (signature did not resolve)");
+
+    runtime::netplay_bridge_setup();
 }
 
 }
