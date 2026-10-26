@@ -38,7 +38,7 @@ struct Heap {
     }
 };
 
-constexpr CalendarLayout kCal{0x410, 0x418, 0x80, 0x40, 0x48, 0xc8};
+constexpr CalendarLayout kCal{0x410, 0x418, 0x80, 0x40, 0x48, 0xc8, 0xc0, 0x50, 0x58, 0x0a, 0x10, 0x10};
 
 } // namespace
 
@@ -114,6 +114,54 @@ int main()
         EXPECT(!driver_calendar(h, sched, drivers0, kCal));
     }
     EXPECT(kContractEvent == 0x0f);
+
+    {
+        Heap h;
+        constexpr uintptr_t sched = 0x1000, seasons = 0x2000, drivers = 0x10000, slots = 0x40000;
+        constexpr uintptr_t contract_def = 0x50000, race_def = 0x51000;
+        constexpr uint32_t bottas = 0x000f0000, other = 0x00070000;
+        h.words[sched + 0x410] = seasons;
+        h.words[sched + 0x418] = seasons + 0x80;
+        h.words[seasons + 0x40] = drivers;
+        h.words[seasons + 0x48] = drivers + 2 * 0xc8;
+        h.words[contract_def + 0x10] = kContractEvent;
+        h.words[race_def + 0x10] = 0x0a;
+        uintptr_t me = drivers + 0xc8;
+        h.words[drivers + 0xc0] = other;
+        h.words[me + 0xc0] = bottas;
+        h.words[drivers + 0x50] = slots;
+        h.words[drivers + 0x58] = slots + kSlot;
+        h.words[slots + 8] = 0x60000;
+        h.words[0x60000 + 0x10] = contract_def;
+        h.words[0x60000 + 0x0a] = 300;
+        uintptr_t mine = slots + 0x100;
+        h.words[me + 0x50] = mine;
+        h.words[me + 0x58] = mine + 4 * kSlot;
+        h.words[mine + 8] = 0x61000;
+        h.words[0x61000 + 0x10] = race_def;
+        h.words[0x61000 + 0x0a] = 290;
+        h.words[mine + kSlot + 8] = 0x62000;
+        h.words[0x62000 + 0x10] = contract_def;
+        h.words[0x62000 + 0x0a] = 120;
+        h.words[mine + 2 * kSlot + 8] = 0x63000;
+        h.words[0x63000 + 0x10] = contract_def;
+        h.words[0x63000 + 0x0a] = 300;
+        h.words[mine + 3 * kSlot + 8] = 0;
+
+        auto p = pending_events(h, sched, bottas, 200, kCal);
+        EXPECT(p.size() == 1);
+        EXPECT(p.size() == 1 && p[0].calendar == me && p[0].activity == 0x63000 && p[0].def == contract_def &&
+               p[0].day == 300);
+        EXPECT(pending_events(h, sched, bottas, 100, kCal).size() == 2);
+        EXPECT(pending_events(h, sched, bottas, 301, kCal).empty());
+        EXPECT(pending_events(h, sched, 0x00200000, 0, kCal).empty());
+        EXPECT(pending_events(h, sched, other, 0, kCal).size() == 1);
+        EXPECT(pending_events(h, 0, bottas, 0, kCal).empty());
+        h.words[me + 0x58] = mine + 4 * kSlot + 8;
+        EXPECT(pending_events(h, sched, bottas, 0, kCal).empty());
+        EXPECT(same_driver(0x000f0000, 0x000f1200) && !same_driver(0x000f0000, 0x00100000) &&
+               !same_driver(0x000f0001, 0x000f0000));
+    }
 
     if (failures) {
         std::printf("scene_logic_test: %d failure(s)\n", failures);
