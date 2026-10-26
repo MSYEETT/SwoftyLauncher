@@ -30,6 +30,13 @@
 // a tile press); the career's own line-up copy when the career is built replaces them anyway, and
 // the take-back logs how many rows still wore a start season car.
 //
+// Team logos: the three Ne_Format_String calls that build Team Select's logo key
+// (site_Game_TeamSelect_TeamLogoFormat), Choose Driver's badge key (site_Game_DriverSelect_BadgeFormat)
+// and its details logo key (site_Game_DriverSelect_TeamLogoFormat) get the start season's Classic
+// Seasons team key for the career team's label while the view is active (cards_logic.hpp
+// logo_map(), from data/years.json). Wizard only: the view is never active in a running career, so
+// Team HQ and the other screens keep the career teams' logos.
+//
 // Team Select enables only the teams in the picked driver's offer entry (contracts +0x3c8, 0x48
 // each, team vector +0x10..+0x18, capacity +0x20). With team_moves follow_driver the wrap leaves
 // that vector with the driver's start season team only, so it is the one team the player can sign
@@ -54,12 +61,14 @@
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+#include <swofty/storage.hpp>
 
 #include "../cards_logic.hpp"
 
 namespace {
 
 using swofty::game::EntrantRecord;
+using swofty::game::NeStr;
 namespace pc = progressive::cards;
 
 static_assert(pc::kEventHub == SWOFTY_EVENT_CAREER_HUB);
@@ -120,6 +129,13 @@ std::mutex g_swap_lock;
 std::vector<Swap> g_swaps;
 bool g_live = false;
 int g_offer_logged = 0;
+
+constexpr const char *kYearsPath = "data/years.json";
+std::mutex g_logo_lock;
+bool g_logos_tried = false;
+std::atomic<bool> g_logos_ready{false};
+std::vector<pc::LogoMap> g_logos;
+std::atomic<int> g_logo_logged[3];
 
 uintptr_t view()
 {
@@ -215,8 +231,47 @@ void take_back(const char *why)
     g_mode = 0;
 }
 
+void load_logos()
+{
+    std::lock_guard<std::mutex> g(g_logo_lock);
+    if (g_logos_tried)
+        return;
+    g_logos_tried = true;
+    std::string text;
+    json::Value doc;
+    if (swofty::storage::read(kYearsPath, text) != swofty::storage::Result::ok || !json::parse(text, doc)) {
+        swofty::log("[progressive] cards: team logos: %s is missing or not JSON; every logo stays the career team's",
+                    kYearsPath);
+        return;
+    }
+    std::vector<std::string> missing;
+    g_logos = pc::logo_map(doc, missing);
+    std::string list;
+    for (const std::string &m : missing)
+        list += (list.empty() ? "" : ", ") + m;
+    swofty::log("[progressive] cards: team logos: %zu start season label(s) mapped from %s (%zu logo key(s)); %zu "
+                "Classic Seasons team key(s) have no logo slice and keep the career team's logo%s%s",
+                g_logos.size(), kYearsPath, doc["logo_keys"].a.size(), missing.size(), list.empty() ? "" : ": ",
+                list.c_str());
+    g_logos_ready = true;
+}
+
+const char *logo(int site, const char *label)
+{
+    static const char *const kSites[] = {"Team Select logo", "Choose Driver badge", "Choose Driver details logo"};
+    int year = g_year;
+    if (!g_logos_ready.load() || !g_mode || year < pc::kFirstYear || year > pc::kLastListYear || !label ||
+        !swofty::mem::readable(reinterpret_cast<uintptr_t>(label), 1))
+        return label;
+    const char *to = pc::logo_for(g_logos, year, label);
+    if (to != label && g_logo_logged[site].fetch_add(1) < 3)
+        swofty::log("[progressive] cards: %s %d: %s -> %s", kSites[site], year, label, to);
+    return to;
+}
+
 bool dress(uintptr_t vm, uintptr_t mode, uintptr_t entrants, uintptr_t career_list, int year)
 {
+    load_logos();
     unsigned stat = pc::kFirstSeasonList + static_cast<unsigned>(year - pc::kFirstYear);
     Rows career{}, season{}, first{};
     if (!rows_of(career_list, career) || !rows_of(list_at(entrants, stat), season) || !season.count) {
@@ -489,6 +544,21 @@ SWOFTY_WRAP(Game_DriverContracts_BuildOffers, void, void *contracts, uint32_t dr
 {
     orig(contracts, driver);
     team_select(reinterpret_cast<uintptr_t>(contracts), driver);
+}
+
+SWOFTY_REDIRECT(site_Game_TeamSelect_TeamLogoFormat, int64_t, NeStr **out, const char *fmt, const char *label)
+{
+    return orig(out, fmt, logo(0, label));
+}
+
+SWOFTY_REDIRECT(site_Game_DriverSelect_BadgeFormat, int64_t, NeStr **out, const char *fmt, const char *label)
+{
+    return orig(out, fmt, logo(1, label));
+}
+
+SWOFTY_REDIRECT(site_Game_DriverSelect_TeamLogoFormat, int64_t, NeStr **out, const char *fmt, const char *label)
+{
+    return orig(out, fmt, logo(2, label));
 }
 
 SWOFTY_ON_LOAD

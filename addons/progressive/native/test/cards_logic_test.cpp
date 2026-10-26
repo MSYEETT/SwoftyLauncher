@@ -261,6 +261,38 @@ void hidden_lists()
     EXPECT(pool && f2 && !career && !season);
 }
 
+void team_logos()
+{
+    const char *text = R"({
+      "slots": [{"slot": 5, "team": "forceindia_26"}, {"slot": 11, "team": "gm_cadillac_26"},
+                {"slot": 8, "team": "tororosso_26"}],
+      "logo_keys": ["cs16_manor", "cs17_force_india", "cs17_toro_rosso"],
+      "seasons": {
+        "2017": {"teams": [{"slot": 5, "cs_team": "cs17_force_india"}, {"slot": 8, "cs_team": "cs17_toro_rosso"},
+                           {"slot": 11, "cs_team": "cs16_manor"}]},
+        "2018": {"teams": [{"slot": 5, "cs_team": "cs18_force_india"}]},
+        "2025": {"teams": [{"slot": 5, "cs_team": null}, {"slot": 8, "cs_team": null},
+                           {"slot": 11, "cs_team": "cs16_manor"}]},
+        "2026": {"teams": [{"slot": 5, "cs_team": null}]}
+      }})";
+    json::Value doc;
+    EXPECT(json::parse(text, doc));
+    std::vector<std::string> missing;
+    std::vector<LogoMap> map = logo_map(doc, missing);
+    EXPECT(std::string(logo_for(map, 2017, "forceindia_26")) == "cs17_force_india");
+    EXPECT(std::string(logo_for(map, 2017, "tororosso_26")) == "cs17_toro_rosso");
+    EXPECT(std::string(logo_for(map, 2017, "gm_cadillac_26")) == "cs16_manor");
+    EXPECT(std::string(logo_for(map, 2018, "forceindia_26")) == "forceindia_26");
+    EXPECT(missing.size() == 1 && missing[0] == "cs18_force_india");
+    EXPECT(std::string(logo_for(map, 2018, "gm_cadillac_26")) == "gm_cadillac_26");
+    EXPECT(std::string(logo_for(map, 2025, "forceindia_26")) == "forceindia");
+    EXPECT(std::string(logo_for(map, 2025, "tororosso_26")) == "tororosso");
+    EXPECT(std::string(logo_for(map, 2025, "gm_cadillac_26")) == "cs16_manor");
+    EXPECT(std::string(logo_for(map, 2026, "forceindia_26")) == "forceindia_26");
+    EXPECT(std::string(logo_for(map, 2017, "ferrari_26")) == "ferrari_26");
+    EXPECT(logo_for(map, 2017, nullptr) == nullptr);
+}
+
 } // namespace
 
 int main()
@@ -271,6 +303,7 @@ int main()
     too_small_output();
     take_back_policy();
     hidden_lists();
+    team_logos();
     if (failures) {
         std::printf("cards_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

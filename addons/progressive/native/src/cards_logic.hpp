@@ -24,9 +24,14 @@
 // the setup list back at the registry's list by stat id when the career is built.
 
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
+#include <vector>
+
+#include "../../../../native/src/core/json.hpp"
 
 namespace progressive::cards {
 
@@ -213,6 +218,61 @@ template <class R> size_t build(const Rows<R> &career, const Rows<R> &season, co
         out[n++] = r;
     }
     return n;
+}
+
+// Team logos (logo_map()): Choose Driver's badge and details logo and Team Select's logo format the
+// career team row's label (forceindia_26) into an overrides key. In a start season below 2026 the
+// label maps to that season's Classic Seasons team key from data/years.json: seasons[Y].teams[]
+// .cs_team of the label's slot (cs17_force_india; slot 11 is the filler cs16_manor in 2017-2025)
+// when logo_keys lists it, else the stock label; a season team with no cs_team (2025) maps to the
+// label without _26 (forceindia), the stock 2025 key. A label of no slot, or a slot the season
+// leaves empty, keeps its own key.
+struct LogoMap {
+    int year = 0;
+    std::string from, to;
+};
+
+inline std::vector<LogoMap> logo_map(const json::Value &doc, std::vector<std::string> &missing)
+{
+    std::vector<LogoMap> out;
+    std::vector<std::string> keys;
+    for (const json::Value &k : doc["logo_keys"].a)
+        keys.push_back(k.str());
+    const json::Value &seasons = doc["seasons"];
+    for (int year = kFirstYear; year <= kLastListYear; ++year) {
+        const json::Value &season = seasons[std::to_string(year).c_str()];
+        for (const json::Value &slot : doc["slots"].a) {
+            std::string label = slot["team"].str();
+            long long n = slot["slot"].num(-1);
+            if (label.empty() || n < 0)
+                continue;
+            for (const json::Value &t : season["teams"].a) {
+                if (t["slot"].num(-2) != n)
+                    continue;
+                std::string cs = t["cs_team"].str();
+                if (cs.empty()) {
+                    if (label.size() > 3 && label.compare(label.size() - 3, 3, "_26") == 0)
+                        out.push_back({year, label, label.substr(0, label.size() - 3)});
+                } else if (std::find(keys.begin(), keys.end(), cs) != keys.end()) {
+                    out.push_back({year, label, cs});
+                } else if (std::find(missing.begin(), missing.end(), cs) == missing.end()) {
+                    missing.push_back(cs);
+                }
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+inline const char *logo_for(const std::vector<LogoMap> &map, int year, const char *label)
+{
+    if (!label)
+        return label;
+    for (const LogoMap &m : map)
+        if (m.year == year && m.from == label)
+            return m.to.c_str();
+    return label;
 }
 
 } // namespace progressive::cards

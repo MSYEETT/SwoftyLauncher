@@ -22,6 +22,9 @@ ROOT = HERE.parent
 REPO = ROOT.parents[1]
 CS = REPO / "addons" / "classicseasons"
 CS_DATA = CS / "classic-seasons" / "data"
+CS_LOGOS = CS / "classic-seasons" / "erp" / "logos.json"
+LOGO_ARRAYS = ("team_logos.Contents.driver_career_2024_team_select", "teams.Contents.badges_broadcast",
+               "teams.Contents.driver_select_team_logos")
 sys.path.insert(0, str(HERE))
 import stockdb  # noqa: E402
 
@@ -140,6 +143,21 @@ PARTICIPANTS_2025 = {
     "lotus": {"pierre_gasly": {"sessions": 24, "number": 10}, "franco_colapinto": {"sessions": 18, "number": 43},
               "jack_doohan": {"sessions": 6, "number": 7}},
 }
+
+
+def cs_logo_keys():
+    """The team logo keys Classic Seasons adds to every array Choose Driver and Team Select read."""
+    doc = json.loads(CS_LOGOS.read_text())
+    per = {a: set() for a in LOGO_ARRAYS}
+    for op in doc["ops"]:
+        for e in op.get("edits", []):
+            for a in LOGO_ARRAYS:
+                if e.get("op") == "clone-entry" and e.get("at") == f"overrides.Contents.{a}.Contents":
+                    per[a].add(e["as"])
+    keys = set.intersection(*per.values())
+    if not keys:
+        raise SystemExit(f"{CS_LOGOS}: no team logo keys in {', '.join(LOGO_ARRAYS)}")
+    return sorted(keys)
 
 
 def write_json(path, doc):
@@ -678,10 +696,14 @@ def main():
                                "resolve the label with swofty::db at run time",
             "look.stat_id": "Classic Seasons sets look stat ids explicitly (420-601), stock looks are stock ids",
             "filler": "slot 11 in 2017-2025: the 2016 Manor car, drivers chosen at run time (DESIGN D7)",
+            "logo_keys": "Classic Seasons team logo keys present in driver_career_2024_team_select, badges_broadcast "
+                         "and driver_select_team_logos; a season team's cs_team outside this list keeps its stock "
+                         "logo",
             "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
         },
         "seasons": years,
         "pool": pool,
+        "logo_keys": cs_logo_keys(),
     }
     write_json(ROOT / "data" / "years.json", doc)
     write_json(ROOT / "db" / "career.json", career_ops(stock))
