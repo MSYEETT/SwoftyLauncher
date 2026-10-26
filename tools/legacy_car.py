@@ -1,9 +1,13 @@
-"""Car archives of older F1 games (F1 2017 to F1 23) converted to F1 25, onto a stock F1 25 car slot.
+"""Team car archives of older F1 games converted onto a stock F1 25 car slot, and a check of car archives against F1 25.
 
-Format notes: re/db/subsystems/legacy_cars.md.
+The conversion keys on each resource's version: cars of F1 2017, 2019, 2020 and F1 23 are converted and checked; F1 22 and F1 24
+resources of the sampled versions take the same paths. Format notes: re/db/subsystems/legacy_cars.md.
 
   python3 tools/legacy_car.py convert <old car.erp> <F1 25 slot.erp> <out.erp> [--sidecars <old game folder>]...
-  python3 tools/legacy_car.py check <car.erp>
+  python3 tools/legacy_car.py check <car.erp>...
+  python3 tools/legacy_car.py selftest
+
+Needs the zstd command (erpw.py).
 """
 import argparse
 import hashlib
@@ -11,15 +15,14 @@ import os
 import re
 import struct
 import sys
+import tempfile
 import zlib
-
-import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import erpw
 import gfx_material as gm
 
-ZSTD, ZLIB = 0x11, 1
+ZSTD, ZLIB, STORED = (0x10, 0x11), 1, 0x80
 OLD_HEADER, HEADER, RECORD = 36, 76, 88
 POSITION, NORMAL, TANGENT, TEXCOORD, BLEND = 1, 2, 3, 5, 7
 ROLES = {
@@ -38,6 +41,7 @@ SHADER_FALLBACK = {
         'eaid://shader_package/tyre_sidewall/tyre_sidewall.nefx2',
 }
 VERSIONS = {'GfxBufferRes': 4, 'GfxMeshRes': 0x60000, 'GfxMaterialRes': 2, 'GfxSurfaceRes': 9}
+KNOWN = {'GfxBufferRes': {3, 4}, 'GfxMeshRes': {0x10000, 0x60000}, 'GfxMaterialRes': {1, 2}, 'GfxSurfaceRes': {8, 9}}
 CHECKED = {(1, 0x2f, 12, 0x27), (2, 0x23, 8, 0x23), (3, 0x23, 8, 0x23), (5, 0x23, 8, 0x23), (5, 0x1d, 4, 0x1d),
            (5, 0x1d, 8, 0x21), (7, 0xd, 4, 0xd), (7, 0xd, 4, 0x1d), (7, 0xd, 8, 0x21), (7, 0xd, 12, 0x27),
            (7, 0x1f, 4, 0x1d), (7, 0x1f, 8, 0x21), (7, 0x1f, 8, 0x23), (7, 0x1f, 12, 0x27)}
@@ -61,7 +65,9 @@ def cstr(d, at):
 
 def data(r, i):
     fr = r.frags[i]
-    if fr.comp == ZSTD:
+    if fr.comp & STORED:
+        return fr.raw
+    if fr.comp in ZSTD:
         return erpw.zstd_d(fr.raw)
     if fr.comp == ZLIB:
         return zlib.decompress(fr.raw)
@@ -71,7 +77,7 @@ def data(r, i):
 def put(r, i, payload):
     fr = r.frags[i]
     fr.raw = erpw.zstd_c(payload)
-    fr.comp = ZSTD
+    fr.comp = erpw.ZSTD
     fr.size = len(payload)
     fr.packed = len(fr.raw)
 
@@ -126,18 +132,28 @@ def lz4_block(src, off, out_size):
     return bytes(out[:out_size])
 
 
-def sidecar_levels(desc, surface_version):
+def _levels(desc, at, entry, lead):
+    count = struct.unpack_from('<I', desc, at)[0]
+    if count > 32 or at + 4 + count * entry > len(desc):
+        return None
+    levels = []
+    for k in range(count):
+        o = at + 4 + k * entry + lead
+        levels.append((desc[o],) + struct.unpack_from('<QQQ', desc, o + 1))
+    return levels
+
+
+def sidecar_levels(desc):
     n = desc[0]
     path = desc[1:1 + n].decode().rstrip('\0')
-    pad, entry, lead = (0, 25, 0) if surface_version == 8 else (1, 26, 1)
-    count = struct.unpack_from('<I', desc, 1 + n + pad)[0]
-    levels, o = [], 5 + n + pad
-    for _ in range(count):
-        comp = desc[o + lead]
-        off, packed, size = struct.unpack_from('<QQQ', desc, o + lead + 1)
-        levels.append((comp, off, packed, size))
-        o += entry
-    return path, levels
+    if len(desc) > 1 + n and desc[1 + n] == 0:
+        levels = _levels(desc, 2 + n, 26, 1)
+        if levels is not None and all(c in (0, 3) for c, *_ in levels):
+            return path, 9, levels
+    levels = _levels(desc, 1 + n, 25, 0)
+    if levels is None:
+        raise ValueError(f'{path}: sidecar descriptor of {len(desc)} bytes is neither layout')
+    return path, 8, levels
 
 
 class Sidecars:
@@ -163,8 +179,10 @@ class Sidecars:
         return hits[0] if len(hits) == 1 else None
 
 
-def embed_sidecar(head, tail, desc, sidecars, surface_version):
-    path, levels = sidecar_levels(desc, surface_version)
+def embed_sidecar(head, tail, desc, sidecars):
+    path, layout, levels = sidecar_levels(desc)
+    if not levels:
+        return None, f'{path}: descriptor v{layout} lists no sidecar levels'
     f = sidecars.find(path) if sidecars else None
     if not f:
         return None, f'{path}: no sidecar, archive levels only'
@@ -295,6 +313,9 @@ def refs_of(r):
 
 def convert(src_path, donor_path, out_path, sidecars=None):
     src, don = erpw.Erp(src_path), erpw.Erp(donor_path)
+    unknown = sorted({(kind(r), version(r)) for r in src.res if version(r) not in KNOWN.get(kind(r), [version(r)])})
+    if unknown:
+        raise ValueError(f'{src_path}: no conversion for ' + ', '.join(f'{k} version {v:#x}' for k, v in unknown))
     sb, db = base(src), base(don)
     report = [f'source {src_path}', f'donor {donor_path}', f'base {sb} -> {db}']
     heads = {r.name: struct.unpack('<4I', data(r, 0)) for r in src.res if kind(r) == 'GfxBufferRes'}
@@ -329,7 +350,7 @@ def convert(src_path, donor_path, out_path, sidecars=None):
         elif k == 'GfxSurfaceRes':
             head, tail = data(r, 0), data(r, 1)
             if len(r.frags) == 3:
-                full, note = embed_sidecar(head, tail, data(r, 2), sidecars, v)
+                full, note = embed_sidecar(head, tail, data(r, 2), sidecars)
                 r.frags = r.frags[:2]
                 if full:
                     head, tail, extra = full
@@ -388,6 +409,8 @@ def check(path):
 
     bufs = {r.name: r for r in e.res if kind(r) == 'GfxBufferRes'}
     heads = {n: struct.unpack('<4I', data(r, 0)) for n, r in bufs.items()}
+    srvs = {r.name: r for r in e.res if kind(r) == 'GfxSRVResource'}
+    shaders = gm.catalog()
     indices, submeshes = {}, 0
     for n, r in bufs.items():
         if version(r) != 4:
@@ -396,10 +419,24 @@ def check(path):
             err('buffer flag')
     for r in e.res:
         k = kind(r)
-        if k == 'GfxMaterialRes' and version(r) != 2:
-            err('material version')
-        elif k == 'GfxSurfaceRes' and version(r) != 9:
-            err('surface version')
+        if any(fr.comp not in (erpw.ZSTD, erpw.STORED) for fr in r.frags):
+            err('fragment compression')
+        if k == 'GfxMaterialRes':
+            if version(r) != 2:
+                err('material version')
+            elif gm.parse25(data(r, 0)).shader not in shaders:
+                err('shader not in F1 25')
+        elif k == 'GfxSurfaceRes':
+            if version(r) != 9:
+                err('surface version')
+            if len(r.frags) not in (2, 3):
+                err('surface fragments')
+            elif len(r.frags) == 3 and sidecar_levels(data(r, 2))[1] != 9:
+                err('sidecar descriptor layout')
+            srv = srvs.get(r.name[:-len('.image')])
+            mips = struct.unpack_from('<I', data(r, 0), 24)[0]
+            if srv and struct.unpack_from('<I', data(srv, 0), 12)[0] != mips:
+                err('SRV level count')
         elif k == 'GfxSampleState':
             err('sampler state')
         if k != 'GfxMeshRes':
@@ -422,14 +459,14 @@ def check(path):
             err('missing index buffer')
             continue
         if ib not in indices:
-            indices[ib] = np.frombuffer(data(bufs[ib], 1), dtype=np.uint16 if heads[ib][1] == 2 else np.uint32)
+            indices[ib] = memoryview(data(bufs[ib], 1)).cast('H' if heads[ib][1] == 2 else 'I')
         for i in range(h[0]):
             f = struct.unpack_from('<22I', d, HEADER + i * RECORD)
             submeshes += 1
             if f[3] + f[4] > heads[ib][2]:
                 err('index range')
             idx = indices[ib][f[3]:f[3] + f[4]]
-            top = int(idx.max()) + f[5] if len(idx) else -1
+            top = max(idx) + f[5] if len(idx) else -1
             for k in range(f[0]):
                 slot, _, sem, _, fmt = decl[f[14 + k]]
                 vb = refs[f[14 + k]]
@@ -445,17 +482,85 @@ def check(path):
     return submeshes, errs
 
 
+def _res(name, rtype, v, payloads, comp=erpw.ZSTD):
+    r = erpw.Res()
+    r.name, r.type, r.unk, r.hash, r.frags = name, rtype.encode().ljust(16, b'\0'), struct.pack('<I', v), bytes(16), []
+    for payload in payloads:
+        fr = erpw.Frag()
+        fr.name, fr.flags, fr.off, fr.raw = b'temp', 16, 0, payload
+        fr.comp, fr.size, fr.packed = 0, len(payload), len(payload)
+        r.frags.append(fr)
+        if comp in ZSTD:
+            put(r, len(r.frags) - 1, payload)
+            fr.comp = comp
+        elif comp == ZLIB:
+            fr.raw, fr.comp, fr.packed = zlib.compress(payload), ZLIB, len(zlib.compress(payload))
+        else:
+            fr.comp = comp
+    return r
+
+
+def _old_mesh(base_vertex):
+    vbs = [f'eaid://t/vb={i}' for i in range(5)]
+    pool = b''.join(s.encode() + b'\0' for s in vbs + ['eaid://t/ib=0'])
+    offs = [pool.index(s.encode()) for s in vbs]
+    rec = [5, 4, 2, 0, 3, base_vertex, 0, 0, 0, 1, 0, 1, 0, 0] + offs + [0] * 3
+    body = struct.pack('<22I', *rec) + pool + b'part\0' + bytes(8)
+    names = RECORD + len(pool)
+    return struct.pack('<9I', 1, 5, 1, 1, 1, RECORD, RECORD + offs[-1] + len(vbs[-1]) + 1, names, names + 5) + body
+
+
+def selftest():
+    assert data(_res('z', 'GfxSRVResource', 2, [b'abc'], 0x10), 0) == b'abc'
+    assert data(_res('s', 'GfxSRVResource', 2, [b'abc'], 0x90), 0) == b'abc'
+    assert data(_res('l', 'GfxSRVResource', 2, [b'abc'], ZLIB), 0) == b'abc'
+    assert lz4_block(bytes([0x44]) + b'abcd' + bytes([4, 0]), 0, 12) == b'abcdabcdabcd'
+    entry = struct.pack('<QQQ', 16, 12, 64)
+    path = b'f1_2019_vehicle_package/teams/t/textures/t_d.tif.mipmaps'
+    v8 = bytes([len(path)]) + path + struct.pack('<I', 1) + b'\3' + entry + struct.pack('<2f', 40, 1)
+    v9 = bytes([len(path)]) + path + b'\0' + struct.pack('<I', 1) + b'\0\3' + entry + struct.pack('<2f', 40, 1)
+    empty = bytes([len(path)]) + path + b'\0' + struct.pack('<I', 0) + struct.pack('<2f', 40, 1)
+    assert sidecar_levels(v8) == (path.decode(), 8, [(3, 16, 12, 64)])
+    assert sidecar_levels(v9) == (path.decode(), 9, [(3, 16, 12, 64)])
+    assert sidecar_levels(empty) == (path.decode(), 9, [])
+    streams = [(12, 0x27, b'\0' * 36), (8, 0x23, b'\0' * 24), (8, 0x23, b'\0' * 24), (8, 0x23, b'\0' * 24), (4, 0xd, b'\0' * 12)]
+    results = []
+    for base_vertex in (0, 1):
+        heads, res = {}, []
+        for i, (stride, fmt, payload) in enumerate(streams):
+            heads[f'eaid://t/vb={i}'] = (0x109, stride, 3, fmt)
+            res.append(_res(f'eaid://t/vb={i}', 'GfxBufferRes', 4, [struct.pack('<4I', 0x1109, stride, 3, fmt), payload]))
+        heads['eaid://t/ib=0'] = (0x10a, 2, 3, 0x13)
+        res.append(_res('eaid://t/ib=0', 'GfxBufferRes', 4, [struct.pack('<4I', 0x110a, 2, 3, 0x13), struct.pack('<3H', 0, 1, 2)]))
+        report = []
+        res.append(_res('eaid://t/idf/t.idf&lod=0&mesh', 'GfxMeshRes', 0x60000, [mesh('eaid://t/idf/t.idf&lod=0&mesh', _old_mesh(base_vertex), heads, report, {})]))
+        e = erpw.Erp.__new__(erpw.Erp)
+        e.hdr, e.ver, e.res = b'ERPK' + struct.pack('<I', 3) + bytes(0x28), 3, res
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, 't.erp')
+            e.to_file(out)
+            results.append(check(out))
+    assert results[0] == (1, {}), results[0]
+    assert results[1] == (1, {'vertex range': 5}), results[1]
+    return 'selftest: ok'
+
+
 def _main(argv):
-    ap = argparse.ArgumentParser(prog='legacy_car.py')
+    ap = argparse.ArgumentParser(prog='legacy_car.py', description='Converts a team car archive of an older F1 game onto a stock F1 25 car slot, and checks car archives against F1 25.')
     sub = ap.add_subparsers(dest='cmd', required=True)
-    c = sub.add_parser('convert')
-    c.add_argument('src')
-    c.add_argument('donor')
-    c.add_argument('out')
-    c.add_argument('--sidecars', action='append', default=[])
-    k = sub.add_parser('check')
+    c = sub.add_parser('convert', help='convert an old car archive onto an F1 25 slot')
+    c.add_argument('src', help="the old game's team archive (<team>/wep/<team>.erp)")
+    c.add_argument('donor', help='a stock F1 25 car archive of the slot, from the baseline')
+    c.add_argument('out', help='the converted archive to write')
+    c.add_argument('--sidecars', action='append', default=[], metavar='FOLDER',
+                   help="the old game's folder, searched for the .mipmaps the archive names (repeatable)")
+    k = sub.add_parser('check', help="check car archives against F1 25's versions, streams and ranges")
     k.add_argument('erp', nargs='+')
+    sub.add_parser('selftest', help='run the built-in tests on synthetic resources')
     a = ap.parse_args(argv)
+    if a.cmd == 'selftest':
+        print(selftest())
+        return 0
     if a.cmd == 'convert':
         print('\n'.join(convert(a.src, a.donor, a.out, Sidecars(a.sidecars) if a.sidecars else None)))
         return 0

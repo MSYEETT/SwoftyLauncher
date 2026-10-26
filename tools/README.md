@@ -15,7 +15,7 @@ and the same edit. They are not shipped, except Swofty UI.
 | `modswap.py` | The pristine-verify, install and restore pattern behind the journal |
 | `vtf.py` | Car handling files (`.vtf`, bxml plus TSMD): read, write, add a track's ERS settings |
 | `gfx_material.py` | `.material` (GfxMaterialRes) in the F1 25 and F1 23 layouts: read, write, dump, convert F1 23 materials to F1 25 (`convert`, `convert-erp`). `gfx_material_layouts.json` holds the F1 25 layout of each shader and is rebuilt with `catalog <game>/2025_asset_groups` ([format](../re/db/subsystems/gfx_material.md)) |
-| `legacy_car.py` | Car archives of F1 2017 to F1 23 converted onto an F1 25 car slot (`convert`, with the old game's `.mipmaps` through `--sidecars`), and a check of a car archive against F1 25's mesh, buffer and texture rules (`check`) ([format](../re/db/subsystems/legacy_cars.md)) |
+| `legacy_car.py` | Team car archives of older F1 games (F1 2017, 2019, 2020 and F1 23; F1 22 and F1 24 resources by version) converted onto an F1 25 car slot (`convert`, with the old game's `.mipmaps` through `--sidecars`), a check of car archives against F1 25's fragment, mesh, buffer, material and texture rules (`check`), and `selftest` ([format](../re/db/subsystems/legacy_cars.md)) |
 | `map_check.py` | Checks a profile built with tracks against the game it was built from, using the build's `plan.json` |
 | `track_keys.py` | The game-DB names `F1_25.exe` reads, stack-built ones included, and the keys they resolve to on a track's rows |
 | `gdb_hashsim.py` | Replays the game's hash-map load of `gamedatabases.2025.bin` and prints the missing-key sentinel |
