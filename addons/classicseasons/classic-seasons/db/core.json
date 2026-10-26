@@ -5228,6 +5228,71 @@
     "colour_3_default": "-4129275",
     "colour_4_default": "0"
    }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.helmets",
+   "from": "customisation.custom_avatar.helmets.Helmet[_metadata_=tier01_livery76]",
+   "set": {
+    "_metadata_": "cs-stoffel_vandoorne",
+    "id": "934",
+    "colour_1_default": "-15066598",
+    "colour_2_default": "-723724",
+    "colour_3_default": "-670720",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.helmets",
+   "from": "customisation.custom_avatar.helmets.Helmet[_metadata_=tier01_livery79]",
+   "set": {
+    "_metadata_": "cs-brendon_hartley",
+    "id": "935",
+    "colour_1_default": "-15658735",
+    "colour_2_default": "-3092272",
+    "colour_3_default": "-3665874",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.helmets",
+   "from": "customisation.custom_avatar.helmets.Helmet[_metadata_=tier01_livery75]",
+   "set": {
+    "_metadata_": "cs-antonio_giovinazzi",
+    "id": "936",
+    "colour_1_default": "-1",
+    "colour_2_default": "-14790752",
+    "colour_3_default": "-3265737",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.helmets",
+   "from": "customisation.custom_avatar.helmets.Helmet[_metadata_=tier01_livery77]",
+   "set": {
+    "_metadata_": "cs-robert_kubica",
+    "id": "937",
+    "colour_1_default": "-1",
+    "colour_2_default": "-2878946",
+    "colour_3_default": "-13948117",
+    "colour_4_default": "0"
+   }
+  },
+  {
+   "op": "add-row",
+   "table": "customisation.custom_avatar.helmets",
+   "from": "customisation.custom_avatar.helmets.Helmet[_metadata_=tier01_livery86]",
+   "set": {
+    "_metadata_": "cs-nikita_mazepin",
+    "id": "938",
+    "colour_1_default": "-1",
+    "colour_2_default": "-14730356",
+    "colour_3_default": "-2807010",
+    "colour_4_default": "0"
+   }
   }
  ]
 }

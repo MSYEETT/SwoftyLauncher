@@ -70,5 +70,12 @@
   {"season": 2018, "driver": "sergey_sirotkin",    "mod": "sirotkin_2018", "base": "2024-williams_logan_sargeant"},
   {"season": 2022, "driver": "sebastian_vettel",   "mod": "vettel_mexico_2022", "base": "2024-f2-artgp_zak_osullivan"},
   {"season": 2017, "driver": "felipe_massa",       "mod": "massa_ferrari_f1_23", "base": "2024-tororosso_daniel_ricciardo", "off": true}
- ]
+ ],
+ "designs": {
+  "stoffel_vandoorne":  {"design": "tier01_livery76", "colours": ["#1A1A1A", "#F4F4F4", "#F5C400"]},
+  "brendon_hartley":    {"design": "tier01_livery79", "colours": ["#111111", "#D0D0D0", "#C8102E"]},
+  "antonio_giovinazzi": {"design": "tier01_livery75", "colours": ["#FFFFFF", "#1E4FA0", "#CE2B37"]},
+  "robert_kubica":      {"design": "tier01_livery77", "colours": ["#FFFFFF", "#D4121E", "#2B2B2B"]},
+  "nikita_mazepin":     {"design": "tier01_livery86", "colours": ["#FFFFFF", "#1F3B8C", "#D52B1E"]}
+ }
 }

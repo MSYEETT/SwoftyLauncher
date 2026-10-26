@@ -1252,7 +1252,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-mclaren_lando_norris]",
    "set": {
     "_metadata_": "2018-cs_mclaren_stoffel_vandoorne",
-    "helmet": "2025-mclaren_lando_norris",
+    "helmet": "cs-stoffel_vandoorne",
     "suit": "cs17-mclaren",
     "gloves": "cs17-mclaren",
     "linked_driver_stat_id": "stoffel_vandoorne",
@@ -1585,7 +1585,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-tororosso_liam_lawson]",
    "set": {
     "_metadata_": "2018-cs_toro_rosso_brendon_hartley",
-    "helmet": "2025-tororosso_liam_lawson",
+    "helmet": "cs-brendon_hartley",
     "suit": "cs17-tororosso",
     "gloves": "cs17-tororosso",
     "linked_driver_stat_id": "brendon_hartley",

@@ -46,8 +46,12 @@ Helmets: a period helmet is a helmet of a driver's own from one season: a stock 
 (<year>-<stock team>_<driver>, the 2024 grid), a built mod or F1 23 driver suit's helmet (its season and driver in
 data/real_suits.json) or a built season helmet of data/helmets.json (build_helmets.py; the last of these wins).
 Each driver's look of a season wears his period helmet of the nearest season that has one, the earlier season on a
-tie, else his own stock F1 25 helmet (data/stock_looks.json driver_looks), else his seat's. The core addon holds the
-season helmets' rows (item ids from HELMET_IDS.stop, in data/helmets.json order) and archives (assets/helmets.json).
+tie, else his own stock F1 25 helmet (data/stock_looks.json driver_looks), else his design of data/helmets.json
+"designs": a copy cs-<driver> of a stock customisable helmet design (a livery_package tier design, no diffuse; its
+nb_colours masks paint it) with colour_1_default to colour_3_default set to his helmet's colours and colour_4_default
+"0". The build fails for a driver with none of these. The core addon holds the season helmets' rows (item ids from
+HELMET_IDS.stop, in data/helmets.json order) and archives (assets/helmets.json), then the design rows (the next ids,
+in "designs" order).
 """
 
 import json
@@ -101,6 +105,8 @@ HELMET_IDS = range(868, 868 + sum(1 for e in suit_sources.REAL["suits"] if e.get
 HELMETS = "customisation.custom_avatar.helmets"
 SEASON_HELMETS = json.loads((ROOT / "data" / "helmets.json").read_text())["helmets"]
 SEASON_HELMET_IDS = {(h["season"], h["driver"]): n for n, h in enumerate(SEASON_HELMETS, HELMET_IDS.stop)}
+DESIGNS = json.loads((ROOT / "data" / "helmets.json").read_text())["designs"]
+DESIGN_HELMET_IDS = {d: n for n, d in enumerate(DESIGNS, HELMET_IDS.stop + len(SEASON_HELMETS))}
 STOCK_ITEM_IDS = {"suits": range(448, 974), "gloves": range(448, 974), "helmets": range(315, 868)}
 COLOUR_FIELDS = [f"colour_{n}_default" for n in range(1, 5)]
 SUITS = "customisation.custom_avatar.suits"
@@ -252,6 +258,26 @@ def nearest_helmet(period, year, driver):
     return own[0][2] if own else None
 
 
+def design_label(driver):
+    return f"cs-{driver}"
+
+
+def design_row(driver):
+    d = DESIGNS[driver]
+    return {"op": "add-row", "table": HELMETS, "from": f"{HELMETS}.Helmet[_metadata_={d['design']}]",
+            "set": {"_metadata_": design_label(driver), "id": str(DESIGN_HELMET_IDS[driver]),
+                    **dict(zip(COLOUR_FIELDS, [colour(c) for c in d["colours"]] + ["0"]))}}
+
+
+def own_helmet(driver):
+    look = STOCK["driver_looks"].get(driver)
+    if look:
+        return STOCK["looks"][look]["helmet"]
+    if driver in DESIGNS:
+        return design_label(driver)
+    raise SystemExit(f"{driver}: no period helmet, stock helmet or design in data/helmets.json")
+
+
 def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
@@ -321,6 +347,7 @@ def build():
             ops += real_rows(m, item_id, helmet_id)
     season_helmets = helmets()
     ops += [helmet_row(m) for m in season_helmets.values()]
+    ops += [design_row(driver) for driver in DESIGNS]
     period = period_helmets(made, season_helmets)
 
     core_ops, core_text = ops, text
@@ -413,7 +440,7 @@ def build():
                         suit_look = gloves = choice["label"]
                     elif suit:
                         suit_look = gloves = suit["label"]
-                helmet = nearest_helmet(period, year, driver) or helmet
+                helmet = nearest_helmet(period, year, driver) or own_helmet(driver)
                 look = look_label(year, key, driver)
                 ops.append({"op": "add-row", "table": LOOKS, "from": f"{LOOK_ROW}[_metadata_={seat}]",
                             "set": {"_metadata_": look, "helmet": helmet, "suit": suit_look, "gloves": gloves,
@@ -476,7 +503,7 @@ def build():
               CATEGORY + ".value": CATEGORY_FIELDS}
     items = check_item_ids([("core", core_ops)] + [(str(year), ops) for year, ops, _ in seasons])
     write_json(ROOT / "db" / "core.json",
-               {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made or season_helmets else {})},
+               {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made or season_helmets or DESIGNS else {})},
                 "ops": core_ops})
     core_assets = [a for a in core["operations"]["assets"] if a not in ("assets/suits.json", "assets/helmets.json")]
     for name, has, write in (("suits", made, real_suit_asset_ops), ("helmets", season_helmets, helmet_asset_ops)):

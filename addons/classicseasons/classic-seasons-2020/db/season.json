@@ -1570,7 +1570,7 @@
    "from": "entrants.driver_customisations.folder[_metadata_=official_driver_customisations].preloaded_driver_customisation_properties[_metadata_=2025-sauber_gabriel_bortoleto]",
    "set": {
     "_metadata_": "2020-cs_sauber_antonio_giovinazzi",
-    "helmet": "2025-sauber_gabriel_bortoleto",
+    "helmet": "cs-antonio_giovinazzi",
     "suit": "cg20-sauber",
     "gloves": "cg20-sauber",
     "linked_driver_stat_id": "antonio_giovinazzi",
