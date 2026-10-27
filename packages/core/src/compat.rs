@@ -80,12 +80,22 @@ fn same_file(a: &Path, b: &Path) -> bool {
         )
 }
 
+/// Whether `layers` sets any compatibility layer, not just the `~` marker.
+pub fn has_layers(layers: &str) -> bool {
+    layers.split_whitespace().any(|l| l != "~")
+}
+
+#[cfg(test)]
 fn matching(listing: &str, all_users: bool, exe: &Path) -> Vec<AdminLayer> {
+    matching_with(listing, all_users, exe, has_run_as_admin)
+}
+
+fn matching_with(listing: &str, all_users: bool, exe: &Path, keep: fn(&str) -> bool) -> Vec<AdminLayer> {
     let path = exe.to_string_lossy();
     let name = path.rsplit(['\\', '/']).next().unwrap_or(&path);
     parse_reg_query(listing)
         .into_iter()
-        .filter(|(stored, data)| has_run_as_admin(data) && same_file(Path::new(stored), exe))
+        .filter(|(stored, data)| keep(data) && same_file(Path::new(stored), exe))
         .map(|(stored, layers)| AdminLayer {
             all_users,
             name: name.to_owned(),
@@ -97,12 +107,22 @@ fn matching(listing: &str, all_users: bool, exe: &Path) -> Vec<AdminLayer> {
 
 /// Every run-as-administrator setting on `exe`, per user first.
 pub fn admin_layers(exe: &Path) -> Vec<AdminLayer> {
+    layer_settings(exe, has_run_as_admin)
+}
+
+/// Every compatibility setting on `exe` (the Compatibility tab of its
+/// Properties, run as administrator included), per user first.
+pub fn layers(exe: &Path) -> Vec<AdminLayer> {
+    layer_settings(exe, has_layers)
+}
+
+fn layer_settings(exe: &Path, keep: fn(&str) -> bool) -> Vec<AdminLayer> {
     [("HKCU", false), ("HKLM", true)]
         .into_iter()
         .filter_map(|(hive, all_users)| {
             let key = format!(r"{hive}\{LAYERS_KEY}");
             let listing = windows_tool("reg", &["query", &key, "/reg:64"])?;
-            Some(matching(&listing, all_users, exe))
+            Some(matching_with(&listing, all_users, exe, keep))
         })
         .flatten()
         .collect()
@@ -494,6 +514,19 @@ mod tests {
         assert!(!has_run_as_admin("~ RUNASINVOKER"));
         assert!(!has_run_as_admin("~ NORUNASADMIN"));
         assert!(!has_run_as_admin(""));
+    }
+
+    #[test]
+    fn reads_any_compatibility_layer() {
+        assert!(has_layers("~ HIGHDPIAWARE"));
+        assert!(has_layers("WIN7RTM"));
+        assert!(!has_layers("~"));
+        assert!(!has_layers(""));
+        let other = matching_with(LISTING, false, Path::new(r"C:\Games\Other\other.exe"), has_layers);
+        assert_eq!(other.len(), 1);
+        assert_eq!(other[0].layers, "~ HIGHDPIAWARE");
+        assert!(matching(LISTING, false, Path::new(r"C:\Games\Other\other.exe")).is_empty());
+        assert!(matching_with(LISTING, false, Path::new(r"C:\Games\Empty\empty.exe"), has_layers).is_empty());
     }
 
     #[test]

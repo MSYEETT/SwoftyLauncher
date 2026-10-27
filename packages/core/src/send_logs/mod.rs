@@ -719,7 +719,7 @@ fn loader_line(label: &str, log: &Path) -> Vec<String> {
     let head = String::from_utf8_lossy(&head);
     let state = match crate::quarantine::attached(&head) {
         Some(true) => "mod loader attached",
-        Some(false) => "mod loader never attached (version.dll not loaded; antivirus suspected)",
+        Some(false) => "mod loader never attached (version.dll not loaded)",
         None => return Vec::new(),
     };
     let mut out = vec![format!("  {label:40} {state}")];

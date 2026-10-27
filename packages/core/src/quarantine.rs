@@ -97,6 +97,22 @@ pub enum Cause {
     /// The game holds a version.dll from another folder and not the game
     /// folder's (`prefer_system32`: its exploit protection asks for that).
     OtherCopy { path: String, prefer_system32: bool },
+    /// The game holds another version.dll, and F1_25.exe has Exploit
+    /// protection program settings.
+    ExploitProtection { path: String },
+    /// The game holds another version.dll, and compatibility settings are on
+    /// for F1_25.exe or Windows loaded its compatibility shims into it.
+    CompatLayer {
+        path: String,
+        layers: Vec<String>,
+        shims: Vec<String>,
+    },
+    /// The game holds another version.dll, and an antivirus other than
+    /// Microsoft Defender is on.
+    Antivirus { path: String, names: Vec<String> },
+    /// The game holds another version.dll and nothing the session can see
+    /// explains it; `hooks` are the programs hooked into the game.
+    Unexplained { path: String, hooks: Vec<String> },
 }
 
 impl Cause {
@@ -128,7 +144,38 @@ impl Cause {
                 "the game loaded {path} instead of the game folder's {PROXY}. Security software on this PC most \
                  likely redirected it"
             ),
+            Self::ExploitProtection { path } => format!(
+                "the game loaded {path} instead of the game folder's {PROXY}, and F1_25.exe has its own Exploit \
+                 protection settings in Windows Security, the most likely reason"
+            ),
+            Self::CompatLayer { path, layers, shims } => {
+                let why = if layers.is_empty() {
+                    format!("Windows applied compatibility shims to it ({})", shims.join(", "))
+                } else {
+                    format!(
+                        "compatibility settings are on for F1_25.exe ({})",
+                        layers.join(", ")
+                    )
+                };
+                format!(
+                    "the game loaded {path} instead of the game folder's {PROXY}, and {why}, the most likely reason"
+                )
+            }
+            Self::Antivirus { path, names } => format!(
+                "the game loaded {path} instead of the game folder's {PROXY}. {}, the antivirus on this PC, most \
+                 likely redirected it",
+                names.join(" and ")
+            ),
+            Self::Unexplained { path, .. } => format!(
+                "the game loaded {path} instead of the game folder's {PROXY}, and Swofty Launcher couldn't tell why"
+            ),
         }
+    }
+
+    /// Whether the session found nothing that explains the miss, so the
+    /// player is pointed at Send Logs and the support Discord.
+    pub fn unexplained(&self) -> bool {
+        matches!(self, Self::Unexplained { .. })
     }
 
     /// The fix, when it is not the antivirus one.
@@ -156,6 +203,34 @@ impl Cause {
             Self::OtherCopy { .. } => "To fix it, close F1 25, turn off your antivirus's DLL or behaviour \
                  protection for F1_25.exe (a folder exclusion is often not enough), then launch again."
                 .to_owned(),
+            Self::ExploitProtection { .. } => "To fix it, close F1 25, open Windows Security > App & browser \
+                 control > Exploit protection settings > Program settings, remove every F1_25.exe entry, restart \
+                 the PC, then launch again."
+                .to_owned(),
+            Self::CompatLayer { .. } => format!(
+                "To fix it, close F1 25, right-click F1_25.exe in the game folder ({}), open Properties > \
+                 Compatibility and untick everything, then select Change settings for all users and untick \
+                 everything there too, then launch again.",
+                game.display()
+            ),
+            Self::Antivirus { names, .. } => format!(
+                "To fix it, close F1 25, open {}, restore or allow {PROXY} and F1_25.exe if it blocked them, add \
+                 exclusions for the game folder ({}) and the launcher folder, and turn off its DLL or behaviour \
+                 protection for F1_25.exe (a folder exclusion is often not enough), then launch again.",
+                names[0],
+                game.display()
+            ),
+            Self::Unexplained { hooks, .. } => {
+                let close = if hooks.is_empty() {
+                    String::new()
+                } else {
+                    format!("Close {} before you press Play and try again. ", hooks.join(" and "))
+                };
+                format!(
+                    "{close}If mods still don't load, press Send Logs to Developers and ask in the support Discord, \
+                     so the developers can look at your PC's setup."
+                )
+            }
             Self::Defender => return None,
         })
     }
@@ -196,14 +271,33 @@ impl Report {
         }
     }
 
+    fn no_loader_folder(&self) -> bool {
+        self.files.iter().any(|f| f == LOADER_FOLDER)
+    }
+
     pub fn title(&self) -> &'static str {
         match self.stage {
+            Stage::BeforeLaunch if self.no_loader_folder() => "Swofty Launcher's loader folder is missing",
             Stage::BeforeLaunch => "Your antivirus removed mod files",
             Stage::InGame => "Mods did not load",
         }
     }
 
     pub fn text(&self) -> String {
+        if self.stage == Stage::BeforeLaunch && self.no_loader_folder() {
+            let launcher = self
+                .launcher
+                .as_ref()
+                .map(|l| format!(" ({})", l.display()))
+                .unwrap_or_default();
+            return format!(
+                "F1 25 was not started: your Swofty Launcher install has no loader folder, the part that puts the \
+                 mods into the game. To fix it, reinstall Swofty Launcher with the installer from f1.swofty.net; \
+                 your addons and settings are kept. If the folder goes missing again, your antivirus removed it: \
+                 restore it from the antivirus's quarantine and add the launcher folder{launcher} to its \
+                 exclusions."
+            );
+        }
         let names = names(&self.files);
         let one = self.files.len() <= 1;
         let it = if one { "it" } else { "them" };
@@ -317,8 +411,12 @@ pub fn missing(game: &Path, dlls: &[(String, String)]) -> Vec<String> {
         .collect()
 }
 
-/// A loader folder of the install that lost version.dll or the core DLL: the
-/// build then finds no loader and the game starts without one.
+/// The report's file list for an install with no loader folder at all.
+pub const LOADER_FOLDER: &str = "loader/";
+
+/// A loader folder of the install that lost version.dll or the core DLL, or
+/// an installed launcher (in a `bin` folder) with no loader folder at all:
+/// the build then finds no loader and the game starts without one.
 pub fn damaged_install() -> Vec<String> {
     if crate::builtin::loader_dir().is_some() || std::env::var_os(LOADER_ENV).is_some() {
         return Vec::new();
@@ -326,11 +424,16 @@ pub fn damaged_install() -> Vec<String> {
     let Some(bin) = launcher_dir() else {
         return Vec::new();
     };
+    damaged_in(&bin)
+}
+
+fn damaged_in(bin: &Path) -> Vec<String> {
     let dirs = [bin.parent().map(|p| p.join("loader")), Some(bin.join("loader"))];
-    let Some(dir) = dirs.into_iter().flatten().find(|d| d.is_dir()) else {
-        return Vec::new();
-    };
-    damaged_loader(&dir)
+    match dirs.into_iter().flatten().find(|d| d.is_dir()) {
+        Some(dir) => damaged_loader(&dir),
+        None if bin.file_name().is_some_and(|n| n == "bin") => vec![LOADER_FOLDER.to_owned()],
+        None => Vec::new(),
+    }
 }
 
 fn damaged_loader(dir: &Path) -> Vec<String> {
@@ -767,6 +870,71 @@ mod tests {
             prefer.contains("Exploit protection makes F1_25.exe prefer System32 DLLs. To fix it"),
             "{prefer}"
         );
+        let system = || r"C:\WINDOWS\SYSTEM32\VERSION.dll".to_owned();
+        let exploit = text(&mut r, Cause::ExploitProtection { path: system() });
+        assert!(
+            exploit.contains("has its own Exploit protection settings")
+                && exploit.contains("remove every F1_25.exe entry, restart the PC"),
+            "{exploit}"
+        );
+        let layers = text(
+            &mut r,
+            Cause::CompatLayer {
+                path: system(),
+                layers: vec!["~ WIN8RTM (for this user)".into()],
+                shims: vec!["AcLayers.dll".into()],
+            },
+        );
+        assert!(
+            layers.contains("compatibility settings are on for F1_25.exe (~ WIN8RTM (for this user))")
+                && layers.contains("Change settings for all users"),
+            "{layers}"
+        );
+        let shims = text(
+            &mut r,
+            Cause::CompatLayer {
+                path: system(),
+                layers: Vec::new(),
+                shims: vec!["AcLayers.dll".into()],
+            },
+        );
+        assert!(
+            shims.contains("Windows applied compatibility shims to it (AcLayers.dll)"),
+            "{shims}"
+        );
+        let av = text(
+            &mut r,
+            Cause::Antivirus {
+                path: system(),
+                names: vec!["Reason Cybersecurity".into()],
+            },
+        );
+        assert!(
+            av.contains("Reason Cybersecurity, the antivirus on this PC, most likely redirected it")
+                && av.contains("open Reason Cybersecurity, restore or allow version.dll"),
+            "{av}"
+        );
+        let unexplained = text(
+            &mut r,
+            Cause::Unexplained {
+                path: system(),
+                hooks: vec!["Medal".into()],
+            },
+        );
+        assert!(
+            unexplained.contains("Swofty Launcher couldn't tell why")
+                && unexplained.contains("Close Medal before you press Play")
+                && unexplained.contains("support Discord")
+                && !unexplained.contains("antivirus"),
+            "{unexplained}"
+        );
+        assert!(
+            Cause::Unexplained {
+                path: system(),
+                hooks: Vec::new()
+            }
+            .unexplained()
+        );
         r.removed = true;
         assert!(
             r.text()
@@ -776,6 +944,28 @@ mod tests {
         r.removed = false;
         assert_eq!(r.text(), fallback);
         assert_eq!(r.title(), "Mods did not load");
+    }
+
+    #[test]
+    fn an_install_without_a_loader_folder_says_reinstall() {
+        let root = temp("no-loader");
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        assert_eq!(damaged_in(&bin), [LOADER_FOLDER]);
+        assert!(damaged_in(&root.join("debug")).is_empty(), "a source build");
+        std::fs::create_dir_all(root.join("loader")).unwrap();
+        assert_eq!(
+            damaged_in(&bin),
+            ["loader/version.dll", "loader/swofty/addons/core/swofty_core.dll"]
+        );
+        let r = Report::new(
+            Stage::BeforeLaunch,
+            vec![LOADER_FOLDER.into()],
+            Path::new("/games/F1 25"),
+        );
+        assert_eq!(r.title(), "Swofty Launcher's loader folder is missing");
+        assert!(r.text().contains("reinstall Swofty Launcher"), "{}", r.text());
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

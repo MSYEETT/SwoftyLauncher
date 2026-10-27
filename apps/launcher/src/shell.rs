@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants};
-use gpui_kit::component::dialog::AlertDialog;
+use gpui_kit::component::dialog::{AlertDialog, DialogFooter};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::slider::SliderState;
@@ -275,15 +275,45 @@ fn terms_box(p: Palette) -> impl IntoElement {
 
 /// The loader files an antivirus took: before the launch they stopped the
 /// game from starting, in game it runs without mods. The dialog says which
-/// files and how to get them back.
-fn show_mods_blocked(r: &quarantine::Report, window: &mut Window, cx: &mut App) {
+/// files and how to get them back. When the session found nothing that
+/// explains a miss, it offers Send Logs and the support Discord.
+fn show_mods_blocked(r: &quarantine::Report, shell: WeakEntity<Shell>, window: &mut Window, cx: &mut App) {
     let (title, text) = (r.title(), r.text());
+    let unexplained = r.stage == quarantine::Stage::InGame
+        && !r.removed
+        && r.cause.as_deref().is_some_and(quarantine::Cause::unexplained);
     window.open_alert_dialog(cx, move |alert, _, _| {
-        alert
-            .width(px(560.))
-            .title(title)
-            .description(text.clone())
-            .ok_text("OK")
+        let alert = alert.width(px(560.)).title(title).description(text.clone());
+        if !unexplained {
+            return alert.ok_text("OK");
+        }
+        let shell = shell.clone();
+        alert.footer(
+            DialogFooter::new()
+                .justify_end()
+                .gap(px(8.))
+                .child(
+                    Button::new("blocked-discord")
+                        .outline()
+                        .label("Join the support Discord")
+                        .on_click(|_, _, cx| cx.open_url(crate::discord::INVITE)),
+                )
+                .child(
+                    Button::new("blocked-send-logs")
+                        .primary()
+                        .label(crate::send_logs::label())
+                        .on_click(move |_, window, cx| {
+                            window.close_dialog(cx);
+                            shell.update(cx, |s, cx| s.send_logs(window, cx)).ok();
+                        }),
+                )
+                .child(
+                    Button::new("blocked-ok")
+                        .ghost()
+                        .label("OK")
+                        .on_click(|_, window, cx| window.close_dialog(cx)),
+                ),
+        )
     });
 }
 
@@ -593,7 +623,7 @@ impl Shell {
             .filter(|r| r.at > self.mods_blocked_seen)
         {
             self.mods_blocked_seen = r.at;
-            show_mods_blocked(r, window, cx);
+            show_mods_blocked(r, cx.entity().downgrade(), window, cx);
         }
         if let Some(r) = probe.not_stock.as_ref().filter(|r| r.at > self.not_stock_seen) {
             self.not_stock_seen = r.at;

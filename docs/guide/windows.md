@@ -43,6 +43,7 @@ To follow the logs as you play, select the arrow next to **Play** and choose **P
 An antivirus such as Windows Defender can delete, quarantine or block the launcher's `version.dll` and its other DLLs, and F1 25 would then run without mods.
 
 - Before the game starts, the launcher checks that the files it put in the game folder are still there. If one is missing or changed, F1 25 is not started: the game folder goes back to vanilla and a **Your antivirus removed mod files** dialog names the files.
+- When the launcher's own `loader` folder is gone from its install, F1 25 is not started and a **Swofty Launcher's loader folder is missing** dialog says to reinstall the launcher. Your addons and settings are kept.
 - Once the game runs, the launcher checks that the mods loaded. If they did not, a **Mods did not load** dialog appears, and the game keeps running without mods.
 
 To fix it:
@@ -58,13 +59,15 @@ When the mods did not load and `version.dll` is still in the game folder, the la
 
 - which `version.dll` the running game loaded, and from which folder
 - the DLL load policies on `F1_25.exe`, such as Exploit protection's Code integrity guard
+- Exploit protection's program settings for `F1_25.exe` (`MitigationOptions`, `MitigationAuditOptions` or `EAFModules` under its Image File Execution Options)
+- the compatibility settings on `F1_25.exe` (its **Compatibility** tab, for you and for all users), and the compatibility shims Windows loaded into the game (`AcLayers.dll` and the like)
 - whether `version.dll` is listed under KnownDLLs, and whether Smart App Control is on
 - Code Integrity and Microsoft Defender events since the game started
-- the antivirus registered with Windows
+- the antivirus registered with Windows, and programs that hook into games, such as Medal or RivaTuner, among the game's modules
 
 When the loader runs but the game can't create its log in the game folder, the log is in `state\loader-fallback.log` in the data folder instead. The session then counts the mods as loaded, and its `[warning]` line in `state\wrapper-run.log` says what to do.
 
-The **Mods did not load** dialog then names what it found and its fix, for example turning off Smart App Control, or an antivirus's DLL protection for `F1_25.exe`. The details are under `[loader]` in `state\wrapper-run.log`, which [Send Logs](/using/send-logs) includes.
+The **Mods did not load** dialog then names what it found and its fix, for example turning off Smart App Control, removing the Exploit protection settings for `F1_25.exe`, unticking its **Compatibility** tab, or the DLL protection of an antivirus other than Microsoft Defender, by name. When nothing it found explains it, the dialog says so, names any program hooked into the game to close first, and offers **Send Logs to Developers** and **Join the support Discord**. The details are under `[loader]` in `state\wrapper-run.log`, which [Send Logs](/using/send-logs) includes.
 
 ## If Windows blocks the launcher
 
@@ -111,6 +114,8 @@ To fix it:
 2. Press **Play** in the launcher, and don't start F1 25 from Steam until the session ends.
 
 ## If the game crashes
+
+When a session ends in a crash, the launcher opens an **F1 25 crashed** screen with the cause and its fix when it recognises one, or **Send Logs to Developers** and the support Discord when it doesn't. See [When F1 25 crashes](/using/send-logs#when-f1-25-crashes).
 
 The session puts the game folder back to vanilla when the game exits, crash or not. If the launcher was closed first, it puts the folder back the next time it starts. See [Restoring the game](/using/profiles-and-restoring).
 

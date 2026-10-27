@@ -1204,7 +1204,7 @@ fn says_when_the_mod_loader_never_attached() {
     assert!(
         summary.contains(
             "\nMod loader\n  sessions/20261020-090000                 mod loader never attached \
-             (version.dll not loaded; antivirus suspected)\n  sessions/20261019-090000                 \
+             (version.dll not loaded)\n  sessions/20261019-090000                 \
              mod loader attached\n"
         ),
         "{summary}"
