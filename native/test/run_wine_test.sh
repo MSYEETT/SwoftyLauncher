@@ -283,6 +283,9 @@ EOF
     fi
     case $mode in
     trigger)
+        once "ers: the new-lap guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(ers new lap guard\)': 1 mixin"
+        once "ers: the new-lap guard is armed" '\[ers\] new-lap guard armed'
+        count "ers: each participant without a vehicle is skipped and logged" 4 '\[ers\] vehicle_newlap for vehicle (9|24): participant [01] of 4 has no vehicle'
         check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x[0-9a-f]+'
         check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
         once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'

@@ -132,6 +132,8 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+std::vector<CoreMixins> ers_newlap_mixins();
+void ers_newlap_commit();
 void hud_setup();
 void focus_setup();
 void hud_fatal();

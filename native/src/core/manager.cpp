@@ -53,6 +53,8 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+std::vector<CoreMixins> ers_newlap_mixins();
+void ers_newlap_commit();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
 std::vector<CoreMixins> tile_route_mixins();
@@ -1725,7 +1727,7 @@ size_t offer_core_sets()
     size_t before = addons.size();
     for (auto *sets : {runtime::career_content_mixins, runtime::characters_mixins, runtime::wizard_mixins,
                        runtime::tile_route_mixins, runtime::era_mixins, runtime::car_category_mixins,
-                       runtime::save_splice_mixins})
+                       runtime::save_splice_mixins, runtime::ers_newlap_mixins})
         add_core_sets(sets());
     return addons.size() - before;
 }
@@ -1739,6 +1741,7 @@ void settle_core_sets()
     runtime::era_commit();
     runtime::car_category_commit();
     runtime::save_splice_commit();
+    runtime::ers_newlap_commit();
 }
 
 void install_groups(size_t from, bool late, size_t *count)
