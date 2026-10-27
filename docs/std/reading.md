@@ -1,17 +1,20 @@
 ---
 title: Reading
-description: Effective values, origins, listing and watching registry records through typed handles in standard library 2.0.
+description: Effective values, origins, listing and watching registry records through typed handles.
 ---
 
 # Reading
 
-Every read returns the **effective value**: the base from the [provider](/std/providers) with every [layer](/std/layers) applied in load order. Inside a career, it returns that career's [snapshot](/std/scopes#career-snapshots).
+Every read returns a record's **effective value**: the base from its [provider](/std/providers) with every [layer](/std/layers) applied in load order. Inside a career, a [snapshot registry](/std/scopes#career-snapshots) returns what the career froze for the seasons it has started.
 
 <Split>
 
 A Choose Driver page logs the grid the player will race, says who set Mercedes' first seat, and rebuilds its cards whenever a season changes.
 
-`get` returns a copy of the struct. `origin` names the addon that set a field. `all` lists ids under a prefix. `watch` calls back on every change.
+- `get` returns a copy of the record's struct.
+- `origin` names the addon that set a field.
+- `all` lists ids under a prefix.
+- `watch` calls back on every change.
 
 Reading needs code. Data files only provide and layer.
 
@@ -77,13 +80,15 @@ SWOFTY_ADDON()
 switch (career::seasons.status(id)) {
 case Status::ok:          break;
 case Status::no_record:   break;   // no provider answered this id
-case Status::no_registry: break;   // nothing declared career.season (core too old?)
+case Status::no_registry: break;   // nothing declared career.season (the core is older than the header?)
 case Status::invalid:     break;   // every candidate value failed validation
 case Status::late:        break;   // a re-entrant read from inside this registry's provider
 }
 ```
 
-A `Ref` in the value you get back is already resolved: `resolved()` is true, or the element that held an `.optional()` ref is gone, or an `.or_else()` ref points at its fallback.
+- **A `Ref` is checked when the registry resolves,** not when you write it. `cars::vehicles["swofty.classic-seasons-2017/feraari"]` compiles, and reading it gives `Status::no_record`.
+- **A `Ref` in the value you get back is already resolved:** `resolved()` is true, or the element that held an `.optional()` ref is gone, or an `.or_else()` ref points at its fallback.
+- **The game's database loads after `SWOFTY_REGISTER` runs.** A `game/` record has no value to read there. Layers and selectors you register on `game/` records run after the database loads.
 
 ## Origins
 
@@ -130,12 +135,13 @@ SWOFTY_ON_LOAD
 }
 ```
 
-- Watchers run on the flow thread, after the change is visible to `get`.
-- One change can touch many records. The core calls a watcher once per changed id, in id order, then once with an empty `Ref` (`id()` is empty) to say the batch is done.
-- Destroying the `Token`, or `g_watch.reset()`, stops it.
+- **Watchers run on the flow thread,** after the change is visible to `get`.
+- **One change can touch many records.** The core calls a watcher once per changed id, in id order, then once with an empty `Ref` (`id()` is empty) to say the batch is done.
+- **Destroying the `Token`, or `g_watch.reset()`, stops it.**
 
-## Threads
+## Threads and cost
 
-- `get`, `status`, `origin` and `all` work from any thread.
-- Values are copied out. Nothing a read returns points into the registry.
-- A read on the flow thread during a career load waits until the snapshot is in place, so it never sees a half-loaded career.
+- **`get`, `status`, `origin` and `all` work from any thread.**
+- **Values are copied out.** Nothing a read returns points into the registry. Each `get` makes a new copy, so read a record once and keep the value for as long as you need it.
+- **Hook points the game calls every frame,** such as the HUD's team logos and strings, use tables the core builds at content or session moments (see [Hooks](/std/hooks)).
+- **A read on the flow thread during a career load waits until the snapshot is in place.** It never sees a half-loaded career.
