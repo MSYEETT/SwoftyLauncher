@@ -507,6 +507,64 @@ pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     build_as(store, profile, game, false)
 }
 
+/// A build or install that stopped on a missing or cut-short file, as the
+/// addon or game file it is and what to do about it. Any other error is
+/// returned as it is.
+pub fn named(store: &Store, game: &Path, e: Error) -> Error {
+    let (Error::Io { path, source } | Error::Formats(swofty_formats::Error::IoAt { path, source })) = &e
+    else {
+        return e;
+    };
+    let gone = source.kind() == std::io::ErrorKind::NotFound;
+    if !gone && source.kind() != std::io::ErrorKind::UnexpectedEof {
+        return e;
+    }
+    let rel = |rest: &Path| {
+        rest.components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    };
+    if let Ok(rest) = path.strip_prefix(store.addons_dir())
+        && let Some(id) = rest
+            .components()
+            .next()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        && let Ok(file) = rest.strip_prefix(&id)
+        && !file.as_os_str().is_empty()
+    {
+        let name = store
+            .addons()
+            .ok()
+            .and_then(|a| a.get(&id).map(|m| m.name.clone()))
+            .unwrap_or_else(|| id.clone());
+        let file = rel(file);
+        let what = match gone {
+            true => format!("{name} ({id}) is missing its file {file}"),
+            false => format!("{name} ({id}) has an incomplete or damaged {file}"),
+        };
+        return Error::Other(format!(
+            "{what}. Turn {name} off in this profile, or remove it on the Addons page and install or import it again."
+        ));
+    }
+    if let Ok(rest) = path.strip_prefix(game) {
+        let file = rel(rest);
+        let version = crate::exe_version::read(&game.join(crate::GAME_EXE));
+        return Error::Other(match gone {
+            true => format!(
+                "{file} is missing from the game folder; {}, then try again",
+                crate::stock::missing_fix(1, version.as_deref())
+            ),
+            false => format!(
+                "{file} in the game folder is incomplete or damaged; verify the game files in Steam (open {}) \
+                 or repair the game in the EA app, then try again",
+                crate::stock::STEAM_VERIFY_URL
+            ),
+        });
+    }
+    e
+}
+
 /// A `checking` build gives addon build hooks a host that lists addons but
 /// cannot install, remove, turn on or move them.
 pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool) -> Result<Built> {
@@ -1966,6 +2024,90 @@ mod tests {
     use crate::asset::{FileOp, Root, Source};
     use crate::baseline::Identity;
     use crate::launcher::{Addon, Builtin};
+
+    #[test]
+    fn a_missing_or_cut_short_file_names_its_addon_or_the_game() {
+        let root = std::env::temp_dir().join(format!("swofty-named-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let store = Store::new(root.join("data"));
+        let game = root.join("game");
+        let addon = store.addons_dir().join("mod.miami24");
+        std::fs::create_dir_all(addon.join("track")).unwrap();
+        std::fs::write(
+            addon.join("swofty.json"),
+            r#"{"schema_version":1,"id":"mod.miami24","name":"Igora Drive","version":"0.9.13","author":"t","compat":{"game":"f1_25"}}"#,
+        )
+        .unwrap();
+        let io = |path: PathBuf, kind| Error::Io {
+            path,
+            source: std::io::Error::from(kind),
+        };
+        let gone = named(
+            &store,
+            &game,
+            io(
+                addon.join("track").join("miami24.erp"),
+                std::io::ErrorKind::NotFound,
+            ),
+        );
+        assert_eq!(
+            gone.to_string(),
+            "Igora Drive (mod.miami24) is missing its file track/miami24.erp. Turn Igora Drive off in this \
+             profile, or remove it on the Addons page and install or import it again."
+        );
+        let short = named(
+            &store,
+            &game,
+            Error::Formats(swofty_formats::Error::IoAt {
+                path: addon.join("track/mipmaps/a.mipmaps"),
+                source: std::io::Error::from(std::io::ErrorKind::UnexpectedEof),
+            }),
+        );
+        assert!(
+            short.to_string().starts_with(
+                "Igora Drive (mod.miami24) has an incomplete or damaged track/mipmaps/a.mipmaps."
+            ),
+            "{short}"
+        );
+        let stock = named(
+            &store,
+            &game,
+            io(
+                game.join("2025_asset_groups/a.erp"),
+                std::io::ErrorKind::UnexpectedEof,
+            ),
+        );
+        assert!(
+            stock
+                .to_string()
+                .starts_with("2025_asset_groups/a.erp in the game folder is incomplete or damaged; verify"),
+            "{stock}"
+        );
+        let missing = named(
+            &store,
+            &game,
+            io(
+                game.join("character_package/a.mipmaps"),
+                std::io::ErrorKind::NotFound,
+            ),
+        );
+        assert!(
+            missing
+                .to_string()
+                .starts_with("character_package/a.mipmaps is missing from the game folder; update F1 25"),
+            "{missing}"
+        );
+        let denied = named(
+            &store,
+            &game,
+            io(
+                addon.join("track/miami24.erp"),
+                std::io::ErrorKind::PermissionDenied,
+            ),
+        );
+        assert!(matches!(denied, Error::Io { .. }), "{denied}");
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     struct Hook(AddonManifest);
 

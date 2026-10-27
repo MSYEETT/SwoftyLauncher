@@ -172,6 +172,7 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     std::thread::scope(|s| {
         s.spawn(|| heartbeat(&done));
         let r = install_checked(store, profile, g, session, out)
+            .map_err(|e| named(store, g, e))
             .map_err(|e| denied(e, &g.dir))
             .map_err(|e| outdated(store, g, e));
         done.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -206,6 +207,15 @@ fn heartbeat(done: &std::sync::atomic::AtomicBool) {
             );
             last = now;
         }
+    }
+}
+
+/// Names the addon or game file a build stopped on when it is missing or cut
+/// short, and what to do about it.
+fn named(store: &Store, g: &Game, e: anyhow::Error) -> anyhow::Error {
+    match e.downcast::<swofty_core::Error>() {
+        Ok(e) => swofty_core::build::named(store, &g.dir, e).into(),
+        Err(e) => e,
     }
 }
 

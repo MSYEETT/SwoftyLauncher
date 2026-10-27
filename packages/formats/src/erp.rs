@@ -492,7 +492,7 @@ impl ErpFile {
     pub fn open(path: &Path) -> Result<Self> {
         let mut file = std::fs::File::open(path).map_err(crate::io_at(path))?;
         let mut index = vec![0; HEADER_LEN];
-        file.read_exact(&mut index)?;
+        file.read_exact(&mut index).map_err(crate::io_at(path))?;
         if &index[..4] != MAGIC {
             return Err(Error::Magic {
                 offset: 0,
@@ -501,7 +501,8 @@ impl ErpFile {
         }
         let data_off = u64::from_le_bytes(index[0x20..0x28].try_into().expect("8 bytes"));
         index.resize(data_off as usize, 0);
-        file.read_exact(&mut index[HEADER_LEN..])?;
+        file.read_exact(&mut index[HEADER_LEN..])
+            .map_err(crate::io_at(path))?;
         Ok(Self {
             path: path.to_path_buf(),
             erp: Erp::parse_index(&index)?.0,
@@ -513,9 +514,10 @@ impl ErpFile {
         let mut file = std::fs::File::open(&self.path).map_err(crate::io_at(&self.path))?;
         let mut out = res.clone();
         for f in &mut out.fragments {
-            file.seek(SeekFrom::Start(self.data_off + f.offset))?;
+            file.seek(SeekFrom::Start(self.data_off + f.offset))
+                .map_err(crate::io_at(&self.path))?;
             f.raw = vec![0; f.packed as usize];
-            file.read_exact(&mut f.raw)?;
+            file.read_exact(&mut f.raw).map_err(crate::io_at(&self.path))?;
         }
         Ok(out)
     }
@@ -558,10 +560,10 @@ impl ErpFile {
             match span {
                 None => std::io::Write::write_all(&mut out, &f.raw)?,
                 Some((at, mut left)) => {
-                    src.seek(SeekFrom::Start(at))?;
+                    src.seek(SeekFrom::Start(at)).map_err(crate::io_at(&self.path))?;
                     while left > 0 {
                         let n = left.min(buf.len() as u64) as usize;
-                        src.read_exact(&mut buf[..n])?;
+                        src.read_exact(&mut buf[..n]).map_err(crate::io_at(&self.path))?;
                         std::io::Write::write_all(&mut out, &buf[..n])?;
                         left -= n as u64;
                     }
@@ -582,6 +584,32 @@ impl ErpFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_cut_short_archive_names_its_file() {
+        let dir = std::env::temp_dir().join(format!("swofty-erp-short-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut head = vec![0; HEADER_LEN];
+        head[..4].copy_from_slice(MAGIC);
+        head[0x20..0x28].copy_from_slice(&(HEADER_LEN as u64 + 100).to_le_bytes());
+        for (name, body) in [("index.erp", head.clone()), ("header.erp", head[..10].to_vec())] {
+            let path = dir.join(name);
+            std::fs::write(&path, body).unwrap();
+            let err = ErpFile::open(&path).unwrap_err();
+            assert!(
+                matches!(&err, Error::IoAt { path: p, source } if p == &path && source.kind() == std::io::ErrorKind::UnexpectedEof),
+                "{err}"
+            );
+            assert_eq!(
+                err.to_string(),
+                format!(
+                    "{}: the file is shorter than it should be, so it is incomplete or damaged",
+                    path.display()
+                )
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     fn streamed(data: &[u8], level: i32) -> Vec<u8> {
         let mut enc = zstd::Encoder::new(Vec::new(), level).unwrap();

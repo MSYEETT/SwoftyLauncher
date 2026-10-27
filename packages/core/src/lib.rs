@@ -157,6 +157,18 @@ pub(crate) fn io_err(path: impl Into<std::path::PathBuf>) -> impl FnOnce(std::io
     move |source| Error::Io { path, source }
 }
 
+/// A formats error from reading `path`, with a read error that doesn't name
+/// its file named with it.
+pub(crate) fn formats_at(path: &std::path::Path) -> impl FnOnce(swofty_formats::Error) -> Error + '_ {
+    move |e| match e {
+        swofty_formats::Error::Io(source) => Error::Formats(swofty_formats::Error::IoAt {
+            path: path.to_path_buf(),
+            source,
+        }),
+        e => Error::Formats(e),
+    }
+}
+
 /// A filesystem error worth retrying: a freshly unloaded DLL stays briefly
 /// locked while Windows Defender (or another antivirus) scans it or the loader
 /// releases its handle, so a delete or rename right after the game exits fails
