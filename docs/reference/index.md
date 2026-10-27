@@ -73,7 +73,7 @@ SWOFTY_ADDON()
   "version": "1.0.0",
   "author": "you",
   "category": "cars",
-  "compat": { "game": "f1_25", "launcher": ">=2.0.0" },
+  "compat": { "game": "f1_25", "launcher": ">=1.6.0" },
   "requires": [ { "id": "swofty.classic-seasons-2017" } ],
   "operations": { "native": [ { "dll": "native/esp.dll" } ] }
 }
@@ -93,11 +93,12 @@ swofty run --apply    # Time Trial, F1 2017, Ferrari
 ```text
 [registry] register: mod.esp (esp.dll) 1 engine_sound, 1 layer on vehicle (early stage, 0.4 ms)
 [registry] vehicle swofty.classic-seasons-2017/ferrari: edit by mod.esp changed /engine_sound -> mod.esp/v10_screamer
-[registry] applied at boot: engine_sound 1 (1 bundle served in memory), vehicle 1 (3 database records)
+[registry] applied at boot: engine_sound 1 (1 bundle redirected to mod.esp/sounds/v10_screamer.bdl), vehicle 1 (3 database records)
 ```
 
 ## The parts of the docs
 
+- **Guides** <!-- link /make/ once the Guides section lands -->: build one addon from start to finish. The first is [Build a what-if history editor](/make/what-if).
 - **[The registry](/std/)**: what every addon builds on. Records under your own keys, providers, layers, bases and variants, scopes, when changes apply, versioning.
 - **[Game systems](/std/systems/)**: one page per system the game has: cars, liveries, teams, drivers, helmets and suits, sounds, tracks, tyres, power units, sessions and weekends, weather, AI, career, UI and strings, graphics. Each says what you can provide and change, the hook points, and the limits.
   - **[Your own systems](/std/systems/custom)**: bring a system the game doesn't have, and let others extend it.
@@ -106,7 +107,7 @@ swofty run --apply    # Time Trial, F1 2017, Ferrari
 - **[Launcher plugins](/reference/addons/launcher-api)**: pages in the launcher, importers, build steps and `swofty` commands, and how a page saves settings your in-game code applies as a layer.
 - **[Mods and importing](/std/importer)**: what the importer recognises in a mod, and how to make `.serps` packages and track zips.
 - **[Packaging and publishing](/reference/addons/publishing)**: `swofty.json`, `registry.json`, and publishing to the Addon Browser.
-- **[Reference](/reference/cli)**: the command line, the C ABI, compatibility with 1.x, build operations, the game database, ERP archives and the Engine API.
+- **[Reference](/reference/cli)**: the command line, the C ABI, compatibility with addons made for 1.5 and earlier, build operations, the game database, ERP archives and the Engine API.
 
 ## Tools
 
@@ -122,6 +123,6 @@ tools/idf.py        print a menu scene's elements and edit them from the command
 
 The Python tools are in the repository's `tools/` folder. Releases don't ship them, except Swofty UI.
 
-## Addons today
+## Older addons
 
-Everything addons do today keeps working: operations in `swofty.json`, engine plugins, launcher plugins and imported mods. See [Compatibility](/std/compatibility).
+Addons made for 1.5 and earlier keep working: operations in `swofty.json`, engine plugins, launcher plugins and imported mods. See [Compatibility](/std/compatibility).
