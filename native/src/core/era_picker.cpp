@@ -450,6 +450,12 @@ const SwoftyEra *era_table()
     return &table;
 }
 
+std::vector<era::Box> era_boxes()
+{
+    std::lock_guard<std::mutex> g(lock);
+    return logic::ordered(boxes);
+}
+
 std::vector<CoreMixins> era_mixins()
 {
     std::vector<CoreMixins> out;
