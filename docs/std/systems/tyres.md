@@ -5,7 +5,9 @@ description: Tyre physics, visual compounds, compound classes, allocations, wear
 
 # Tyres
 
-The tyre system is the compounds a car can run, how they look, which ones each event brings, how many sets each session gets, and the rules around them.
+With the tyre system you add compounds, give them their own colours and badges, choose which compounds each event brings and how many sets each session gets, and set the rules around them. F1 1990, for example, races on Goodyear letters A to E plus W for the wet, and Spa brings a harder set than the other rounds.
+
+A **compound class** is the set of five tyre options a session offers. An **allocation** is how many sets of each option a car gets per session. A **box** is a Grand Prix or Time Trial season tile, or one season of a career.
 
 ## The header
 
@@ -69,7 +71,7 @@ struct Option {
 };
 
 struct Class {
-    std::vector<Ref<sessions::Mode>> modes;    // the setup modes it applies to (the class's mode mask)
+    std::vector<Ref<sessions::Mode>> modes;    // the setup modes that may run it (the class's mode mask)
     std::array<Option, 5> options;             // always 5, positional
     bool allocation_screen = true;             // show_allocation_screen
     float track_wear_scale = 1.0f;             // track_wear_scales
@@ -116,7 +118,7 @@ struct ClassOf {                               // Sess_TyreClass_FromName and se
     uint32_t size, payload_version;
     uint32_t car;                              // vehicle index in the session; UINT32_MAX for the allocation side
     bool sprint;                               // the weekend-format flag: the game asks for "<name>_sprint"
-    Ref<Class> chosen;                         // the core fills it from tyre.event; before handlers may change it
+    Ref<Class> chosen;                         // the core fills it from the active box, then tyre.event; before handlers may change it
 };
 
 struct Allocate {                              // setPresetChoice, Game_WeekendAllocation_SetupRaceWeekendTyreSet
@@ -176,7 +178,7 @@ F1 1990 races on Goodyear A (hardest) to E (softest, qualifying only), plus W fo
 
 The classes use the F2 layout: one compound and one badge per slot, so the letter on screen is always right. Spa brings A; the other rounds bring B to E.
 
-Everything is scoped to the 1990 setup mode, so Grand Prix and every other mode keep the stock tyres.
+Everything is scoped to the 1990 setup mode, so Grand Prix and every other mode keep the stock tyres. F1 1990 has a setup mode of its own for its two qualifying sessions (see [Sessions and weekends](./sessions)).
 
 <template #example>
 <Example root="swofty.f1-1990" code-file="native/src/tyres.cpp" data-file="registry/tyres.json" files="swofty.json, native/CMakeLists.txt, native/src/rounds.hpp, tyres/goodyear.vcmpd, art/tyres/a.svg, art/tyres/a_worn.svg, art/tyres/w.svg, art/tyres/w_worn.svg">
@@ -334,18 +336,41 @@ SWOFTY_ADDON()
 [registry] register: swofty.f1-1990 (f1_1990_tyres.dll) 6 tyre.physical, 6 tyre.visual, 2 tyre.class, 1 tyre.allocation,
            16 tyre.event, 1 tyre.rules (early stage, 1.1 ms)
 [registry] stat ids: tyre.visual swofty.f1-1990/goodyear_{a,b,c,d,e,w} -> 28, 29, 30, 31, 0, 1 (0 and 1: stock rows no class reads)
-[registry] applied at boot: tyre.physical 6 (1 file served in memory), tyre.visual 6, tyre.class 2, tyre.allocation 1
+[registry] applied at boot: tyre.physical 6 (1 file in an overlay archive), tyre.visual 6, tyre.class 2, tyre.allocation 1
            (94 database records, 6 glyphs, 30 texture slices)
 [registry] content swofty.f1-1990/f1_career_1990 active: 3 scoped changes applied
 [f1-1990] game/monaco: class swofty.f1-1990/gy_bcde
 [registry] content swofty.f1-1990/f1_career_1990 ended: 3 scoped changes put back
 ```
 
-The data version has no `ChooseSet` handler: a handler needs code.
+The `.vcmpd` goes into an overlay archive that the core adds to the game's asset manifest at boot. The data version has no `ChooseSet` handler: a handler needs code.
+
+## A box's tyres
+
+Every Grand Prix and Time Trial box shares one setup mode, `swofty_f1`. A box picks its tyre class in its rules, and the class applies when a session loads in that box. A box can also give one track its own class.
+
+```cpp
+// Classic Seasons 2016: the 2016 class for the whole box, and a harder one at Monaco
+content::packages.layer(content::packages["swofty.classic-seasons-2016/f1_2016"], [](content::Package &p) {
+    p.rules.tyre_class = tyres::classes["swofty.classic-seasons-2016/f1_2016"];
+});
+tracks::per_package.layer(tracks::per_package["swofty.classic-seasons-2016/f1_2016/monaco"], [](tracks::PackageTrack &t) {
+    t.tyre_class = tyres::classes["swofty.classic-seasons-2016/f1_2016_monaco"];
+});
+```
+
+At session load the core answers `session.tyres.class_of` from the active box, in this order:
+
+1. the box's entry for the track (`tracks::PackageTrack::tyre_class`);
+2. the box's rules (`sessions::Rules::tyre_class`);
+3. the `tyre.event` record for the track;
+4. the setup mode's own class.
+
+Before handlers then see the answer and may change it.
 
 ## Classes and the badge
 
-A class always has five options, and the game reads them by position. The F1 layout lists the same compound pool in every dry slot, and the track picks the compound per event; the badge shows the slot (Soft, Medium, Hard), not the compound. The F2 layout gives each slot one compound and one badge.
+A class always has five options, and the game reads them by position. The F1 layout lists the same compound pool in every dry slot, and the track picks the compound per event. Its badge shows the slot (Soft, Medium, Hard), not the compound. The F2 layout gives each slot one compound and one badge.
 
 ```cpp
 // F1 layout: the stock 2026 class, with one more compound in the pool
@@ -384,6 +409,8 @@ tyres::rules.layer(tyres::rules["swofty.f1-1990/f1_1990"], [](tyres::Rules &r) {
 
 `carry_over_unused` and `refill_when_empty` have no data switch in the game. The core does them with its own handlers on `session.tyres.session_start` and `session.tyres.choose_set`.
 
+A career freezes each season's tyre rules (`tyre.rules`) when that season starts. A fix to a year's rules reaches a running career at its next season.
+
 ## Events
 
 ```cpp
@@ -408,12 +435,14 @@ tyres::set_class(car, tyres::classes["swofty.f1-1990/gy_abce"]);             // 
 tyres::grant_sets(drivers::identities["game/lando_norris"], /*option*/ 1, 2);
 ```
 
-`set_class` after the tyre component is built returns `late`: the component builds its models from the class it had.
+`set_class` after the tyre component is built returns `late`. The component builds its models from the class it had.
 
 ## Readiness and limits
 
 - **Ready to partial:** the class and allocation entry points are L2 and used by F1 1990. Physics is L1. Unknown: the wear and temperature writers (the live per-wheel values need a trace), blanket temperature, the AI race strategy (the AI picks by slot and never sees letters), the readers of `tyre_regulations.*`, and the UDP tyre-set packet's slot count (about 20).
-- **Five options per class, by position.** Fewer null-derefs the allocation code. That's 4 dry + wet (F2 layout) or 3 dry + inter + wet (F1 layout).
+- **The class applies at session load.** The game picks it when the car's tyre component starts (F1 1990's class swap runs there).
+- **Allocations apply at weekend start.** The game fills them once per weekend (`setPresetChoice`) and keeps the first value. The core never applies allocation records between the sessions of one weekend, so a class and its allocation always match.
+- **Five options per class, by position.** With fewer, the allocation code dereferences a null option and crashes. The five are 4 dry and a wet (F2 layout), or 3 dry, an inter and a wet (F1 layout).
 - **The class is picked twice:** by the car (`Sess_TyreClass_FromName`) and by the allocation (`setPresetChoice`). `session.tyres.class_of` answers both.
 - **Models are built when the tyre component starts.** A class swap after that leaves models keyed by the old visuals.
 - **Icons are glyphs in a font page** (`fonts_standard_icons.erp`) plus slices in four texture arrays. The core makes both from `icon`.

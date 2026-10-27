@@ -5,7 +5,9 @@ description: Power units, engine suppliers, DRS rules and engine component rules
 
 # Power units, ERS and DRS
 
-The power system is the engine, turbo, fuel and ERS blocks a car's handling file carries, the supplier a car shows, when DRS opens, and the engine component rules.
+With the power system you give cars an engine, set when DRS opens, and change the engine component rules. F1 1990's cars, for example, run a normally aspirated V10 or V12 with no ERS and no DRS.
+
+A **power unit** is the engine, turbo, fuel and ERS blocks a car's handling file carries. A **supplier** is the engine maker a car shows. **Component rules** are how many engine parts a driver gets per season, how fast they wear, and the grid drops for using more.
 
 ## The header
 
@@ -96,7 +98,7 @@ struct GridPenalty {                           // Game_EngineMgmt_AddGridPenalty
     Component reason;                          // the part over the allocation
 };
 
-struct DrsAllowed {                            // the DragReductionSystem decision; needs RE (unavailable today)
+struct DrsAllowed {                            // the DragReductionSystem decision; unavailable until it's reverse-engineered
     static constexpr const char *point = "session.drs.allowed";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
@@ -123,7 +125,7 @@ Result set_component_wear(Ref<drivers::Identity> driver, Component c, float wear
 
 F1 1990's cars run a normally aspirated engine with no ERS. The unit is a variant of the stock 2025 unit: its own engine spline and fuel map, and no `EnergyRecoverySystem` section, which is how the game has no ERS (F2 cars have none). There's no ERS-off switch.
 
-The DRS rule opens DRS on lap 200, so it never opens. Grid penalties for engine parts don't exist in 1990: a scoped handler replaces them.
+The DRS rule opens DRS on lap 200, which means never. F1 1990 has its own setup mode and sets the rule on that mode. Grid penalties for engine parts don't exist in 1990, so a scoped handler replaces them.
 
 <template #example>
 <Example root="swofty.f1-1990" code-file="native/src/power.cpp" data-file="registry/power.json" files="swofty.json, native/CMakeLists.txt, pu/v12_engine.vtf, pu/v10_engine.vtf, pu/fuel_1990.vtf">
@@ -206,12 +208,27 @@ SWOFTY_ADDON()
 [registry] register: swofty.f1-1990 (f1_1990_pu.dll) 2 power_unit, 2 engine.supplier, 1 rules.drs,
            1 layer on session.mode, 1 selector layer on vehicle (early stage, 0.6 ms)
 [registry] vehicle: selector under swofty.f1-1990/ from swofty.f1-1990 matched 26 records
-[registry] applied at boot: power_unit 2 (26 handling files served in memory), engine.supplier 2, rules.drs 1
+[registry] applied at boot: power_unit 2 (26 handling files in an overlay archive), engine.supplier 2, rules.drs 1
 [events] career.engine.grid_penalty in vehicle package swofty.f1-1990/f1_1990: replace by swofty.f1-1990 -> handled
 [f1-1990] no grid penalty for swofty.f1-1990/alain_prost (10 places)
 ```
 
-The data version has no grid-penalty handler, and no selector over the cars: each 1990 car then names its unit in its own `vehicle` record.
+The core writes each unit into the handling files of the cars that use it, and adds them to the game's asset manifest at boot in an overlay archive. The data version has no grid-penalty handler, and no selector over the cars. Each 1990 car then names its unit in its own `vehicle` record.
+
+## DRS per box
+
+Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. A box sets its own DRS rule in its rules, and the rule applies when a session loads in that box:
+
+```cpp
+// a 2010 pack: no DRS in its box; every other box keeps its own rule
+auto never = power::drs_rules.add("never", { .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 });
+
+content::packages.layer(content::packages["community.f1-2010/f1_2010"], [=](content::Package &p) {
+    p.rules.drs = never;
+});
+```
+
+The core applies a box's DRS rule through `session.drs.allowed`. Until the DRS decision is reverse-engineered, that hook point is unavailable and a box runs its setup mode's DRS rule.
 
 ## Swapping a unit into other cars
 
@@ -227,7 +244,7 @@ cars::vehicles.layer(under<cars::Vehicle>("swofty.classic-seasons-"), [](cars::V
 [registry] vehicle: selector under swofty.classic-seasons- from swofty.classic-seasons matched 80 records
 ```
 
-Checked over UDP after the swap: ICE 550 kW plus MGU-K 120 kW, a 4 MJ store, DRS for every car.
+Checked over UDP after the swap: ICE 550 kW plus MGU-K 120 kW, a 4 MJ store, and DRS for every car.
 
 ## Component rules
 
@@ -254,9 +271,9 @@ power::set_component_wear(drivers::identities["game/max_verstappen"], power::Com
 ## Readiness and limits
 
 - **Applies at boot: ready.** Unit swaps shipped (Classic Seasons, F1 1990) and were verified. The handling-file round trip is proven.
-- **Events: partial.** Engine management (`ApplySessionWear`, `AddGridPenalty`) is L2. DRS and ERS decisions are L1 or unknown: `session.drs.allowed` is unavailable until the DragReductionSystem decision is reverse-engineered. Also unknown: the component-set selector, the ERS deploy and harvest writers, overtake-mode gating.
+- **Events: partial.** Engine management (`ApplySessionWear`, `AddGridPenalty`) is L2. DRS and ERS decisions are L1 or unknown: `session.drs.allowed` is unavailable until the DragReductionSystem decision is reverse-engineered, and per-box DRS waits on it. Also unknown: the component-set selector, the ERS deploy and harvest writers, and overtake-mode gating.
 - **The game picks a component set by season only.** Choosing one per career needs the selector found.
-- **AI tables carry baked ERS data per car** (`ers_boost_data`, `ers_use_granular`): a new unit can outrun the baked tables.
+- **AI tables carry baked ERS data per car** (`ers_boost_data`, `ers_use_granular`). A new unit can outrun the baked tables.
 - **The HUD dial differs per package** (`hud_dial` modern, 26, f2).
 - **Live physics values are XOR-obfuscated.** Units apply to the handling file before it loads.
 - **2025 fuel mixes:** only Lean differs. In 2026 and F2 cars the mixes have no effect.

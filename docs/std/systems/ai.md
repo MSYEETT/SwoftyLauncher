@@ -5,7 +5,9 @@ description: AI vehicle configs, package difficulty maps, baked track packs, glo
 
 # AI
 
-The AI system is how each AI car races (its race-craft block), which baked track data it drives on, and the global AI settings.
+With the AI system you change how AI cars race, which baked track data each car drives on, and the global AI settings. AI Racing Tweaks, for example, makes every F1 car keep closer and lose control more like a person.
+
+A car's **AI config** is its race-craft block: aggression, the space it keeps, its steering and pedal controllers. A **track pack** is the folder of baked AI data a car drives on at each track.
 
 ## The header
 
@@ -47,7 +49,7 @@ struct VehicleConfig {                         // entrants.vehicles.vehicle_N.ai
     struct { float aero_speed_reduction_factor, burst_speed_reduction_factor; } damage;   // driving a damaged car
     // ... allow_to_pass, blocking, drafting, defending, overtake, ers_use, swerve, trailbraking, yielding, race starts
 };
-inline Registry<VehicleConfig> vehicle_configs{"ai.vehicle_config", { .applies = Applies::session }};   // (read at session enter)
+inline Registry<VehicleConfig> vehicle_configs{"ai.vehicle_config", { .applies = Applies::session }};   // read at session enter
 
 struct PackageMaps {
     Ref<cars::Package> package;                // vehicle_package.ai_vehicle_package_config
@@ -111,9 +113,9 @@ Result assign_track_pack(Ref<cars::Vehicle> vehicle, Ref<TrackPack> pack);   // 
 
 <Split>
 
-AI Racing Tweaks makes the AI race closer and lose control more like a person. In 1.x it names 599 stock cars one at a time (13,371 database operations), so cars other addons add never get its values.
+AI Racing Tweaks makes the AI race closer and lose control more like a person. It writes one layer with a selector over every car in the core tag `c/f1_cars`: stock cars, Classic Seasons, F1 1990, and cars added after it was written. A **selector** layers each matching record itself, so the tuning reaches every year (see [How changes reach seasons and careers](/std/inheritance)). It skips the fields a year pack protects, as the next section shows.
 
-In 2.0 it writes one layer with a selector over every F1 car: stock, Classic Seasons, F1 1990, and cars added after it was written. A selector layers each matching record itself, so the tuning reaches every year, past the years' own values (see [The base, years and careers](/std/inheritance)). Each value comes from one of its options, so changing an option re-runs the edit.
+Each value comes from one of its options, and changing an option re-runs the edit. Its version for 1.5 and earlier names 599 stock cars one at a time (13,371 database operations), so cars other addons add never get its values.
 
 <template #example>
 <Example root="kizi.ai-tweaks" code-file="native/src/racecraft.cpp" data-file="registry/layers.json" files="swofty.json, native/CMakeLists.txt, native/src/contact.cpp">
@@ -128,9 +130,7 @@ using namespace swofty;
 
 SWOFTY_REGISTER
 {
-    auto f1 = where<ai::VehicleConfig>([](const ai::VehicleConfig &c) {
-        return c.cls == ai::Class::f1 || c.cls == ai::Class::f1_26;
-    });
+    auto f1 = tagged(&ai::VehicleConfig::vehicle, cars::vehicles.tag("c/f1_cars"));   // f1 and f1_26 cars
 
     ai::vehicle_configs.layer(f1, [](ai::VehicleConfig &c) {
         c.buffer_space.vehicle_buffer = Curve::flat(50, 500, option<float>("spacing"));    // 0.35 .. 0, default 0.15
@@ -183,16 +183,42 @@ SWOFTY_ADDON()
 
 ```text
 [registry] register: kizi.ai-tweaks (kizi_ai_tweaks.dll) 1 selector layer on ai.vehicle_config (early stage, 0.2 ms)
-[registry] ai.vehicle_config: selector of kizi.ai-tweaks matched 612 records (599 game/, 80 swofty.classic-seasons-*,
+[registry] ai.vehicle_config: selector of kizi.ai-tweaks matched 612 records (519 game/, 80 swofty.classic-seasons-*,
            13 swofty.f1-1990; reads options spacing, throttle_cut, give_up, steer_correction, traction_control)
 [registry] option kizi.ai-tweaks/spacing changed: 612 ai.vehicle_config records re-resolved; applies from the next session load
 ```
 
-The data version holds the default values only. Following the options takes code.
+The data version holds the default values only, and picks the same cars by class (`f1` and `f1_26`). Following the options takes code.
+
+## Year packs protect their own values
+
+A year pack tunes its cars to race like their year. It marks those fields as **protected** on its own records. Another addon's selector then skips the protected fields, unless the player turns on **Also change year packs** for that addon in its settings. A layer that names the record itself still competes by load order.
+
+```cpp
+// Classic Seasons 2016: its per-year race-craft is history, not a default
+SWOFTY_REGISTER
+{
+    for (const auto &team : cs16::kTeams)
+        ai::vehicle_configs.protect(ai::vehicle_configs[std::format("swofty.classic-seasons-2016/{}", team)], { "racecraft" });
+}
+```
+
+```cpp
+// another addon: every F1 car overtakes harder
+ai::vehicle_configs.layer(tagged(&ai::VehicleConfig::vehicle, cars::vehicles.tag("c/f1_cars")),
+                          [](ai::VehicleConfig &c) { c.racecraft.overtake_aggression = 0.85f; });
+```
+
+```text
+[registry] ai.vehicle_config: selector of mod.aggressive-ai matched 612 records; /racecraft skipped on 11 records protected
+           by swofty.classic-seasons-2016 (Also change year packs: off)
+```
+
+In a data file, the year pack lists the fields inside its own record: `"$protect": ["racecraft"]`.
 
 ## Track packs
 
-The AI drives from baked tables per track, car package and car (acpd, brpd, ers_boost_data, vp_times, ...; about 7 MB per team per track). EA's bake tools are compiled out of the game, so a new car borrows the baked set of a stock car. `Slot::by_pace` picks the one closest in lap time, and the car points at the pack:
+The AI drives from baked tables per track, car package and car (acpd, brpd, ers_boost_data, vp_times and more; about 7 MB per team per track). EA's bake tools are compiled out of the game, so a new car borrows the baked set of a stock car. `Slot::by_pace` picks the one closest in lap time, and the car points at the pack:
 
 ```cpp
 auto pack = ai::track_packs.add("ferrari", { .folder = "f1_2026", .slot = ai::Slot::by_pace });
@@ -232,10 +258,10 @@ ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], ai::track_p
 
 - **Data: ready.** The configs, maps and track packs are database rows and files.
 - **Events: partial.** The loaders (`Sess_Load_VehicleAiConfig`, `Ai_Resolve_GeneralSettings`, `Sess_Build_AiSystem`) are L2. The decision code is L1 or unexplored.
-- **Unknown:** where the 0 to 110 difficulty slider scales the controllers (so `ai::difficulty` has nothing to apply yet), whether a config changed after load takes effect, the grip index source, the AI path builder.
-- **Read once:** the AI config is read at session enter. A layer that changes applies from the next session load.
-- **Baked tables cap pace.** A car faster than its baked set gets nothing from more grip; physics changes must keep the car inside the baked envelope.
-- **A missing AI folder hangs the load.** The core refuses a track pack whose folder isn't there.
+- **Unknown:** where the 0 to 110 difficulty slider scales the controllers (so `ai::difficulty` has nothing to apply yet), the grip index source, and the AI path builder.
+- **When a changed config applies needs reverse engineering.** The game parses the configs in a startup loop (`Sess_Startup_VehicleAiLoop`) into a map keyed by stat id. The core applies a changed config at the next session load. Whether the game rereads that map for a later session is unverified; if it doesn't, a change applies from the next game start. The same goes for a career season that moves a team to another year's car.
+- **Baked tables cap pace.** A car faster than its baked set gets nothing from more grip. Physics changes must keep the car inside the baked envelope.
+- **A missing AI folder hangs the load.** The core refuses a track pack whose folder isn't there. A box offers a track only where every car in it has AI data (see [Tracks](./tracks)).
 - **The AI table holds 30 cars.**
 - **Simulated sessions** use the baked lap times, driver statistics and randomness, not physics or R&D.
 - **Third-party natives** that patch raw addresses break on game updates and on the EA build.

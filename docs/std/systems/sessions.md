@@ -5,7 +5,9 @@ description: Setup modes, weekend formats, session lengths, points, rules profil
 
 # Sessions and weekends
 
-The session system is the setup mode a weekend runs under: its sessions, how the grid forms, the points, the rules and penalties, the safety car, and how many cars start.
+With the session system you set what a race weekend looks like: its sessions, how the grid forms, the points, the rules and penalties, and the safety car. A 2009 season pack, for example, scores 10-8-6-5-4-3-2-1 with no point for the fastest lap, and F1 1990 runs two qualifying sessions and counts each driver's best 11 results.
+
+A **setup mode** is the game's row that a weekend runs under: its format, length, rules and grid all hang off it. Every Grand Prix and Time Trial box shares one setup mode, `swofty_f1`, and each box's own points, DRS, tyre class and rules apply when a session loads in that box. A box gets a setup mode of its own only when it needs a different shape at boot, such as F1 1990's two qualifying sessions.
 
 ## The header
 
@@ -21,6 +23,8 @@ The session system is the setup mode a weekend runs under: its sessions, how the
 - `sessions::safety_car`: safety car and red flag frequencies (`session.safety_car`);
 - `sessions::grids`: an entrant setup mode: how many cars and teams (`session.grid`).
 
+`sessions::Rules` is not a registry. It's the value a box holds in `content::Package::rules`.
+
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/sessions.hpp">
 <template #code>
@@ -32,6 +36,8 @@ The session system is the setup mode a weekend runs under: its sessions, how the
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/power.hpp>
 #include <swofty/systems/tracks.hpp>
+
+namespace swofty::tyres { struct Class; }
 
 namespace swofty::sessions {
 
@@ -98,7 +104,7 @@ struct SafetyCar {
 inline Registry<SafetyCar> safety_car{"session.safety_car", { .applies = Applies::boot }};
 
 struct Grid {
-    int cars = 22;                             // max_entrants; the core raises _entrant_instancecount_ and the track slots with it
+    int cars = 22;                             // max_entrants; clamped to the install's grid size, set once at boot
     int teams = 11;                            // max_teams
     bool reuse_entrants = false;
 };
@@ -119,19 +125,24 @@ struct Mode {
 };
 inline Registry<Mode> modes{"session.mode", { .applies = Applies::boot }};
 
-struct Rules {                                 // a box's session rules: the value content::Package::rules holds
-    Ref<Mode> mode;                            // the setup mode the box runs under; empty: the box's default
+struct Rules {                                 // a box's session rules (content::Package::rules), applied at session load
+    Ref<Mode> mode;                            // empty: swofty_f1, the mode every GP/TT box shares
     Ref<Points> points;                        // empty: the mode's
+    Ref<power::DrsRule> drs;                   // empty: the mode's
+    Ref<tyres::Class> tyre_class;              // the box's class; a track entry (tracks::PackageTrack) overrides it
+    Ref<RulesProfile> rules_profile;           // empty: the mode's
     bool refuelling = false;
     std::optional<float> race_fuel_kg;         // the race fuel load; nullopt: the track's
 };
-SWOFTY_RECORD(Rules, mode, points, refuelling, race_fuel_kg)
+SWOFTY_RECORD(Rules, mode, points, drs, tyre_class, rules_profile, refuelling, race_fuel_kg)
 
 enum class PenaltyKind { warning, time, drive_through, stop_go, grid, disqualification };
 
 namespace events {
 
-struct Load { /* session.load (modify): the session about to load; see Events */ };
+struct Load {                                  // the session about to load (modify); payload on the Events page
+    static constexpr const char *point = "session.load";
+};
 
 struct EntrantsSelect {                        // Sess_Select_Entrants
     static constexpr const char *point = "session.entrants.select";
@@ -168,8 +179,20 @@ struct PenaltyIssue {                          // Sess_Issue_TimePenalty, _GridP
     float amount;                              // seconds or places; before handlers may change it; replace = veto
 };
 
-// also: WeekendStart (weekend.start), ResultsFinalise (session.results.finalise),
-// StateEnter (session.state.enter), SafetyCarDeploy (session.safety_car.deploy), PitStop (session.pit_stop)
+struct PitStop {                               // a car stops in its pit box and leaves it (notify)
+    static constexpr const char *point = "session.pit_stop";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    uint32_t car;                              // vehicle index in the session
+    float stationary_s;                        // time in the box
+    uint8_t tyres_changed;                     // 0 or 1: the car left on a new set
+};
+
+// payloads on the Events page
+struct WeekendStart    { static constexpr const char *point = "weekend.start"; };
+struct ResultsFinalise { static constexpr const char *point = "session.results.finalise"; };
+struct StateEnter      { static constexpr const char *point = "session.state.enter"; };
+struct SafetyCarDeploy { static constexpr const char *point = "session.safety_car.deploy"; };
 
 } // namespace events
 
@@ -190,7 +213,9 @@ Result issue_penalty(uint32_t car, PenaltyKind kind, float amount);
 
 A 1990 weekend has two practice sessions, Friday qualifying, Saturday qualifying and the race. The grid comes from each car's better time over the two qualifying sessions. Points go 9-6-4-3-2-1, with no point for the fastest lap, and only a driver's best 11 results count.
 
-The mode is a variant of the 2026 mode, so it carries all of its 280 keys. The grid size follows the addon's `cars` option, 22 or 26.
+F1 1990 has a setup mode of its own: its weekend has a different shape at boot. The mode is a variant of the 2026 mode and carries all of its 280 keys.
+
+The grid follows the addon's `cars` option, 22 or 26. Grid size is one boot setting per install, and every box and mode is clamped to it, so a 26-car 1990 field needs an install set to 26 cars or more.
 
 <template #example>
 <Example root="swofty.f1-1990" code-file="native/src/rules.cpp" data-file="registry/rules.json" files="swofty.json, native/CMakeLists.txt">
@@ -224,7 +249,7 @@ SWOFTY_REGISTER
     } });
 
     auto grid = sessions::grids.variant("f1_1990", sessions::grids["game/f1_26"], [](sessions::Grid &g) {
-        g.cars = option<int>("cars");                      // 22 or 26; applies from the next game start
+        g.cars = option<int>("cars");                      // 22 or 26, clamped to the install; applies from the next game start
         g.teams = g.cars / 2;
     });
 
@@ -288,11 +313,43 @@ SWOFTY_ADDON()
 [events] career.standings.rebuild in swofty.f1-1990/f1_career_1990: 1 after handler (swofty.f1-1990)
 ```
 
-The data version has no dropped scores: those need the handler. A data file can't follow an option either: it states one grid size, or ships one file per value with a guard.
+With the install set to 22 cars, the core clamps the 1990 grid and says so:
+
+```text
+[registry] session.grid swofty.f1-1990/f1_1990: 26 cars clamped to 22, the install's grid size
+```
+
+The data version has no dropped scores: those need the handler. A data file can't follow an option either. It states one grid size, or ships one file per value with a guard.
+
+## Rules per box
+
+A box sets its rules in `content::Package::rules`. They apply when a session loads in that box, and every other box in `swofty_f1` keeps its own.
+
+```cpp
+// a 2009 pack: 10-8-6-5-4-3-2-1, no fastest-lap point, no DRS
+SWOFTY_REGISTER
+{
+    auto points = sessions::points.add("f1_2009", { .points = { 10, 8, 6, 5, 4, 3, 2, 1 }, .fastest_lap = std::nullopt });
+    auto no_drs = power::drs_rules.add("none", { .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 });
+
+    content::packages.layer(content::packages["community.f1-2009/f1_2009"], [=](content::Package &p) {
+        p.rules.points = points;
+        p.rules.drs = no_drs;
+        p.rules.refuelling = true;
+    });
+}
+```
+
+```text
+[events] session.load (grand_prix, community.f1-2009/f1_2009, race, game/silverstone): box rules applied by the core
+         (points community.f1-2009/f1_2009, drs community.f1-2009/none, refuelling on)
+```
+
+A career freezes each season's championship rules when that season starts. A fix to a year's points reaches a running career at its next season.
 
 ## Grid rules
 
-`best_of` is a grid rule the core adds to `session.grid.build`, so no addon reimplements it. For a rule the core doesn't have, replace the group result yourself:
+`best_of` is a grid rule the core adds to `session.grid.build`. No addon has to write its own. For a rule the core doesn't have, replace the group result yourself:
 
 ```cpp
 events::on<sessions::events::GroupResult>().in(events::setup_mode("swofty.f1-1990/f1_1990"))
@@ -342,9 +399,10 @@ sessions::issue_penalty(car, sessions::PenaltyKind::grid, 3.0f);
 ## Readiness and limits
 
 - **Ready:** the entrant, grid, result and safety car handlers are L2, used by Custom Grid Size and F1 1990.
-- **Partial:** points and penalties: the data is ready, the runtime code is L1.
+- **Partial:** points and penalties. The data is ready, and the runtime code is L1. A box's points apply through the standings lookup, which still needs reverse engineering, and a box's DRS through `session.drs.allowed` (see [Power units](./power-units)). Until then those two come from the setup mode.
 - **Unknown:** flags and red flags, the knockout cut writer, red-flag restarts, penalty decision thresholds at run time, the difficulty preset selector.
 - **Grid:** 32 vehicle slots, a 27-car clamp at session enter, an AI table of 30, a wheel map that rehashes at the 26th car, replay holders sized for 22 to 24 cars. `sessions::grids` refuses a size the game can't hold, naming the limit.
+- **Grid size is one boot setting per install.** The track worlds that hold the grid are picked once at boot for every box, and each box and mode is clamped to that size.
 - **Points** are whole numbers in arrays of 23, padded to the grid size. 1990's half points are rounded.
-- **Setup modes** take stat ids of 31 or lower (free: 5, 7, 16 to 31). A mode needs the content set and an available mode row.
+- **Setup modes** take stat ids of 31 or lower. 18 are free (5, 7, 16 to 31), and F1 1990 uses 16. A mode needs the content set and an available mode row.
 - **Option restrictions** are tags shared across modes (`gamesetup_f1`).

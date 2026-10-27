@@ -5,18 +5,16 @@ description: How an addon defines a system of its own in code (its record struct
 
 # Your own systems
 
-An addon can bring a whole system the game doesn't have: a six-compound tyre range, a points system with dropped scores, five R&D departments, a two-qualifying weekend. It builds the system in code out of the same pieces the core uses, so other addons extend it the way they extend anything else.
+An addon can bring a whole system the game doesn't have: a six-compound tyre range, a points system with dropped scores, five R&D departments, a two-qualifying weekend. It builds the system in code out of the same pieces the core uses, and other addons extend it the way they extend anything else.
 
 A system has six parts:
 
-```text
-1. registries   the core's, where the game already has the concept; your own (Registry<T> named <addon>.<name>) for the rest
-2. a scope      where it applies, as an events::Selector: a data group, a setup mode, a content, a car package
-3. a projection your records turned into core records, in code, when the core resolves
-4. hooks        for what records can't do, filtered to your scope
-5. a service    for calls other addons make
-6. events       moments of your system other addons subscribe to
-```
+1. **Registries.** It uses the core's registries where the game already has the concept, and declares its own (a `Registry<T>` named `<addon>.<name>`) for the rest.
+2. **A scope.** Where the system applies, as an `events::Selector`: a data group, a setup mode, a content or a car package.
+3. **A projection.** Code that turns your records into core records when the core resolves.
+4. **Hooks.** Handlers for what records can't do, filtered to your scope.
+5. **A service.** A table of functions other addons call.
+6. **Events.** Moments of your system that other addons subscribe to.
 
 ```text
 f1990::compounds  (swofty.f1-1990.tyre_compound) ──projects──▶ tyres::visual, tyres::classes, tyres::per_event,
@@ -209,12 +207,12 @@ The data version gives other addons the same records to read and layer. The proj
            6 swofty.f1-1990.tyre_compound, 1 swofty.f1-1990.tyre_rules, 6 tyre.physical, 1 tyre.rules,
            4 providers (tyre.visual, tyre.class, tyre.allocation, tyre.event) (early stage, 1.4 ms)
 [registry] swofty.f1-1990 projection: 6 compounds, 2 round overrides -> tyre.visual 6, tyre.class 3, tyre.allocation 3, tyre.event 16
-[registry] applied at boot: tyre.physical 6 (1 file served in memory), tyre.visual 6, tyre.class 3, tyre.allocation 3 (131 database records)
+[registry] applied at boot: tyre.physical 6 (1 file in an overlay archive), tyre.visual 6, tyre.class 3, tyre.allocation 3 (131 database records)
 ```
 
 ### The scope
 
-The whole system applies only inside 1990, so Grand Prix and every other mode stay stock. A scope is an `events::Selector`, the same value the core understands on records, layers, hook subscriptions and events:
+The whole system applies only inside 1990, and Grand Prix and every other mode stay stock. A scope is an `events::Selector`, the same value the core understands on records, layers, hook subscriptions and events:
 
 ```cpp
 events::data_group("f1_career_1990")                           // one career's data
@@ -225,19 +223,28 @@ events::vehicle_package("swofty.f1-1990/f1_1990")              // cars of one pa
 
 The projection carries it onto every core record: each class lists only the 1990 mode, and the rules have `.within = f1990::scope`.
 
+A layer says where it applies with `.in(...)`, using the same selectors. A selector can also pick records by a core tag, such as `c/f1_cars` or `c/street_circuits`. The core defines these tags, and any addon adds records to them. A variant is in every tag its base is in, so the 1990 cars, variants of stock F1 cars, are in `c/f1_cars`.
+
+```cpp
+// blankets back on in 1990 careers only; a 1990 session outside a career keeps them off
+tyres::rules.layer(tyres::rules["swofty.f1-1990/f1_1990"], [](tyres::Rules &r) { r.tyre_warmers = true; })
+    .in(events::data_group("f1_career_1990"));
+
+// every F1 car's AI, whoever added the car, races more cautiously; inside 1990 only
+ai::vehicle_configs.layer(tagged(&ai::VehicleConfig::vehicle, cars::vehicles.tag("c/f1_cars")), [](ai::VehicleConfig &c) {
+    c.racecraft.overtake_aggression *= 0.9f;
+}).in(f1990::scope);
+```
+
+A filtered layer applies when matching content becomes active or a session loads, and is put back when it ends. On a registry the game reads only at boot, the core refuses the filter with a log line.
+
 ### The projection
 
-The game knows compound classes, visual compounds, events and allocations, not Goodyear letters. The projection turns the effective letters and rounds into those, and the core allocates the stat ids:
+The game knows compound classes, visual compounds, events and allocations, not Goodyear letters. The projection turns the effective letters and rounds into those, and the core allocates the stat ids.
 
-```text
-read     swofty.f1-1990.tyre_compound  6 records, plus records and layers from other addons
-         swofty.f1-1990.tyre_rules     1 record, 2 round overrides
-provide  tyre.visual      swofty.f1-1990/goodyear_{a,b,c,d,e,w}   ids from the allocator
-         tyre.class       one class per distinct round shape (e.g. {B,C,D,E,W}, {C,D,E,W})
-         tyre.event       swofty.f1-1990/f1_1990/r01 .. r16: the class and presets per round
-         tyre.allocation  one preset per shape
-refuse   a round that names more than 4 dry compounds: a class has 5 options, and W takes one
-```
+- **It reads** the 6 `swofty.f1-1990.tyre_compound` records and the `swofty.f1-1990.tyre_rules` record with its 2 round overrides, plus the records and layers other addons add.
+- **It provides** a `tyre.visual` for each letter (`swofty.f1-1990/goodyear_{a,b,c,d,e,w}`, ids from the allocator), one `tyre.class` per distinct round shape (such as `{B,C,D,E,W}` and `{C,D,E,W}`), a `tyre.event` per round (`swofty.f1-1990/f1_1990/r01` to `r16`, with the class and presets), and one `tyre.allocation` per shape.
+- **It refuses** a round that names more than 4 dry compounds. A class has 5 options, and W takes one.
 
 ```cpp
 // native/src/projection.cpp
@@ -443,9 +450,9 @@ SWOFTY_REGISTER
 }
 ```
 
-The game draws four departments natively. A fifth needs the native layer R&D Tyres built, which moves into the core as the `career.rnd.department` applier.
+The game draws four departments natively. The core draws a fifth and more through its `career.rnd.department` applier, the native layer R&D Tyres built.
 
-**Two qualifying sessions:** a `sessions::formats` record with a `best_of` grid rule, shown in full on [Sessions and weekends](./sessions#f1-1990-s-weekend). `best_of` is a grid rule the core adds to `session.grid.build`, so it's shared rather than reimplemented by every addon that needs it.
+**Two qualifying sessions:** a `sessions::formats` record with a `best_of` grid rule, shown in full on [Sessions and weekends](./sessions#f1-1990-s-weekend). `best_of` is a grid rule the core adds to `session.grid.build`, and every addon that needs it uses the core's. F1 1990 gets a setup mode of its own for this weekend shape. Every Grand Prix and Time Trial box shares `swofty_f1`, and a system whose rules fit that mode's shape sets them per box (see [Rules per box](./sessions#rules-per-box)).
 
 **A character (Elena becomes Flavio):**
 
@@ -461,21 +468,19 @@ career::characters.add("flavio", {
 
 ## What the core provides for systems
 
-The platform pieces systems need, in order of priority:
+The core provides these pieces for systems. They're built in this order:
 
-- **Now:**
-  - **scope as a core value** (`events::Selector`), on records, layers, hooks and events;
-  - **a stable id allocator**, so ids never collide between addons and never move between game starts;
-  - **whole-row clones** that copy every key of the donor row (no more boot crashes from a missing unnamed key);
-  - **career tiles and save partitions** as records;
-  - **hook filters by scope**.
-- **Next:**
-  - **UI extension points:** texture-array slices, icon glyphs, scoped screens and scoped strings;
-  - **capacity checks at registration:** row counts, grid size, ids;
-  - **services;**
-  - **dependencies** (see [Dependencies and guards](/std/dependencies)).
-- **Later:**
-  - **a core career id;**
-  - **extending game enums.**
+1. **Scope as a core value** (`events::Selector`), on records, layers, hooks and events.
+2. **A stable id allocator.** Ids never collide between addons and never move between game starts. One store per install holds them, and an id is reused only when no career uses it.
+3. **Whole-row clones** that copy every key of the donor row. A missing unnamed key can't crash the boot.
+4. **Career tiles and save partitions** as records.
+5. **Hook filters by scope.**
+6. **UI extension points:** texture-array slices, icon glyphs, scoped screens and scoped strings.
+7. **Capacity checks at registration:** row counts, grid size and ids.
+8. **Services.**
+9. **Dependencies** (see [Dependencies and guards](/std/dependencies)).
+10. **A career id,** given to each career when it's created.
 
-F1 1990 is the test: today it's 16 DLLs that check "am I inside 1990" six different ways. On these pieces, 13 of the 16 become records, core-answered hook points or fixes in the core. One small DLL is left, with three handlers: the best-of grid, a qualifying engine line, and dropped scores.
+Extending game enums comes after these.
+
+F1 1990 is the test case. Its version for 1.5 is 16 DLLs that check "am I inside 1990" six different ways. On these pieces, 13 of the 16 become records, core-answered hook points or fixes in the core. One small DLL is left, with three handlers: the best-of grid, a qualifying engine line, and dropped scores.

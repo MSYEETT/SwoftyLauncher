@@ -5,7 +5,9 @@ description: Looks, post-process passes and graphics settings in code, with the 
 
 # Graphics, replays and telemetry
 
-The graphics system is the picture's colour grade (looks), post-process passes that run on the frame, and the game's hardware settings.
+With the graphics system you change the picture: its colour grade, extra post-process passes on each frame, and the game's hardware settings. Monochrome Looks, for example, grades the race in black and white at a strength the player picks.
+
+A **look** is a colour grade from a LUT file, applied at a strength. A **pass** is a shader that runs on the finished frame. A **setting** is one of the game's hardware settings, such as rain beads or ray-traced reflections.
 
 ## The header
 
@@ -17,7 +19,7 @@ The graphics system is the picture's colour grade (looks), post-process passes t
 - `graphics::passes`: a post-process pass: shader, inputs, order (`graphics.pass`);
 - `graphics::settings`: a hardware-setting override (`graphics.setting`).
 
-Looks replace 1.x's "the last shader pack wins" with an ordered stack.
+Looks stack in order, so every enabled look applies.
 
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/graphics.hpp">
@@ -150,7 +152,7 @@ SWOFTY_ADDON()
 [registry] option example.monochrome-looks/look changed: graphics.look 1 re-resolved; applied at once
 ```
 
-The data version is one fixed look; following the options takes code. A 1.x shader pack's `"shader": { "lut", "strength" }` becomes this record.
+The data version is one fixed look. Following the options takes code. A shader pack made for 1.5 and earlier, with `"shader": { "lut", "strength" }` in its manifest, loads as this record.
 
 ## Passes
 
@@ -165,7 +167,7 @@ graphics::passes.add("glare", {
 
 ## Settings
 
-Two addons that change the same hardware setting no longer fight over the parse site: each one is a record, and the policy says how they combine.
+Two addons can change the same hardware setting. Each change is a record, and its policy says how they combine.
 
 ```cpp
 graphics::settings.add("no_rain_beads", { .key = "rainBeads", .value = 0 });
@@ -183,12 +185,13 @@ graphics::set_setting("rainSplashes", 0);
 
 Planned, with no header yet:
 
-- **`replay.hero_shots`:** per-track highlight cameras, applied at boot. Hook point `replay.recordable.register` (`Sess_Recordable_Register`): lets grid-size addons size the replay holders.
+- **`replay.hero_shots`:** per-track highlight cameras, applied at boot. Hook point `replay.recordable.register` (`Sess_Recordable_Register`), where grid-size addons size the replay holders.
 - **`telemetry.channel`:** a value an addon publishes per car or per session (a custom tyre system's thermal state), so dashboards read one feed. Hook points `session.tick` (every frame after physics, core-owned) and `telemetry.udp.prepare` (append addon packets, or widen past 22 cars).
 
 ## Readiness and limits
 
-- **Looks and passes: ready** (shipped). They sit outside the KB: the core hooks D3D12 and DXGI by vtable.
+- **Looks and passes: ready** (shipped). They sit outside the KB. The core hooks D3D12 and DXGI by vtable.
+- **`render.present` runs every frame.** A look is graded into the LUT once when it changes, not per frame. A `Present` handler should only read state it already has.
 - **Settings: ready.** The hardware-setting sites are L2 (16 bool and 12 int), used by one addon.
 - **Replays and telemetry: partial.** `Sess_Recordable_Register` is L2; the rest is L1. UDP holds 22 cars; the live per-wheel values are unverified.
 - **HDR and frame generation change the pipeline.** Looks are skipped under HDR. The HUD draws after the ACES LUT.

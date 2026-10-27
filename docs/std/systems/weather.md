@@ -5,7 +5,9 @@ description: Track climate and scripted forecasts in code, with the weather setu
 
 # Weather
 
-The weather system is each track's climate, and forecasts that script a session's weather slot by slot.
+With the weather system you change how often it rains at a track, and script a session's weather slot by slot. A wet-race addon, for example, makes the Belgian Grand Prix start dry and end in heavy rain.
+
+A **climate** is a track's weather weights and temperature range. A **forecast** is a script for one session: a list of **slots**, each a kind of weather, how long it lasts and how long the change into it takes.
 
 ## The header
 
@@ -16,7 +18,7 @@ The weather system is each track's climate, and forecasts that script a session'
 - `weather::climates`: a track's weather weights and temperatures (`weather.track`);
 - `weather::forecasts`: a scripted forecast for one session (`weather.forecast`).
 
-The core applies a forecast at `session.weather.setup`, the same moment Career Mode Editor's weather module uses today.
+The core applies a forecast at `session.weather.setup`, the moment Career Mode Editor's weather module also uses.
 
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/weather.hpp">
@@ -84,7 +86,7 @@ Result script(sessions::Session session, std::span<const Slot> slots);
 
 <Split>
 
-A wet-race addon scripts the Belgian Grand Prix: dry for 20 minutes, clouding over, then rain to the flag. It applies in every career and every GP/TT season that races at Spa, and only while its `storm` option is on.
+A wet-race addon scripts the Belgian Grand Prix: dry for 20 minutes, clouding over, then rain to the flag. It applies in every career and every Grand Prix and Time Trial box that races at Spa, and only while its `storm` option is on.
 
 Qualifying keeps the game's weather, with a fixed seed so every player gets the same one.
 
@@ -165,9 +167,13 @@ SWOFTY_ADDON()
 [events] session.weather.setup (grand_prix, qualifying_1, game/spa): 1 before handler (mod.spa-storm): seed 1990
 ```
 
-The data version is always on: it can't read the `storm` option, and it has no seed handler.
+The data version is always on. It can't read the `storm` option, and it has no seed handler.
+
+A career freezes the forecasts that apply to a season when that season starts.
 
 ## Climate
+
+A climate change reaches every box and career that races at the track, except a box that sets its own climate there.
 
 ```cpp
 // a wetter Silverstone, everywhere
