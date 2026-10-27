@@ -22,6 +22,7 @@ pub fn sha256_bytes(data: &[u8]) -> String {
 }
 
 pub fn sha256_file(path: &Path) -> Result<String> {
+    crate::worked();
     let mut f = std::fs::File::open(path).map_err(io_err(path))?;
     let mut h = Sha256::new();
     let mut buf = [0; 1 << 16];

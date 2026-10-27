@@ -134,6 +134,19 @@ fn leftovers(found: &[install::Conflict]) -> String {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+static WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A count that grows as a build or install hashes files and the formats
+/// crate compresses and writes archives; a caller can tell long work that is
+/// moving from work that is stuck.
+pub fn work() -> u64 {
+    WORK.load(std::sync::atomic::Ordering::Relaxed) + swofty_formats::erp::work()
+}
+
+pub(crate) fn worked() {
+    WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
 pub(crate) fn io_err(path: impl Into<std::path::PathBuf>) -> impl FnOnce(std::io::Error) -> Error {
     let path = path.into();
     move |source| Error::Io { path, source }

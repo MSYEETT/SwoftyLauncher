@@ -168,7 +168,43 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     if swofty_core::compat::write_blocker(&g.dir).is_some() {
         bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
     }
-    install_checked(store, profile, g, session, out).map_err(|e| denied(e, &g.dir))
+    let done = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|s| {
+        s.spawn(|| heartbeat(&done));
+        let r = install_checked(store, profile, g, session, out).map_err(|e| denied(e, &g.dir));
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        r
+    })
+}
+
+/// While a build and install run, a line every 30 s that they moved, so the
+/// launcher's ten-minute limit on a silent wrapper stops only one that is
+/// stuck.
+fn heartbeat(done: &std::sync::atomic::AtomicBool) {
+    const EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+    let start = std::time::Instant::now();
+    let first = swofty_core::work();
+    let mut last = first;
+    let mut tick = start;
+    while !done.load(std::sync::atomic::Ordering::Relaxed) {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        if tick.elapsed() < EVERY {
+            continue;
+        }
+        tick = std::time::Instant::now();
+        let now = swofty_core::work();
+        if now != last {
+            crate::run::say(
+                "info",
+                &format!(
+                    "build: still working after {} s ({} file(s) and fragment(s) so far)",
+                    start.elapsed().as_secs(),
+                    now - first
+                ),
+            );
+            last = now;
+        }
+    }
 }
 
 /// Names the game folder and the fix when Windows refused a write in it.

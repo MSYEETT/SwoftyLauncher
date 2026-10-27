@@ -250,6 +250,7 @@ pub fn parse_manifest(data: &[u8]) -> std::result::Result<Vec<(String, Entry)>, 
 }
 
 pub fn sha1_file(path: &Path) -> Result<[u8; 20]> {
+    crate::worked();
     let mut f = std::fs::File::open(path).map_err(io_err(path))?;
     let mut h = Sha1::new();
     let mut buf = vec![0; 1 << 20];
