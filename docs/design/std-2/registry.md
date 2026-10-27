@@ -21,7 +21,7 @@ career.driver_ratings
 The addon that **owns** a registry declares it: its name, its schema and its current version. The core owns the registries that describe the game (`career.*`, `content.package`, `era.box`, `vehicle`, `engine_sound`, `livery`, `helmet`, `track`, `team.*`, `driver.*`, `lang.*`). An addon owns the registries of its own data, named under its id.
 
 ```json
-// swofty.json of the addon that owns progressive.settings_presets
+// registry.json of the addon that owns progressive.settings_presets
 {
   "registries": [
     { "name": "progressive.settings_presets", "schema": "schemas/settings_presets.1.0.json" }

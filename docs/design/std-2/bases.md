@@ -140,7 +140,7 @@ effective(mod.esp/f1_2017_v10) =
 - **A missing base** (the addon that provides it is off) leaves the variant unresolved: `get` returns `no_record`, and the launcher names the missing addon. Declaring the base's addon in `requires` makes the launcher say so before Play:
 
 ```json
-{ "requires": { "content.package:swofty.classic-seasons-2017/f1_2017": "*" } }
+{ "requires": [ { "record": "content.package:swofty.classic-seasons-2017/f1_2017" } ] }
 ```
 
 ## Extend or vary?
