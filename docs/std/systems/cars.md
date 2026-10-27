@@ -1,11 +1,19 @@
 ---
 title: Cars
-description: Cars in code - vehicles, packages, handling, damage models and detachable parts as typed registries, with the car events and operations, in standard library 2.0.
+description: Cars in code - vehicles, packages, handling, damage models and detachable parts as typed registries, with the car events and operations, protected history values and imported car ports.
 ---
 
 # Cars
 
-A car is a `cars::Vehicle` record that points at its package, handling, engine sound, livery and power unit, and every one of those is a typed record other addons can layer.
+Add a car, change how every car handles and breaks, or register parts that come off in a crash. Classic Seasons' 2017 Ferrari, for example, is one `cars::Vehicle` record that starts from the stock 2025 Ferrari and sets its own package, model, livery, engine sound and handling.
+
+A few terms used on this page:
+
+- A **vehicle** is a `cars::Vehicle` record: one car, one row in the game's `entrants.vehicles` table. It points at its package, model, handling, engine sound, livery and power unit, and each of those is a record other addons can change.
+- A **package** is a `cars::Package` record: the row that says where a group of cars keeps its files and AI data.
+- **Handling** is a `cars::Handling` record: one car's VTF, the game's physics file, decoded into typed fields.
+- A **layer** changes values on a record that already exists. A **variant** is a separate record that inherits another record's values and overrides some of them. A **selector** layers every record that matches a condition, now and later.
+- A **box** is one of the year tiles in Grand Prix or Time Trial. The **base** is the data every year shares.
 
 ## The header
 
@@ -43,7 +51,8 @@ struct Vehicle {                                   // one entrants.vehicles row
     Ref<Package> package;                          // its package
     std::string label;                             // the row label: "cs17_ferrari"
     Ref<Vehicle> donor;                            // the row add() copies, all 246 keys (a variant copies its base)
-    Path model;                                    // the car model files (teams/<t>/idf/, wep/); empty: the donor's
+    Path model;                                    // the car model files (teams/<t>/idf/, wep/); liveries fit by it;
+                                                   // empty: the donor's
     Ref<sounds::EngineSound> engine_sound;         // missing: falls back to the donor's
     Ref<liveries::Livery> livery;                  // the livery it races in
     Ref<Handling> handling;                        // its VTF
@@ -71,7 +80,7 @@ struct CoreAero { float downforce_scale; float drag_scale; };
 struct Handling {                                  // one VTF, decoded; edits change fields, the core re-encodes it
     Ref<Handling> from;                            // start from another car's VTF, then edit
     Path vtf;                                      // or a whole VTF of your own
-    Class cls = Class::f1;                         // the car's class (selectors match on it); "class" in data files
+    Class cls = Class::f1;                         // the car's class; "class" in data files
     float damage_scale = 1.0f;                     // scales every *_damage threshold at once
     Chassis chassis;                               // Chassis
     CoreAero core_aero;                            // CoreAero
@@ -106,7 +115,7 @@ struct Parts { Ref<Vehicle> vehicle; std::vector<Part> parts; };
 
 inline Registry<Vehicle> vehicles{"vehicle", { .applies = Applies::boot }};
 inline Registry<Package> packages{"vehicle.package", { .applies = Applies::boot }};
-inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::session }};   // the VTF is served when the car loads
+inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::boot }};   // written into the car archives at boot
 inline Registry<DamageModel> damage_models{"vehicle.damage_model", { .applies = Applies::boot }};
 inline Registry<Parts> parts{"vehicle.parts", { .applies = Applies::read }};
 
@@ -160,10 +169,10 @@ struct PartsRegister {                             // Car_FrontWing_Init: after
 
 Heavier Damage makes wings and suspension break harder on every car, and gives the 2026 cars the Realism Overhaul's performance.
 
-- **A selector** picks the cars: every F1, 2026 and My Team handling record, from any addon, now and later. Damage is tuning, so it applies in every year's cars too, not only the base.
-- **Two option-bound edits** read `wing_damage` and `suspension_damage`. When the player changes one, the change applies from the next session load.
-- **No VTF files ship.** Today the addon carries 16 pre-built copies of every car, one per option pair, in 1,348 package entries.
-- **R&D Tyres** changes the tyre fields and the `radUpgrade*` blocks of the same cars. Both edit them and both apply, where today they replace the same 91 files whole.
+- **A selector picks the cars:** every handling record in the core's `c/f1_cars` tag, which holds the stock F1, 2026 and My Team cars, and any car another addon adds to it. A tag is a shared, named set of records that any addon can add to. It reaches every year's cars, not only the base.
+- **Two option-bound edits** read `wing_damage` and `suspension_damage`. When the player changes one, the change applies from the next game start.
+- **No VTF files ship.** The core writes the edited fields into each car's VTF.
+- **R&D Tyres** changes the tyre fields and the `radUpgrade*` blocks of the same 91 cars' VTFs. Each addon edits only its own fields, and both apply.
 
 <template #example>
 <Example root="william09leo.heavier-damage-realism" code-file="native/src/damage.cpp" data-file="registry/layers.json" files="swofty.json, native/CMakeLists.txt, README.txt">
@@ -195,18 +204,16 @@ cars::SuspensionDamage suspension(const std::string &level)
 
 SWOFTY_REGISTER
 {
-    // every car: stock, My Team, every year pack's and any other addon's
-    auto modern = where<cars::Handling>([](const cars::Handling &h) {
-        return h.cls == cars::Class::f1 || h.cls == cars::Class::f1_26 || h.cls == cars::Class::my_team;
-    });
+    // every F1 car: stock, My Team, every year pack's and any other addon's that joins the tag
+    auto f1_cars = tagged<cars::Handling>(cars::handling.tag("c/f1_cars"));
 
-    cars::handling.layer(modern, [](cars::Handling &h) {
+    cars::handling.layer(f1_cars, [](cars::Handling &h) {
         auto level = option<std::string>("wing_damage");          // re-runs when the player changes it
         if (level != "stock")
             h.wing_damage = wing(level);
     });
 
-    cars::handling.layer(modern, [](cars::Handling &h) {
+    cars::handling.layer(f1_cars, [](cars::Handling &h) {
         auto level = option<std::string>("suspension_damage");
         if (level != "stock")
             h.suspension_damage = suspension(level);
@@ -231,13 +238,13 @@ SWOFTY_ADDON()
 {
   "vehicle.handling": {
     "$select": [
-      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "light" },
+      { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "light" },
         "patch": { "wing_damage": { "break_threshold": 0.85, "detach_threshold": 0.90 } } },
-      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "normal" },
+      { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "normal" },
         "patch": { "wing_damage": { "break_threshold": 0.65, "detach_threshold": 0.75 } } },
-      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "heavy" },
+      { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "heavy" },
         "patch": { "wing_damage": { "break_threshold": 0.45, "detach_threshold": 0.55 } } },
-      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "suspension_damage", "is": "normal" },
+      { "tag": "c/f1_cars", "when": { "option": "suspension_damage", "is": "normal" },
         "patch": { "suspension_damage": { "break_threshold": 0.70, "wheel_detach_threshold": 0.80 } } },
       { "where": { "class": "f1_26" },
         "patch": { "core_aero": { "downforce_scale": 0.97, "drag_scale": 1.02 } } }
@@ -246,7 +253,7 @@ SWOFTY_ADDON()
 }
 ```
 
-A data patch sets values; it can't scale them. The 2026 patch sets the result outright.
+A data patch sets values and can't scale them. The 2026 patch sets the result outright.
 
 </template>
 </Example>
@@ -255,17 +262,17 @@ A data patch sets values; it can't scale them. The 2026 patch sets the result ou
 
 ```text
 [registry] register: william09leo.heavier-damage-realism (heavier_damage.dll) 3 layers on vehicle.handling (early stage, 0.2 ms)
-[registry] vehicle.handling: selector class in (f1, f1_26, my_team) from william09leo.heavier-damage-realism matches 171 records
+[registry] vehicle.handling: selector tag c/f1_cars from william09leo.heavier-damage-realism matches 171 records
            (91 game/, 80 swofty.classic-seasons-*)
 [registry] vehicle.handling game/ferrari_2026: edit by william09leo.heavier-damage-realism changed /wing_damage/break_threshold,
            /wing_damage/detach_threshold (option wing_damage=normal)
 [registry] vehicle.handling game/ferrari_2026: 2 addons, no field contested (swofty.rnd-tyres-thermal: /tyres, /rad_upgrades;
            william09leo.heavier-damage-realism: /wing_damage, /suspension_damage, /core_aero)
-[registry] applied at session load: vehicle.handling 22 (22 VTFs served in memory)
-[registry] option william09leo.heavier-damage-realism/wing_damage: normal -> heavy; vehicle.handling applies from the next session load
+[registry] applied at boot: vehicle.handling 171 (171 handling files in overlay archives)
+[registry] option william09leo.heavier-damage-realism/wing_damage: normal -> heavy; vehicle.handling applies from the next game start
 ```
 
-The options stay in `swofty.json`, as in 1.x:
+The options are declared in `swofty.json`:
 
 ```json
 {
@@ -283,14 +290,14 @@ The options stay in `swofty.json`, as in 1.x:
 
 Classic Seasons 2017 adds the 2017 Ferrari: a package, then a vehicle on it. The vehicle is a variant of the stock 2025 Ferrari.
 
-- The core copies every key of the base rows, and writes the setup preset row for the new package folder from `setups_from`. Without one, the AI's setups ground the car.
-- A field the variant sets (here `livery`) beats layers on its base, so a drop-in livery for the 2025 Ferrari doesn't reach the 2017 car (see [Liveries](/std/systems/liveries)).
-- The core allocates both stat ids.
-- `engine_sound` and `livery` are [sounds](/std/systems/sounds) and [liveries](/std/systems/liveries) records.
-- Both apply at boot, before the database loads.
+- **The core copies every key of the base rows,** and writes the setup preset row for the new package folder from `setups_from`. Without one, the AI's setups ground the car.
+- **A field the variant sets beats layers on its base.** The 2017 car sets its own `livery`, so a drop-in livery for the 2025 Ferrari doesn't reach it (see [Liveries](/std/systems/liveries)).
+- **The car has its own model,** the 2017 mesh. A livery fits a car by its model. Liveries painted for the 2025 Ferrari can't be put on the 2017 car.
+- **Its pace is protected.** The handling's `chassis` and `core_aero` recreate the 2017 pecking order. Another addon's selector skips protected fields, unless the player turns on "Also change year packs" for that addon. A layer on this record itself still competes by load order.
+- The core allocates both stat ids. `engine_sound` and `livery` are [sounds](/std/systems/sounds) and [liveries](/std/systems/liveries) records. Both apply at boot, before the database loads.
 
 <template #example>
-<Example root="swofty.classic-seasons-2017" code-file="native/src/cars.cpp" data-file="registry/cars.json" files="swofty.json, native/src/content.cpp, sounds/cs17_ferrari.bdl">
+<Example root="swofty.classic-seasons-2017" code-file="native/src/cars.cpp" data-file="registry/cars.json" files="swofty.json, native/src/content.cpp, cars/ferrari/wep/ferrari.erp, cars/ferrari/idf/ferrari.erp, sounds/cs17_ferrari.bdl">
 <template #code>
 
 ```cpp
@@ -313,11 +320,13 @@ SWOFTY_REGISTER
         h.chassis.mass = 728.0f;
         h.core_aero.downforce_scale = 0.92f;
     });
+    cars::handling.protect(handling, { "chassis", "core_aero" });     // the 2017 pecking order
 
     // a variant of the stock car: every field it doesn't set, and every layer on game/ferrari_2025, flows in
     cars::vehicles.variant("ferrari", cars::vehicles["game/ferrari_2025"], [=](cars::Vehicle &v) {
         v.package = package;
         v.label = "cs17_ferrari";
+        v.model = file("cars/ferrari/");
         v.engine_sound = sounds::engine_sounds["swofty.classic-seasons-2017/ferrari"];
         v.livery = liveries::liveries["swofty.classic-seasons-2017/ferrari"];
         v.handling = handling;
@@ -339,12 +348,12 @@ SWOFTY_REGISTER
   },
   "vehicle.handling": {
     "ferrari": { "extends": "game/ferrari_2025", "chassis": { "mass": 728 },
-                 "core_aero": { "downforce_scale": 0.92 } }
+                 "core_aero": { "downforce_scale": 0.92 }, "$protect": ["chassis", "core_aero"] }
   },
   "vehicle": {
     "ferrari": {
       "extends": "game/ferrari_2025",
-      "package": "swofty.classic-seasons-2017/cs_2017_ferrari", "label": "cs17_ferrari",
+      "package": "swofty.classic-seasons-2017/cs_2017_ferrari", "label": "cs17_ferrari", "model": "cars/ferrari/",
       "engine_sound": "swofty.classic-seasons-2017/ferrari", "livery": "swofty.classic-seasons-2017/ferrari",
       "handling": "swofty.classic-seasons-2017/ferrari",
       "ai": { "track_pack": "swofty.classic-seasons-2017/ferrari" }, "tyre_wear_scale": 1.04
@@ -361,8 +370,25 @@ SWOFTY_REGISTER
 ```text
 [registry] stat ids: vehicle swofty.classic-seasons-2017/ferrari -> 515 (pool to 538)
 [registry] vehicle.package swofty.classic-seasons-2017/cs_2017_ferrari: setup presets from game/f1_2025 (1 row, 421 keys)
+[registry] vehicle.handling swofty.classic-seasons-2017/ferrari: selector from someone.realism-pack skipped /core_aero
+           (protected by swofty.classic-seasons-2017; "Also change year packs" is off)
 [registry] applied at boot: vehicle.package 1, vehicle 1 (2 rows, 3 database records)
 ```
+
+## Imported car ports
+
+A car port replaces the stock cars in place: fanfreluche's F1 2020 cars, for example, put new models, liveries and handling on the stock 2025 cars. The importer asks once where a car port or season pack applies:
+
+```text
+F1 2020 cars                      Applies in  ( ) Everywhere
+                                              (x) Grand Prix and Time Trial only
+```
+
+- **Grand Prix and Time Trial only** is the default. Careers keep the stock cars, including 2025 Driver Career and Progressive's 2025 season.
+- **Everywhere** changes the stock cars in every mode and every career that uses them.
+- **Single liveries, helmets and sounds** aren't asked. They apply everywhere.
+
+The rest of the importer's choices are on [The Simplified importer](/std/importer).
 
 ## Damage models
 
@@ -379,9 +405,9 @@ cars::damage_models.layer(cars::damage_models["game/default"], [](cars::DamageMo
 
 <Split>
 
-Parts Detach registers detachable parts when the game builds a car's front wing. In 1.x it wraps `Car_FrontWing_Init` itself, and Race Director, which embeds the same module, wraps it a second time and registers every part twice.
+Parts Detach registers detachable parts when the game builds a car's front wing. Race Director embeds the same module. Two addons that each wrap `Car_FrontWing_Init` register every part twice.
 
-In 2.0 both subscribe to `car.parts.register`, and `cars::parts` holds the parts per car, so the second addon finds them already there.
+Both subscribe to `car.parts.register` instead, and `cars::parts` holds the parts per car. The second addon finds them already there.
 
 <template #example>
 <Example root="vmknolle.parts-detach" code-file="native/src/parts.cpp" files="swofty.json, native/CMakeLists.txt">
@@ -455,10 +481,11 @@ cars::set_attribute(car, cars::Attribute::engine_power, 1.02f);   // unavailable
 ## Readiness and limits
 
 - **Records: ready.** The VTF round trip is proven on 74 of 74 files.
-- **Events and operations: partial.** `car.upgrades.fit` and `reset_upgrades` are L2 (`Car_Fit_UpgradesToRating`, `Car_Reset_LastFittedUpgrade`); the `Car_Read_<Section>` readers and `Car_FrontWing_Init` are L1.
-- **Unknown:** the attribute-name to element-index map (`set_attribute` needs an L3 trace at `site_Car_AttrArrayIter`), the damage writers, and handling write-back while a car is live.
-- **Setup presets are side data,** found by package folder. The core writes the row with the package; a missing row grounds the AI's setups, and a `_metadata_`-only row crashes session load.
-- **Live physics values are XOR-obfuscated,** so handling edits apply to the VTF as the car loads, or through `car.vtf.read`.
+- **Events and operations: partial.** `car.upgrades.fit` and `reset_upgrades` are L2 (`Car_Fit_UpgradesToRating`, `Car_Reset_LastFittedUpgrade`). The `Car_Read_<Section>` readers and `Car_FrontWing_Init` are L1.
+- **Handling applies at boot.** The VTF sits in the team's `wep` archive, which the game lists in its asset manifest at boot, and the core's overlay archives are fixed from then until the next game start. Changing handling for one session needs `car.vtf.read` at L2, or the archive swap per group load, and both need reverse engineering.
+- **Live physics values are XOR-obfuscated.** `car.vtf.read` hands a handler the value in clear.
+- **Unknown:** the attribute-name to element-index map (`set_attribute` needs an L3 trace at `site_Car_AttrArrayIter`), the damage writers and when the game reads them, and handling write-back while a car is live.
+- **Setup presets are side data,** found by package folder. The core writes the row with the package. A missing row grounds the AI's setups, and a `_metadata_`-only row crashes session load.
 - **AI data** is found by `ai_package_folder/asset_filename`. `AiSlot` maps an added car onto a stock slot.
 - **A car is registered** only when it's available and an entrant list names it.
 - **Dead stock rows:** `f1_classic` and the 23 `f1cg_*` packages have no archives and no AI data. Use `f1_2025` or `f1_2026` as the donor.
