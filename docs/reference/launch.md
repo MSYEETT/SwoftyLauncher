@@ -98,6 +98,36 @@ The launcher opens **Your game files have been edited**. It says how many files 
 swofty: common.erp, ferrari.erp, force_india.erp and 49 more files are not the copy Steam installed, usually after a mod was copied into the game folder by hand; nothing in the game folder was changed; verify the game files in Steam to put them back (open steam://validate/3059520, or F1 25 > Properties > Installed Files > Verify integrity of game files), then try again
 ```
 
+## Game files missing from the game folder
+
+A game file the profile replaces that is missing from the game folder is put back from the launcher's backup of the original, and the install goes on. With no backup, F1 25 is not started and nothing in the game folder is changed. The launcher opens **Some game files are missing**, names the files, and shows the fix for the copy's version:
+
+| `F1_25.exe` version | Fix |
+| --- | --- |
+| Older than 1.0.141.7865 | Update F1 25 in Steam or the EA app |
+| 1.0.141.7865 or newer | Verify the game files in Steam, or repair them in the EA app |
+| Unknown | Update F1 25, then verify the game files |
+
+`swofty run` and `swofty apply` stop with the same fix:
+
+```text
+swofty: nico_rosberg_head_d.tif.2024.mipmaps, nico_rosberg_head_n.tif.2024.mipmaps and nico_rosberg_head_s.tif.2024.mipmaps are missing from the game folder; nothing in the game folder was changed; verify the game files in Steam (open steam://validate/3059520, or F1 25 > Properties > Installed Files > Verify integrity of game files) or repair the game in the EA app to put them back, then try again
+```
+
+## Addon files missing or damaged
+
+A build that stops on an addon file that is missing or shorter than it should be names the addon and the file:
+
+```text
+swofty: Igora Drive (mod.miami24) is missing its file track/miami24.erp. Turn Igora Drive off in this profile, or remove it on the Addons page and install or import it again.
+```
+
+A game file that is shorter than it should be is named with the fix to verify the game files in Steam or repair them in the EA app. An addon install that fails, for example on a full drive, leaves the addon as it was before the install: an addon that wasn't installed stays uninstalled, and an update keeps the previous version.
+
+## An older F1 25
+
+Before a modded session, `swofty run` and the launcher's **Play** compare `F1_25.exe`'s version with 1.0.141.7865, the latest update. On an older copy the launcher shows **F1 25 needs the latest update** and the session goes on; `swofty run` prints the same on a `[warning]` line. Mods may not load on an older copy.
+
 ## Linux: the Steam wrapper
 
 Set Steam's launch option to `swofty run -- %command%` so its Play button starts Swofty Launcher for F1 25. The launcher uses your configured Proton version and records session logs.
