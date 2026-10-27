@@ -117,8 +117,10 @@ pub fn resolve(profile: &Profile, installed: &BTreeMap<String, AddonManifest>) -
 
 /// The addons on in `profile` that two or more catalog addons build on, with
 /// none of those on: the shared part of a family such as Classic Seasons,
-/// which adds nothing to pick on its own. Each comes as its name and the
-/// names of the catalog addons that need it.
+/// which adds nothing to pick on its own. When the base has a catalog
+/// category, its family is the addons of that category that need it, so a
+/// career addon that needs Classic Seasons doesn't count as a season. Each
+/// comes as its name and the names of its family.
 pub fn lonely_bases(
     profile: &Profile,
     installed: &BTreeMap<String, AddonManifest>,
@@ -130,26 +132,32 @@ pub fn lonely_bases(
         let Some(base) = installed.get(*id) else {
             continue;
         };
-        let mut family: Vec<String> = catalog
+        let category = catalog
             .iter()
-            .filter(|a| a.id != *id)
-            .filter(|a| {
-                a.newest()
+            .find(|a| a.id == *id)
+            .and_then(|a| a.category.as_deref());
+        let needs = |a: &&crate::catalog::Addon| {
+            a.id != *id
+                && a.newest()
                     .and_then(|v| v.requires.as_ref())
                     .is_some_and(|rs| rs.iter().any(|r| r.id == *id))
-            })
-            .map(|a| a.name.clone())
+        };
+        let family: Vec<&crate::catalog::Addon> = catalog
+            .iter()
+            .filter(needs)
+            .filter(|a| category.is_none() || a.category.as_deref() == category)
             .collect();
         if family.len() < 2 {
             continue;
         }
-        let used = enabled
-            .iter()
-            .filter_map(|e| installed.get(*e))
-            .any(|m| m.requires.iter().any(|r| r.id == *id));
+        let used = enabled.iter().filter_map(|e| installed.get(*e)).any(|m| {
+            m.requires.iter().any(|r| r.id == *id)
+                && (family.iter().any(|a| a.id == m.id) || !catalog.iter().any(|a| a.id == m.id))
+        });
         if !used {
-            family.sort();
-            out.push((base.name.clone(), family));
+            let mut names: Vec<String> = family.iter().map(|a| a.name.clone()).collect();
+            names.sort();
+            out.push((base.name.clone(), names));
         }
     }
     out
@@ -294,6 +302,46 @@ mod tests {
         );
         assert!(lonely_bases(&profile(&["cs.base", "cs.2016"]), &installed, &catalog).is_empty());
         assert!(lonely_bases(&profile(&["a.other"]), &installed, &catalog).is_empty());
+    }
+
+    #[test]
+    fn a_career_addon_on_the_base_is_not_one_of_its_seasons() {
+        let catalog: Vec<crate::catalog::Addon> = serde_json::from_value(serde_json::json!([
+            {"id": "cs.base", "name": "Classic Seasons", "author": "s", "category": "seasons",
+             "versions": [{"version": "1.0.0", "size": 1, "sha256": "x", "url": "u"}]},
+            {"id": "cs.2016", "name": "F1 2016", "author": "s", "category": "seasons",
+             "versions": [{"version": "1.0.0", "size": 1, "sha256": "x", "url": "u", "requires": [{"id": "cs.base"}]}]},
+            {"id": "cs.2017", "name": "F1 2017", "author": "s", "category": "seasons",
+             "versions": [{"version": "1.0.0", "size": 1, "sha256": "x", "url": "u", "requires": [{"id": "cs.base"}]}]},
+            {"id": "c.career", "name": "Classic Career", "author": "c", "category": "career",
+             "versions": [{"version": "1.0.0", "size": 1, "sha256": "x", "url": "u", "requires": [{"id": "cs.base"}]}]}
+        ]))
+        .unwrap();
+        let (_, mut base) = m("cs.base", "");
+        base.name = "Classic Seasons".into();
+        let installed = BTreeMap::from([
+            m(CORE_ID, ""),
+            ("cs.base".into(), base),
+            m("cs.2016", r#","requires":[{"id":"cs.base"}]"#),
+            m("c.career", r#","requires":[{"id":"cs.base"}]"#),
+            m("a.local", r#","requires":[{"id":"cs.base"}]"#),
+        ]);
+        assert_eq!(
+            lonely_bases(&profile(&["c.career", "cs.base"]), &installed, &catalog),
+            [(
+                "Classic Seasons".to_owned(),
+                vec!["F1 2016".to_owned(), "F1 2017".to_owned()]
+            )]
+        );
+        assert!(
+            lonely_bases(
+                &profile(&["c.career", "cs.base", "cs.2016"]),
+                &installed,
+                &catalog
+            )
+            .is_empty()
+        );
+        assert!(lonely_bases(&profile(&["cs.base", "a.local"]), &installed, &catalog).is_empty());
     }
 
     #[test]

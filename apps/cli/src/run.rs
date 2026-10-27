@@ -392,6 +392,24 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         request.netplay = None;
     }
     let profile = request.profile.clone().unwrap_or_else(|| profile.to_owned());
+    if let (Ok(p), Ok(installed)) = (store.profile(&profile), store.addons()) {
+        let catalog = swofty_core::catalog::cached(&store.root).unwrap_or_default();
+        for (base, family) in swofty_core::resolver::lonely_bases(&p, &installed, &catalog) {
+            if installed
+                .values()
+                .any(|m| m.name == base && store.is_builtin(&m.id))
+            {
+                continue;
+            }
+            say(
+                "warning",
+                &format!(
+                    "{base} is on without any of its addons, so it adds nothing; install at least one, such as {}",
+                    family.join(", ")
+                ),
+            );
+        }
+    }
     if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
         set_affinity(&cpus);
     }

@@ -913,8 +913,8 @@ impl Shell {
             };
             window.push_notification(
                 Notification::warning(format!(
-                    "{base} is on, but none of the addons that build on it are, so it adds nothing to pick on its \
-                     own. Install one in the Addon Browser, such as {shown}{more}."
+                    "{base} is on, but none of its addons are, so it adds nothing to pick on its own. Install at \
+                     least one in the Addon Browser, such as {shown}{more}, and turn it on."
                 ))
                 .title(format!("{base} needs one of its addons"))
                 .autohide(false),
