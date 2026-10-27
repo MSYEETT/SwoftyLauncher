@@ -211,12 +211,73 @@ pub fn unrepairable_message(who: &str, resources: &[String], fix: &str) -> Strin
     format!("{who} would crash F1 25: {what}. {fix}")
 }
 
-fn write_archive(out: &Path, rel: &str, archive: Archive) -> Result<()> {
-    let Archive { file, slots } = archive;
+/// A hash of everything that decides an archive's bytes: the build pipeline,
+/// the source archive (path, size and modified time) and every slot, stock by
+/// index and owned by all of its fields and fragment bytes.
+fn archive_key(rel: &str, a: &Archive) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    let meta = std::fs::metadata(&a.file.path).ok()?;
+    let mut h = Sha256::new();
+    let mut field = |b: &[u8]| {
+        h.update((b.len() as u64).to_le_bytes());
+        h.update(b);
+    };
+    field(env!("SWOFTY_PIPELINE").as_bytes());
+    field(rel.as_bytes());
+    field(a.file.path.to_string_lossy().as_bytes());
+    field(&meta.len().to_le_bytes());
+    field(format!("{:?}", meta.modified().ok()?).as_bytes());
+    field(&a.file.erp.header);
+    field(&a.file.erp.version.to_le_bytes());
+    for slot in &a.slots {
+        match slot {
+            Slot::Stock(i) => {
+                field(b"stock");
+                field(&(*i as u64).to_le_bytes());
+            }
+            Slot::Owned(r) => {
+                field(b"owned");
+                field(r.name.as_bytes());
+                field(&r.kind);
+                field(&r.unk);
+                field(&r.hash);
+                for f in &r.fragments {
+                    field(&f.name);
+                    field(&f.offset.to_le_bytes());
+                    field(&f.size.to_le_bytes());
+                    field(&f.flags.to_le_bytes());
+                    field(&[f.compression]);
+                    field(&f.packed.to_le_bytes());
+                    field(&f.raw);
+                }
+                field(b"end");
+            }
+        }
+    }
+    Some(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// Write `archive` to `out`, or link it from `cache` when an earlier build
+/// wrote the same bytes; a newly written one is linked into the cache. True
+/// when it came from the cache. Without hard links nothing is cached.
+fn write_archive(out: &Path, rel: &str, archive: Archive, cache: Option<&Path>) -> Result<bool> {
     let path = out.join(rel);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
     }
+    let cached = cache.and_then(|dir| {
+        let key = archive_key(rel, &archive)?;
+        Some(dir.join(&key[..2]).join(format!("{key}.erp")))
+    });
+    if let Some(c) = cached.as_ref().filter(|c| c.is_file())
+        && std::fs::hard_link(c, &path).is_ok()
+    {
+        if let Ok(f) = std::fs::File::options().write(true).open(c) {
+            f.set_modified(std::time::SystemTime::now()).ok();
+        }
+        return Ok(true);
+    }
+    let Archive { file, slots } = archive;
     let entries = slots
         .into_iter()
         .map(|s| match s {
@@ -225,7 +286,14 @@ fn write_archive(out: &Path, rel: &str, archive: Archive) -> Result<()> {
         })
         .collect();
     file.write(entries, &path)
-        .map_err(|e| fail(format!("{rel}: {e}")))
+        .map_err(|e| fail(format!("{rel}: {e}")))?;
+    if let Some(c) = cached {
+        if let Some(dir) = c.parent() {
+            std::fs::create_dir_all(dir).ok();
+        }
+        std::fs::hard_link(&path, &c).ok();
+    }
+    Ok(false)
 }
 
 fn key(t: &PkgTarget) -> SourceKey {
@@ -883,7 +951,7 @@ impl<'a> ErpBuild<'a> {
             .collect();
         for rel in &outside {
             let archive = self.erps.remove(rel).expect("listed above");
-            write_archive(out, rel, archive)?;
+            write_archive(out, rel, archive, None)?;
         }
         Ok(outside)
     }
@@ -892,7 +960,7 @@ impl<'a> ErpBuild<'a> {
         let found = self.resized();
         for r in &found {
             let archive = self.erps.remove(&r.erp).expect("found above");
-            write_archive(out, &r.erp, archive)?;
+            write_archive(out, &r.erp, archive, None)?;
         }
         Ok(found)
     }
@@ -983,12 +1051,20 @@ impl<'a> ErpBuild<'a> {
     }
 
     pub fn write(self, out: &Path) -> Result<Vec<String>> {
+        Ok(self.write_cached(out, None)?.0)
+    }
+
+    /// Write the changed archives to `out`, linking from `cache` the ones an
+    /// earlier build wrote the same; the archives written and how many came
+    /// from the cache.
+    pub fn write_cached(self, out: &Path, cache: Option<&Path>) -> Result<(Vec<String>, usize)> {
         let mut written = Vec::new();
+        let mut reused = 0;
         for (rel, archive) in self.erps.into_iter().filter(|(_, a)| !a.untouched()) {
-            write_archive(out, &rel, archive)?;
+            reused += usize::from(write_archive(out, &rel, archive, cache)?);
             written.push(rel);
         }
-        Ok(written)
+        Ok((written, reused))
     }
 }
 
@@ -1684,6 +1760,63 @@ mod tests {
 
     fn data(res: &Resource) -> Vec<Vec<u8>> {
         res.fragments.iter().map(|f| f.data().unwrap()).collect()
+    }
+
+    #[test]
+    fn an_unchanged_archive_is_linked_from_the_cache() {
+        let root = std::env::temp_dir().join(format!("swofty-erpcache-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let game = root.join("game");
+        let addon = root.join("addon");
+        std::fs::create_dir_all(game.join("ui")).unwrap();
+        std::fs::create_dir_all(addon.join("raw")).unwrap();
+        let x = "eaid://ui_package/x.tif.image";
+        std::fs::write(
+            game.join("ui/a.erp"),
+            archive(vec![surface(x, b"HEADER-X", b"PIXELS-X")]),
+        )
+        .unwrap();
+        let put = |bytes: &[u8]| {
+            std::fs::write(addon.join("raw/pixels.bin"), bytes).unwrap();
+            erp_ops(
+                r#"{"schema_version":1,"ops":[{"op":"replace-resource","erp":"ui/a.erp",
+                "resource":"eaid://ui_package/x.tif.image","fragment":1,"source":"raw/pixels.bin"}]}"#,
+            )
+        };
+        let original = |rel: &str| game.join(rel);
+        let cache = root.join("cache");
+        let build = |n: &str, bytes: &[u8]| {
+            let ops = put(bytes);
+            let mut b = ErpBuild::new(&original);
+            apply(&mut b, &ops, &addon).unwrap();
+            let out = root.join(n);
+            let (written, reused) = b.write_cached(&out, Some(&cache)).unwrap();
+            assert_eq!(written, ["ui/a.erp"]);
+            (std::fs::read(out.join("ui/a.erp")).unwrap(), reused)
+        };
+        let (first, reused) = build("one", b"PAINTED!");
+        assert_eq!(reused, 0);
+        let (again, reused) = build("two", b"PAINTED!");
+        assert_eq!(
+            (again == first, reused),
+            (true, 1),
+            "the same build links the cached archive"
+        );
+        let (other, reused) = build("three", b"REPAINT!");
+        assert_eq!(
+            (other == first, reused),
+            (false, 0),
+            "different fragment bytes write a new archive"
+        );
+        let mut b = ErpBuild::new(&original);
+        apply(&mut b, &put(b"PAINTED!"), &addon).unwrap();
+        b.write(&root.join("plain")).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("plain/ui/a.erp")).unwrap(),
+            first,
+            "the cache changes no bytes"
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

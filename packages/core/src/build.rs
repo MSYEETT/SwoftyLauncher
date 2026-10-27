@@ -46,6 +46,8 @@ pub const PLAN_FILE: &str = "plan.json";
 pub const SAVED_FILE: &str = "built.json";
 const SAVED_VERSION: u32 = 1;
 const PACKED_AGE: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 3600);
+const ARCHIVE_AGE: std::time::Duration = std::time::Duration::from_secs(3 * 24 * 3600);
+const ARCHIVE_BYTES: u64 = 10 << 30;
 pub const ADDONS_DIR: &str = "addons";
 const LOCK_FILE: &str = "build.lock";
 
@@ -1352,7 +1354,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             resized
         } else {
             let resized = erps.resized();
-            let written = erps.write(&built.overlay)?;
+            let archives = store.root.join("cache").join(crate::cache::ARCHIVES_DIR);
+            let (written, reused) = erps.write_cached(&built.overlay, Some(&archives))?;
+            if reused > 0 {
+                built.lines.push(format!(
+                    "erp: {reused} of {} archive(s) unchanged since an earlier build, linked from the cache",
+                    written.len()
+                ));
+            }
             stage_erps(&mut built, &staged, written)?;
             resized
         };
@@ -1518,6 +1527,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .push(format!("cache: {removed} stale build folder(s) removed"));
     }
     crate::cache::prune_packed(&packed, PACKED_AGE);
+    crate::cache::prune_archives(
+        &store.root.join("cache").join(crate::cache::ARCHIVES_DIR),
+        ARCHIVE_AGE,
+        ARCHIVE_BYTES,
+    );
     if let Some(saved) = saved {
         crate::write_json(&built.overlay.join(SAVED_FILE), &saved)?;
     }
