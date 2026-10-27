@@ -306,11 +306,13 @@ fn hash_unread(
     resolve: &dyn Fn(&str) -> PathBuf,
 ) -> Result<()> {
     hasher.update(format!("game {};", game.identity.key()));
-    if let Ok(exe) = std::env::current_exe() {
-        stamp(hasher, env!("CARGO_PKG_VERSION"), &exe);
-    }
+    hasher.update(format!("pipeline {};", env!("SWOFTY_PIPELINE")));
     if let Some(dir) = loader_dir() {
-        stamp_tree(hasher, "loader", &dir)?;
+        stamp(
+            hasher,
+            "loader features",
+            &dir.join(crate::planner::FEATURES_FILE),
+        );
     }
     for m in order.iter().filter(|m| !store.is_builtin(&m.id)) {
         let dir = store.addons_dir().join(&m.id);
@@ -356,7 +358,7 @@ struct Saved {
 impl Saved {
     fn of(built: &Built, lines: usize, warnings: usize) -> Result<Self> {
         let mut sizes = BTreeMap::new();
-        for src in [&built.plan.data, &built.plan.added, &built.plan.loader]
+        for src in [&built.plan.data, &built.plan.added]
             .into_iter()
             .flat_map(|m| m.values())
         {
@@ -409,10 +411,15 @@ impl Saved {
             .all(|rel| baseline.files.contains_key(rel) || game.dir.join(rel).is_file())
     }
 
-    fn restore(self, built: &mut Built) {
+    /// The loader files come from the launcher's loader folder as it is now:
+    /// a launcher update changes them without changing what the build wrote.
+    fn restore(self, built: &mut Built) -> Result<()> {
         built.plan.data = self.data;
         built.plan.added = self.added;
-        built.plan.loader = self.loader;
+        built.plan.loader = match loader_dir() {
+            Some(dir) => loader_files(&dir)?,
+            None => BTreeMap::new(),
+        };
         built.plan.registry_override = self.registry_override;
         built.settings = self.settings;
         built.lines.push(format!(
@@ -428,6 +435,7 @@ impl Saved {
         built.report.built_at = crate::conflicts::now();
         built.conflicts = self.conflicts;
         built.waiting = self.waiting;
+        Ok(())
     }
 }
 
@@ -847,7 +855,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     built.overlay = store.overlay_dir(profile, &built.buildhash);
     let (lines_at, warnings_at) = (built.lines.len(), built.warnings.len());
     if let Some(saved) = Saved::load(&built.overlay, &built.buildhash).filter(|s| s.usable(store, game)) {
-        saved.restore(&mut built);
+        saved.restore(&mut built)?;
         built.report.order = p.enabled().map(str::to_owned).collect();
         crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
         return Ok(built);
