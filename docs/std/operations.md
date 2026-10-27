@@ -9,42 +9,60 @@ An **operation** is a core function that changes the game: put a driver in a sea
 
 ## Applying a season
 
+<Split>
+
+Progressive applies each season's line-up when the season starts. It reads the effective `career.season` record (with every addon's layers) and hands it to the core's operation, which reports what it changed and what it refused.
+
+<template #example>
+<Example root="swofty.progressive" code-file="native/src/seasons.cpp" files="swofty.json, native/CMakeLists.txt, native/src/register.cpp, data/years.json">
+<template #code>
+
 ```cpp
-#include <swofty/registry.hpp>
-#include <swofty/career/season.hpp>
-#include <swofty/career/ops.hpp>
+#include <swofty/events.hpp>
+#include <swofty/systems/career.hpp>
 
-using namespace swofty::career;
+using namespace swofty;
 
-void on_season_start(int year)
+SWOFTY_ON_LOAD
 {
-    std::optional<Season> season = swofty::registry::get<Season>(std::string(kDataGroup) + "/" + std::to_string(year));
-    if (!season)
-        return;
+    events::on<career::events::SeasonStart>().in(events::content("swofty.progressive/f1_career_progressive"))
+        .after([](const career::events::SeasonStart &e, const events::Context &) {
+            auto season = career::seasons.get(career::seasons["swofty.progressive/" + std::to_string(e.year)]);
+            if (!season)
+                return;
 
-    ApplyReport report;
-    Result r = apply_lineup(*season, &report);    // seats, reserve seats and the entrant list
-    swofty::log("[progressive] %d: %zu seat(s) set, %zu unchanged, %zu refused", year,
-                report.changed, report.unchanged, report.refused);
-    for (const auto &why : report.refusals)
-        swofty::log("[progressive]   %s", why.c_str());
-    if (r != Result::ok)
-        swofty::log("[progressive] %d: apply_lineup: %s", year, name(r));
+            career::ApplyReport report;
+            Result r = career::apply_lineup(*season, &report);    // seats, reserve seats and the entrant list
+            swofty::log("[progressive] %d: %zu seat(s) set, %zu unchanged, %zu refused", e.year,
+                        report.changed, report.unchanged, report.refused);
+            for (const auto &why : report.refusals)
+                swofty::log("[progressive]   %s", why.c_str());
+            if (r != Result::ok)
+                swofty::log("[progressive] %d: apply_lineup: %s", e.year, name(r));
+        });
 }
+
+SWOFTY_ADDON()
 ```
+
+</template>
+</Example>
+</template>
+</Split>
 
 ## Setting ratings
 
 ```cpp
-#include <swofty/career/ratings.hpp>
+#include <swofty/systems/career.hpp>
 
 void start_of_season_ratings(int year)
 {
-    for (std::string_view id : swofty::registry::ids(DriverRatings::registry, std::string(kDataGroup) + "/" + std::to_string(year) + "/")) {
-        std::optional<DriverRatings> r = swofty::registry::get<DriverRatings>(id);
+    using namespace swofty;
+    for (Ref<career::DriverRatings> id : career::ratings.all("swofty.progressive/" + std::to_string(year) + "/")) {
+        std::optional<career::DriverRatings> r = career::ratings.get(id);
         if (!r || r->driver == player_driver())
             continue;                                // the player's driver develops on his own
-        set_driver_ratings(r->driver, *r);
+        career::set_driver_ratings(r->driver, *r);
     }
 }
 ```
@@ -54,24 +72,29 @@ void start_of_season_ratings(int year)
 Each one moves into the core when a second addon needs it. Its first version comes from the code that already does the job in Progressive Career or Career Editor:
 
 ```cpp
+// swofty/systems/career.hpp
 namespace swofty::career {
 Result apply_lineup(const Season &season, ApplyReport *report = nullptr);
-Result set_seat(int slot, int seat, std::string_view driver);
-Result set_driver_ratings(std::string_view driver, const DriverRatings &ratings);
-Result set_car_number(std::string_view driver, int number);
+Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
+Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
+Result set_car_number(Ref<drivers::Identity> driver, int number);
 }
-namespace swofty::team {
-Result set_logo(std::string_view team, std::string_view logo_key);
-Result set_name(std::string_view team, std::string_view lang_key);
+// swofty/systems/teams.hpp
+namespace swofty::teams {
+Result set_logo(Ref<Identity> team, std::string_view logo_key);
+Result set_name(Ref<Identity> team, std::string_view lang_key);
 }
-namespace swofty::session {
-Result set_track_fuel(std::string_view track, const TrackFuel &fuel);   // per-career, restored on unload
+// swofty/systems/tracks.hpp
+namespace swofty::tracks {
+Result set_track_fuel(Ref<Track> track, const TrackFuel &fuel);        // per-career, put back on unload
 }
 ```
 
+Every system page lists its operations in its header: [tyres](/std/systems/tyres#operations), [power units](/std/systems/power-units#events-and-operations), [sessions](/std/systems/sessions#events-and-operations), [weather](/std/systems/weather#events-and-operations), [AI](/std/systems/ai#events-and-operations), [career](/std/systems/career#operations), [UI](/std/systems/ui#events-and-operations), [graphics](/std/systems/graphics#settings).
+
 ## What an operation guarantees
 
-- **Validated input:** the same `x-ref` and rule checks as a registry write. A refused part names the field and the reason.
+- **Validated input:** the same `Ref<T>` and `check` rules as a registry edit. A refused part names the field and the reason.
 - **Verified bindings only:** every function and field it uses is at L2 with an independent verify. On a build where one doesn't resolve, the operation returns `unavailable` and logs which binding is missing. The addon that called it keeps running.
 - **Undo where the game keeps state:** an operation that changes shared game data, such as the track fuel tables, puts the original back when the career unloads, and logs both.
 - **One log line per call,** with what changed. Send Logs then shows what an addon did to the game.

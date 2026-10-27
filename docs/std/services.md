@@ -25,8 +25,19 @@ struct ProgressiveHistory {
 };
 ```
 
+<Split>
+
+Progressive publishes its table when it loads. The struct is in a header it ships; the table is plain function pointers.
+
+<template #example>
+<Example root="swofty.progressive" code-file="native/src/history.cpp" files="swofty.json, native/CMakeLists.txt, api/progressive_api/history.hpp, native/src/history.hpp">
+<template #code>
+
 ```cpp
-// progressive.dll
+#include <swofty/services.hpp>
+#include <progressive_api/history.hpp>
+#include "history.hpp"
+
 static const ProgressiveHistory kHistory{
     sizeof(ProgressiveHistory),
     &history::real_team,
@@ -38,7 +49,14 @@ SWOFTY_ON_LOAD
 {
     swofty::services::publish(kHistory);
 }
+
+SWOFTY_ADDON()
 ```
+
+</template>
+</Example>
+</template>
+</Split>
 
 ## Looking it up
 
@@ -105,19 +123,13 @@ In 2.0 they use the service, like any other addon would. The `GetProcAddress` ex
 
 ## Declaring
 
-```json
-{
-  "services": [
-    { "publish": "progressive.history", "version": 2 }
-  ]
-}
-```
+`services::publish` and `services::when` are the declaration. A consumer that can't work without a service can also say so in `registry.json`, which only holds dependencies:
 
 ```json
-// the consumer
+// the consumer's registry.json (optional)
 {
   "requires": [ { "service": "progressive.history", "version": ">=1" } ]
 }
 ```
 
-The launcher shows a consumer's missing or too-old service before Play, the same way it names a missing addon requirement.
+With it, the launcher shows a missing or too-old service before the game starts, the same way it names a missing addon requirement. Without it, the consumer's `when` callback never runs, and the core logs the missing service once.

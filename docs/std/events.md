@@ -9,33 +9,41 @@ An **event** is a moment in the game's lifecycle: a career's season starts, a se
 
 ## Events in full
 
-F1 1990 reacts to three moments, only inside its own career:
+<Split>
+
+F1 1990 reacts to three moments, only inside its own career: it logs each season start, caps the rain chance of every race, and builds the grid from the better of two qualifying sessions.
+
+Each event's payload lives in its system's header, in `swofty::<system>::events`. Subscriptions are code only: the core lists them in `registry/effective.json` for Send Logs.
+
+<template #example>
+<Example root="swofty.f1-1990" code-file="native/src/events.cpp" files="swofty.json, native/CMakeLists.txt, native/src/grid.cpp">
+<template #code>
 
 ```cpp
 #include <swofty/events.hpp>
-#include <swofty/career/events.hpp>
-#include <swofty/session/events.hpp>
+#include <swofty/systems/career.hpp>
+#include <swofty/systems/sessions.hpp>
+#include <swofty/systems/weather.hpp>
 
+using namespace swofty;
 using namespace swofty::events;
-namespace career = swofty::career;
-namespace session = swofty::session;
 
 static const Selector k1990 = content("swofty.f1-1990/f1_career_1990");
 
 SWOFTY_ON_LOAD
 {
     // after: observe the moment
-    on<career::SeasonStart>().in(k1990).after([](const career::SeasonStart &e, const Context &ctx) {
+    on<career::events::SeasonStart>().in(k1990).after([](const career::events::SeasonStart &e, const Context &ctx) {
         swofty::log("[f1-1990] season %d starts, round %d of %d, player %s", e.year,
-                    ctx.career()->round, ctx.career()->rounds, ctx.player()->driver.id.c_str());
+                    ctx.career()->round, ctx.career()->rounds, ctx.player()->driver.id().data());
     });
 
     // before: change what the game is about to use
-    on<session::WeatherSetup>().in(k1990).when(session_type({ SessionType::race }))
-        .before([](session::WeatherSetup &w, const Context &) { w.rain_chance = std::min(w.rain_chance, 30u); });
+    on<weather::events::Setup>().in(k1990).when(session_type({ SessionType::race }))
+        .before([](weather::events::Setup &w, const Context &) { w.rain_chance = std::min(w.rain_chance, 30u); });
 
     // replace: stand in for the game; return true when handled
-    on<session::GroupResult>().in(k1990).replace([](session::GroupResult &g, const Context &ctx) {
+    on<sessions::events::GroupResult>().in(k1990).replace([](sessions::events::GroupResult &g, const Context &ctx) {
         return f1990::rank_best_of(g, ctx.session()->group, 1, 2);   // the grid from the better of two qualifying sessions
     });
 }
@@ -43,16 +51,10 @@ SWOFTY_ON_LOAD
 SWOFTY_ADDON()
 ```
 
-```json
-// registry.json: the same subscriptions, declared so the launcher can show and check them
-{
-  "events": [
-    { "on": "career.season.start",       "phase": "after",   "in": { "content": "swofty.f1-1990/f1_career_1990" } },
-    { "on": "session.weather.setup",     "phase": "before",  "in": { "content": "swofty.f1-1990/f1_career_1990" } },
-    { "on": "session.grid.group_result", "phase": "replace", "in": { "content": "swofty.f1-1990/f1_career_1990" } }
-  ]
-}
-```
+</template>
+</Example>
+</template>
+</Split>
 
 ```text
 [events] career.season.start (driver_career, swofty.f1-1990/f1_career_1990, 1990): 1 after handler
@@ -193,12 +195,12 @@ public:
 ```
 
 ```cpp
-on<session::Load>().after([](const session::Load &, const Context &ctx) {
-    auto season = ctx.record<swofty::career::Season>();          // the career's season, from its snapshot
-    auto track  = ctx.session()->track.record<swofty::track::Track>();
+on<sessions::events::Load>().after([](const sessions::events::Load &, const Context &ctx) {
+    auto season = ctx.record<career::Season>();                  // the career's season, from its snapshot
+    auto track  = tracks::tracks.get(ctx.session()->track);
     for (const auto &e : ctx.participants())
         if (e.human)
-            swofty::log("[my-addon] you drive %s for %s at %s", e.driver.id.c_str(), e.team.id.c_str(), track->name.c_str());
+            swofty::log("[my-addon] you drive %s for %s at %s", e.driver.id().data(), e.team.id().data(), track->name.c_str());
 });
 ```
 
@@ -227,7 +229,9 @@ on<E>().when(session_type({ SessionType::race, SessionType::sprint }))
 on<E>().when(track("game/monaco"))
 on<E>().when(year(2016, 2019))
 on<E>().in(any({ content("a/x"), content("b/y") })).when(not_(track("game/monaco")))
-on<E>().in(where(swofty::where{ .setup_mode = "swofty.f1-1990/f1_1990" }))   // the scope your system declares
+on<E>().in(setup_mode("swofty.f1-1990/f1_1990"))                  // every session run under that setup mode
+on<E>().in(vehicle_package("swofty.f1-1990/f1_1990"))              // per car: cars of that package
+on<E>().in(f1990::scope)                                           // the scope your system declares (a Selector)
 ```
 
 A rule written for the 2017 package also runs in "F1 2017 (V10)", because that's a variant of it. Use `content_exact` for the one record only.
@@ -242,8 +246,8 @@ The owner's `replace` runs first in its own content, so it decides how the game 
 
 ```cpp
 // Classic Seasons 2017: races in the 2017 package start on 2017 fuel loads
-on<session::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
-    .replace([](session::FuelLoad &f, const Context &) {
+on<tracks::events::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
+    .replace([](tracks::events::FuelLoad &f, const Context &) {
         f.kg = cs::fuel_2017(f.track_game_id);
         return true;
     });
@@ -258,19 +262,25 @@ on<session::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
 
 By default every addon's handlers run in every content. The owner still has the last word through ordering: its `before` runs last and its `replace` first. An owner can also choose, per event and phase, to keep other addons' `before` and `replace` handlers out of its own content, and name the ones it allows:
 
-```json
-// swofty.f1-1990/registry/policy.json
+```cpp
+// swofty.f1-1990: a record of events::policies ("event.policy"), keyed by the content it owns
+SWOFTY_REGISTER
 {
-  "event.policy": {
-    "swofty.f1-1990/f1_career_1990": {
-      "events": {
-        "session.grid.group_result": { "replace": "owner", "allow": ["community.goodyear-1990-plus"] },
-        "career.contract.decide":    { "replace": "owner", "before": "owner" },
-        "*":                         { "replace": "open" }
-      }
-    }
-  }
+    using events::Access;
+    events::policies.add("f1_career_1990", { .events = {
+        { "session.grid.group_result", { .replace = Access::owner, .allow = { "community.goodyear-1990-plus" } } },
+        { "career.contract.decide",    { .replace = Access::owner, .before = Access::owner } },
+        { "*",                         { .replace = Access::open } },
+    } });
 }
+```
+
+```json
+// the same, without code: registry/policy.json
+{ "event.policy": { "f1_career_1990": { "events": {
+    "session.grid.group_result": { "replace": "owner", "allow": ["community.goodyear-1990-plus"] },
+    "career.contract.decide":    { "replace": "owner", "before": "owner" },
+    "*":                         { "replace": "open" } } } } }
 ```
 
 The policy only ever stays narrow:
@@ -318,7 +328,7 @@ void apply_change(const Change &c)
 {
     progressive_api::SeatChange e{ sizeof e, 1, c.year, c.round, c.slot, c.seat, c.out.c_str(), c.in.c_str(), 0 };
     if (swofty::events::fire(e))          // false: a replace handler made the swap itself
-        swofty::career::set_seat(c.slot, c.seat, c.in);
+        swofty::career::set_seat(c.slot, c.seat, swofty::drivers::identities[c.in]);
 }
 ```
 
@@ -333,12 +343,6 @@ SWOFTY_ON_LOAD
         swofty::hud::toast("Driver change", std::string(e.in_driver) + " replaces " + e.out_driver);
     });
 }
-```
-
-```json
-// progressive's registry.json
-{ "events": [ { "define": "swofty.progressive.seat_change", "version": 1, "phases": ["before", "replace", "after"],
-                "header": "api/progressive_api/events.hpp", "in": { "owner": "swofty.progressive" } } ] }
 ```
 
 - **The name starts with your addon's id.** The launcher refuses a `define` under another addon's id.
@@ -379,7 +383,7 @@ Adding a core event is one catalogue entry, a hand-written payload, one fire cal
   "kind": "notify",
   "thread": "session",
   "parent": "session",
-  "payload": { "c": "SwoftyEvPitStop", "cpp": "swofty::session::PitStop", "header": "swofty/session/events.hpp", "version": 1 },
+  "payload": { "c": "SwoftyEvPitStop", "cpp": "swofty::sessions::events::PitStop", "header": "swofty/systems/sessions.hpp", "version": 1 },
   "context": { "session": "always", "player": "always", "participants": "always", "career": "in_career" },
   "source": { "how": "bus", "message": "MessagePitStateChanged", "binding": "Ne_Subscribe_BusMessage" },
   "doc": "A car stops in its pit box and leaves it."
@@ -387,8 +391,8 @@ Adding a core event is one catalogue entry, a hand-written payload, one fire cal
 ```
 
 ```cpp
-// swofty/session/events.hpp
-namespace swofty::session {
+// swofty/systems/sessions.hpp
+namespace swofty::sessions::events {
 struct PitStop {
     static constexpr const char *point = "session.pit_stop";
     static constexpr uint32_t version = 1;
@@ -405,7 +409,7 @@ struct PitStop {
 void on_pit_state_changed(const MessagePitStateChanged &m)
 {
     if (m.state == PitState::LeavingPitBox) {
-        swofty::session::PitStop e{ sizeof e, 1, m.car, pit_timer(m.car).stop(), tyres_changed(m.car) };
+        swofty::sessions::events::PitStop e{ sizeof e, 1, m.car, pit_timer(m.car).stop(), tyres_changed(m.car) };
         swofty::events::fire(e);
     }
 }
@@ -415,7 +419,7 @@ void on_pit_state_changed(const MessagePitStateChanged &m)
 
 ```text
 ok   62 events, every name unique and dotted; released entries unchanged since v2.0.0
-ok   swofty/session/events.hpp: struct PitStop, point == "session.pit_stop", version == 1
+ok   swofty/systems/sessions.hpp: struct sessions::events::PitStop, point == "session.pit_stop", version == 1
 ok   native/src/core: a fire of session.pit_stop (session_events.cpp:88)
 ok   native/test: a test names session.pit_stop
 ok   docs: a section for session.pit_stop

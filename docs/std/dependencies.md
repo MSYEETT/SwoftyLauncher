@@ -35,6 +35,20 @@ after load      a career that loaded without its addons is stopped before it can
 }
 ```
 
+In code, the same is stated where it's used. The core checks it in game, and the guards stop the player with a popup; the `registry.json` copy only lets the launcher check before the game starts:
+
+```cpp
+#include <swofty/systems/content.hpp>
+#include <swofty/systems/tracks.hpp>
+
+SWOFTY_REGISTER
+{
+    using namespace swofty;
+    auto sochi   = tracks::tracks["venue/sochi"].optional();                    // optional: the round is dropped without it
+    auto ferrari = cars::vehicles["swofty.classic-seasons-2017/ferrari"];       // a hard reference: required
+}
+```
+
 - **`requires`:** Play stops while one is missing, the same way it stops for a missing addon today.
 - **`recommends`:** optional. It never stops Play. The Addon Browser offers it at install, and the launcher names it before Play when something is skipped because of it.
 - **`for`:** shown to players. Keep it short and concrete.
@@ -54,9 +68,25 @@ track
 venue/sochi, venue/sepang, venue/hockenheimring, venue/portimao, ...     one per real circuit
 ```
 
+```cpp
+// mod.sochi: the track fills the stock Sochi slot and provides the venue
+#include <swofty/systems/tracks.hpp>
+
+SWOFTY_REGISTER
+{
+    using namespace swofty;
+    tracks::tracks.add("sochi", {                                  // "mod.sochi/sochi"
+        .code = "sochi",
+        .slot = tracks::tracks["game/sochi"],
+        .name = "Sochi Autodrom",
+        .provides = { tracks::venues["venue/sochi"] },
+    });
+}
+```
+
 ```json
-// mod.sochi/registry/track.json. For a 1.x track addon, the launcher derives the same record from its track.add op.
-{ "track": { "mod.sochi/sochi": { "code": "sochi", "slot": "game/sochi", "name": "Sochi Autodrom", "provides": ["venue/sochi"] } } }
+// the same, without code: mod.sochi/registry/tracks.json. A 1.x track addon gets the same record from its track.add op.
+{ "track": { "sochi": { "code": "sochi", "slot": "game/sochi", "name": "Sochi Autodrom", "provides": ["venue/sochi"] } } }
 ```
 
 - **A `venue/…` reference** resolves to the first enabled track that provides it, in load order. An exact id (`mod.sochi/sochi`) pins one addon.
@@ -85,10 +115,18 @@ The registry's owner sets what may happen when a referenced record isn't there. 
 "engine_sound": { "type": "string", "x-ref": "engine_sound", "x-missing": { "default": "fallback", "to": "/donor" } }
 ```
 
-In a record, a reference is a string with two modifiers:
+In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and `.or_else()`. In a data file it's a string with two modifiers:
+
+```cpp
+// swofty.classic-seasons-2016's calendar
+.calendar = {
+    { .round = 4,  .race = "lng_gp_russia",   .track = tracks::tracks["venue/sochi"].optional() },
+    { .round = 12, .race = "lng_gp_germany",  .track = tracks::tracks["venue/hockenheimring"].optional() },
+    { .round = 16, .race = "lng_gp_malaysia", .track = tracks::tracks["venue/sepang"].or_else(tracks::tracks["game/bahrain"]) },
+}
+```
 
 ```json
-// swofty.classic-seasons-2016's calendar
 "calendar": [
   { "round": 4,  "race": "lng_gp_russia",   "track": "venue/sochi?" },
   { "round": 12, "race": "lng_gp_germany",  "track": "venue/hockenheimring?" },
@@ -102,7 +140,7 @@ In a record, a reference is a string with two modifiers:
 "venue/sepang|game/bahrain"     fallback chain: the first one that resolves
 ```
 
-Readers get the resolved value, never the modifiers. `swofty::registry::missing(registry, id)` lists what was dropped or replaced:
+Readers get the resolved value, never the modifiers. `content::packages.status(id)` lists what was dropped or replaced:
 
 ```text
 [registry] content.package swofty.classic-seasons-2016/f1_2016: calendar round 12 dropped (venue/hockenheimring: no
@@ -123,7 +161,44 @@ era.box.open          a GP/TT box press
 route                 any front-end route, by name
 ```
 
-**Declarative**, in `registry.json`:
+<Split>
+
+R&D Tyres keeps players out of My Team, which it doesn't support, and an R&D challenge career checks that R&D Tyres is on before its tile opens.
+
+In code a guard is a handler on a guard point. An addon without code declares the same guards in `registry.json`, the one place a data file can hold them.
+
+<template #example>
+<Example root="swofty.rnd-tyres-thermal" code-file="native/src/guards.cpp" data-file="registry.json" files="swofty.json, native/CMakeLists.txt, native/src/rnd_departments.cpp">
+<template #code>
+
+```cpp
+#include <swofty/guards.hpp>
+
+SWOFTY_ON_LOAD
+{
+    using namespace swofty::guards;
+
+    on(Point::career_start, [](const Target &t, Verdict &v) {
+        if (t.mode == Mode::my_team)
+            v.block("My Team not available",
+                    "R&D: Tyres & Thermal Management only works in Driver Career. To play My Team, turn the addon off "
+                    "in the launcher (or use a profile without it), then relaunch.");
+    });
+
+    on(Point::career_content_open, [](const Target &t, Verdict &v) {
+        if (t.data_group != "f1_career_rnd_challenge")
+            return;
+        if (!swofty::addons::on("swofty.rnd-tyres-thermal"))
+            v.missing({ .name = "R&D: Tyres & Thermal Management", .id = "swofty.rnd-tyres-thermal",
+                        .need = ">=0.11.0", .state = Missing::State::off, .for_ = "the Tyres R&D department" });
+    });
+}
+
+SWOFTY_ADDON()
+```
+
+</template>
+<template #data>
 
 ```json
 {
@@ -138,23 +213,10 @@ route                 any front-end route, by name
 }
 ```
 
-**In code:**
-
-```cpp
-#include <swofty/guards.hpp>
-
-SWOFTY_ON_LOAD
-{
-    using namespace swofty::guards;
-    on(Point::career_content_open, [](const Target &t, Verdict &v) {
-        if (t.data_group != "f1_career_rnd_challenge")
-            return;
-        if (!swofty::addons::on("swofty.rnd-tyres-thermal"))
-            v.missing({ .name = "R&D: Tyres & Thermal Management", .id = "swofty.rnd-tyres-thermal",
-                        .need = ">=0.11.0", .state = Missing::State::off, .for_ = "the Tyres R&D department" });
-    });
-}
-```
+</template>
+</Example>
+</template>
+</Split>
 
 - **`block`** cancels with your own title and body.
 - **`missing`** cancels, and the core writes the popup from every missing item, in the same words everywhere.
