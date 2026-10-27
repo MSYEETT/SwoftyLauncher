@@ -7,7 +7,7 @@ description: How each game system's data passes from the stock game to what ever
 
 Your addon can change what every year shares, change one year, or change things inside a single career or session. Where you make the change decides who sees it and whose value wins.
 
-Install a Red Bull livery. Every year that uses the stock Red Bull now shows it. Classic Seasons' 2017 Red Bull has a livery of its own, so the 2017 box keeps that one. A running career reads its cars and liveries from its boxes, so it picks up the new livery while keeping the ratings and rules it saved when it began. A handling change made for one session lasts until that session ends.
+Install a Red Bull livery. Every year that uses the stock Red Bull now shows it. Classic Seasons' 2017 Red Bull has a livery of its own, so the 2017 box keeps that one. A running career reads its cars and liveries from its boxes, so it picks up the new livery while keeping the ratings and rules it saved when it began. A fuel change made for one session lasts until that session ends.
 
 Every system reads its data through the same five levels. Each level starts with the values of the one above it and can set values of its own:
 
@@ -71,7 +71,7 @@ The base holds the stock `game/<team>_<year>` cars. Car ports and imports layer 
 
 A year pack makes its own cars as variants of a **donor**, the stock car each one inherits from. They can set their own model, livery, engine sound and power unit. Classic Seasons' 2017 Red Bull inherits a stock car and supplies its own period livery and sound.
 
-A career uses the cars of its current season's box. Progressive switches the box each season. Handling and damage changes can also be scoped to one session: Heavier Damage's session option applies its changes again at each load.
+A career uses the cars of its current season's box. Progressive switches the box each season. Handling and damage changes apply when the game starts: a change to Heavier Damage's options takes effect at the next game start.
 
 ## Liveries
 

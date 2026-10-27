@@ -370,7 +370,7 @@ An explicit `stat_id` you ship stays your record's id from then on. Other addons
 
 ## Tags
 
-A **tag** is a shared, named set of records in one registry. The core defines the shared tags, such as `c/f1_cars` on `vehicle` and `c/street_circuits` on `track`. Any addon can add its records to one. Selectors, event scopes and a box's track list can target a tag, and they reach records that addons add later.
+A **tag** is a shared, named set of records in one registry. The core defines the shared tags, such as `c/f1_cars` on `vehicle` (and on `vehicle.handling`, for the same cars' handling) and `c/street_circuits` on `track`. Any addon can add its records to one. Selectors, event scopes and a box's track list can target a tag, and they reach records that addons add later.
 
 <Split>
 
