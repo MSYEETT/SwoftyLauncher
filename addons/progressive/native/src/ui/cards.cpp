@@ -32,6 +32,10 @@
 // saved career's career.loaded) the rows are the career's own and keep what the game built from
 // them; only the bookkeeping is dropped.
 //
+// Driver ratings: while the view is active every start season driver shows his ratings of that
+// year in Choose Driver's Insights and in Team Select (wizard_ratings.hpp); they are put back
+// wherever the view is taken back.
+//
 // Team logos are progressive_logos.dll's (logos.cpp): it asks ProgressiveCardsStartYear() below
 // whether the view is active and for which year, so a build where the logo sites do not resolve
 // loses only the logos.
@@ -65,6 +69,7 @@
 #include <swofty/mixin.hpp>
 
 #include "../cards_logic.hpp"
+#include "wizard_ratings.hpp"
 
 namespace {
 
@@ -234,6 +239,7 @@ void restore_cars(const char *why, bool apply = true)
 void take_back(const char *why, bool restore_rows)
 {
     restore_cars(why, restore_rows);
+    pg::wizard_ratings::restore(why, std::string_view(why) != pc::kEventHub);
     g_live = false;
     if (!g_mode)
         return;
@@ -520,6 +526,10 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
                     static_cast<unsigned long long>(setup), static_cast<unsigned long long>(career_list));
     if (ours && year >= pc::kFirstYear && year <= pc::kLastListYear)
         dress(at, mode, entrants, career_list, year);
+    if (g_mode)
+        pg::wizard_ratings::show(g_year, "Choose Driver populate");
+    else
+        pg::wizard_ratings::restore("Choose Driver without a start season view", true);
     g_live = live && g_mode == mode;
 
     Hidden hidden[std::size(pc::kHiddenLists)];
@@ -545,6 +555,8 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
 
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 10, void *, void *vm, void *cmd, void *data)
 {
+    if (g_mode && progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
+        pg::wizard_ratings::show(g_year, "Choose Driver command");
     void *r = orig(vm, cmd, data);
     if (!g_mode || !progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
         return r;
