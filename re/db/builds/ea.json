@@ -1355,6 +1355,9 @@
   "site_Game_DriverSelect_BadgeFormat": {
    "match": "0x169fbf0"
   },
+  "site_Game_DriverSelect_NumberResult": {
+   "match": "0x169dc69"
+  },
   "site_Game_DriverSelect_TeamLogoFormat": {
    "match": "0x169deb9"
   },
@@ -1369,6 +1372,9 @@
   },
   "site_Game_SaveData_UnclaimedChild": {
    "match": "0x36400eb"
+  },
+  "site_Game_TeamSelect_NumberResult": {
+   "match": "0x1874242"
   },
   "site_Game_TeamSelect_TeamLogoFormat": {
    "match": "0x1873df5"
