@@ -86,6 +86,6 @@ Scuderia AlphaTauri ORLEN was not converted: <cause>
 ```
 
 - Mods in a library from before 1.3.0 convert at startup, and **Convert now** on the importer's page converts the rest. Until then, the importer's own build hook loads them, in the profile's mod order. It also loads the merged team logo archive and Team Simplified's SERPs Base Files for the addons that need them.
-- `swofty mods list` lists the library and the addon each mod became. `swofty mods enable`, `disable` and `move` set mods that haven't converted; for an addon id, `swofty mods enable` runs `swofty addons enable`.
+- `swofty mods list` lists the mods still in the library, so a converted mod no longer shows there; `swofty addons list` shows its addon. `swofty mods enable`, `disable` and `move` set mods that haven't converted; for an addon id, `swofty mods enable` runs `swofty addons enable`.
 
 The `.serps` format and the importer come from Simplified Suite by Team Simplified, [github.com/TeamSimplified/simplified-suite](https://github.com/TeamSimplified/simplified-suite).
