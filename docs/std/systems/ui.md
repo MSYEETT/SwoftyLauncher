@@ -212,7 +212,7 @@ SWOFTY_ADDON()
 ```text
 [registry] register: swofty.classic-seasons-2017 (cs2017_ui.dll) 2 ui.texture_slice, 1 era.box, 1 lang.string
            (early stage, 0.3 ms)
-[registry] applied at boot: ui.texture_slice 2 (2 arrays grown in 6 archives, served in memory), era.box 1, lang.string 1
+[registry] applied at boot: ui.texture_slice 2 (2 arrays grown in 6 archives, served in memory); era.box 1 and lang.string 1 on read
 [registry] ui.texture_slice overrides.teams.driver_select_team_logo: 34 slices from 3 addons (swofty.classic-seasons-2017,
            fanfreluche.cars, bydanix.f1-2012), 0 contested
 [events] ui.era.tiles: 1 after handler (swofty.classic-seasons-2017)
@@ -234,7 +234,7 @@ ui::tiles.add("settings_tile", {
     .title = "lng_mod_settings",
     .image = ui::texture_slices["mod.settings/tile"],
     .route = open,
-    .gate = events::mode(Mode::driver_career),
+    .gate = events::mode(events::Mode::driver_career),
 });
 ```
 

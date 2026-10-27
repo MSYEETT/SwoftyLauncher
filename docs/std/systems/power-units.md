@@ -243,7 +243,7 @@ power::component_rules.layer(power::component_rules["game/components_26"], [](po
 
 ```cpp
 // half the engine wear in practice
-events::on<power::events::Wear>().when(events::session_type({ SessionType::practice }))
+events::on<power::events::Wear>().when(events::session_type({ events::SessionType::practice }))
     .before([](power::events::Wear &w, const events::Context &) { w.wear *= 0.5f; });
 
 // a stewards' addon hands out its own drop

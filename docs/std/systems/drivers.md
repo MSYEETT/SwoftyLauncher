@@ -58,7 +58,8 @@ struct Look {                                      // a driver_customisations ro
     StatId stat_id = StatId::automatic;            // look ids
 };
 
-struct Curve { float start; float peak; };         // a rating from the first season to the driver's peak
+struct Curve { float start; float peak; };         // a rating from the first season to the driver's peak (not swofty::Curve)
+enum class Stat { experience, racecraft, awareness, pace, focus };   // one driver statistic
 
 struct Stats {                                     // a DriverStatisticsHolder: the stock ratings
     Ref<Identity> driver;
@@ -209,7 +210,7 @@ SWOFTY_ADDON()
 
 ```text
 [registry] register: swofty.driver-manager (driver_manager.dll) 3 driver.identity, 3 driver.look, 3 driver.stats (early stage, 0.6 ms)
-[registry] stat ids: driver swofty.driver-manager/mika_salo -> 208 (pool 208-254, 45 free after this)
+[registry] stat ids: driver.identity swofty.driver-manager/mika_salo -> 208 (pool 208-254, 45 free after this)
 [registry] stat ids: driver.look swofty.driver-manager/mika_salo_look -> 366
 [registry] driver.identity swofty.driver-manager/mika_salo: extends game/jarno_opmeer (129 keys)
 [registry] applied at boot: driver.identity 3, driver.look 3, driver.stats 3 (452 database records; 11 strings)

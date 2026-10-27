@@ -64,7 +64,7 @@ struct TrackData {                                 // one TrackData block; id "<
 
 struct PackageTrack {                              // one GP/TT box's view of one track; id "<package id>/<track code>"
     Ref<content::Package> package;                 // the box's package
-    Ref<Track> track;                              // the track
+    Ref<Track> track;                              // the track; empty: the one the id's <track code> names
     bool offered = true;                           // in this box's track select
     int order = 0;                                 // its place in the box's list; 0 keeps the base order
     Ref<Layer> world;                              // the layout or world version for this box
@@ -106,6 +106,7 @@ inline Registry<Slots> slots{"track.slots", { .applies = Applies::session }};   
 inline Registry<AiLine> ai_lines{"track.ai_line", { .applies = Applies::session }};
 
 Result set_data(Ref<Track> track, Edit<TrackData> edit);         // the loaded track object; put back on unload
+Result set_track_fuel(Ref<Track> track, const Fuel &fuel);        // the loaded track's fuel tables, per career; put back on unload
 
 }
 
@@ -120,13 +121,21 @@ struct DataGet {                                   // Game_TrackData_GetTrack: a
     TrackData &data;                               // the live object; after handlers may change it
 };
 
+struct FuelLoad {                                  // the race fuel lookup at session load (cancel)
+    static constexpr const char *point = "session.fuel.load";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    Ref<Track> track;                              // the session's track
+    float kg;                                      // the race fuel load; before and replace handlers may set it
+};
+
 }
 ```
 
 </template>
 </Example>
 
-Race fuel at session load is `session.fuel.load` and `session::set_track_fuel` on [Sessions and weekends](/std/systems/sessions).
+Race fuel at session load is `session.fuel.load` (`tracks::events::FuelLoad`). A box's race fuel rule is `sessions::Rules::race_fuel_kg` on [Sessions and weekends](/std/systems/sessions).
 
 ## Hockenheim, in code
 
@@ -186,18 +195,20 @@ SWOFTY_ADDON()
 {
   "track": {
     "hockenheim": {
-      "code": "hockenheim", "name": "Hockenheimring", "extends": "game/austria", "slot": "new",
+      "code": "hockenheim", "name": "Hockenheimring", "base": "game/austria",
       "provides": ["venue/hockenheimring"],
       "names": { "title": "lng_hockenheim_title", "gp": "lng_hockenheim_gp", "acronym": "HOC" },
-      "length_metres": 4574, "corners": 17, "latitude": 49.3278, "longitude": 8.5658
+      "files": "track/", "length_metres": 4574, "corners": 17, "latitude": 49.3278, "longitude": 8.5658
     }
   },
   "track.data": {
     "$select": [
       { "ids": "mod.hockenheim/hockenheim/*", "patch": { "laps": 67, "fuel": { "burn_per_lap": 1.62 }, "pit": { "speed_limit": 80 } } }
     ],
-    "mod.hockenheim/hockenheim/f1_2025": { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } },
-    "mod.hockenheim/hockenheim/f1_2026": { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } }
+    "mod.hockenheim/hockenheim/f1_2025":        { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } },
+    "mod.hockenheim/hockenheim/sprint_f1_2025": { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } },
+    "mod.hockenheim/hockenheim/f1_2026":        { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } },
+    "mod.hockenheim/hockenheim/sprint_f1_2026": { "tyres": { "softer": "C4", "medium": "C3", "harder": "C2" } }
   }
 }
 ```
@@ -279,7 +290,7 @@ A [guard](/std/dependencies) stops a saved career whose track has gone missing.
 
 A track goes into the base that every GP/TT box and career inherits. Hockenheim appears in every box's track select, 2016, 2017 and the stock 2025 and 2026 alike, with its base data, unless something year-specific changes it.
 
-Each box has its own view of the tracks: `tracks::per_package`, keyed `<package>/<track>`.
+Each box has its own view of the tracks: `tracks::per_package`, keyed `<package id>/<track code>`.
 
 - **Which tracks it offers, and in what order.** By default, all of the base's, so tracks other addons add later appear too.
 - **Per-track data for that box only:** world version, laps, fuel, tyre class, pit, names, date. An empty field comes from the base track data, so layers on the base reach every box that doesn't set it.
@@ -403,8 +414,8 @@ SWOFTY_ADDON()
 // registry/track.json, written by the importer
 {
   "track": {
-    "sochi": { "code": "sochi", "name": "Sochi Autodrom", "extends": "game/baku", "slot": "game/sochi",
-               "provides": ["venue/sochi"] }
+    "sochi": { "code": "sochi", "name": "Sochi Autodrom", "base": "game/baku", "slot": "game/sochi",
+               "provides": ["venue/sochi"], "files": "track/" }
   },
   "track.data": {
     "mod.sochi/sochi/f1_2025":        { "tyres": { "softer": "C5", "medium": "C4", "harder": "C3" } },

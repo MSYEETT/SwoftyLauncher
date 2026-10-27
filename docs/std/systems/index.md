@@ -79,8 +79,8 @@ drivers::identities.variant("alain_prost", drivers::identities["game/jarno_opmee
 ```
 
 ```text
-[registry] stat ids: driver f1990/alain_prost -> 241 (pool 208-254, 57 free after this)
-[registry] stat ids: setup mode f1990/f1_1990 -> 16 (pool 5,7,16-31)
+[registry] stat ids: driver.identity swofty.f1-1990/alain_prost -> 241 (pool 208-254, 57 free after this)
+[registry] stat ids: session.mode swofty.f1-1990/f1_1990 -> 16 (pool 5,7,16-31)
 ```
 
 ```text

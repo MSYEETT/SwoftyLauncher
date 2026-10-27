@@ -18,6 +18,10 @@ A car is a `cars::Vehicle` record that points at its package, handling, engine s
 namespace swofty::cars {
 
 enum class Class { f1, f1_26, f2, classic, my_team, safety_car };
+enum class Component;                              // a damage.damage_levels row: front_wing, gearbox, engine ... (11)
+enum class Fault;                                  // a repair_times.faults entry: open_drs, closed_drs, front_wing ... (21)
+enum class Attribute;                              // a live car's R&D attribute: engine_power ... (the map is an RE item)
+enum class Department;                             // an R&D department: the one whose data a fit reads
 
 struct Package {                                   // one entrants.vehicles.vehicle_packages row
     Ref<Package> donor;                            // the row it copies, all 72 keys (usually game/f1_2025)
@@ -39,6 +43,7 @@ struct Vehicle {                                   // one entrants.vehicles row
     Ref<Package> package;                          // its package
     std::string label;                             // the row label: "cs17_ferrari"
     Ref<Vehicle> donor;                            // the row add() copies, all 246 keys (a variant copies its base)
+    Path model;                                    // the car model files (teams/<t>/idf/, wep/); empty: the donor's
     Ref<sounds::EngineSound> engine_sound;         // missing: falls back to the donor's
     Ref<liveries::Livery> livery;                  // the livery it races in
     Ref<Handling> handling;                        // its VTF
@@ -66,7 +71,7 @@ struct CoreAero { float downforce_scale; float drag_scale; };
 struct Handling {                                  // one VTF, decoded; edits change fields, the core re-encodes it
     Ref<Handling> from;                            // start from another car's VTF, then edit
     Path vtf;                                      // or a whole VTF of your own
-    Class cls = Class::f1;                         // the car's class (selectors match on it)
+    Class cls = Class::f1;                         // the car's class (selectors match on it); "class" in data files
     float damage_scale = 1.0f;                     // scales every *_damage threshold at once
     Chassis chassis;                               // Chassis
     CoreAero core_aero;                            // CoreAero
@@ -226,15 +231,15 @@ SWOFTY_ADDON()
 {
   "vehicle.handling": {
     "$select": [
-      { "where": { "cls": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "light" },
+      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "light" },
         "patch": { "wing_damage": { "break_threshold": 0.85, "detach_threshold": 0.90 } } },
-      { "where": { "cls": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "normal" },
+      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "normal" },
         "patch": { "wing_damage": { "break_threshold": 0.65, "detach_threshold": 0.75 } } },
-      { "where": { "cls": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "heavy" },
+      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "wing_damage", "is": "heavy" },
         "patch": { "wing_damage": { "break_threshold": 0.45, "detach_threshold": 0.55 } } },
-      { "where": { "cls": ["f1", "f1_26", "my_team"] }, "when": { "option": "suspension_damage", "is": "normal" },
+      { "where": { "class": ["f1", "f1_26", "my_team"] }, "when": { "option": "suspension_damage", "is": "normal" },
         "patch": { "suspension_damage": { "break_threshold": 0.70, "wheel_detach_threshold": 0.80 } } },
-      { "where": { "cls": "f1_26" },
+      { "where": { "class": "f1_26" },
         "patch": { "core_aero": { "downforce_scale": 0.97, "drag_scale": 1.02 } } }
     ]
   }
@@ -250,7 +255,7 @@ A data patch sets values; it can't scale them. The 2026 patch sets the result ou
 
 ```text
 [registry] register: william09leo.heavier-damage-realism (heavier_damage.dll) 3 layers on vehicle.handling (early stage, 0.2 ms)
-[registry] vehicle.handling: selector cls in (f1, f1_26, my_team) from william09leo.heavier-damage-realism matches 171 records
+[registry] vehicle.handling: selector class in (f1, f1_26, my_team) from william09leo.heavier-damage-realism matches 171 records
            (91 game/, 80 swofty.classic-seasons-*)
 [registry] vehicle.handling game/ferrari_2026: edit by william09leo.heavier-damage-realism changed /wing_damage/break_threshold,
            /wing_damage/detach_threshold (option wing_damage=normal)

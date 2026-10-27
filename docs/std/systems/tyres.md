@@ -269,7 +269,7 @@ SWOFTY_REGISTER
 SWOFTY_ON_LOAD
 {
     // E is a qualifying tyre: no car takes it in a race
-    events::on<tyres::events::ChooseSet>().in(k1990).when(events::session_type({ SessionType::race }))
+    events::on<tyres::events::ChooseSet>().in(k1990).when(events::session_type({ events::SessionType::race }))
         .before([](tyres::events::ChooseSet &c, const events::Context &) {
             if (c.wanted_slot == 0)
                 c.wanted_slot = 1;
@@ -394,7 +394,7 @@ events::on<tyres::events::ClassOf>().in(events::content("swofty.f1-1990/f1_caree
     });
 
 // one more set of the second option for the player in practice
-events::on<tyres::events::Allocate>().when(events::session_type({ SessionType::practice }))
+events::on<tyres::events::Allocate>().when(events::session_type({ events::SessionType::practice }))
     .before([](tyres::events::Allocate &a, const events::Context &ctx) {
         if (ctx.player() && ctx.player()->car == a.car)
             a.sets[1] += 1;

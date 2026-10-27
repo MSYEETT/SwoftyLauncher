@@ -173,7 +173,7 @@ auto toro_rosso = teams::identities.add("toro_rosso", {
     .names = { .title = Text::key("lng_cs_team_17_toro_rosso"), .code = "STR" },
     .colours = { .menu = 0xFF0A1E3C, .primary = 0xFF0A1E3C, .secondary = 0xFFC8102E },
     .livery_name = "cs17_toro_rosso",
-    .logo = teams::logos["swofty.classic-seasons/toro_rosso_2017"],
+    .logo = teams::logos["swofty.classic-seasons-2017/toro_rosso_2017"],
 });
 teams::pit_times.add("toro_rosso", { .team = toro_rosso, .from = teams::pit_times["game/tororosso"] });
 ```

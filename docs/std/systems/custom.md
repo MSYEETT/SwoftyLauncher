@@ -437,7 +437,8 @@ SWOFTY_REGISTER
     });
     career::rnd_trees.variant("ferrari", career::rnd_trees["game/rnd_tree_ferrari"], [=](career::RndTree &t) {
         t.data_group = "f1_career_1990";
-        t.departments = { "aero", "chassis", "engine", tyres_dept, "reliability" };
+        auto dept = [](const char *id) { return career::rnd_departments[id]; };
+        t.departments = { dept("game/aero"), dept("game/chassis"), dept("game/engine"), tyres_dept, dept("game/reliability") };
     });
 }
 ```
@@ -450,7 +451,7 @@ The game draws four departments natively. A fifth needs the native layer R&D Tyr
 
 ```cpp
 career::characters.add("flavio", {
-    .replaces = career::characters["f1_career_1990/elena"],
+    .replaces = career::characters["game/elena"],
     .first_name = "lng_f1990_agent_first",
     .last_name = "lng_f1990_agent_last",
     .portrait = file("ui/flavio.png"),

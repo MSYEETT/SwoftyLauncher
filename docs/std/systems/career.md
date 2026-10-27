@@ -167,6 +167,11 @@ struct StandingsRebuild {                      // Career_Rebuild_SeasonStandings
 
 } // namespace events
 
+struct ApplyReport {                           // what apply_lineup did, seat by seat
+    size_t changed = 0, unchanged = 0, refused = 0;
+    std::vector<std::string> refusals;         // one line per refused seat: which seat, and why
+};
+
 Result apply_lineup(const Season &season, ApplyReport *report = nullptr);
 Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
 Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
@@ -328,7 +333,7 @@ The game draws four departments natively. A fifth needs the native layer R&D Tyr
 
 ```cpp
 career::characters.add("flavio", {
-    .replaces = career::characters["f1_career_1990/elena"],
+    .replaces = career::characters["game/elena"],
     .first_name = "lng_f1990_agent_first",
     .last_name = "lng_f1990_agent_last",
     .portrait = file("art/flavio.png"),

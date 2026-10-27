@@ -103,7 +103,7 @@ One addon, two kinds of livery:
 - Classic Seasons doesn't know the pack exists, and the pack copies none of its files.
 
 <template #example>
-<Example root="rmdesigns.liveries" code-file="native/src/liveries.cpp" data-file="registry/liveries.json" files="swofty.json, liveries/ferrari_2017_monza/ferrari_d.tif.mipmaps, liveries/mclaren_2017_papaya/mclaren_d.tif.mipmaps, liveries/redbull_2017_matte/redbull_d.tif.mipmaps, archives/toro_rosso_alphatauri.erp, lang/liveries.json, registry/layers.json">
+<Example root="rmdesigns.liveries" code-file="native/src/liveries.cpp" data-file="registry/liveries.json" files="swofty.json, liveries/ferrari_2017/ferrari_d.tif.mipmaps, liveries/mclaren_2017/mclaren_d.tif.mipmaps, liveries/redbull_2017/redbull_d.tif.mipmaps, archives/toro_rosso_alphatauri.erp, lang/liveries.json, registry/layers.json">
 <template #code>
 
 ```cpp

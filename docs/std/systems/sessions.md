@@ -168,8 +168,8 @@ struct PenaltyIssue {                          // Sess_Issue_TimePenalty, _GridP
     float amount;                              // seconds or places; before handlers may change it; replace = veto
 };
 
-// also: WeekendStart (session.weekend.start), ResultsFinalise (session.results.finalise),
-// StateEnter (session.state.enter), SafetyCarDeploy (session.safety_car.deploy)
+// also: WeekendStart (weekend.start), ResultsFinalise (session.results.finalise),
+// StateEnter (session.state.enter), SafetyCarDeploy (session.safety_car.deploy), PitStop (session.pit_stop)
 
 } // namespace events
 
@@ -322,7 +322,7 @@ sessions::safety_car.layer(sessions::safety_car["game/default"], [](sessions::Sa
 
 ```cpp
 // a 20-second time penalty instead of every drive-through
-events::on<sessions::events::PenaltyIssue>().when(events::session_type({ SessionType::race }))
+events::on<sessions::events::PenaltyIssue>().when(events::session_type({ events::SessionType::race }))
     .before([](sessions::events::PenaltyIssue &p, const events::Context &) {
         if (p.kind == sessions::PenaltyKind::drive_through) {
             p.kind = sessions::PenaltyKind::time;

@@ -124,7 +124,7 @@ SWOFTY_REGISTER
 
 SWOFTY_ON_LOAD
 {
-    events::on<weather::events::Setup>().in(kSpa).when(events::session_type({ SessionType::qualifying }))
+    events::on<weather::events::Setup>().in(kSpa).when(events::session_type({ events::SessionType::qualifying }))
         .before([](weather::events::Setup &w, const events::Context &) {
             w.seed = 1990;
         });
@@ -182,7 +182,7 @@ weather::climates.layer(weather::climates["game/silverstone"], [](weather::Clima
 ```cpp
 // cap the rain chance of every race in 1990 careers
 events::on<weather::events::Setup>().in(events::content("swofty.f1-1990/f1_career_1990"))
-    .when(events::session_type({ SessionType::race }))
+    .when(events::session_type({ events::SessionType::race }))
     .before([](weather::events::Setup &w, const events::Context &) { w.rain_chance = std::min(w.rain_chance, 30u); });
 
 // a launcher page asked for a fixed seed: Career Mode Editor's "weather seed"
