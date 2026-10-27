@@ -258,6 +258,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "The registry in one example", link: "/std/", icon: "file" },
               { text: "Records and schemas", link: "/std/registry", icon: "file" },
               { text: "Keys, bases and variants", link: "/std/bases", icon: "file" },
+              { text: "The base, years and careers", link: "/std/inheritance", icon: "file" },
               { text: "Providers", link: "/std/providers", icon: "file" },
               { text: "Reading", link: "/std/reading", icon: "file" },
               { text: "Layers", link: "/std/layers", icon: "file" },
