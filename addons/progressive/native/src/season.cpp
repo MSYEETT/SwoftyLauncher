@@ -2153,6 +2153,14 @@ extern "C" __declspec(dllexport) int ProgressiveRndMode()
     return pg::g_rnd.load();
 }
 
+// progressive_teamlogos.dll: the year whose team names a Progressive career shows (2016-2025), 0 when
+// the stock 2026 names are shown (2026 careers, every other career and mode).
+extern "C" __declspec(dllexport) int ProgressiveNamesYear()
+{
+    int year = pg::g_names_year;
+    return year >= progressive::season::kFirstYear && year < progressive::season::kLastYear ? year : 0;
+}
+
 // progressive_rnd.dll: the downforce progress of a team's cars in a Real life career's session
 // (development_logic.hpp); team_key is the R&D model's team key (Upgrades +0x0c, stat id << 16).
 extern "C" __declspec(dllexport) int ProgressiveDevelopmentProgress(uint32_t team_key, float *progress)

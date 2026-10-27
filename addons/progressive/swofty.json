@@ -260,6 +260,9 @@
         "dll": "native/progressive_logos.dll"
       },
       {
+        "dll": "native/progressive_teamlogos.dll"
+      },
+      {
         "dll": "native/progressive_resume.dll"
       },
       {
