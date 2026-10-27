@@ -171,7 +171,9 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     let done = std::sync::atomic::AtomicBool::new(false);
     std::thread::scope(|s| {
         s.spawn(|| heartbeat(&done));
-        let r = install_checked(store, profile, g, session, out).map_err(|e| denied(e, &g.dir));
+        let r = install_checked(store, profile, g, session, out)
+            .map_err(|e| denied(e, &g.dir))
+            .map_err(|e| outdated(store, g, e));
         done.store(true, std::sync::atomic::Ordering::Relaxed);
         r
     })
@@ -224,6 +226,30 @@ fn denied(e: anyhow::Error, game: &Path) -> anyhow::Error {
          or move F1 25 to a folder outside Program Files",
         game.display()
     )
+}
+
+/// Leads with the update to install when an addon's changes failed to apply
+/// to an F1 25 older than the newest update the launcher knows. The build's
+/// own error follows on the next line, for the logs and Send Logs.
+fn outdated(store: &Store, g: &Game, e: anyhow::Error) -> anyhow::Error {
+    let version = swofty_core::exe_version::read(&g.dir.join(GAME_EXE));
+    let names = store
+        .addons()
+        .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
+        .unwrap_or_default();
+    outdated_with(e, version.as_deref(), &names)
+}
+
+fn outdated_with(
+    e: anyhow::Error,
+    version: Option<&str>,
+    names: &std::collections::BTreeMap<String, String>,
+) -> anyhow::Error {
+    let raw = format!("{e:#}");
+    match swofty_core::known_problems::outdated_game(&raw, version, names) {
+        Some(d) => anyhow::anyhow!("{}\n({raw})", d.text()),
+        None => e,
+    }
 }
 
 fn install_checked(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
@@ -458,6 +484,35 @@ mod tests {
             !denied(anyhow::Error::from(elsewhere), game)
                 .to_string()
                 .contains("administrator")
+        );
+    }
+
+    const APPLY_FAILED: &str = "applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+                                overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry \
+                                [Name=vanamersfoort_26]";
+
+    #[test]
+    fn an_addon_that_does_not_apply_to_an_old_game_leads_with_the_update() {
+        let names = BTreeMap::from([("swofty.classic-seasons".to_owned(), "Classic Seasons".to_owned())]);
+        let failed = || anyhow::Error::from(swofty_core::Error::Other(APPLY_FAILED.to_owned()));
+        assert_eq!(
+            format!("{:#}", outdated_with(failed(), Some("1.0.136.6820"), &names)),
+            format!(
+                "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. \
+                 Update F1 25 in Steam or the EA app, then press Play again.\n({APPLY_FAILED})"
+            )
+        );
+        for version in [Some("1.0.141.7865"), None, Some("")] {
+            assert_eq!(
+                format!("{:#}", outdated_with(failed(), version, &names)),
+                APPLY_FAILED,
+                "{version:?}"
+            );
+        }
+        let other = anyhow::anyhow!("version.dll already exists in the game folder; run swofty restore");
+        assert_eq!(
+            outdated_with(other, Some("1.0.136.6820"), &names).to_string(),
+            "version.dll already exists in the game folder; run swofty restore"
         );
     }
 

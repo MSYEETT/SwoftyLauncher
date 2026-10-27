@@ -488,4 +488,23 @@ mod tests {
             assert_eq!(cause_first(kept), kept);
         }
     }
+
+    #[test]
+    fn an_addon_that_needs_a_newer_game_shows_the_update() {
+        let outdated = "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. \
+                        Update F1 25 in Steam or the EA app, then press Play again.";
+        let log = format!(
+            "[info] launching F1 25 directly; waiting for the wrapper, output in C:\\Swofty\\state/wrapper-run.log\n\
+             [wrapper] [info] installing profile default\n\
+             swofty: the wrapper exited (exit code: 1) before the game started: {outdated}\n\
+             (applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+             overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry [Name=vanamersfoort_26])\n"
+        );
+        let failure = failure_line(&log).unwrap();
+        assert_eq!(
+            failure,
+            format!("the wrapper exited (exit code: 1) before the game started: {outdated}")
+        );
+        assert_eq!(cause_first(&failure), outdated);
+    }
 }
