@@ -261,7 +261,9 @@ pub struct CareerEntity {
     pub entrants_end: *mut EntrantRecord,
     _pad_0x2f0: [u8; 0x8],
     pub entrant_update_busy: u8,
-    _pad_0x2f9: [u8; 0xd37],
+    _pad_0x2f9: [u8; 0xc5f],
+    pub track_data: *mut TrackDataSystem,
+    _pad_0xf60: [u8; 0xd0],
     pub component_registry: *mut *mut c_void,
     _pad_0x1038: [u8; 0x8],
     pub championships_begin: *mut c_void,
@@ -276,6 +278,7 @@ const _: () = assert!(core::mem::offset_of!(CareerEntity, vtable) == 0x0);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, entrants_begin) == 0x2e0);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, entrants_end) == 0x2e8);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, entrant_update_busy) == 0x2f8);
+const _: () = assert!(core::mem::offset_of!(CareerEntity, track_data) == 0xf58);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, component_registry) == 0x1030);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, championships_begin) == 0x1040);
 const _: () = assert!(core::mem::offset_of!(CareerEntity, championships_end) == 0x1048);
