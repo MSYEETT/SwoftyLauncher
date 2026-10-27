@@ -1604,36 +1604,36 @@ impl Shell {
                     .child(crate::pages::wordmark(if short { 112. } else { 148. })),
             )
             .child(
-                v_flex().flex_shrink_0().gap(px(2.)).children(
-                    big.into_iter()
-                        .map(|(page, count)| self.big_nav(page, count, p, cx)),
+                v_flex().flex_1().min_h_0().mr(px(-SCROLLBAR_GAP)).child(
+                    v_flex()
+                        .flex_1()
+                        .min_h_0()
+                        .scroll_y("sidebar")
+                        .pr(px(SCROLLBAR_GAP))
+                        .gap(px(8.))
+                        .child(
+                            v_flex().flex_shrink_0().gap(px(2.)).children(
+                                big.into_iter()
+                                    .map(|(page, count)| self.big_nav(page, count, p, cx)),
+                            ),
+                        )
+                        .child(
+                            v_flex()
+                                .flex_shrink_0()
+                                .pt(px(if short { 4. } else { 12. }))
+                                .gap(px(6.))
+                                .child(label("SIMPLIFIED FOR SWOFTY", p).px(px(8.)))
+                                .children(self.simplified(p, cx)),
+                        )
+                        .child(
+                            v_flex()
+                                .flex_shrink_0()
+                                .pt(px(if short { 4. } else { 12. }))
+                                .gap(px(6.))
+                                .child(label("ADDON PANELS", p).px(px(8.)))
+                                .child(v_flex().gap(px(1.)).children(self.panels(p, cx))),
+                        ),
                 ),
-            )
-            .child(
-                v_flex()
-                    .flex_shrink_0()
-                    .pt(px(if short { 4. } else { 12. }))
-                    .gap(px(6.))
-                    .child(label("SIMPLIFIED FOR SWOFTY", p).px(px(8.)))
-                    .children(self.simplified(p, cx)),
-            )
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_h_0()
-                    .mr(px(-SCROLLBAR_GAP))
-                    .pt(px(if short { 4. } else { 12. }))
-                    .gap(px(6.))
-                    .child(label("ADDON PANELS", p).px(px(8.)))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_h_0()
-                            .scroll_y("panels")
-                            .pr(px(SCROLLBAR_GAP))
-                            .gap(px(1.))
-                            .children(self.panels(p, cx)),
-                    ),
             )
             .child(self.send_logs_button(p, cx))
             .child(
