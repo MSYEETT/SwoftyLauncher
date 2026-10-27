@@ -113,6 +113,9 @@ pub enum Cause {
     /// The game holds another version.dll and nothing the session can see
     /// explains it; `hooks` are the programs hooked into the game.
     Unexplained { path: String, hooks: Vec<String> },
+    /// Windows denied the session a look inside the game process, and no
+    /// block event or other antivirus explains the miss.
+    Unreadable,
 }
 
 impl Cause {
@@ -169,13 +172,17 @@ impl Cause {
             Self::Unexplained { path, .. } => format!(
                 "the game loaded {path} instead of the game folder's {PROXY}, and Swofty Launcher couldn't tell why"
             ),
+            Self::Unreadable => format!(
+                "Windows didn't let Swofty Launcher look inside the game (access denied), so it can't tell what kept \
+                 {PROXY} out. Windows Security and Smart App Control show no block"
+            ),
         }
     }
 
     /// Whether the session found nothing that explains the miss, so the
     /// player is pointed at Send Logs and the support Discord.
     pub fn unexplained(&self) -> bool {
-        matches!(self, Self::Unexplained { .. })
+        matches!(self, Self::Unexplained { .. } | Self::Unreadable)
     }
 
     /// The fix, when it is not the antivirus one.
@@ -231,6 +238,10 @@ impl Cause {
                      so the developers can look at your PC's setup."
                 )
             }
+            Self::Unreadable => "To fix it, close F1 25, fully quit the EA app or Steam from the system tray, then \
+                 launch again. If mods still don't load, press Send Logs to Developers and ask in the support \
+                 Discord."
+                .to_owned(),
             Self::Defender => return None,
         })
     }
@@ -935,6 +946,14 @@ mod tests {
             }
             .unexplained()
         );
+        let unreadable = text(&mut r, Cause::Unreadable);
+        assert!(
+            unreadable.contains("access denied")
+                && unreadable.contains("Send Logs")
+                && !unreadable.contains("antivirus"),
+            "{unreadable}"
+        );
+        assert!(Cause::Unreadable.unexplained());
         r.removed = true;
         assert!(
             r.text()

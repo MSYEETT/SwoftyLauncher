@@ -560,7 +560,11 @@ impl Findings {
                 hooks: hooks(&m.others),
             });
         }
-        sac.then_some(Cause::SmartAppControl { seen: false })
+        if sac {
+            return Some(Cause::SmartAppControl { seen: false });
+        }
+        let unreadable = !self.games.is_empty() && self.games.iter().all(|g| g.modules.is_err());
+        (unreadable && self.third_party_antivirus().is_empty()).then_some(Cause::Unreadable)
     }
 
     fn exploit_protection(&self) -> bool {
@@ -1609,6 +1613,28 @@ mod tests {
                 prefer_system32: true
             })
         );
+    }
+
+    #[test]
+    fn a_game_it_cannot_look_inside_is_not_blamed_on_an_antivirus() {
+        let denied = Seen {
+            image: None,
+            image_size: None,
+            ours: false,
+            modules: Err("access denied".into()),
+            mitigation: Some(Err("access denied".into())),
+            ..running(&[], Mitigation::default())
+        };
+        let mut f = found(Vec::new(), vec![denied]);
+        assert_eq!(f.cause(&game()), Some(Cause::Unreadable));
+        f.antivirus = Some(Ok(vec!["Microsoft Defender Antivirus (on)".into()]));
+        assert_eq!(f.cause(&game()), Some(Cause::Unreadable));
+        f.antivirus = Some(Ok(vec!["Bitdefender Antivirus (on)".into()]));
+        assert_eq!(f.cause(&game()), None);
+        f.antivirus = None;
+        f.smart_app_control = Some(Ok(Some(1)));
+        assert_eq!(f.cause(&game()), Some(Cause::SmartAppControl { seen: false }));
+        assert_eq!(found(Vec::new(), Vec::new()).cause(&game()), None);
     }
 
     fn system_copy() -> Findings {
