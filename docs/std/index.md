@@ -1,136 +1,166 @@
 ---
 title: Standard library 2.0
-description: The design for Swofty Launcher 2.0. The registry is the center of the standard library; providers fill it, layers override it, hooks and services connect addons, operations apply it to the game.
+description: The design for Swofty Launcher 2.0. The registry is the center of the standard library; addons register records and layers in code, hooks and services connect them, and the core applies everything live in the game.
 ---
 
 # Standard library 2.0
 
 **Status:** proposal. **Ships as:** Swofty Launcher 2.0.0, `SWOFTY_API_VERSION` 9.
 
-In 2.0 the standard library is built around one idea: **the registry**. A registry is shared data that any addon can provide, read and override. Everything else in 2.0 either fills a registry, changes it, reacts to it or applies it to the game.
+In 2.0 the standard library is built around one idea: **the registry**. A registry is shared, typed data that any addon can provide, read and change, in code. Everything else in 2.0 either fills a registry, changes it, reacts to it or applies it to the game.
 
-- **Each addon registers its own keys.** A GP/TT season, a car, an engine sound, a career season: each one is a record under the id of the addon that brings it.
-- **Records are bases others build on.** Another addon can extend a base in place (an engine sound for the 2017 Ferrari, everywhere) or make a variant of it with its own key (an "F1 2017 (V10)" GP/TT entry).
+- **Each addon registers its own keys.** A GP/TT season, a car, an engine sound, a career season: each one is a record under the id of the addon that brings it, added with `add` in `SWOFTY_REGISTER`.
+- **Records are bases others build on.** Another addon can extend a base in place with a `layer` (an engine sound for the 2017 Ferrari, everywhere) or make a `variant` of it under its own key (an "F1 2017 (V10)" GP/TT entry).
+- **Everything is live in the game.** The core applies each change when the game reads that data. The manifest only names the addon and its dependencies.
 - **The standard library only ever grows.** 2.0 adds abilities and takes none away. Everything 1.x could do still works, and nothing is ever removed in a later version either (see [Versioning](/std/versioning)).
 
 ## The registry in one example
 
-Progressive Career knows who drove for which team in each season. In 2.0 it puts that into the `career.season` registry instead of keeping it private:
+<Split>
+
+Progressive Career knows who drove for which team in each season. In 2.0 it adds that to the `career.season` registry instead of keeping it private: one record per year, under its own id.
+
+<template #example>
+<Example root="swofty.progressive" code-file="native/src/register.cpp" files="swofty.json, data/years.json, native/progressive.dll">
+<template #code>
 
 ```cpp
-// progressive.dll: provide the base value of every season
+#include <swofty/events.hpp>
 #include <swofty/registry.hpp>
-#include <swofty/career/season.hpp>
+#include <swofty/systems/career.hpp>
 
-using swofty::career::Season;
+#include "history.hpp"   // progressive::history(), built from data/years.json
 
-static std::optional<swofty::json::Value> season(std::string_view id)
+using namespace swofty;
+using namespace swofty::events;
+
+SWOFTY_REGISTER
 {
-    // id is "<data group>/<year>", e.g. "f1_career_progressive/2017"
-    std::optional<int> year = progressive::year_of(id);
-    if (!year)
-        return std::nullopt;
-    Season s = progressive::history().season(*year); // built from data/years.json
-    return s.to_json();
+    for (const progressive::Year &y : progressive::history().years())
+        career::seasons.add(std::to_string(y.year), y.to_season());   // "swofty.progressive/2017"
 }
 
 SWOFTY_ON_LOAD
 {
-    swofty::registry::provide(Season::registry, season);
+    on<career::events::SeasonStart>().after([](const career::events::SeasonStart &e, const Context &ctx) {
+        if (auto s = career::seasons.get(career::seasons["swofty.progressive/" + std::to_string(e.year)]))
+            career::apply_lineup(*s);    // the core's verified seat code, not Progressive's own
+    });
 }
+
+SWOFTY_ADDON()
 ```
 
-A companion addon changes the 2017 grid without touching Progressive's files. This is a static layer, a JSON file named in its manifest:
+</template>
+</Example>
+</template>
+</Split>
 
-```json
-// tails.whatif-history/layers/2017.json, a layer of career.season "f1_career_progressive/2017"
-{
-  "teams": [
-    { "slot": 1, "seats": ["fernando_alonso", "valtteri_bottas"] },
-    { "slot": 4, "seats": ["lewis_hamilton", "stoffel_vandoorne"] }
-  ]
-}
-```
+<Split>
 
-Any code that needs the grid reads the **effective** value, which is Progressive's base with every layer applied in load order:
+A companion addon changes the 2017 grid without touching Progressive's files. Its edit runs on Progressive's season, in load order.
+
+<template #example>
+<Example root="tails.whatif-history" code-file="native/src/whatif.cpp" data-file="registry/layers.json" files="swofty.json, native/whatif.dll">
+<template #code>
 
 ```cpp
-// any DLL: read the season the player will race
-std::optional<Season> s = swofty::registry::get<Season>("f1_career_progressive/2017");
-if (s) {
-    for (const auto &team : s->teams)
-        swofty::log("slot %d: %s and %s", team.slot, team.seats[0].c_str(), team.seats[1].c_str());
+#include <swofty/registry.hpp>
+#include <swofty/systems/career.hpp>
+#include <swofty/systems/drivers.hpp>
+
+using namespace swofty;
+
+static Ref<drivers::Identity> d(const char *key) { return drivers::identities[std::string("game/") + key]; }
+
+SWOFTY_REGISTER
+{
+    career::seasons.layer(career::seasons["swofty.progressive/2017"], [](career::Season &s) {
+        s.teams.at(1).seats = { d("fernando_alonso"), d("valtteri_bottas") };
+        s.teams.at(4).seats = { d("lewis_hamilton"), d("stoffel_vandoorne") };
+    });
 }
-// slot 1: fernando_alonso and valtteri_bottas
-// slot 4: lewis_hamilton and stoffel_vandoorne
+
+SWOFTY_ADDON()
 ```
 
-When a new career starts, the core freezes the effective seasons into that career, so later edits change new careers and not the running one. Then Progressive applies the season to the game through a core operation:
-
-```cpp
-swofty::career::apply_lineup(*s); // the core's verified seat code, not Progressive's own
-```
-
-## A base someone else builds on
-
-Classic Seasons 2017 registers the F1 2017 GP/TT season under its own keys:
+</template>
+<template #data>
 
 ```json
-// swofty.classic-seasons-2017/registry/content.json
 {
-  "content.package": {
-    "swofty.classic-seasons-2017/f1_2017": {
-      "entrant_list": "cs_f1_2017",
-      "teams": [ { "key": "ferrari", "vehicle": "swofty.classic-seasons-2017/ferrari" } ]
+  "career.season": {
+    "swofty.progressive/2017": {
+      "teams": [
+        { "slot": 1, "seats": ["game/fernando_alonso", "game/valtteri_bottas"] },
+        { "slot": 4, "seats": ["game/lewis_hamilton", "game/stoffel_vandoorne"] }
+      ]
     }
-  },
-  "vehicle": {
-    "swofty.classic-seasons-2017/ferrari": { "label": "cs17_ferrari", "engine_sound": "swofty.classic-seasons-2017/ferrari" }
-  },
-  "era.box": {
-    "swofty.classic-seasons-2017/f1_2017": { "package": "swofty.classic-seasons-2017/f1_2017", "order": 2017 }
   }
 }
 ```
 
-An engine sound pack adds its sound under its own key, and points the 2017 Ferrari at it. That's a layer on Classic Seasons' record. There's no DLL, and no copied files:
+</template>
+</Example>
+</template>
+</Split>
 
-```json
-// mod.esp/registry/content.json
-{ "engine_sound": { "mod.esp/v10_screamer": { "bundle": "sounds/v10_screamer.bdl", "settings_from": "game/ferrari_2025" } } }
+Any code that needs the grid reads the **effective** value: Progressive's base with every layer applied in load order.
+
+```cpp
+// any DLL: read the season the player will race
+if (auto s = career::seasons.get(career::seasons["swofty.progressive/2017"]))
+    for (const career::SeasonTeam &t : s->teams)
+        swofty::log("slot %d: %s and %s", t.slot, std::string(t.seats[0].id()).c_str(), std::string(t.seats[1].id()).c_str());
 ```
 
-```json
-// mod.esp/layers/ferrari_2017.json, a layer of vehicle "swofty.classic-seasons-2017/ferrari"
-{ "engine_sound": "mod.esp/v10_screamer" }
+```text
+slot 1: game/fernando_alonso and game/valtteri_bottas
+slot 4: game/lewis_hamilton and game/stoffel_vandoorne
 ```
 
-When the profile builds, the launcher resolves the records and writes the bundle and its database rows into the game ([Build time and run time](/std/build)).
+When a new career starts, the core freezes the effective seasons into that career, so later changes reach new careers and not the running one (see [Career snapshots](/std/scopes#career-snapshots)).
+
+## A base someone else builds on
+
+Classic Seasons 2017 adds the F1 2017 GP/TT season, its cars and its era box under its own keys. An engine sound pack adds its sound under its own key and points the 2017 Ferrari at it. That's a layer on Classic Seasons' record: no copied files, and with data files, no DLL.
+
+```cpp
+// mod.esp
+SWOFTY_REGISTER
+{
+    auto v10 = sounds::engine_sounds.add("v10_screamer", { .bundle = file("sounds/v10_screamer.bdl"),
+                                                           .settings_from = sounds::engine_sounds["game/ferrari_2025"] });
+    cars::vehicles.layer(cars::vehicles["swofty.classic-seasons-2017/ferrari"], [=](cars::Vehicle &v) { v.engine_sound = v10; });
+}
+```
+
+At the next game start, the core puts the record into the game database before it loads and serves the bundle in memory ([When changes apply](/std/build)).
 
 ## The map
 
 The registry and its subfeatures come first. Then the parts that connect addons to each other and to the game.
 
-- **[The registry](/std/registry)**: named, shared collections of records.
-  - **[Keys, bases and variants](/std/bases)**: every addon registers its own keys; bases others extend in place or build variants of.
-  - **Records**: an id and a JSON value.
-  - **Schemas**: the shape a registry's records must have (`x-key` arrays, snapshot settings).
-  - **Typed records**: C++ structs for the core's registries, and `swofty::json` for everything else.
+- **[The registry](/std/registry)**: named, typed collections of records.
+  - **Handles**: `Registry<T>` in a header per system, `add`, `variant`, `provide`, `layer`, `get`.
+  - **Records are structs**: `SWOFTY_RECORD`, `Ref<T>` between records, `Keyed` lists, `extra` for the round trip.
+  - **Your own registry**: a struct, an `inline Registry<T>` and a `check`, in a header you ship.
+  - **[Keys, bases and variants](/std/bases)**: every addon registers its own keys; bases others extend in place or build variants of; copies become variants.
 - **[Providers](/std/providers)**: who fills a registry's base.
-  - **Static providers**: JSON files in the addon. The launcher reads them too.
+  - **`add`**: records you know up front, in `SWOFTY_REGISTER`.
   - **Dynamic providers**: a callback the core calls on a read, cached until `invalidate`.
 - **[Reading](/std/reading)**: getting data out.
-  - **Effective values**: base plus every layer.
+  - **Effective values**: base plus every layer, with `status` when there's nothing.
   - **Origins**: which addon set a field.
   - **Listing**: every record id, or the ids under a prefix.
   - **Watching**: a callback when a record's effective value changes.
-- **[Layers](/std/layers)**: how addons override each other.
-  - **Patches**: JSON Merge Patch, with keyed arrays.
+- **[Layers](/std/layers)**: how addons change each other's records.
+  - **Edits**: a function on the effective value; the core records what it changed.
   - **Precedence**: load order, the same rule as files and mixins.
-  - **Validation**: a patched record that breaks its schema drops that layer.
-  - **Conflicts**: clashes are logged and shown in the launcher, never silent.
-  - **Selectors**: one layer for every matching record, including ones added later.
-  - **Option-bound layers**: a layer that applies while one of the addon's options has a value.
+  - **Validation**: an edit whose result breaks the record drops that layer.
+  - **Conflicts**: clashes are logged and reported, never silent.
+  - **Selectors**: `where` and `under`, one layer for every matching record, including ones added later.
+  - **Option-bound layers**: an edit that reads `swofty::option<T>()` re-runs when the option changes.
 - **[Scopes and snapshots](/std/scopes)**: how long a change lasts.
   - **Global, profile and career scopes.**
   - **Career snapshots**: the effective values frozen into each career.
@@ -139,9 +169,9 @@ The registry and its subfeatures come first. Then the parts that connect addons 
 - **[Your own systems](/std/systems/custom)**: an addon's own registries, scope, projection, scoped hooks and service; a six-compound tyre system others extend.
 - **[Dependencies and guards](/std/dependencies)**: needing addons, registries and single records like tracks; what happens when they're missing; guards; careers that remember what they were made with.
 - **[Events](/std/events)**: the lifecycle from boot to the chequered flag, with the context of everything, scoped and overridable by content owners.
-- **[Build time and run time](/std/build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
+- **[When changes apply](/std/build)**: at boot, when content becomes active, at a session load or on every read; files served in memory; the core's appliers; registering while the game runs.
 - **[Versioning](/std/versioning)**: how registries, hook payloads and tables change over time, only ever growing.
-  - **Schema versions**: minor adds; a major adds a new version next to the old one.
+  - **Schema versions**: a minor adds; a major adds a new version next to the old one.
   - **The tolerant reader rule**: ignore what you don't know.
   - **Every major forever**: adapters between versions.
   - **Status**: experimental, stable, superseded.
@@ -153,12 +183,12 @@ The registry and its subfeatures come first. Then the parts that connect addons 
   - **Living with mixins**: raw mixins chain around hook points.
 - **[Services](/std/services)**: one addon calling another, versioned, without `GetProcAddress`.
 - **[Operations](/std/operations)**: the core's verbs that apply data to the game.
-- **[The launcher side](/std/launcher)**: registries in the build, launcher pages that edit layers, the conflicts view and Send Logs.
-- **[Manifest](/std/manifest)**: how an addon declares all of the above.
+- **[The launcher side](/std/launcher)**: what the launcher does and doesn't know, editing pages that write an addon's storage, the conflicts view and Send Logs.
+- **[Manifest](/std/manifest)**: `registry.json` holds only dependencies; everything else is code.
 - **[The Simplified importer](/std/importer)**: imported mods recognised as records others stack on; everything else kept exactly as it builds today.
 - **[Coverage](/design/std-2/coverage)**: every Addon Browser addon and the common imported mods, today and in 2.0.
 - **[Compatibility](/std/compatibility)**: why every 1.x addon keeps working, and how the release proves it.
-- **[The C ABI](/std/abi)**: the tables under the C++ wrappers.
+- **[The C ABI](/std/abi)**: the registration export and the tables under the C++ API.
 - **[Rollout and docs](/design/std-2/rollout)**: the releases, and how the public docs are written.
 - **[Implementation plan](/design/std-2/implementation)**: how parallel agents build 2.0.0 in rounds.
 
