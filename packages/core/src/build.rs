@@ -45,7 +45,7 @@ use crate::{Error, Result, io_err};
 pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 pub const PLAN_FILE: &str = "plan.json";
 pub const SAVED_FILE: &str = "built.json";
-const SAVED_VERSION: u32 = 1;
+const SAVED_VERSION: u32 = 2;
 const PACKED_AGE: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 3600);
 const ARCHIVE_AGE: std::time::Duration = std::time::Duration::from_secs(3 * 24 * 3600);
 const ARCHIVE_BYTES: u64 = 10 << 30;
@@ -402,7 +402,7 @@ impl Saved {
             buildhash: built.buildhash.clone(),
             data: built.plan.data.clone(),
             added: built.plan.added.clone(),
-            loader: built.plan.loader.clone(),
+            loader: built_files(&built.plan.loader, loader_dir().as_deref()),
             registry_override: built.plan.registry_override,
             sizes,
             settings: built.settings.clone(),
@@ -428,6 +428,7 @@ impl Saved {
             .iter()
             .all(|(p, len)| std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.len() == *len));
         if !sources
+            || !self.loader.values().all(|p| p.is_file())
             || self
                 .added
                 .keys()
@@ -443,15 +444,17 @@ impl Saved {
             .all(|rel| baseline.files.contains_key(rel) || game.dir.join(rel).is_file())
     }
 
-    /// The loader files come from the launcher's loader folder as it is now:
-    /// a launcher update changes them without changing what the build wrote.
+    /// The loader's own files come from the launcher's loader folder as it is
+    /// now: a launcher update changes them without changing what the build
+    /// wrote. The rest of the placed files, such as screens, runtime assets and
+    /// addon plugins, are the saved ones.
     fn restore(self, built: &mut Built) -> Result<()> {
         built.plan.data = self.data;
         built.plan.added = self.added;
-        built.plan.loader = match loader_dir() {
-            Some(dir) => loader_files(&dir)?,
-            None => BTreeMap::new(),
-        };
+        built.plan.loader = self.loader;
+        if let Some(dir) = loader_dir() {
+            built.plan.loader.extend(loader_files(&dir)?);
+        }
         built.plan.registry_override = self.registry_override;
         built.settings = self.settings;
         built.lines.push(format!(
@@ -469,6 +472,15 @@ impl Saved {
         built.waiting = self.waiting;
         Ok(())
     }
+}
+
+/// The placed files that do not come from the loader folder `loader`.
+fn built_files(placed: &BTreeMap<String, PathBuf>, loader: Option<&Path>) -> BTreeMap<String, PathBuf> {
+    placed
+        .iter()
+        .filter(|(_, src)| loader.is_none_or(|dir| !src.starts_with(dir)))
+        .map(|(rel, src)| (rel.clone(), src.clone()))
+        .collect()
 }
 
 /// Held while a build writes a profile's overlay; another build of the
@@ -2672,6 +2684,70 @@ mod tests {
         let changed = build(&store, "default", &game).unwrap();
         assert!(!reused(&changed));
         assert_ne!(changed.buildhash, first.buildhash);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_reused_build_keeps_its_screens_assets_and_plugins() {
+        let root = std::env::temp_dir().join(format!("swofty-build-saved-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let loader = root.join("loader");
+        let placed: BTreeMap<String, PathBuf> = [
+            (
+                "swofty/ui/swofty_settings.ui",
+                root.join("overlay/swofty/ui/swofty_settings.ui"),
+            ),
+            ("swofty/assets.json", root.join("overlay/swofty/assets.json")),
+            (
+                "swofty/addons/t.x/native/x.dll",
+                root.join("addons/t.x/native/x.dll"),
+            ),
+            (
+                "swofty/addons/core/swofty_core.dll",
+                loader.join("swofty/addons/core/swofty_core.dll"),
+            ),
+            ("version.dll", loader.join("version.dll")),
+        ]
+        .into_iter()
+        .map(|(rel, src)| (rel.to_owned(), src))
+        .collect();
+        for src in placed.values() {
+            std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+            std::fs::write(src, "x").unwrap();
+        }
+
+        let kept = built_files(&placed, Some(&loader));
+        assert_eq!(
+            kept.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "swofty/addons/t.x/native/x.dll",
+                "swofty/assets.json",
+                "swofty/ui/swofty_settings.ui"
+            ]
+        );
+        assert_eq!(built_files(&placed, None), placed);
+
+        let mut built = Built::default();
+        built.plan.loader = kept.clone();
+        let saved = Saved::of(&built, 0, 0).unwrap();
+        let store = Store::new(root.join("data"));
+        let game = Game {
+            identity: Identity {
+                build_id: "1".into(),
+                exe_sha256: "a".repeat(64),
+            },
+            dir: root.join("game"),
+            user_reg: None,
+        };
+        assert!(saved.usable(&store, &game));
+        let mut reused = Built::default();
+        Saved::of(&built, 0, 0).unwrap().restore(&mut reused).unwrap();
+        for rel in kept.keys() {
+            assert_eq!(reused.plan.loader.get(rel), kept.get(rel), "{rel}");
+        }
+
+        std::fs::remove_file(&kept["swofty/ui/swofty_settings.ui"]).unwrap();
+        assert!(!saved.usable(&store, &game));
         std::fs::remove_dir_all(&root).ok();
     }
 
