@@ -360,10 +360,19 @@ fn heal_launcher(
 }
 
 /// An original that turned out not to be Steam's while the install backed it
-/// up stops the launch the same way as the check before the build.
+/// up, or one missing from the game folder with no backup, stops the launch
+/// the same way as the check before the build.
 fn not_stock(store: &Store, g: &Game, r: swofty_core::Result<()>) -> swofty_core::Result<()> {
-    if let Err(swofty_core::Error::NotStock(files)) = &r {
-        stock::Report::new(files.clone(), &g.dir).write(&store.root).ok();
+    match &r {
+        Err(swofty_core::Error::NotStock(files)) => {
+            stock::Report::new(files.clone(), &g.dir).write(&store.root).ok();
+        }
+        Err(swofty_core::Error::MissingStock { files, version }) => {
+            stock::Report::missing(files.clone(), &g.dir, version.clone())
+                .write(&store.root)
+                .ok();
+        }
+        _ => {}
     }
     r
 }

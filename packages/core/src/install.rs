@@ -686,6 +686,28 @@ impl<'a> Installer<'a> {
         for (rel, src) in plan.data.iter().chain(&plan.added).chain(&plan.loader) {
             after.insert(rel.as_str(), hashes.sha256(src)?);
         }
+        let (mut backed_up, mut missing) = (Vec::new(), Vec::new());
+        for rel in plan.data.keys() {
+            if std::fs::symlink_metadata(self.path(rel)).is_ok() {
+                continue;
+            }
+            match baseline.files.get(rel).filter(|r| objects.has(&r.sha256)) {
+                Some(rec) => backed_up.push((rel, rec.sha256.clone())),
+                None => missing.push(rel.clone()),
+            }
+        }
+        if !missing.is_empty() {
+            return Err(Error::MissingStock {
+                files: missing,
+                version: crate::exe_version::read(&self.path(crate::GAME_EXE)),
+            });
+        }
+        for (rel, sha) in backed_up {
+            self.restore_original(&sha, &self.path(rel))?;
+            (self.out)(&format!(
+                "{rel} was missing from the game folder; put back its backed-up original"
+            ));
+        }
         let mut conflicts = Vec::new();
         let mut unproven = Vec::new();
         for rel in plan.data.keys() {

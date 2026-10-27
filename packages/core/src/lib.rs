@@ -101,6 +101,11 @@ pub enum Error {
         stock::STEAM_VERIFY_URL
     )]
     NotStock(Vec<String>),
+    #[error("{}", stock::missing_text(files, version.as_deref()))]
+    MissingStock {
+        files: Vec<String>,
+        version: Option<String>,
+    },
     #[error("{}", .0.text())]
     Blocked(app_control::Block),
     #[error("{0}")]

@@ -680,7 +680,11 @@ impl Shell {
                         .mods_blocked
                         .as_ref()
                         .is_some_and(|r| r.stage == quarantine::Stage::BeforeLaunch && r.at >= launch.at);
-                    let not_stock = probe.not_stock.as_ref().is_some_and(|r| r.at >= launch.at);
+                    let not_stock = probe
+                        .not_stock
+                        .as_ref()
+                        .filter(|r| r.at >= launch.at)
+                        .map(|r| crate::game_edited::notice(r, self.install.as_ref().map(|i| i.source)));
                     let failed = probe
                         .launch_failed
                         .as_ref()
@@ -688,13 +692,7 @@ impl Shell {
                         .map(|f| f.headline().to_owned());
                     self.notice = Some(match &self.blocked {
                         _ if refused => "an antivirus removed mod files, so F1 25 was not started".to_owned(),
-                        _ if not_stock => match self.install.as_ref().map(|i| i.source) {
-                            Some(Source::EaApp) => {
-                                "your game files aren't the ones the EA app installed; repair them in the EA app"
-                                    .to_owned()
-                            }
-                            _ => "your game files aren't the ones Steam installed; verify them in Steam".to_owned(),
-                        },
+                        _ if not_stock.is_some() => not_stock.unwrap_or_default(),
                         Some(b) if b.files.len() == 1 => {
                             "a file Swofty did not put in the game folder is in the way".to_owned()
                         }
