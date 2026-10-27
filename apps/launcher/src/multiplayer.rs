@@ -15,7 +15,7 @@ use swofty_core::catalog::{self, Addon};
 use swofty_core::install::Game;
 use swofty_core::multiplayer::diag;
 use swofty_core::multiplayer::fingerprint::{Mismatch, MismatchKind};
-use swofty_core::multiplayer::game::{self as mp_game, Category, Command, GameStatus, Screen};
+use swofty_core::multiplayer::game::{self as mp_game, Command, GameStatus, Screen};
 use swofty_core::multiplayer::rooms::{Api, RoomSettings, RoomSummary};
 use swofty_core::multiplayer::session::{
     FixStep, Local, MemberState, Phase, PrintMatch, RelayStatus, Session, SessionState, Setup,
@@ -77,14 +77,6 @@ impl GameState {
     }
 }
 
-pub(crate) fn category_label(category: &str) -> String {
-    match category.parse::<Category>() {
-        Ok(Category::F12026) => "F1 2026".into(),
-        Ok(Category::F12025) => "F1 2025".into(),
-        Err(_) => category.to_owned(),
-    }
-}
-
 pub(crate) fn tracks_text(tracks: &[String]) -> Option<String> {
     if tracks.is_empty() {
         return None;
@@ -101,14 +93,11 @@ pub(crate) fn tracks_text(tracks: &[String]) -> Option<String> {
     Some(text)
 }
 
-/// The room row's second line: host, players and cars.
+/// The room row's second line: host and players.
 pub(crate) fn room_meta(room: &RoomSummary) -> String {
     format!(
-        "{} \u{00b7} {}/{} players \u{00b7} {}",
-        room.host.name,
-        room.members,
-        room.max_members,
-        category_label(&room.category)
+        "{} \u{00b7} {}/{} players",
+        room.host.name, room.members, room.max_members
     )
 }
 
@@ -448,7 +437,6 @@ pub(crate) struct Multiplayer {
     code: Entity<InputState>,
     public: bool,
     max: u8,
-    category: Category,
     starting: Option<String>,
     session: Option<Session>,
     state: Option<SessionState>,
@@ -493,7 +481,6 @@ impl Multiplayer {
             code,
             public: true,
             max: 8,
-            category: Category::F12026,
             starting: None,
             session: None,
             state: None,
@@ -800,7 +787,7 @@ impl Shell {
             name: Some(name),
             public: self.mp_page.public,
             max_members: self.mp_page.max,
-            category: self.mp_page.category,
+            ..RoomSettings::default()
         };
         self.mp_start(Start::Create(settings), cx);
     }
@@ -1172,32 +1159,6 @@ impl Shell {
                 }
                 menu
             });
-        let shell = cx.entity().downgrade();
-        let current = m.category;
-        let cars = Button::new("mp-category")
-            .outline()
-            .small()
-            .w(px(160.))
-            .label(category_label(current.as_str()))
-            .dropdown_caret(true)
-            .dropdown_menu_with_anchor(Anchor::TopLeft, move |mut menu, _, _| {
-                for category in [Category::F12026, Category::F12025] {
-                    let shell = shell.clone();
-                    menu = menu.item(
-                        PopupMenuItem::new(category_label(category.as_str()))
-                            .checked(category == current)
-                            .on_click(move |_, _, cx| {
-                                shell
-                                    .update(cx, |s, cx| {
-                                        s.mp_page.category = category;
-                                        cx.notify();
-                                    })
-                                    .ok();
-                            }),
-                    );
-                }
-                menu
-            });
         let public = h_flex()
             .gap(px(10.))
             .child(
@@ -1270,7 +1231,6 @@ impl Shell {
             ))
             .child(row("Visibility", public.into_any_element(), false))
             .child(row("Players", players.into_any_element(), false))
-            .child(row("Cars", cars.into_any_element(), false))
             .child(
                 h_flex()
                     .px(px(16.))
@@ -1383,7 +1343,6 @@ impl Shell {
             || "Setting up the room\u{2026}".to_owned(),
             |r| {
                 let mut parts = vec![
-                    category_label(&r.category),
                     format!("{}/{} players", state.members.len(), r.max_members),
                     if r.public { "Listed" } else { "Private" }.to_owned(),
                 ];
@@ -1778,10 +1737,7 @@ mod tests {
 
     #[test]
     fn describes_a_room() {
-        assert_eq!(
-            room_meta(&room(3, 8, None)),
-            "swofty \u{00b7} 3/8 players \u{00b7} F1 2026"
-        );
+        assert_eq!(room_meta(&room(3, 8, None)), "swofty \u{00b7} 3/8 players");
         let tracks = ["Okayama", "Bahrain 2024", "Monza 1990", "Imola"].map(String::from);
         assert_eq!(
             tracks_text(&tracks).as_deref(),
