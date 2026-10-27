@@ -25,13 +25,16 @@ description: How standard library 2.0.0 gets built by parallel agents in rounds,
        │           + services │           gate         check + CI
        W2 validator           │
        │                      │
-       W3 registry core ──────┤
-       │                      │
-       W4 snapshots           W8 example addon
-       │
-       W7 Progressive 2.0 (needs W3, W5)
+       W3 registry core ──────┼──────────────┐
+       │                      │              │
+       W4 snapshots           W12 build-time W8 what-if example
+       │                      appliers
+       W7 Progressive 2.0     │
+       (needs W3, W5)         W13 Classic Seasons on records
                               │
-                       W11 public docs (needs W3-W8 stable)
+                              W14 engine sound example
+                              │
+                       W11 public docs (needs W3-W14 stable)
 ```
 
 **W0. Contracts** (lead, first):
@@ -84,6 +87,12 @@ Validation must agree with W2 on the shared corpus.
 
 **W8. Example addon** (`templates/std/whatif`): the launcher page from [The launcher side](./launcher), a static example layer, and its manifest. The docs include its code.
 
+**W12. Build-time resolution and appliers** (Rust, `packages/core/src/std/`): resolving build-time registries (base, `extends` chains, layers, load order), and the core's appliers for `era.box`, `content.package`, `vehicle` and `engine_sound`. They turn records into `file.put`, database and ERP operations, which run before every addon's own operations. It shares the resolver with W6, and must agree with W3 on the shared corpus.
+
+**W13. Classic Seasons on records** (`addons/classicseasons/`): `tools/registry.py` writes each season's `content.package`, `era.box`, `vehicle` and `engine_sound` records from its existing data. Each season addon provides them under its own keys, and its hand-written operations shrink to what the appliers don't cover. Test: every season builds to the same game files as 0.6.x.
+
+**W14. Engine sound example** (`templates/std/engine-sound`): a data-only addon with its own `engine_sound` record, a layer on the 2017 Ferrari, and an `extends` variant with its own era box.
+
 **W9. Compatibility gate** (`tools/compat/`): downloads every Addon Browser addon version, builds each on two cores, compares the files and build hash, runs the Wine harness to the main menu, and compares the loaded DLLs, chains and start lines. It runs 1.5 against 1.5 first, to prove it reports no false differences.
 
 **W10. Schema tooling and CI:** `tools/std/schemacheck.py` (minor or major, immutable released files), example validation, the fixture-save job, and wiring the compat gate into the release workflow.
@@ -105,27 +114,32 @@ Validation must agree with W2 on the shared corpus.
 
 As each reports, the lead merges it and runs the native build, the host tests, `cargo test` and the Wine test. A reviewer agent goes over each merged stream.
 
-**Round 2, five agents:**
+**Round 2, six agents:**
 
 - W3 the registry core;
 - W6b the host calls, conflicts and `requires`;
 - W7a Progressive's `tools/registry.py` and static files, compared against `years.json` record by record;
+- W12 build-time resolution and the core's appliers;
 - a reviewer on round 1's merged code;
 - fixes from round 1's reviews, back to the agents that wrote it.
 
-**Round 3, five agents:**
+**Round 3, six agents (W14 starts when W12 merges):**
 
 - W4 snapshots;
 - W7b Progressive's DLLs on effective values, the service and the point;
-- W8 the example addon;
+- W8 the what-if example;
+- W13 Classic Seasons on records, with the build compared against 0.6.x;
 - a reviewer on round 2;
-- W9 runs the full gate on the 2.0 core for the first time.
+- W9 runs the full gate on the 2.0 core for the first time;
+- W14 the engine sound example.
 
 **Round 4, in game (the lead, one session, with the lock and a save backup):**
 
 - Progressive 2.0 against 1.2 in a 2016 and a 2017 Follow-your-driver career: seats, swaps, ratings, logos, fuel, contracts;
 - the example addon's 2017 change on Choose Driver, the grid and in follow mode;
 - a career saved, the layer changed, the career reloaded: it keeps its snapshot;
+- Classic Seasons 2016 and 2017 in Time Trial on records: the same cars, liveries and sounds as 0.6.x;
+- W14's engine sound on the 2017 Ferrari, and its "F1 2017 (V10)" box as its own entry;
 - a 1.x addon set from the gate's list, to the main menu and into a session.
 
 Each failure becomes a fix brief, sent back to the agent that owns the code, and is checked again in the next in-game session.

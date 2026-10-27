@@ -18,7 +18,7 @@ career.driver_ratings
 
 ## Declaring a registry
 
-The addon that **owns** a registry declares it: its name, its schema and its current version. The core owns the registries that describe the game (`career.*`, `team.*`, `lang.*`). An addon owns the registries of its own data, named under its id.
+The addon that **owns** a registry declares it: its name, its schema and its current version. The core owns the registries that describe the game (`career.*`, `content.package`, `era.box`, `vehicle`, `engine_sound`, `livery`, `helmet`, `track`, `team.*`, `driver.*`, `lang.*`). An addon owns the registries of its own data, named under its id.
 
 ```json
 // swofty.json of the addon that owns progressive.settings_presets
@@ -156,5 +156,6 @@ struct Season {
 
 - **Registry names** are dotted and lowercase. The core uses `career.`, `team.`, `driver.`, `session.`, `lang.`, `era.`, `hub.` and `addon.`. An addon's registry starts with its own id.
 - **Values** are JSON objects of at most 1 MB.
-- **A record has one base** from one [provider](./providers). Every change on top of it is a [layer](./layers).
+- **Record ids start with a name the provider owns**: its addon id, or a name it registered, such as its career content's data group (see [Keys, bases and variants](./bases)).
+- **A record has one base** from one [provider](./providers), or it [extends](./bases#build-a-variant-with-extends) another record. Every change on top of it is a [layer](./layers).
 - **Every write is validated** against the schema before it becomes visible.

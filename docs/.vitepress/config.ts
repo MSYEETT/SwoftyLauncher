@@ -385,10 +385,13 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                 items: [
                   { text: "Start here", link: "/design/std-2/" },
                   { text: "The registry", link: "/design/std-2/registry" },
+                  { text: "Keys, bases and variants", link: "/design/std-2/bases" },
                   { text: "Providers", link: "/design/std-2/providers" },
                   { text: "Reading", link: "/design/std-2/reading" },
                   { text: "Layers", link: "/design/std-2/layers" },
                   { text: "Scopes and snapshots", link: "/design/std-2/scopes" },
+                  { text: "Content registries", link: "/design/std-2/content" },
+                  { text: "Build time and run time", link: "/design/std-2/build" },
                   { text: "Versioning", link: "/design/std-2/versioning" },
                   { text: "Hooks", link: "/design/std-2/hooks" },
                   { text: "Services", link: "/design/std-2/services" },

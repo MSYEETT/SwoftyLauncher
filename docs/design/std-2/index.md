@@ -9,6 +9,10 @@ description: The design for Swofty Launcher 2.0. The registry is the center of t
 
 In 2.0 the standard library is built around one idea: **the registry**. A registry is shared data that any addon can provide, read and override. Everything else in 2.0 either fills a registry, changes it, reacts to it or applies it to the game.
 
+- **Each addon registers its own keys.** A GP/TT season, a car, an engine sound, a career season: each one is a record under the id of the addon that brings it.
+- **Records are bases others build on.** Another addon can extend a base in place (an engine sound for the 2017 Ferrari, everywhere) or make a variant of it with its own key (an "F1 2017 (V10)" GP/TT entry).
+- **The standard library only ever grows.** 2.0 adds abilities and takes none away. Everything 1.x could do still works, and nothing is ever removed in a later version either (see [Versioning](./versioning)).
+
 ## The registry in one example
 
 Progressive Career knows who drove for which team in each season. In 2.0 it puts that into the `career.season` registry instead of keeping it private:
@@ -67,11 +71,48 @@ When a new career starts, the core freezes the effective seasons into that caree
 swofty::career::apply_lineup(*s); // the core's verified seat code, not Progressive's own
 ```
 
+## A base someone else builds on
+
+Classic Seasons 2017 registers the F1 2017 GP/TT season under its own keys:
+
+```json
+// swofty.classic-seasons-2017/registry/content.json
+{
+  "content.package": {
+    "swofty.classic-seasons-2017/f1_2017": {
+      "entrant_list": "cs_f1_2017",
+      "teams": [ { "key": "ferrari", "vehicle": "swofty.classic-seasons-2017/ferrari" } ]
+    }
+  },
+  "vehicle": {
+    "swofty.classic-seasons-2017/ferrari": { "label": "cs17_ferrari", "engine_sound": "swofty.classic-seasons-2017/ferrari" }
+  },
+  "era.box": {
+    "swofty.classic-seasons-2017/f1_2017": { "package": "swofty.classic-seasons-2017/f1_2017", "order": 2017 }
+  }
+}
+```
+
+An engine sound pack adds its sound under its own key, and points the 2017 Ferrari at it. That's a layer on Classic Seasons' record. There's no DLL, and no copied files:
+
+```json
+// mod.esp/registry/content.json
+{ "engine_sound": { "mod.esp/v10_screamer": { "bundle": "sounds/v10_screamer.bdl", "settings_from": "game/ferrari_2025" } } }
+```
+
+```json
+// mod.esp/layers/ferrari_2017.json, a layer of vehicle "swofty.classic-seasons-2017/ferrari"
+{ "engine_sound": "mod.esp/v10_screamer" }
+```
+
+When the profile builds, the launcher resolves the records and writes the bundle and its database rows into the game ([Build time and run time](./build)).
+
 ## The map
 
 The registry and its subfeatures come first. Then the parts that connect addons to each other and to the game.
 
 - **[The registry](./registry)**: named, shared collections of records.
+  - **[Keys, bases and variants](./bases)**: every addon registers its own keys; bases others extend in place or build variants of.
   - **Records**: an id and a JSON value.
   - **Schemas**: the shape a registry's records must have (`x-key` arrays, snapshot settings).
   - **Typed records**: C++ structs for the core's registries, and `swofty::json` for everything else.
@@ -91,11 +132,13 @@ The registry and its subfeatures come first. Then the parts that connect addons 
 - **[Scopes and snapshots](./scopes)**: how long a change lasts.
   - **Global, profile and career scopes.**
   - **Career snapshots**: the effective values frozen into each career.
-- **[Versioning](./versioning)**: how registries, hooks and tables change over time without breaking anyone.
-  - **Schema versions**: minor adds, major breaks.
+- **[Content registries](./content)**: GP/TT season packages, era boxes, cars, engine sounds, liveries, helmets, tracks and identities.
+- **[Build time and run time](./build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
+- **[Versioning](./versioning)**: how registries, hook payloads and tables change over time, only ever growing.
+  - **Schema versions**: minor adds; a major adds a new version next to the old one.
   - **The tolerant reader rule**: ignore what you don't know.
-  - **Two majors at once**: adapters between versions.
-  - **Lifecycle**: experimental, stable, deprecated.
+  - **Every major forever**: adapters between versions.
+  - **Status**: experimental, stable, superseded.
   - **ABI and table versions**, and **how a change is made**.
 - **[Hooks](./hooks)**: one ordered chain per game function.
   - **Game hook points**, owned by the core.
