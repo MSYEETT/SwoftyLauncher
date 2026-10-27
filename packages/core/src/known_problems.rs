@@ -10,9 +10,12 @@ use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::Path;
 
+use crate::conflicts::Pair;
 use crate::install::LOADER_DIR;
+use crate::manifest::{AddonManifest, Category};
 use crate::overlay_guard::SessionOverlay;
 use crate::session::SessionRecord;
+use crate::store::Store;
 
 /// The most of a loader.log or crash report that is read.
 const READ_CAP: u64 = 32 << 20;
@@ -116,6 +119,14 @@ pub struct Evidence {
     pub game_files: Vec<String>,
     /// Addon names by id, for addons the rules name.
     pub names: BTreeMap<String, String>,
+    /// The profile's enabled addons in load order, from its last build.
+    pub enabled: Vec<String>,
+    /// The enabled addons that are tracks.
+    pub tracks: Vec<String>,
+    /// Which addon overrode which in the profile's last build.
+    pub conflicts: Vec<Pair>,
+    /// The game's exit code, or the crash code the session recorded.
+    pub code: Option<u32>,
 }
 
 impl Evidence {
@@ -143,22 +154,49 @@ impl Evidence {
             .flatten()
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect();
+        let code = session
+            .end
+            .as_ref()
+            .and_then(|e| e.crash_code.or(e.exit_code.map(|c| c as u32)))
+            .or(session.exit_code.map(|c| c as u32));
         Self {
             loader,
             report,
             game_files,
             names,
+            code,
+            ..Default::default()
         }
+    }
+
+    /// The profile's addons from its last build in `store`.
+    pub fn with_profile(mut self, store: &Store, addons: &BTreeMap<String, AddonManifest>) -> Self {
+        if let Some(report) = crate::conflicts::last(store, &store.active_profile()) {
+            self.tracks = report
+                .order
+                .iter()
+                .filter(|id| {
+                    addons
+                        .get(*id)
+                        .is_some_and(|m| m.category == Some(Category::Tracks))
+                })
+                .cloned()
+                .collect();
+            self.enabled = report.order;
+            self.conflicts = report.pairs;
+        }
+        self
     }
 }
 
 /// The cause of the crash `session` ended with, when a rule recognises it.
-pub fn crash(
-    session: &SessionRecord,
-    game: Option<&Path>,
-    names: BTreeMap<String, String>,
-) -> Option<Diagnosis> {
-    diagnose(&Evidence::read(session, game, names))
+pub fn crash(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Option<Diagnosis> {
+    let addons = store.addons().unwrap_or_default();
+    let names = addons
+        .iter()
+        .map(|(id, m)| (id.clone(), m.name.clone()))
+        .collect();
+    diagnose(&Evidence::read(session, game, names).with_profile(store, &addons))
 }
 
 fn read_capped(path: &Path) -> Option<String> {
@@ -190,6 +228,10 @@ struct Fatal {
     stack: Vec<String>,
     /// Modules whose return addresses the crash report found on the stack.
     returns: Vec<String>,
+    /// The loader's record of the exception: registers, code and stack.
+    record: Vec<String>,
+    /// Where the record starts among the loader's crash lines.
+    at: Option<usize>,
 }
 
 impl Fatal {
@@ -212,13 +254,29 @@ fn module_at(text: &str) -> Option<String> {
     (!name.is_empty() && !name.starts_with("0x")).then(|| name.to_ascii_lowercase())
 }
 
-fn fatal(e: &Evidence) -> Fatal {
-    let mut f = Fatal::default();
-    let crash: Vec<&str> = e
-        .loader
+/// The loader's crash lines, without their time and thread.
+fn crash_lines(loader: &str) -> Vec<&str> {
+    loader
         .lines()
         .filter_map(|l| Some(&l[l.find("[crash] ")? + "[crash] ".len()..]))
-        .collect();
+        .collect()
+}
+
+/// The exception code in a first-chance line, as in `ACCESS_VIOLATION (0xc0000005)`.
+fn exception_code(line: &str) -> Option<u32> {
+    line.match_indices("(0x").find_map(|(i, _)| {
+        let hex = &line[i + 3..];
+        u32::from_str_radix(&hex[..hex.find(')')?], 16).ok()
+    })
+}
+
+fn record_at<'a>(crash: &[&'a str], i: usize) -> impl Iterator<Item = &'a str> {
+    crash[i + 1..].iter().copied().take_while(|l| l.starts_with("  "))
+}
+
+fn fatal(e: &Evidence) -> Fatal {
+    let mut f = Fatal::default();
+    let crash = crash_lines(&e.loader);
     let unhandled = crash
         .iter()
         .find(|l| l.starts_with("unhandled ") && l.contains("reached the top-level filter"));
@@ -227,18 +285,29 @@ fn fatal(e: &Evidence) -> Fatal {
         let at = &l[l.find(" at ")? + 4..];
         Some(at.split_whitespace().next()?.to_owned())
     });
-    if let Some(address) = &address {
-        let first = crash
+    f.at = match &address {
+        Some(address) => crash
             .iter()
-            .position(|l| l.contains("first-chance") && l.contains(address.as_str()));
-        if let Some(i) = first {
-            f.stack = crash[i + 1..]
-                .iter()
-                .take_while(|l| l.starts_with("  "))
-                .filter(|l| l.trim_start().starts_with('#'))
-                .filter_map(|l| module_at(l))
-                .collect();
+            .position(|l| l.contains("first-chance") && l.contains(address.as_str())),
+        None if e.report.is_none() => crash
+            .iter()
+            .rposition(|l| l.contains("first-chance"))
+            .filter(|&i| e.code.is_some() && exception_code(crash[i]) == e.code),
+        None => None,
+    };
+    if let Some(i) = f.at {
+        if f.module.is_none() {
+            f.module = crash[i]
+                .find(" at ")
+                .and_then(|at| module_at(&crash[i][at + 4..]));
         }
+        f.record = record_at(&crash, i).map(str::to_owned).collect();
+        f.stack = f
+            .record
+            .iter()
+            .filter(|l| l.trim_start().starts_with('#'))
+            .filter_map(|l| module_at(l))
+            .collect();
     }
     if let Some(report) = &e.report {
         let mut section = "";
@@ -571,8 +640,391 @@ fn driver_steps() -> Vec<String> {
     ]
 }
 
+/// The exit code of a game Windows stopped from loading a file it doesn't
+/// trust (STATUS_SYSTEM_INTEGRITY_POLICY_VIOLATION).
+const APP_CONTROL: u32 = 0xc0e9_0002;
+/// F1 25's hang watchdog limit in milliseconds, which it holds in r15 when it
+/// closes the game.
+const WATCHDOG_MS: &str = "r15=0000000000007530";
+/// How long before the watchdog fired the game had surely stopped moving on.
+const STALL_SECS: f64 = 28.0;
+/// The earliest before the watchdog fired that the freeze can have started.
+const FREEZE_SECS: f64 = 36.0;
+/// The least time between two log lines of one addon on one thread, across
+/// the freeze, that counts as the addon keeping that thread busy.
+const BUSY_GAP_SECS: f64 = 20.0;
+/// The lines an addon logs in the stalled time to count as the one busy.
+const BUSY_LINES: usize = 5;
+/// The archive resources two car packs must both replace to count as full ones.
+const CAR_PACK_RESOURCES: usize = 1000;
+/// Imported Sepang, the heaviest imported track.
+const SEPANG: &str = "mod.bahrain24";
+
+fn name(e: &Evidence, id: &str) -> String {
+    e.names.get(id).cloned().unwrap_or_else(|| id.to_owned())
+}
+
+/// When a loader line was written, in seconds, from its `2026-10-27 15:00:08.518` start.
+fn stamp(line: &str) -> Option<f64> {
+    let mut date = line.get(..10)?.split('-').map(|n| n.parse::<u32>().ok());
+    let (y, m, d) = (date.next()??, date.next()??, date.next()??);
+    let mut time = line.get(11..23)?.split([':', '.']).map(|n| n.parse::<u32>().ok());
+    let (h, min, sec, ms) = (time.next()??, time.next()??, time.next()??, time.next()??);
+    let day = f64::from((y * 12 + m) * 31 + d);
+    Some(day * 86400.0 + f64::from(h * 3600 + min * 60 + sec) + f64::from(ms) / 1000.0)
+}
+
+/// The fatal engine heap error the game ended with: its code and message.
+fn heap_error(e: &Evidence) -> Option<(u32, String)> {
+    let parse = |l: &str| {
+        let rest = &l[l.find("Ne heap error 0x")? + "Ne heap error 0x".len()..];
+        let hex: String = rest.chars().take_while(char::is_ascii_hexdigit).collect();
+        let fatal =
+            l.contains("fatal Ne heap error") || rest[hex.len()..].trim_start().starts_with("(fatal)");
+        fatal.then(|| Some((u32::from_str_radix(&hex, 16).ok()?, rest.to_owned())))?
+    };
+    e.loader
+        .lines()
+        .rev()
+        .filter(|l| l.contains("[crash] "))
+        .find_map(parse)
+        .or_else(|| {
+            e.report
+                .as_deref()?
+                .lines()
+                .find(|l| l.starts_with("reason"))
+                .and_then(parse)
+        })
+}
+
+fn windows_out_of_memory(code: u32, message: &str) -> bool {
+    matches!(code, 0x5 | 0x58)
+        || message.contains("useAddressSpace")
+        || message.contains("Out of physical memory")
+}
+
+/// The enabled Classic Seasons year packs.
+fn classic_years(e: &Evidence) -> usize {
+    e.enabled
+        .iter()
+        .filter(|id| {
+            id.strip_prefix("swofty.classic-seasons-")
+                .is_some_and(|y| !y.is_empty() && y.bytes().all(|b| b.is_ascii_digit()))
+        })
+        .count()
+}
+
+fn years(n: usize) -> String {
+    format!("{n} Classic Seasons year{}", if n == 1 { "" } else { "s" })
+}
+
+/// Whether the game's own hang watchdog closed it: it writes to address 1
+/// with its 30 s limit in r15.
+fn hang_watchdog(e: &Evidence, f: &Fatal) -> bool {
+    let trap = |lines: &mut dyn Iterator<Item = &str>| {
+        let (mut write, mut rax, mut limit) = (false, false, false);
+        for l in lines {
+            let t = l.trim_start();
+            write |= t == "writing 0x1" || t.starts_with("writing 0x1:");
+            rax |= t.starts_with("rax=0000000000000001 ");
+            limit |= l.contains(WATCHDOG_MS);
+        }
+        write && rax && limit
+    };
+    let report = e.report.as_deref().is_some_and(|r| {
+        let mut section = "";
+        trap(&mut r.lines().filter(|l| {
+            if let Some(name) = l.strip_prefix("== ") {
+                section = name;
+            }
+            section == "Exception" || section == "Registers"
+        }))
+    });
+    trap(&mut f.record.iter().map(String::as_str)) || report
+}
+
+/// The loader's crash lines as written, with their time.
+fn raw_crash_lines(loader: &str) -> Vec<&str> {
+    loader.lines().filter(|l| l.contains("[crash] ")).collect()
+}
+
+/// The addon that kept a game thread busy while the game froze: one whose
+/// consecutive lines on a thread are far apart across the stall, or the one
+/// that logged the most in it.
+fn busy_addon(e: &Evidence, f: &Fatal) -> Option<String> {
+    let end = stamp(raw_crash_lines(&e.loader).get(f.at?)?)?;
+    let ids: Vec<&String> = if e.enabled.is_empty() {
+        e.names.keys().collect()
+    } else {
+        e.enabled.iter().collect()
+    };
+    let addon_of = |rest: &str| -> Option<&String> {
+        let tag = rest.strip_prefix('[')?.split(']').next()?;
+        if let Some((_, api)) = rest.split_once("] api: ") {
+            let id = api.split(' ').next()?;
+            return ids.iter().find(|i| i.as_str() == id).copied();
+        }
+        ids.iter()
+            .find(|id| id.as_str() == tag || id.rsplit('.').next() == Some(tag))
+            .copied()
+    };
+    let mut counts: BTreeMap<&String, usize> = BTreeMap::new();
+    let mut last: BTreeMap<&str, (f64, &String)> = BTreeMap::new();
+    let mut gap = None;
+    for line in e.loader.lines() {
+        let Some(t) = stamp(line) else { continue };
+        if t > end {
+            break;
+        }
+        let Some((thread, rest)) = line.get(24..).and_then(|r| r.split_once("] ")) else {
+            continue;
+        };
+        match addon_of(rest) {
+            Some(a) => {
+                if t >= end - STALL_SECS {
+                    *counts.entry(a).or_default() += 1;
+                    if last
+                        .get(thread)
+                        .is_some_and(|(at, b)| *b == a && t - at > BUSY_GAP_SECS && end - at <= FREEZE_SECS)
+                    {
+                        gap = Some(a);
+                    }
+                }
+                last.insert(thread, (t, a));
+            }
+            None => {
+                last.remove(thread);
+            }
+        }
+    }
+    gap.or_else(|| {
+        counts
+            .into_iter()
+            .filter(|(_, n)| *n >= BUSY_LINES)
+            .max_by_key(|(_, n)| *n)
+            .map(|(a, _)| a)
+    })
+    .cloned()
+}
+
+/// A graphics driver error the game hit in the minute before it froze: the
+/// module, its vendor and the frame generation on its stack.
+fn driver_error_before(e: &Evidence, f: &Fatal) -> Option<(String, &'static str, Option<&'static str>)> {
+    let at = f.at?;
+    let crash = crash_lines(&e.loader);
+    let raw = raw_crash_lines(&e.loader);
+    let end = stamp(raw.get(at)?)?;
+    (0..at).rev().find_map(|i| {
+        let l = crash[i];
+        if !l.contains("first-chance") || stamp(raw[i]).is_none_or(|t| end - t > 2.0 * STALL_SECS) {
+            return None;
+        }
+        let module = module_at(&l[l.find(" at ")? + 4..])?;
+        let vendor = DRIVERS.iter().find(|(p, _)| module.starts_with(p))?.1;
+        let frame_gen = record_at(&crash, i)
+            .filter_map(module_at)
+            .find_map(|m| FRAME_GEN.iter().find(|(p, _)| m.starts_with(p)).map(|(_, w)| *w));
+        Some((module, vendor, frame_gen))
+    })
+}
+
+/// Whether the game's graphics settings had frame generation on, as Swofty's
+/// overlay last read them.
+fn frame_gen_on(loader: &str) -> bool {
+    loader
+        .lines()
+        .rev()
+        .find(|l| l.contains("[overlay] the game's hardware settings"))
+        .is_some_and(|l| l.contains("have frame generation on"))
+}
+
+/// Two or more full car packs that replace each other's cars in the build, by name.
+fn car_packs(e: &Evidence) -> Vec<String> {
+    let mut packs: Vec<&String> = Vec::new();
+    for p in e.conflicts.iter().filter(|p| {
+        p.resources >= CAR_PACK_RESOURCES && p.items.iter().any(|i| i.contains("vehicle_package/teams/"))
+    }) {
+        for id in [&p.winner, &p.loser] {
+            if !packs.contains(&id) {
+                packs.push(id);
+            }
+        }
+    }
+    if packs.len() < 2 {
+        return Vec::new();
+    }
+    packs.sort_by_key(|id| e.enabled.iter().position(|x| x == *id));
+    packs.iter().map(|id| name(e, id)).collect()
+}
+
+/// What the addons in the profile and the game's settings add to a graphics
+/// card crash: sentences for what happened, and their steps.
+fn graphics_causes(e: &Evidence) -> (String, Vec<String>) {
+    let mut what = String::new();
+    let mut steps = Vec::new();
+    let packs = car_packs(e);
+    if !packs.is_empty() {
+        what.push_str(&format!(
+            " {} are all full car packs, and they replace each other's cars. Several on at once can load more \
+             than the graphics card can take.",
+            list(&packs)
+        ));
+        steps.push(format!("Keep only one of {} on in your profile.", list(&packs)));
+    }
+    if frame_gen_on(&e.loader) {
+        what.push_str(" Frame generation was on in F1 25's graphics settings.");
+        steps.push(FRAME_GEN_OFF.to_owned());
+    }
+    (what, steps)
+}
+
+const FRAME_GEN_OFF: &str =
+    "Turn off frame generation (DLSS, FSR or XeSS frame generation) in F1 25's graphics settings.";
+
+fn app_control() -> Diagnosis {
+    Diagnosis {
+        id: "app_control",
+        title: "Windows blocked Swofty's files from loading".to_owned(),
+        what: "Windows stopped F1 25 from loading Swofty's version.dll (error 0xc0e90002, Bad Image), so the game \
+               closed before it started. Smart App Control or an app control policy does this to files it doesn't \
+               know."
+            .to_owned(),
+        steps: vec![
+            "Turn off Smart App Control: open Windows Security, App & browser control, Smart App Control settings, \
+             and choose Off."
+                .to_owned(),
+            "On a work or school PC, an app control policy from your organisation does this instead. Ask whoever \
+             manages the PC to allow F1 25's folder."
+                .to_owned(),
+            "Press Play again.".to_owned(),
+        ],
+    }
+}
+
+fn game_heap(e: &Evidence) -> Diagnosis {
+    let mut tracks: Vec<&String> = e.tracks.iter().collect();
+    tracks.sort_by_key(|id| id.as_str() != SEPANG);
+    let tracks: Vec<String> = tracks.iter().map(|id| name(e, id)).collect();
+    let mut heavy = tracks.clone();
+    let years_on = classic_years(e);
+    if years_on > 0 {
+        heavy.push(years(years_on));
+    }
+    let mut what =
+        "F1 25 keeps a fixed amount of memory for game data, and it filled up, so the game closed. More \
+                    memory in your PC doesn't change that."
+            .to_owned();
+    if !heavy.is_empty() {
+        what.push_str(&format!(
+            " Imported tracks and season packs use a lot of it, and your profile has {} on.",
+            list(&heavy)
+        ));
+    }
+    let mut steps = Vec::new();
+    if let Some(first) = tracks.first() {
+        let which = if e.tracks.iter().any(|t| t == SEPANG) {
+            first.clone()
+        } else {
+            list(&tracks)
+        };
+        steps.push(format!(
+            "Turn off {which} in your profile, or make a lighter profile without it for the sessions it crashes in."
+        ));
+    }
+    steps.push(if years_on > 0 {
+        "Turn on fewer imported tracks and only the Classic Seasons years you race.".to_owned()
+    } else {
+        "Play with fewer imported tracks and season addons on at once.".to_owned()
+    });
+    Diagnosis {
+        id: "game_heap",
+        title: "F1 25's game memory filled up".to_owned(),
+        what,
+        steps,
+    }
+}
+
+fn windows_memory(e: &Evidence) -> Diagnosis {
+    let years_on = classic_years(e);
+    let fewer = if years_on > 0 {
+        format!(
+            "Turn on only the Classic Seasons years you race; your profile has {} on.",
+            years(years_on)
+        )
+    } else {
+        "Play with fewer car, livery and track addons on at once.".to_owned()
+    };
+    Diagnosis {
+        id: "windows_out_of_memory",
+        title: "Windows ran out of memory".to_owned(),
+        what: "Windows had no memory left to give F1 25, so the game closed. This is your PC's memory (RAM and the \
+               page file), not the graphics card's."
+            .to_owned(),
+        steps: vec![
+            "Let Windows manage the page file: search Windows for View advanced system settings, open Performance \
+             Settings, Advanced, Virtual memory, Change, and tick Automatically manage paging file size for all \
+             drives. Keep 20 GB or more free on drive C."
+                .to_owned(),
+            "Close other programs, especially web browsers, while you play.".to_owned(),
+            fewer,
+        ],
+    }
+}
+
+fn hang(e: &Evidence, f: &Fatal, mods: &[(&'static str, Vec<String>)]) -> Diagnosis {
+    let mut what =
+        "F1 25 stopped responding for 30 seconds, so its own watchdog closed it. It froze rather than \
+                    crashed."
+            .to_owned();
+    let mut steps = Vec::new();
+    if let Some(addon) = busy_addon(e, f) {
+        let addon = name(e, &addon);
+        what.push_str(&format!(" {addon} kept the game busy while it froze."));
+        steps.push(format!("Turn off {addon} in your profile, then play again."));
+    } else if let Some((module, vendor, frame_gen)) = driver_error_before(e, f) {
+        let during = frame_gen.map(|w| format!(" during {w}")).unwrap_or_default();
+        what.push_str(&format!(
+            " Just before, F1 25 hit an error in {module}, part of the {vendor} graphics driver{during}."
+        ));
+        if frame_gen.is_some() {
+            steps.push(FRAME_GEN_OFF.to_owned());
+        }
+        steps.extend(
+            driver_steps()
+                .into_iter()
+                .filter(|s| frame_gen.is_none() || !s.starts_with("Turn off frame generation")),
+        );
+    }
+    if !mods.is_empty() {
+        what.push_str(&format!(
+            " Your game folder has {} installed, which hooks F1 25's graphics.",
+            tools(mods)
+        ));
+        steps.insert(0, move_out(mods));
+    }
+    if steps.is_empty() {
+        steps.push(
+            "Press Play again. If F1 25 freezes at the same place again, turn off the addons you turned on last."
+                .to_owned(),
+        );
+        steps.push(
+            "Close other programs while you play, especially ones that record or draw over the screen."
+                .to_owned(),
+        );
+    }
+    Diagnosis {
+        id: "hang_watchdog",
+        title: "F1 25 froze and closed itself".to_owned(),
+        what,
+        steps,
+    }
+}
+
 /// The cause of a crash, from the first rule that recognises it.
 pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
+    if e.code == Some(APP_CONTROL) {
+        return Some(app_control());
+    }
     let f = fatal(e);
     let loaded = loaded_modules(&e.loader);
     let mods = graphics_mods(&e.game_files, &loaded);
@@ -599,6 +1051,17 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
         });
     }
     let windows = !wine(e, &loaded);
+    if let Some((code, message)) = heap_error(e) {
+        if code == 0xc && message.contains("'GAME_DEFAULT'") {
+            return Some(game_heap(e));
+        }
+        if windows && windows_out_of_memory(code, &message) {
+            return Some(windows_memory(e));
+        }
+    }
+    if hang_watchdog(e, &f) {
+        return Some(hang(e, &f, &mods));
+    }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
         if overlay.removed.is_some() && overlay.drew && !overlay.painters.is_empty() {
@@ -620,11 +1083,16 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
                 steps,
             });
         }
-        let mut steps = Vec::new();
+        let (causes, mut steps) = graphics_causes(e);
         if !mods.is_empty() {
-            steps.push(move_out(&mods));
+            steps.insert(0, move_out(&mods));
         }
-        steps.extend(driver_steps());
+        let frame_gen = steps.iter().any(|s| s == FRAME_GEN_OFF);
+        steps.extend(
+            driver_steps()
+                .into_iter()
+                .filter(|s| !frame_gen || !s.starts_with("Turn off frame generation")),
+        );
         let also = if mods.is_empty() {
             String::new()
         } else {
@@ -633,37 +1101,47 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
                 tools(&mods)
             )
         };
+        let cause = if causes.is_empty() {
+            " This comes from the graphics card or its driver, not from Swofty's code."
+        } else {
+            causes.as_str()
+        };
         return Some(Diagnosis {
             id: "gpu_removed",
             title: "Your graphics driver stopped responding".to_owned(),
             what: format!(
                 "Windows reset the graphics driver while F1 25 was running (DXGI_ERROR_DEVICE_REMOVED). F1 25 can't \
-                 recover from that, so it closed. This comes from the graphics card or its driver, not from \
-                 Swofty's code.{also}"
+                 recover from that, so it closed.{cause}{also}"
             ),
             steps,
         });
     }
     if windows && out_of_memory(e) {
+        let (causes, mut steps) = graphics_causes(e);
+        steps.extend([
+            "Lower Texture Quality, and the resolution if it's above your screen's, in F1 25's graphics settings."
+                .to_owned(),
+            "Play with fewer car, livery and track addons on at once, for example only the Classic Seasons years \
+             you race."
+                .to_owned(),
+            "Close other programs, especially web browsers, while you play.".to_owned(),
+            "On a laptop with integrated graphics, give the graphics more memory if its settings allow it (often \
+             called UMA frame buffer size)."
+                .to_owned(),
+        ]);
+        let what = if causes.is_empty() {
+            " Car, livery and track addons use a lot of graphics memory, and several at once can use more than the \
+             graphics card has."
+        } else {
+            causes.as_str()
+        };
         return Some(Diagnosis {
             id: "out_of_memory",
             title: "F1 25 ran out of graphics memory".to_owned(),
-            what: "The game couldn't get the memory it asked for (E_OUTOFMEMORY), so it closed. Car, livery and \
-                   track addons use a lot of graphics memory, and several at once can use more than the graphics \
-                   card has."
-                .to_owned(),
-            steps: vec![
-                "Lower Texture Quality, and the resolution if it's above your screen's, in F1 25's graphics \
-                 settings."
-                    .to_owned(),
-                "Play with fewer car, livery and track addons on at once, for example only the Classic Seasons \
-                 years you race."
-                    .to_owned(),
-                "Close other programs, especially web browsers, while you play.".to_owned(),
-                "On a laptop with integrated graphics, give the graphics more memory if its settings allow it \
-                 (often called UMA frame buffer size)."
-                    .to_owned(),
-            ],
+            what: format!(
+                "The game couldn't get the memory it asked for (E_OUTOFMEMORY), so it closed.{what}"
+            ),
+            steps,
         });
     }
     let started = crate::launch::LoaderSeen::scan(&e.loader).window;
@@ -918,6 +1396,282 @@ mod tests {
         assert_eq!(diagnose(&ev("", &[])), None);
     }
 
+    const WATCHDOG: &str = "\
+2026-10-27 15:00:08.518 [3376] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 3376, 1083 s after load, at F1_25.exe+0x43e1113 .xtls fn base+0x43e10d0+0x43
+2026-10-27 15:00:08.518 [3376] [crash]   writing 0x1
+2026-10-27 15:00:08.518 [3376] [crash]   rax=0000000000000001 rbx=0000000000222200 rcx=00000000000077ae rdx=0000000000002065
+2026-10-27 15:00:08.518 [3376] [crash]   r12=000000014604b4f0 r13=000000000351fe88 r14=00000000000077ae r15=0000000000007530
+2026-10-27 15:00:08.519 [3376] [crash]   code: C7 00 BE CC 4B 28 48 83 C4 38 C3 CC CC 50 B8 01
+2026-10-27 15:00:08.519 [3376] [crash]   stack:
+2026-10-27 15:00:08.519 [3376] [crash]   #0  F1_25.exe+0x43e1113 .xtls fn base+0x43e10d0+0x43
+2026-10-27 15:00:08.519 [3376] [crash]   #1  KERNEL32.DLL+0x2dda7
+2026-10-27 15:00:08.520 [3376] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0x43e1113 .xtls fn base+0x43e10d0+0x43 reached the top-level filter; passing it to the game's filter
+";
+
+    fn with_names(mut e: Evidence, names: &[(&str, &str)]) -> Evidence {
+        e.names = names
+            .iter()
+            .map(|(id, n)| ((*id).to_owned(), (*n).to_owned()))
+            .collect();
+        e.enabled = e.names.keys().cloned().collect();
+        e
+    }
+
+    #[test]
+    fn the_hang_watchdog_is_a_freeze() {
+        let d = diagnose(&ev(WATCHDOG, &["F1_25.exe"])).unwrap();
+        assert_eq!(d.id, "hang_watchdog");
+        assert_eq!(d.title, "F1 25 froze and closed itself");
+        assert!(d.what.contains("stopped responding for 30 seconds"), "{}", d.what);
+        assert!(d.steps[0].starts_with("Press Play again"), "{:?}", d.steps);
+        let other = WATCHDOG.replace("r15=0000000000007530", "r15=0000000000000000");
+        assert_eq!(diagnose(&ev(&other, &["F1_25.exe"])), None);
+    }
+
+    #[test]
+    fn the_hang_watchdog_names_the_addon_that_kept_the_game_busy() {
+        let mut log = String::new();
+        for s in 0..8 {
+            log.push_str(&format!(
+                "2026-10-27 14:59:{:02}.807 [21888] [helmet-exchange] thumbnail requested for helmet {s}\n",
+                45 + s
+            ));
+        }
+        log.push_str("2026-10-27 14:59:58.000 [5672] [progressive] standings read\n");
+        log.push_str(WATCHDOG);
+        let e = with_names(
+            ev(&log, &["F1_25.exe"]),
+            &[
+                ("giggles.helmet-exchange", "Helmet Exchange"),
+                ("swofty.progressive", "Progressive Career"),
+            ],
+        );
+        let d = diagnose(&e).unwrap();
+        assert!(
+            d.what.contains("Helmet Exchange kept the game busy"),
+            "{}",
+            d.what
+        );
+        assert_eq!(
+            d.steps[0],
+            "Turn off Helmet Exchange in your profile, then play again."
+        );
+
+        let gap = format!(
+            "2026-10-27 14:59:37.896 [14804] [storage] api: swofty.progressive (progressive_cards.dll) read data/years.json -> ok\n\
+             2026-10-27 14:59:53.095 [28800] [game] WARN (warn): The signal timed out\n\
+             2026-10-27 15:00:06.111 [14804] [progressive] gamedb labels loaded\n{WATCHDOG}"
+        );
+        let e = with_names(ev(&gap, &[]), &[("swofty.progressive", "Progressive Career")]);
+        assert!(
+            diagnose(&e)
+                .unwrap()
+                .what
+                .contains("Progressive Career kept the game busy")
+        );
+
+        let idle = gap.replace("14:59:37.896", "14:58:20.000");
+        let e = with_names(ev(&idle, &[]), &[("swofty.progressive", "Progressive Career")]);
+        assert!(!diagnose(&e).unwrap().what.contains("kept the game busy"));
+    }
+
+    #[test]
+    fn the_hang_watchdog_names_a_driver_error_and_graphics_mods() {
+        let log = format!(
+            "2026-10-27 14:59:36.800 [9000] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 9000, 1050 s after load, at nvwgf2umx.dll+0x93d4c2\n\
+             2026-10-27 14:59:36.800 [9000] [crash]   stack:\n\
+             2026-10-27 14:59:36.800 [9000] [crash]   #0  nvwgf2umx.dll+0x93d4c2\n\
+             2026-10-27 14:59:36.800 [9000] [crash]   #1  sl.dlss_g.dll+0x1234\n{}",
+            WATCHDOG.replace("#1 first-chance", "#2 first-chance")
+        );
+        let d = diagnose(&ev(&log, &["F1_25.exe"])).unwrap();
+        assert_eq!(d.id, "hang_watchdog");
+        assert!(
+            d.what
+                .contains("nvwgf2umx.dll, part of the NVIDIA graphics driver during DLSS Frame Generation"),
+            "{}",
+            d.what
+        );
+        assert_eq!(d.steps[0], FRAME_GEN_OFF);
+        let d = diagnose(&ev(WATCHDOG, &["F1_25.exe", "dxgi.dll", "OptiScaler.ini"])).unwrap();
+        assert!(d.what.contains("OptiScaler"), "{}", d.what);
+        assert!(
+            d.steps[0].contains("dxgi.dll and OptiScaler.ini"),
+            "{}",
+            d.steps[0]
+        );
+    }
+
+    const GAME_HEAP: &str = "\
+2026-10-27 14:21:24.880 [17796] [crash] Ne heap error 0xc (fatal) on thread 17796: Allocation error. Requested size:3528, Free Memory:829408, Largest Free Block:1392, HeapSize:204472320, Alignment: 8; heap 00000000636F4590 'GAME_DEFAULT', capacity 204472320
+2026-10-27 14:21:24.880 [16100] [crash] writing a crash report: fatal Ne heap error 0xc in heap 'GAME_DEFAULT': Allocation error. Requested size:3528
+2026-10-27 14:21:25.000 [17796] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0x39182a4 .xtls Ne_FatalAbort+0x4 reached the top-level filter; passing it to the game's filter
+";
+
+    #[test]
+    fn a_full_game_heap_names_sepang_first() {
+        let mut e = with_names(
+            ev(GAME_HEAP, &[]),
+            &[
+                ("mod.hockenheim", "Hockenheim"),
+                ("mod.bahrain24", "Sepang"),
+                ("swofty.classic-seasons", "Classic Seasons"),
+                ("swofty.classic-seasons-2016", "Classic Seasons 2016"),
+                ("swofty.classic-seasons-2017", "Classic Seasons 2017"),
+            ],
+        );
+        e.tracks = vec!["mod.hockenheim".into(), "mod.bahrain24".into()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "game_heap");
+        assert!(
+            d.what
+                .contains("your profile has Sepang, Hockenheim and 2 Classic Seasons years on"),
+            "{}",
+            d.what
+        );
+        assert!(
+            d.steps[0].starts_with("Turn off Sepang in your profile"),
+            "{}",
+            d.steps[0]
+        );
+        let d = diagnose(&ev(GAME_HEAP, &[])).unwrap();
+        assert_eq!(d.id, "game_heap");
+        assert_eq!(d.steps.len(), 1);
+    }
+
+    const COMMIT: &str = "\
+2026-10-27 13:35:41.000 [15812] [crash] Ne heap error 0x58 (fatal) on thread 15812: FATAL ERROR : allocateAligned / useAddressSpace(block = 0xcdfe3a80, allocSize = 2088976) failed.Out of physical memory or Virtual memory problem; heap 0000000064243050 'RENDERER_INTERNAL'
+2026-10-27 13:35:41.100 [15812] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0x39182a4 .xtls Ne_FatalAbort+0x4 reached the top-level filter; passing it to the game's filter
+";
+
+    #[test]
+    fn windows_running_out_of_memory_is_not_the_graphics_card() {
+        let mut e = with_names(
+            ev(COMMIT, &[]),
+            &[("swofty.classic-seasons-2019", "Classic Seasons 2019")],
+        );
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "windows_out_of_memory");
+        assert!(d.what.contains("not the graphics card's"), "{}", d.what);
+        assert!(d.steps[0].contains("page file"), "{}", d.steps[0]);
+        assert!(d.steps[2].contains("1 Classic Seasons year on"), "{}", d.steps[2]);
+        let warned = COMMIT
+            .replace("0x58 (fatal)", "0x58 (not fatal)")
+            .replace("Ne_FatalAbort", "Other");
+        e.loader = warned;
+        assert_eq!(diagnose(&e), None);
+        e.loader =
+            format!("{COMMIT}2026-10-21 07:05:50.000 [1] [offline] module: winex11.drv @ 0x6ffffde80000\n");
+        assert_eq!(diagnose(&e), None);
+    }
+
+    #[test]
+    fn exit_code_0xc0e90002_is_app_control() {
+        let mut e = ev("", &[]);
+        e.code = Some(APP_CONTROL);
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "app_control");
+        assert!(
+            d.steps[0].contains("Smart App Control settings, and choose Off"),
+            "{}",
+            d.steps[0]
+        );
+    }
+
+    const RTSS: &str = "\
+2026-10-27 17:37:40.100 [1] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 1, 3 s after load, at ntdll.dll+0x4a612
+2026-10-27 17:37:40.100 [1] [crash]   reading 0xffffffffffffffff
+2026-10-27 17:37:40.100 [1] [crash]   stack:
+2026-10-27 17:37:40.100 [1] [crash]   #0  ntdll.dll+0x4a612
+2026-10-27 17:37:40.100 [1] [crash]   #1  ntdll.dll+0x1d3b2
+2026-10-27 17:37:40.100 [1] [crash]   #2  RTSSHooks64.dll+0x2a1b0
+2026-10-27 17:37:40.100 [1] [crash]   #3  RTSSHooks64.dll+0x2a0f0
+";
+
+    #[test]
+    fn a_first_chance_crash_without_an_unhandled_line_still_counts() {
+        let mut e = ev(RTSS, &[]);
+        e.code = Some(0xc000_0005);
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "third_party_hook");
+        assert!(d.title.contains("RivaTuner"), "{}", d.title);
+        e.code = Some(0xc000_0409);
+        assert_eq!(diagnose(&e), None);
+        e.code = None;
+        assert_eq!(diagnose(&e), None);
+    }
+
+    fn car_pack(winner: &str, loser: &str, resources: usize) -> Pair {
+        Pair {
+            winner: winner.into(),
+            loser: loser.into(),
+            resources,
+            items: vec![
+                "2025_asset_groups/f1_2025_vehicle_package/teams/ferrari/wep/ferrari.erp:eaid://ferrari.idf"
+                    .into(),
+            ],
+            ..Pair::default()
+        }
+    }
+
+    #[test]
+    fn a_removed_gpu_names_car_packs_and_frame_generation() {
+        let mut e = with_names(
+            ev(GPU, &["F1_25.exe"]),
+            &[
+                ("mod.f1-2016", "F1 2016 Cars"),
+                ("mod.f1-2018", "F1 2018 Cars"),
+                ("mod.livery", "Livery"),
+            ],
+        );
+        e.conflicts = vec![
+            car_pack("mod.f1-2018", "mod.f1-2016", 8902),
+            car_pack("mod.livery", "mod.f1-2018", 12),
+        ];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "gpu_removed");
+        assert!(!d.what.contains("not from Swofty's code"), "{}", d.what);
+        assert!(
+            d.what
+                .contains("F1 2016 Cars and F1 2018 Cars are all full car packs"),
+            "{}",
+            d.what
+        );
+        assert_eq!(
+            d.steps[0],
+            "Keep only one of F1 2016 Cars and F1 2018 Cars on in your profile."
+        );
+        e.conflicts.clear();
+        e.loader = format!(
+            "2026-10-24 02:50:00.000 [1] [overlay] the game's hardware settings (x.xml) have frame generation on (frame_gen mode 1, multi_frame_gen 1)\n{GPU}"
+        );
+        let d = diagnose(&e).unwrap();
+        assert!(d.what.contains("Frame generation was on"), "{}", d.what);
+        assert_eq!(d.steps[0], FRAME_GEN_OFF);
+        assert_eq!(
+            d.steps.iter().filter(|s| s.contains("frame generation")).count(),
+            1
+        );
+    }
+
+    /// The game folder's file names among the crash report's loaded modules.
+    fn game_folder_modules(report: &str) -> Vec<String> {
+        let exe = report
+            .lines()
+            .find_map(|l| l.strip_prefix("exe")?.trim().split(", ").next())
+            .unwrap_or_default();
+        let Some((folder, _)) = exe.rsplit_once('\\') else {
+            return Vec::new();
+        };
+        report
+            .lines()
+            .filter_map(|l| l.trim().split_once("  ").and(l.find(folder)).map(|i| &l[i..]))
+            .filter_map(|p| p.strip_prefix(folder)?.strip_prefix('\\'))
+            .filter(|rest| !rest.contains('\\'))
+            .map(str::to_owned)
+            .collect()
+    }
+
     /// `SWOFTY_KP_CASES=<folder of extracted Send Logs bundles> cargo test -p swofty-core --lib
     /// diagnoses_real_bundles -- --ignored --nocapture` prints each crashed session's diagnosis.
     #[test]
@@ -937,22 +1691,57 @@ mod tests {
             v.sort();
             v
         };
+        let json = |p: &Path| -> serde_json::Value {
+            read_capped(p)
+                .and_then(|t| serde_json::from_str(&t).ok())
+                .unwrap_or_default()
+        };
         for case in dirs(Path::new(&root)) {
             let logs = case.join("logs");
+            let addons = json(&logs.join("addons.json"));
+            let installed = addons["installed"].as_array().cloned().unwrap_or_default();
+            let names = installed
+                .iter()
+                .filter_map(|a| Some((a["id"].as_str()?.to_owned(), a["name"].as_str()?.to_owned())))
+                .collect();
+            let conflicts: crate::conflicts::Report =
+                serde_json::from_value(json(&logs.join("conflicts.json"))).unwrap_or_default();
+            let tracks = conflicts
+                .order
+                .iter()
+                .filter(|id| {
+                    installed
+                        .iter()
+                        .any(|a| a["id"].as_str() == Some(id.as_str()) && a["category"] == "tracks")
+                })
+                .cloned()
+                .collect();
             for session in dirs(&logs.join("sessions")) {
-                let Some(loader) = read_capped(&session.join("loader.log")) else {
-                    continue;
-                };
-                if !loader.contains("reached the top-level filter") {
+                let record = SessionRecord::read(&session);
+                let loader = ["loader.log", "game-logs/loader.log"]
+                    .iter()
+                    .find_map(|rel| read_capped(&session.join(rel)))
+                    .unwrap_or_default();
+                if !record.crashed() && !loader.contains("reached the top-level filter") {
                     continue;
                 }
                 let report = report_name(&loader).and_then(|n| read_capped(&logs.join("crash").join(n)));
-                let e = Evidence {
+                let game_files = report.as_deref().map(game_folder_modules).unwrap_or_default();
+                let mut e = Evidence::read(&record, None, BTreeMap::new());
+                e = Evidence {
                     loader,
                     report,
-                    ..Default::default()
+                    game_files,
+                    names: BTreeMap::clone(&names),
+                    enabled: conflicts.order.clone(),
+                    tracks: Vec::clone(&tracks),
+                    conflicts: conflicts.pairs.clone(),
+                    ..e
                 };
-                let found = diagnose(&e).map_or_else(|| "-".to_owned(), |d| format!("{}\t{}", d.id, d.title));
+                let found = diagnose(&e).map_or_else(
+                    || "-".to_owned(),
+                    |d| format!("{}\t{}\t{}", d.id, d.title, d.text()),
+                );
                 println!(
                     "KP\t{}\t{}\t{found}",
                     case.file_name().unwrap().to_string_lossy(),

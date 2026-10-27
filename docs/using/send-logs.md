@@ -25,16 +25,20 @@ When a game session ends in a crash, the launcher opens a full-window **F1 25 cr
 
 | Cause | What the launcher looks for |
 |---|---|
-| Your graphics driver stopped responding | `DXGI_ERROR_DEVICE_REMOVED` (`0x887a0005`) in the crash. When Swofty's in-game overlay drew just before, the screen names the addons it drew for |
+| Windows blocked Swofty's files from loading | Exit code `0xc0e90002`, from Smart App Control or an app control policy |
+| F1 25's game memory filled up | `Ne heap error 0xc` in the `GAME_DEFAULT` heap. The screen names the imported tracks on in the profile, Sepang first, and the number of Classic Seasons years |
+| Windows ran out of memory | `Ne heap error 0x58` or `0x5`, or an `allocateAligned` / `useAddressSpace` failure: RAM and the page file are used up |
+| F1 25 froze and closed itself | F1 25's own 30-second hang watchdog closed the game. The screen names an addon that kept the game busy while it froze, a graphics driver error just before it, and graphics mods in the game folder |
+| Your graphics driver stopped responding | `DXGI_ERROR_DEVICE_REMOVED` (`0x887a0005`) in the crash. When Swofty's in-game overlay drew just before, the screen names the addons it drew for. It also names full car packs on at once that replace each other's cars, and frame generation when it is on |
 | F1 25 ran out of graphics memory | `E_OUTOFMEMORY` (`0x8007000e`) in the crash |
-| A program that hooks into games | The crash in RivaTuner Statistics Server, Windhawk, Medal, Discord's overlay, OBS Studio's game capture, the NVIDIA app's overlay, the Steam overlay, Special K, or Windows' force feedback driver for a wheel (`pid.dll`) |
+| A program that hooks into games | The crash in RivaTuner Statistics Server, Windhawk, Medal, Discord's overlay, OBS Studio's game capture, the NVIDIA app's overlay, the Steam overlay, Special K, or Windows' force feedback driver for a wheel (`pid.dll`). With no unhandled exception and no crash report, the last exception the mod loader saw counts when the game's exit code matches it |
 | Graphics mods in the game folder | ReShade, OptiScaler, Special K or an ASI loader in the game folder, and a crash in graphics code or before the game's window opened |
 | A crash in the graphics driver | The crash in an NVIDIA, AMD or Intel driver DLL |
 | A crash in frame generation | The crash in DLSS Frame Generation or XeSS frame generation |
 
-Under Wine or Proton, the graphics driver and memory checks are skipped.
+Under Wine or Proton, the graphics driver, graphics memory and Windows memory checks are skipped.
 
-A session counts as a crash when it ended with a crash exit code or an exception the mod loader saw. A game that closes with another code, such as -1, shows as closed, not crashed. The screen opens by itself for a crash from the last 15 minutes. The play bar keeps **Crashed** with the cause, and **What happened** opens the screen again. `state/wrapper-run.log` gets a `[crash] known problem <id>: <title>` line, or `[crash] no known problem matches this crash`.
+A session counts as a crash when it ended with a crash exit code or an exception the mod loader saw, including a game the EA app started. A game that closes with another code, such as -1, shows as closed, not crashed. The screen opens by itself for a crash from the last 15 minutes. The play bar keeps **Crashed** with the cause, and **What happened** opens the screen again. `state/wrapper-run.log` gets a `[crash] known problem <id>: <title>` line, or `[crash] no known problem matches this crash`.
 
 ## Send the zip yourself
 
@@ -52,7 +56,7 @@ The logs go to the developers' Discord as one zip file, `swofty-logs-<username>-
 
 | In the zip | Contents |
 |---|---|
-| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory, the game's version and folder, a line when no launch log or game session was found, the addons on in the profile that draw over the game and, for each session, whether the overlay drew and which addons drew, a summary of the latest crash report, the game files Windows keeps for you in `%LOCALAPPDATA%\VirtualStore` instead of the game folder, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
+| `summary.txt` | Your username and message, the launcher version, your operating system, CPU and memory (on Windows also the page file and the commit limit), the game's version and folder, a line when no launch log or game session was found, the addons on in the profile that draw over the game and, for each session, whether the overlay drew and which addons drew, a summary of the latest crash report, the game files Windows keeps for you in `%LOCALAPPDATA%\VirtualStore` instead of the game folder, the summary of the latest performance report, and the active profile's addons by name: those on in load order, then the rest, each with its version, id, where it came from (built in, DB Editor, imported from which mod file, or installed) and the settings changed from their defaults |
 | `crash/crash-<time>.txt`, `crash/crash-<time>.dmp` | The newest crash report the game wrote and its minidump, when there is one. The minidump is left out, noted in the summary, when it is too big for the zip |
 | `game/loader.log`, `game/perf.log` | The loader log and the performance report of the game that's running |
 | `state/*.log` | The launcher's own logs, such as `launcher-run.log` and `wrapper-run.log`, and `loader-fallback.log`, the loader's log when the game couldn't write in its folder |

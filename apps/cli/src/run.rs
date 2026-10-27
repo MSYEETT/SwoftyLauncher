@@ -918,12 +918,8 @@ fn play(
 /// The known problem a crashed session matches, for the session log and Send
 /// Logs; the launcher shows the same diagnosis to the player.
 fn note_known_problem(store: &Store, game: &Path, dir: &Path) {
-    let names = store
-        .addons()
-        .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
-        .unwrap_or_default();
     let record = SessionRecord::read(dir);
-    match swofty_core::known_problems::crash(&record, Some(game), names) {
+    match swofty_core::known_problems::crash(&record, Some(game), store) {
         Some(d) => say("crash", &format!("known problem {}: {}", d.id, d.title)),
         None => say("crash", "no known problem matches this crash"),
     }

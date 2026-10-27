@@ -724,12 +724,8 @@ impl Shell {
                     .background_executor()
                     .spawn(async move {
                         let summary = game::crash_summary(&session, game_dir.as_deref());
-                        let names = store
-                            .addons()
-                            .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
-                            .unwrap_or_default();
                         let diagnosis =
-                            swofty_core::known_problems::crash(&session, game_dir.as_deref(), names);
+                            swofty_core::known_problems::crash(&session, game_dir.as_deref(), &store);
                         (summary, diagnosis)
                     })
                     .await;
