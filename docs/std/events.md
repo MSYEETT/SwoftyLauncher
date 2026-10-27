@@ -147,7 +147,7 @@ game
    ├─ session.flag                 notify                                                                   1.x flag
    ├─ session.safety_car           notify
    ├─ session.red_flag             notify
-   ├─ session.penalty              cancel
+   ├─ session.penalty.issue        cancel
    ├─ session.car.status           notify    retired, disqualified, terminal damage
    ├─ session.player.control       cancel    who drives the player's car
    ├─ session.finish               notify
@@ -248,7 +248,7 @@ The owner's `replace` runs first in its own content, so it decides how the game 
 // Classic Seasons 2017: races in the 2017 package start on 2017 fuel loads
 on<tracks::events::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
     .replace([](tracks::events::FuelLoad &f, const Context &) {
-        f.kg = cs::fuel_2017(f.track_game_id);
+        f.kg = cs::fuel_2017(f.track);
         return true;
     });
 ```

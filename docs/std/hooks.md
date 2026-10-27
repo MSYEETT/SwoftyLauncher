@@ -123,24 +123,27 @@ The core installs a game hook point's mixin only once an addon subscribes to it.
 An addon can define its own point and fire it, so other addons can extend it:
 
 ```cpp
-// progressive.dll: let other addons adjust a season just before Progressive applies it
+// api/progressive_api/hooks.hpp: let other addons adjust a season just before Progressive applies it
+namespace progressive_api {
 struct SeasonApply {
-    static constexpr const char *point = "progressive.season.apply";
+    static constexpr const char *point = "swofty.progressive.season.apply";
     static constexpr uint32_t version = 1;
     uint32_t size;
     uint32_t payload_version;
     int year;
     swofty::career::Season *season;    // before handlers may change it
 };
+}
 
+// progressive.dll
 SWOFTY_ON_LOAD
 {
-    swofty::hooks::define<SeasonApply>();
+    swofty::hooks::define<progressive_api::SeasonApply>();
 }
 
 void apply_season(swofty::career::Season season)
 {
-    SeasonApply p{ sizeof(SeasonApply), SeasonApply::version, season.year, &season };
+    progressive_api::SeasonApply p{ sizeof p, progressive_api::SeasonApply::version, season.year, &season };
     if (!swofty::hooks::fire(p))                 // false: a replace handler applied it instead
         return;
     swofty::career::apply_lineup(season);

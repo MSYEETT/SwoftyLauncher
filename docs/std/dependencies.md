@@ -44,7 +44,7 @@ In code, the same is stated where it's used. The core checks it in game, and the
 SWOFTY_REGISTER
 {
     using namespace swofty;
-    auto sochi   = tracks::tracks["venue/sochi"].optional();                    // optional: the round is dropped without it
+    auto sochi   = tracks::venues["venue/sochi"].optional();                    // optional: the round is dropped without it
     auto ferrari = cars::vehicles["swofty.classic-seasons-2017/ferrari"];       // a hard reference: required
 }
 ```
@@ -77,8 +77,8 @@ SWOFTY_REGISTER
     using namespace swofty;
     tracks::tracks.add("sochi", {                                  // "mod.sochi/sochi"
         .code = "sochi",
-        .slot = tracks::tracks["game/sochi"],
         .name = "Sochi Autodrom",
+        .slot = tracks::tracks["game/sochi"],
         .provides = { tracks::venues["venue/sochi"] },
     });
 }
@@ -102,10 +102,10 @@ SWOFTY_REGISTER
 The registry's owner sets what may happen when a referenced record isn't there. The author of the referencing record picks within that:
 
 ```json
-// the content.package schema: a calendar round's track
-"track": {
+// the career.calendar schema: a round's venue
+"venue": {
   "type": "string",
-  "x-ref": "track",
+  "x-ref": "track.venue",
   "x-missing": { "default": "required", "allow": ["required", "optional", "fallback"], "drop": "element" }
 }
 ```
@@ -119,31 +119,31 @@ In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and 
 
 ```cpp
 // swofty.classic-seasons-2016's calendar
-.calendar = {
-    { .round = 4,  .race = "lng_gp_russia",   .track = tracks::tracks["venue/sochi"].optional() },
-    { .round = 12, .race = "lng_gp_germany",  .track = tracks::tracks["venue/hockenheimring"].optional() },
-    { .round = 16, .race = "lng_gp_malaysia", .track = tracks::tracks["venue/sepang"].or_else(tracks::tracks["game/bahrain"]) },
+.rounds = {
+    { .round = 4,  .race = Text::key("lng_gp_russia"),   .venue = tracks::venues["venue/sochi"].optional() },
+    { .round = 12, .race = Text::key("lng_gp_germany"),  .venue = tracks::venues["venue/hockenheimring"].optional() },
+    { .round = 16, .race = Text::key("lng_gp_malaysia"), .venue = tracks::venues["venue/sepang"].or_else(tracks::venues["venue/bahrain"]) },
 }
 ```
 
 ```json
-"calendar": [
-  { "round": 4,  "race": "lng_gp_russia",   "track": "venue/sochi?" },
-  { "round": 12, "race": "lng_gp_germany",  "track": "venue/hockenheimring?" },
-  { "round": 16, "race": "lng_gp_malaysia", "track": "venue/sepang|game/bahrain" }
+"rounds": [
+  { "round": 4,  "race": "lng_gp_russia",   "venue": "venue/sochi?" },
+  { "round": 12, "race": "lng_gp_germany",  "venue": "venue/hockenheimring?" },
+  { "round": 16, "race": "lng_gp_malaysia", "venue": "venue/sepang|venue/bahrain" }
 ]
 ```
 
 ```text
 "venue/sochi"                   required: the record doesn't resolve without it
 "venue/sochi?"                  optional: drop the element (here the calendar round) when nothing provides it
-"venue/sepang|game/bahrain"     fallback chain: the first one that resolves
+"venue/sepang|venue/bahrain"   fallback chain: the first one that resolves
 ```
 
-Readers get the resolved value, never the modifiers. `content::packages.status(id)` lists what was dropped or replaced:
+Readers get the resolved value, never the modifiers. `career::calendars.status(id)` lists what was dropped or replaced:
 
 ```text
-[registry] content.package swofty.classic-seasons-2016/f1_2016: calendar round 12 dropped (venue/hockenheimring: no
+[registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 12 dropped (venue/hockenheimring: no
            enabled track provides it; optional); round 16 races at mod.bahrain24/sepang
 ```
 

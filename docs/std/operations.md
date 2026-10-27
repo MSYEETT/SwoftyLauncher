@@ -81,12 +81,12 @@ Result set_car_number(Ref<drivers::Identity> driver, int number);
 }
 // swofty/systems/teams.hpp
 namespace swofty::teams {
-Result set_logo(Ref<Identity> team, std::string_view logo_key);
-Result set_name(Ref<Identity> team, std::string_view lang_key);
+Result set_logo(Ref<Identity> team, Ref<Logo> logo);
+Result set_name(Ref<Identity> team, Names names);
 }
 // swofty/systems/tracks.hpp
 namespace swofty::tracks {
-Result set_track_fuel(Ref<Track> track, const TrackFuel &fuel);        // per-career, put back on unload
+Result set_track_fuel(Ref<Track> track, const Fuel &fuel);             // per-career, put back on unload
 }
 ```
 
