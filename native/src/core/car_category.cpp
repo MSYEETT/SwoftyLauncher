@@ -98,7 +98,7 @@ struct Forced {
     int prior = -1, ours = -1;
 };
 
-std::mutex lock;
+std::recursive_mutex lock;
 std::atomic<bool> offered, settled, live, off;
 std::string off_why;
 alignas(16) uint8_t tiles[logic::MAX_ADDED][TILE_BYTES];
@@ -285,7 +285,7 @@ void build_entry(void *vm)
 {
     auto *v = static_cast<uint8_t *>(vm);
     {
-        std::lock_guard<std::mutex> g(lock);
+        std::lock_guard<std::recursive_mutex> g(lock);
         release_tiles();
         restore_forced("the Car Category screen was built again");
         chosen.clear();
@@ -293,7 +293,7 @@ void build_entry(void *vm)
     build_orig(vm);
     if (!live || off || !mem::readable(v, VM_SPAN))
         return;
-    std::lock_guard<std::mutex> g(lock);
+    std::lock_guard<std::recursive_mutex> g(lock);
     uint8_t *list = at<uint8_t *>(v, VM_LIST_NODE);
     size_t before = children(list);
     if (before == SIZE_MAX) {
@@ -356,7 +356,7 @@ char *press_entry(void *vm, void *command)
     if (!cmd || !mem::readable(cmd, 4))
         return press_orig(vm, command);
     uint32_t hash = *cmd;
-    std::unique_lock<std::mutex> g(lock);
+    std::unique_lock<std::recursive_mutex> g(lock);
     if (hash == logic::BUTTON_1 || hash == logic::BUTTON_2) {
         if (!chosen.empty() || forced.option)
             swofty::log("[car-category] stock box %s pressed; the addon category is dropped", hash == logic::BUTTON_1 ? "F1 2025" : "F1 2026");
@@ -391,7 +391,7 @@ char *press_entry(void *vm, void *command)
 
 void setup_entry(void *self)
 {
-    std::unique_lock<std::mutex> g(lock);
+    std::unique_lock<std::recursive_mutex> g(lock);
     std::string want = chosen;
     if (!want.empty()) {
         std::string why;
