@@ -263,7 +263,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Reading", link: "/std/reading", icon: "file" },
               { text: "Layers", link: "/std/layers", icon: "file" },
               { text: "Scopes and snapshots", link: "/std/scopes", icon: "file" },
-              { text: "Build time and run time", link: "/std/build", icon: "file" },
+              { text: "When changes apply", link: "/std/build", icon: "file" },
               { text: "Versioning", link: "/std/versioning", icon: "file" },
             ],
           },
