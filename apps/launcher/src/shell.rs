@@ -859,6 +859,7 @@ impl Shell {
         Blocked::clear(&self.store.root).ok();
         self.blocked_seen = game::blocked_at(&self.store.root).unwrap_or(0.0);
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
+        self.note_lonely_bases(window, cx);
         match Launch::start(
             &self.store,
             &self.library.profile.name,
@@ -878,6 +879,42 @@ impl Shell {
             }
         }
         cx.notify();
+    }
+
+    /// A base addon on with none of the addons that build on it, such as
+    /// Classic Seasons with no season: say which to install. Play goes on.
+    fn note_lonely_bases(&self, window: &mut Window, cx: &mut Context<Self>) {
+        let (Ok(profile), Ok(installed)) = (
+            self.store.profile(&self.library.profile.name),
+            self.store.addons(),
+        ) else {
+            return;
+        };
+        let catalog = swofty_core::catalog::cached(&self.store.root).unwrap_or_default();
+        for (base, family) in swofty_core::resolver::lonely_bases(&profile, &installed, &catalog) {
+            if installed
+                .values()
+                .any(|m| m.name == base && self.store.is_builtin(&m.id))
+            {
+                continue;
+            }
+            let shown = family.iter().take(4).cloned().collect::<Vec<_>>().join(", ");
+            let more = family.len().saturating_sub(4);
+            let more = if more > 0 {
+                format!(" and {more} more")
+            } else {
+                String::new()
+            };
+            window.push_notification(
+                Notification::warning(format!(
+                    "{base} is on, but none of the addons that build on it are, so it adds nothing to pick on its \
+                     own. Install one in the Addon Browser, such as {shown}{more}."
+                ))
+                .title(format!("{base} needs one of its addons"))
+                .autohide(false),
+                cx,
+            );
+        }
     }
 
     pub(crate) fn launch_mode(&self) -> LaunchMode {
