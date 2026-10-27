@@ -98,7 +98,7 @@ inline Registry<Season> seasons{"career.season", { .applies = Applies::read, .sn
 struct Round {
     int round = 0;
     Text race;                                 // the race name: "lng_gp_usa"
-    Ref<tracks::Venue> venue;                  // resolves to the first enabled track that provides it
+    Ref<tracks::Venue> venue;                  // resolves to the enabled track that provides it (the last in load order)
     std::chrono::year_month_day date;          // the game dates weekends from the track data in the mode's year
 };
 SWOFTY_RECORD(Round, round, race, venue, date)

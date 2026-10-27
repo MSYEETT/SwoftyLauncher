@@ -103,7 +103,7 @@ The public docs for 1.6 are written by hand. Nothing in them is generated.
 The Developers section opens with what you can build, then the guides, then the registry and its subfeatures, then the game systems, and only then the parts that connect addons:
 
 - **Start here:** what you can build, what an addon is, your first addon, the templates.
-- **Guides** at `/make/` (`/guide/` is the player guide). Each one builds one addon from an empty folder to publishing: the folder, `swofty.json`, the code, trying it in game, what happens when something it needs is missing, and publishing. There are seven:
+- **[Guides](/make/)** (`/guide/` is the player guide). Each one builds one addon from an empty folder to publishing: the folder, `swofty.json`, the code, trying it in game, what happens when something it needs is missing, and publishing. There are seven:
   - a what-if history editor;
   - an engine sound pack;
   - a livery;

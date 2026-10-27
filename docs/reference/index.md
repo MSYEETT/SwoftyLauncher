@@ -98,7 +98,7 @@ swofty run --apply    # Time Trial, F1 2017, Ferrari
 
 ## The parts of the docs
 
-- **Guides** <!-- link /make/ once the Guides section lands -->: build one addon from start to finish. The first is [Build a what-if history editor](/make/what-if).
+- **[Guides](/make/)**: build one real addon from an empty folder to publishing: a livery, an engine sound pack, a what-if history editor, a track, a year pack, a career mode, or a system of your own.
 - **[The registry](/std/)**: what every addon builds on. Records under your own keys, providers, layers, bases and variants, scopes, when changes apply, versioning.
 - **[Game systems](/std/systems/)**: one page per system the game has: cars, liveries, teams, drivers, helmets and suits, sounds, tracks, tyres, power units, sessions and weekends, weather, AI, career, UI and strings, graphics. Each says what you can provide and change, the hook points, and the limits.
   - **[Your own systems](/std/systems/custom)**: bring a system the game doesn't have, and let others extend it.
