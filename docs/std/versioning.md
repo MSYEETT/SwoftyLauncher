@@ -156,17 +156,17 @@ SWOFTY_REGISTER
         [](career::Season s) {                     // 1 -> 2: upgrade
             career::v2::Season out{ .data_group = s.data_group, .year = s.year, .changes = s.changes };
             for (const career::SeasonTeam &t : s.teams)
-                out.teams.push_back({ .slot = t.slot, .team = t.team,
-                                      .seats = { { { .driver = t.seats[0] }, { .driver = t.seats[1] } } },
-                                      .reserve = t.reserve });
+                out.teams.at(t.slot) = { .slot = t.slot, .team = t.team,
+                                         .seats = { { { .driver = t.seats[0] }, { .driver = t.seats[1] } } },
+                                         .reserve = t.reserve };
             return out;
         },
         [](career::v2::Season s) {                 // 2 -> 1: downgrade for old readers
             career::Season out{ .data_group = s.data_group, .year = s.year, .changes = s.changes };
             for (const career::v2::SeasonTeam &t : s.teams)
-                out.teams.push_back({ .slot = t.slot, .team = t.team,
-                                      .seats = { t.seats[0].driver, t.seats[1].driver },
-                                      .reserve = t.reserve });
+                out.teams.at(t.slot) = { .slot = t.slot, .team = t.team,
+                                         .seats = { t.seats[0].driver, t.seats[1].driver },
+                                         .reserve = t.reserve };
             return out;
         });
 }

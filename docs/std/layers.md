@@ -177,7 +177,7 @@ SWOFTY_ADDON()
 
 ```text
 [registry] ai.vehicle_config: kizi.ai-tweaks selector (ai_tweaks.cpp:10) matched 612 records
-           (519 game/, 80 swofty.classic-seasons-*, 13 f1990), edit applied to each
+           (519 game/, 80 swofty.classic-seasons-*, 13 swofty.f1-1990/), edit applied to each
 ```
 
 The forms a selector takes:
@@ -350,5 +350,5 @@ The layer, from the data tab above, gives the same effective value as the edit:
 - **Lists that aren't keyed** (`seats`) are replaced whole, as in RFC 7396.
 - **`"$delete": true`** with an element's key fields removes that element from a keyed list.
 - **A key the base doesn't have** is appended.
-- **`"$select"`** holds selector layers: `where` matches fields (`{ "class": "f1" }`), one of several values (`{ "class": ["f1", "f1_26"] }`) or a numeric range (`{ "season": { "min": 2016, "max": 2019 } }`); `ids` matches a prefix (`"swofty.classic-seasons-2017/*"`, or `"*"` with `"except": ["game/safety_car"]`).
+- **`"$select"`** holds selector layers: `where` matches fields (`{ "class": "f1" }`), one of several values (`{ "class": ["f1", "f1_26"] }`) or a numeric range (`{ "year": { "min": 2016, "max": 2019 } }`); `ids` matches a prefix (`"swofty.classic-seasons-2017/*"`, or `"*"` with `"except": ["game/safety_car"]`). An entry with both `ids` and `where` matches records that pass both.
 - **`"when"`** binds a layer to an option: `is` for one value, `in` for several, `on`/`off` for a toggle.

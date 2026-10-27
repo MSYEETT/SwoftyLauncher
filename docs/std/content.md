@@ -78,6 +78,7 @@ Today Classic Seasons 2017 ships its season as about 700 build operations: car p
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
+#include <swofty/systems/liveries.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
 
@@ -221,7 +222,7 @@ SWOFTY_ADDON()
 </Split>
 
 ```text
-[registry] register: mod.esp (esp.dll) 1 engine_sound, 1 layer on vehicle (early stage, 0.4 ms)
+[registry] register: mod.esp (esp.dll) 1 engine_sound, 1 layer on content.package (early stage, 0.4 ms)
 [registry] content.package swofty.classic-seasons-2017/f1_2017: edit by mod.esp changed /teams/key=ferrari/engine_sound,
            /teams/key=mercedes/engine_sound, /teams/key=redbull/engine_sound -> mod.esp/v10_screamer
 [registry] applied at boot: engine_sound 1 (1 bundle served in memory)

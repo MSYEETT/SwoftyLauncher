@@ -74,7 +74,43 @@ SWOFTY_ADDON()
 ```cpp
 namespace swofty {
 
+enum class Applies { boot, content, session, read };   // when the game reads the registry's data
+enum class Scope { global, profile, career };          // how long a layer lasts and what it applies to
+enum class Status { ok, no_record, no_registry, invalid, late };   // why get returned nothing
+
+struct RegistryOptions {
+    Applies applies = Applies::read;                   // x-applies
+    bool snapshot = false;                             // frozen into each new career (x-snapshot)
+    std::size_t snapshot_budget;                       // bytes after compression, per career (x-snapshot-budget)
+};
+
+struct Text {                                          // a lang key or a literal; a plain string converts to Text::key
+    static Text key(std::string_view lang_key);
+    static Text literal(std::string_view text);
+};
+struct Colour { Colour(std::string_view hex); Colour(uint32_t argb); };   // "#22A45D" or 0xFF22A45D
+struct Curve { static Curve flat(float from, float to, float value); };  // a game curve: one value over a range
+struct VtfSection { static VtfSection read(Path vtf); };               // one VTF section, decoded
+
+template <class T> class Ref {                         // a typed reference to a record, by id
+public:
+    std::string_view id() const;
+    Ref optional() const;                              // missing: the element that holds it is dropped
+    Ref or_else(Ref other) const;                      // missing: the fallback
+    bool resolved() const;
+};
+
 template <class T> using Edit = std::function<void(T &)>;
+
+template <class T> class Select {                      // a selector: every match, now and later
+public:
+    Select except(std::vector<Ref<T>> ids) const;      // every match but these ids
+};
+template <class T> Select<T> where(std::function<bool(const T &)> match);   // runs on the base value
+template <class T> Select<T> under(std::string_view id_prefix);             // ids under a prefix
+
+template <class V> V option(std::string_view id);      // one of your addon's options; an edit that reads it re-runs when it changes
+Path file(std::string_view path);                      // a file in your addon's folder
 
 template <class T> class Registry {
 public:
@@ -103,6 +139,10 @@ public:
     Token watch(std::function<void(Ref<T>)> fn);
 };
 
+// a second major of a registry: convert both ways, and upgrade old snapshots
+template <class A, class B> void adapter(Registry<A> &from, Registry<B> &to, std::function<B(A)> up, std::function<A(B)> down);
+template <class A, class B> void migrate(Registry<A> &from, Registry<B> &to, std::function<B(A)> fn);
+
 }
 ```
 
@@ -111,7 +151,8 @@ public:
 - `get`, `status`, `all`, `origin`, `watch`: [Reading](/std/reading).
 - `layer`, `clear_layer`, `check`, `where`, `under`, `option`: [Layers](/std/layers).
 - `Scope`: [Scopes and snapshots](/std/scopes).
-- `RegistryOptions`: when the game reads the data, in [When changes apply](/std/build).
+- `RegistryOptions`, `Applies`: when the game reads the data, in [When changes apply](/std/build).
+- `Ref`: [Dependencies and guards](/std/dependencies). `adapter`, `migrate`: [Versioning](/std/versioning).
 
 `SWOFTY_REGISTER` runs once per game start, at the early stage, addon by addon in load order. You can also call the handle from `SWOFTY_ON_LOAD` and later, while the game runs: the change takes effect the next time the game reads that data.
 
@@ -120,14 +161,15 @@ public:
 The core owns the registries that describe the game. Their handles live in one header per system under `swofty/systems/`, next to the system's events (`swofty::<system>::events`), hook payloads and operations (`swofty::cars::set_attribute(...)`):
 
 ```text
-swofty/registry.hpp            Registry<T>, Ref<T>, Edit<T>, Select<T>, Scope, SWOFTY_REGISTER, swofty::option<T>()
+swofty/registry.hpp            Registry<T>, Ref<T>, Edit<T>, Select<T>, Scope, RegistryOptions, Applies, Status, SWOFTY_RECORD,
+                               Keyed<T, &T::key...>, SWOFTY_REGISTER, swofty::option<T>(), file(), adapter(), migrate()
 swofty/systems/cars.hpp        swofty::cars      vehicles, packages, handling, damage_models, parts
 swofty/systems/liveries.hpp    swofty::liveries  liveries, decal_sets, sponsor_packs, ai_assignments
 swofty/systems/teams.hpp       swofty::teams     identities, logos, pit_times
 swofty/systems/drivers.hpp     swofty::drivers   identities, heads, looks, stats
 swofty/systems/wearables.hpp   swofty::wearables helmets, suits, gloves, season_sets
 swofty/systems/sounds.hpp      swofty::sounds    engine_sounds, car_audio
-swofty/systems/tracks.hpp      swofty::tracks    tracks, venues, data, layers, slots, ai_lines
+swofty/systems/tracks.hpp      swofty::tracks    tracks, venues, data, per_package, layers, slots, ai_lines
 swofty/systems/tyres.hpp       swofty::tyres     physical, visual, classes, per_event, allocations, wear_scales, rules
 swofty/systems/power.hpp       swofty::power     units, suppliers, drs_rules, component_rules
 swofty/systems/sessions.hpp    swofty::sessions  modes, formats, lengths, points, rules_profiles, safety_car, grids
@@ -263,7 +305,7 @@ career.season                                  <- registry
   swofty.progressive/2016                      <- record id: <addon id>/<key>
   swofty.progressive/2017                      { data_group: "f1_career_progressive", year: 2017, teams: [...] }
 career.driver_ratings
-  swofty.progressive/2017/max_verstappen       { overall: 88, experience: 74, ... }
+  swofty.progressive/2017/max_verstappen       { driver: "game/max_verstappen", experience: 74, ... }
 engine_sound
   game/ferrari_2025                            <- the core's record of the stock game
 ```
@@ -274,7 +316,7 @@ engine_sound
 
 ## Rules
 
-- **Registry names** are dotted and lowercase. The core uses `career.`, `team.`, `driver.`, `session.`, `lang.`, `era.`, `hub.` and `addon.`. An addon's own registry starts with its id.
+- **Registry names** are dotted and lowercase. The core's are named after their system (`vehicle`, `track.data`, `tyre.class`, `career.season`, `session.mode`, `lang.string`, `era.box`, `hub.tab`, `addon.option`), and each system page lists them. An addon's own registry starts with its id.
 - **Values** are at most 1 MB as JSON.
 - **A record has one base** from one [provider](/std/providers), or it's a [variant](/std/bases#build-a-variant-with-extends) of another record. Every change on top of it is a [layer](/std/layers).
 - **Every write is validated** (the struct, every `Ref`, the owner's `check`) before it becomes visible.

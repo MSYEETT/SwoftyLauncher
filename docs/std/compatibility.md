@@ -46,7 +46,10 @@ What the 2.0 core does with those two calls, written as the 2.0 API:
 
 ```cpp
 // provided in swofty.classic-seasons-2016's name: id "swofty.classic-seasons-2016/cs_f1_2016"
-content::era_boxes.add("cs_f1_2016", { .entrant_list = "cs_f1_2016", .title = "lng_cs_era_2016", .image = {}, .order = 0 });
+content::era_boxes.add("cs_f1_2016", {
+    .package = content::packages["swofty.classic-seasons-2016/cs_f1_2016"],   // the package of 1.x entrant list cs_f1_2016
+    .title = "lng_cs_era_2016", .image = {}, .order = 0,
+});
 
 // swofty.classic-seasons-2016's global layer, in its load-order position
 ui::strings.layer(ui::strings["game/lng_team_mer_title"], [](ui::String &s) {

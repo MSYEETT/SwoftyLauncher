@@ -98,7 +98,7 @@ Each registry says when the game reads its data, with `RegistryOptions::applies`
 ```cpp
 inline Registry<Vehicle> vehicles{"vehicle", { .applies = Applies::boot }};
 inline Registry<Package> packages{"content.package", { .applies = Applies::content }};
-inline Registry<RulesProfile> rules_profiles{"session.rules_profile", { .applies = Applies::session }};
+inline Registry<TrackData> data{"track.data", { .applies = Applies::session }};
 inline Registry<Season> seasons{"career.season", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
 ```
 

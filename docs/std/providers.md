@@ -45,8 +45,8 @@ SWOFTY_REGISTER
             s.teams.at(e.slot) = { .slot = e.slot, .team = team(e.team),
                                    .seats = { driver(e.seats[0]), driver(e.seats[1]) } };
         for (const progressive::Swap &c : y.swaps)
-            s.changes.push_back({ .round = c.round, .slot = c.slot, .seat = c.seat,
-                                  .out = driver(c.out), .in = driver(c.in), .kind = career::ChangeKind::swap });
+            s.changes.at(c.round, c.slot, c.seat) = { .round = c.round, .slot = c.slot, .seat = c.seat,
+                                                      .out = driver(c.out), .in = driver(c.in), .kind = career::ChangeKind::swap };
         career::seasons.add(std::to_string(y.year), std::move(s));          // "swofty.progressive/2016"
     }
 }

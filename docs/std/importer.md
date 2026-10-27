@@ -18,36 +18,32 @@ mod.macarena-red-bull-v1-0/
   swofty.json            unchanged
   ops/erp.json           unchanged: the overlay, 325 resources
   erp/overlay.erp        unchanged
-  registry.json          new: what the addon provides and layers (only a 2.0 launcher reads it)
   registry/content.json  new: the livery record
-  layers/vehicle.json    new: point the Red Bull at the livery
-  layers/vehicle.handling.json   new: the two handling files, as their own layer
+  registry/layers.json   new: point the Red Bull at the livery; the two handling files, as their own layer
   registry/raw.json      new: every op, split into slices, each claimed by a record or kept raw
 ```
 
 ```json
-// registry/content.json
+// registry/content.json: "redbull_2026" becomes mod.macarena-red-bull-v1-0/redbull_2026
 {
   "livery": {
-    "mod.macarena-red-bull-v1-0/redbull_2026": {
-      "model": "game/redbull_2026",
-      "name": "Macarena Red Bull",
-      "textures": { "erp": "erp/overlay.erp", "prefix": "eaid://f1_2026_vehicle_package/teams/redbull/", "kinds": ["textures", "materials"] }
+    "redbull_2026": {
+      "vehicle": "game/redbull_2026",
+      "textures": { "erp": "erp/overlay.erp", "prefix": "eaid://f1_2026_vehicle_package/teams/redbull/", "kinds": ["textures", "materials"] },
+      "picker_name": "Macarena Red Bull"
     }
   }
 }
 ```
 
 ```json
-// layers/vehicle.json, a layer of vehicle "game/redbull_2026"
-{ "game/redbull_2026": { "livery": "mod.macarena-red-bull-v1-0/redbull_2026" } }
-```
-
-```json
-// layers/vehicle.handling.json, a layer of vehicle.handling "game/redbull_2026"
-{ "game/redbull_2026": { "vtf": { "erp": "erp/overlay.erp", "resources": [
-  "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
-  "eaid://f1_2026_vehicle_package/teams/fom_car_redbull/handling/fom_car_redbull.vtf" ] } } }
+// registry/layers.json: a layer of vehicle "game/redbull_2026" and one of vehicle.handling "game/redbull_2026"
+{
+  "vehicle": { "game/redbull_2026": { "livery": "mod.macarena-red-bull-v1-0/redbull_2026" } },
+  "vehicle.handling": { "game/redbull_2026": { "vtf": { "erp": "erp/overlay.erp", "resources": [
+    "eaid://f1_2026_vehicle_package/teams/redbull/handling/redbull.vtf",
+    "eaid://f1_2026_vehicle_package/teams/fom_car_redbull/handling/fom_car_redbull.vtf" ] } } }
+}
 ```
 
 Now the livery and the handling are separate fields. When R&D Tyres layers `vehicle.handling` and loads after the mod, R&D's handling wins and the livery still loads. The conflicts view offers the fix in one click:
@@ -113,7 +109,7 @@ special livery se_livery and unlockable_se_livery rows plus <t><wep_override>.er
 helmet         helmet archives and their item rows                      -> helmet
 engine sound   audio/2025/bundles/<maker>_<year>.bdl                    -> engine_sound layer on that maker
 identity       named team and driver rows and their text                -> team.identity / driver.identity layers
-tyre visuals   slick texture arrays and their mipmaps                   -> tyre visual layer
+tyre visuals   slick texture arrays and their mipmaps                   -> tyre.visual layer
 season pack    car archives for 3 or more teams in one vehicle package  -> one vehicle per team, plus a dormant
                                                                            content.package variant
 ```
@@ -203,12 +199,15 @@ A car pack for a whole season (fanfreluche's F1 2020 cars, F1 2012 Temporada) is
 ```json
 {
   "vehicle": {
-    "mod.f1-2020-cars-for-f1-25/ferrari": { "extends": "game/ferrari_2025", "model": { "erp": "erp/overlay-4.erp" },
-                                            "livery": "mod.f1-2020-cars-for-f1-25/ferrari", "handling": { "erp": "erp/overlay-4.erp" } }
+    "ferrari": { "extends": "game/ferrari_2025", "model": { "erp": "erp/overlay-4.erp" },
+                 "livery": "mod.f1-2020-cars-for-f1-25/ferrari", "handling": "mod.f1-2020-cars-for-f1-25/ferrari" }
+  },
+  "vehicle.handling": {
+    "ferrari": { "vtf": { "erp": "erp/overlay-4.erp" } }
   },
   "content.package": {
-    "mod.f1-2020-cars-for-f1-25/f1_2020": { "extends": "game/f1_2025", "title": "F1 2020 cars for F1 25",
-                                            "teams": [ { "key": "ferrari", "vehicle": "mod.f1-2020-cars-for-f1-25/ferrari" } ] }
+    "f1_2020": { "extends": "game/f1_2025", "title": "F1 2020 cars for F1 25",
+                 "teams": [ { "key": "ferrari", "vehicle": "mod.f1-2020-cars-for-f1-25/ferrari" } ] }
   }
 }
 ```
@@ -226,7 +225,7 @@ On upgrade, a startup pass indexes every already-imported mod in place:
 ```
 
 - **Nothing is reconverted.** The pass writes only the new files; `ops/`, the archives and `swofty.json` keep their bytes, so the build hash doesn't change.
-- **Downgrading to 1.5 still works.** `swofty.json` is untouched, and 1.5 never opens `registry.json`.
+- **Downgrading to 1.5 still works.** `swofty.json` is untouched, and 1.5 never opens `registry/`.
 - **The importer itself** ships a new major release that needs launcher 2.0. A 1.x launcher keeps getting the newest 0.11.x.
 
 ## What the importer provides

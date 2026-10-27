@@ -161,8 +161,8 @@ An addon's own registry takes the same options.
 using namespace swofty;
 
 // the core's declarations, in swofty/systems/career.hpp:
-//   inline Registry<Season> seasons{"career.season", { .snapshot = true, .snapshot_budget = 65536 }};
-//   inline Registry<DriverRatings> ratings{"career.driver_ratings", { .snapshot = true, .snapshot_budget = 65536 }};
+//   inline Registry<Season> seasons{"career.season", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
+//   inline Registry<DriverRatings> ratings{"career.driver_ratings", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
 
 // an addon's own registry, frozen into each career too
 struct Preset {
@@ -234,8 +234,8 @@ swofty::migrate(career::seasons, career::v2::seasons, [](career::Season v1) {
     for (const career::SeasonTeam &t : v1.teams) {
         career::v2::SeasonTeam &team = v2.teams.at(t.slot);
         team.team = t.team;
-        for (const Ref<drivers::Identity> &d : t.seats)
-            team.seats.push_back({ .driver = d, .number = std::nullopt });
+        for (std::size_t i = 0; i < t.seats.size(); ++i)
+            team.seats[i] = { .driver = t.seats[i], .number = std::nullopt };
     }
     v2.changes = v1.changes;
     return v2;

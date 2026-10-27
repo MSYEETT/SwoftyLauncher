@@ -206,7 +206,7 @@ SWOFTY_REGISTER
 
 ```text
 [registry] career.mode swofty.progressive/progressive: variant of game/f1_career_2026
-           + layer from kizi.simulate-sessions on game/f1_career_2026 (/sessions/simulate) flows in
+           + layer from kizi.simulate-sessions on game/f1_career_2026 flows in
 ```
 
 The core writes the variant as its own rows with its own stat ids, the same rows the copy makes today, plus every change on the base.
