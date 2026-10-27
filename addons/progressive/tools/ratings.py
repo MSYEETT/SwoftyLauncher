@@ -1,24 +1,17 @@
 """Per-year driver ratings for data/years.json (`ratings`): every driver of a season, the five statistics the game
 keeps per driver (experience, racecraft, awareness, pace, focus) and the overall rating they make.
 
-2025 and 2026 are the stock game's: the value at the start of a career (x = 0) of the driver's `default` dataset
-(F1 25's 2025 ratings) and of his `2026` dataset (the 2026 season update; `default` when he has none).
-
-2016-2024 start from Classic Seasons' per-season pace rating (classic-seasons/data/performance.json, the qualifying
-gap fit anchored on the stock 2025 pace, tools/performance.py there):
-    pace         the season's Classic Seasons pace (a driver without one that season: his nearest season's, else
-                 his stock 2025 pace, else the season's slowest)
-    racecraft,   his stock 2025 value moved by the same amount as his pace (season pace - stock 2025 pace)
-    awareness
-    experience   his stock 2025 value moved along the stock game's experience scale by real race starts:
-                 + f(starts before the season) - f(starts before 2025), f the monotone fit of the stock 2025
-                 experience of the 2025 grid over their starts before 2025 (pool-adjacent-violators, linear in
-                 between); starts from data/rounds.json (2016-2025 race entries) and PRE_2016_STARTS
-    focus        his stock 2025 value
-A driver without stock statistics of his own (Classic Seasons adds a copy of de Vries' for him) gets racecraft,
-awareness and focus from his pace with the median offsets of the stock drivers, and experience f(starts).
-overall is the game's weighted mean (driver_statistics_info weighting_factor: experience 0.25, racecraft 1,
-awareness 0.25, pace 2, focus 0).
+    2026        the stock gamedb's 2026 dataset at the start of a career (x = 0; `default` without one)
+    2025        the stock default dataset at x = 0, which is EA's F1 25 launch ratings
+    2020-2024   EA/Codemasters' launch ratings of that season's game (data/official_ratings.json,
+                tools/official_ratings.py); a driver the launch table leaves out (stand-ins, 2020 McLaren) gets the
+                model's
+    2016-2019   the model (data/ratings_model.json, tools/ratings_model.py): racecraft, awareness and pace from real
+                results, calibrated on the 2020-2025 launch ratings; experience from race starts
+focus is the driver's stock value (sources give none; a driver without stock statistics gets the stock median). A
+driver neither has (none so far) falls back to Classic Seasons' season pace with the other statistics moved from his
+stock 2025 ones. overall is the game's weighted mean (driver_statistics_info weighting_factor: experience 0.25,
+racecraft 1, awareness 0.25, pace 2, focus 0); `official_overall` keeps EA's published overall where there is one.
 """
 import re
 import statistics
@@ -102,10 +95,13 @@ def starts_before(starts, driver, year):
 
 
 def monotone_fit(points):
-    """Pool-adjacent-violators over (x, y) sorted by x: a non-decreasing step fit, as (x, y) knots."""
+    """Pool-adjacent-violators over (x, y) (equal x pooled first): a non-decreasing fit, as (x, y) knots."""
+    by_x = {}
+    for x, y in points:
+        by_x.setdefault(x, []).append(y)
     blocks = []
-    for x, y in sorted(points):
-        blocks.append([x, x, y, 1])
+    for x in sorted(by_x):
+        blocks.append([x, x, sum(by_x[x]) / len(by_x[x]), len(by_x[x])])
         while len(blocks) > 1 and blocks[-2][2] > blocks[-1][2]:
             b = blocks.pop()
             a = blocks[-1]
@@ -141,7 +137,7 @@ def season_drivers(y):
     return list(dict.fromkeys(out))
 
 
-def build(db, years, performance, rounds):
+def build(db, years, performance, rounds, official, model):
     stock = stock_stats(db)
     infos = stat_infos(db)
     starts = starts_by_year(rounds)
@@ -156,6 +152,10 @@ def build(db, years, performance, rounds):
     for y, p in performance.items():
         for d, v in p["pace"].items():
             pace_by_driver.setdefault(d, {})[int(y)] = v
+    model_error = model["fit_error_loo"]["overall"]["mae"]
+
+    def focus_of(driver):
+        return stock[driver]["default"]["focus"] if driver in stock else generic_focus
 
     def season_pace(driver, year):
         mine = pace_by_driver.get(driver, {})
@@ -171,37 +171,67 @@ def build(db, years, performance, rounds):
             return min(season.values()), "no pace data: the season's slowest Classic Seasons pace"
         return None, None
 
+    def fallback(driver, year):
+        pace, how = season_pace(driver, year)
+        if pace is None:
+            return None, None
+        n = starts_before(starts, driver, year)
+        if driver in stock:
+            base = stock[driver]["default"]
+            delta = pace - base["pace"]
+            return ({"experience": base["experience"] + interp(knots, n) - interp(
+                knots, starts_before(starts, driver, 2025)), "racecraft": base["racecraft"] + delta,
+                "awareness": base["awareness"] + delta, "pace": pace, "focus": base["focus"]},
+                f"fallback: {how}; others from stock 2025 moved by {delta:+.1f} pace and {n} starts")
+        return ({"experience": interp(knots, n), "racecraft": pace + offsets["racecraft"],
+                 "awareness": pace + offsets["awareness"], "pace": pace, "focus": generic_focus},
+                f"fallback: {how}; no stock statistics: others from pace and {n} starts")
+
     out = {}
+    counts = {}
     for key in sorted(years, key=int):
         year = int(key)
         rows = {}
+        launch = official.get(key)
+        predicted = model["years"].get(key, {})
         for driver in season_drivers(years[key]):
             if driver.startswith("missing:"):
                 continue
+            extra = {}
             if year in STOCK_YEARS:
                 sets = stock.get(driver)
                 if not sets:
                     continue
-                v = dict(sets["2026"] if year == 2026 and "2026" in sets else sets["default"])
-                source = "stock 2026 dataset" if year == 2026 and "2026" in sets else "stock default (2025) dataset"
+                use_2026 = year == 2026 and "2026" in sets
+                v = dict(sets["2026"] if use_2026 else sets["default"])
+                source = "stock 2026 dataset" if use_2026 else "stock default dataset (EA's F1 25 launch ratings)"
+                if launch and driver in launch["drivers"]:
+                    extra["official_overall"] = launch["drivers"][driver]["overall"]
+                kind = "stock"
+            elif launch and driver in launch["drivers"]:
+                o = launch["drivers"][driver]
+                v = {k: o[k] for k in ("experience", "racecraft", "awareness", "pace")}
+                v["focus"] = focus_of(driver)
+                source = f"EA {launch['game']} launch ratings ({launch['sources'][0]})"
+                extra["official_overall"] = o["overall"]
+                kind = "official"
+            elif driver in predicted:
+                m = predicted[driver]
+                v = {k: m[k] for k in ("experience", "racecraft", "awareness", "pace")}
+                v["focus"] = focus_of(driver)
+                source = (f"model from {year} results (tools/ratings_model.py, leave-one-out overall error "
+                          f"{model_error} on the 2020-2025 launch ratings)")
+                kind = "model"
             else:
-                pace, how = season_pace(driver, year)
-                if pace is None:
+                v, source = fallback(driver, year)
+                if v is None:
                     continue
-                n = starts_before(starts, driver, year)
-                if driver in stock:
-                    base = stock[driver]["default"]
-                    delta = pace - base["pace"]
-                    v = {"experience": base["experience"] + interp(knots, n) - interp(
-                             knots, starts_before(starts, driver, 2025)),
-                         "racecraft": base["racecraft"] + delta, "awareness": base["awareness"] + delta,
-                         "pace": pace, "focus": base["focus"]}
-                    source = f"{how}; others from stock 2025 moved by {delta:+.1f} pace and {n} starts"
-                else:
-                    v = {"experience": interp(knots, n), "racecraft": pace + offsets["racecraft"],
-                         "awareness": pace + offsets["awareness"], "pace": pace, "focus": generic_focus}
-                    source = f"{how}; no stock statistics: others from pace (median stock offsets) and {n} starts"
+                kind = "fallback"
+            counts[kind] = counts.get(kind, 0) + 1
             v = {s: clamp(v[s]) for s in STATS}
-            rows[driver] = {**v, "overall": overall(v, infos), "source": source}
+            rows[driver] = {**v, "overall": overall(v, infos), **extra, "source": source}
         out[key] = rows
-    return {"stats": infos, "experience_scale": [[round(x, 1), round(y, 2)] for x, y in knots], "years": out}
+    return {"stats": infos, "sources": {k: {"game": v["game"], "urls": v["sources"], "note": v["note"]}
+                                        for k, v in official.items()},
+            "model": {"fit_error_loo": model["fit_error_loo"], "calibration": model["calibration"]},
+            "counts": counts, "years": out}

@@ -71,12 +71,20 @@ void data_mapping(const Data &d, const progressive::season::Data &s)
     if (max17 && seb17 && ham17) {
         EXPECT(max17->overall < max26->overall - 3);
         EXPECT(max17->v[0] < max26->v[0] - 10);
-        EXPECT(ham17->overall > max17->overall);
-        EXPECT(seb17->overall > 87);
-        EXPECT(near(max17->v[3], 91.7) && near(seb17->v[3], 88.0) && near(ham17->v[3], 90.0));
+        EXPECT(ham17->overall >= 92 && seb17->overall >= 92);
+        EXPECT(ham17->overall > max17->overall + 3 && seb17->overall > max17->overall + 3);
         std::printf("2017: Verstappen %s overall %.1f, Vettel overall %.1f, Hamilton overall %.1f\n",
                     max17->source.c_str(), max17->overall, seb17->overall, ham17->overall);
     }
+
+    const Values *ham21 = d.find(2021, "lewis_hamilton");
+    EXPECT(ham21 && near(ham21->v[0], 92) && near(ham21->v[1], 94) && near(ham21->v[2], 89) && near(ham21->v[3], 98));
+    EXPECT(ham21 && ham21->source.find("F1 2021 launch") != std::string::npos);
+    const Values *nor20 = d.find(2020, "lando_norris");
+    EXPECT(nor20 && nor20->source.find("model") != std::string::npos);
+    const Values *ham16 = d.find(2016, "lewis_hamilton");
+    const Values *ros16 = d.find(2016, "nico_rosberg");
+    EXPECT(ham16 && ros16 && ham16->overall > 91 && ros16->overall > 91);
 
     for (auto &[year, drivers] : d.years)
         for (auto &[label, v] : drivers) {

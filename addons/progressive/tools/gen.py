@@ -970,13 +970,16 @@ def main():
             "ratings": "per year, every driver of the season (line-up, stand-ins, mid-season changes): the base value "
                        "of each driver statistic (`stats`: name, the game's stat_id and overall weight) and the "
                        "overall rating they make, written into the career at each season's first Team HQ "
-                       "(tools/ratings.py: 2025/2026 stock datasets at career start; 2016-2024 Classic Seasons pace "
-                       "with the other statistics moved from stock 2025 by the pace change and real race starts)",
+                       "(tools/ratings.py: 2026 the stock 2026 dataset, 2025 the stock default = EA's F1 25 launch "
+                       "ratings, 2020-2024 EA's launch ratings of that season's game, 2016-2019 and drivers the "
+                       "launch tables leave out the model of tools/ratings_model.py; focus stock)",
         },
         "seasons": years,
         "pool": pool,
         "logo_keys": cs_logo_keys(),
-        "ratings": ratings.build(stock.db, years, performance()[0], rounds),
+        "ratings": ratings.build(stock.db, years, performance()[0], rounds,
+                                 json.loads((ROOT / "data" / "official_ratings.json").read_text())["years"],
+                                 json.loads((ROOT / "data" / "ratings_model.json").read_text())),
     }
     write_json(ROOT / "data" / "years.json", doc)
     write_json(ROOT / "db" / "career.json", career_ops(stock))

@@ -243,7 +243,7 @@
   "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries (data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track `track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his real `number` and `look` (that team and year, else that team's nearest year, else his look that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in (`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
   "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver",
   "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the career team slots in constructors' order, `drivers` the drivers in game labels; the season-start order of the career's standings",
-  "ratings": "per year, every driver of the season (line-up, stand-ins, mid-season changes): the base value of each driver statistic (`stats`: name, the game's stat_id and overall weight) and the overall rating they make, written into the career at each season's first Team HQ (tools/ratings.py: 2025/2026 stock datasets at career start; 2016-2024 Classic Seasons pace with the other statistics moved from stock 2025 by the pace change and real race starts)"
+  "ratings": "per year, every driver of the season (line-up, stand-ins, mid-season changes): the base value of each driver statistic (`stats`: name, the game's stat_id and overall weight) and the overall rating they make, written into the career at each season's first Team HQ (tools/ratings.py: 2026 the stock 2026 dataset, 2025 the stock default = EA's F1 25 launch ratings, 2020-2024 EA's launch ratings of that season's game, 2016-2019 and drivers the launch tables leave out the model of tools/ratings_model.py; focus stock)"
  },
  "seasons": {
   "2016": {
@@ -13505,1896 +13505,1993 @@
     "weight": 0.0
    }
   ],
-  "experience_scale": [
-   [
-    0.0,
-    50.0
-   ],
-   [
-    0.0,
-    50.0
-   ],
-   [
-    0.0,
-    51.0
-   ],
-   [
-    1.0,
-    51.0
-   ],
-   [
-    3.0,
-    52.0
-   ],
-   [
-    9.0,
-    52.0
-   ],
-   [
-    11.0,
-    54.0
-   ],
-   [
-    46.0,
-    72.0
-   ],
-   [
-    90.0,
-    77.0
-   ],
-   [
-    105.0,
-    81.0
-   ],
-   [
-    128.0,
-    81.0
-   ],
-   [
-    128.0,
-    81.0
-   ],
-   [
-    149.0,
-    81.0
-   ],
-   [
-    155.0,
-    81.5
-   ],
-   [
-    168.0,
-    83.0
-   ],
-   [
-    208.0,
-    87.0
-   ],
-   [
-    209.0,
-    87.0
-   ],
-   [
-    230.0,
-    87.0
-   ],
-   [
-    356.0,
-    98.0
-   ],
-   [
-    402.0,
-    99.0
-   ]
-  ],
+  "sources": {
+   "2020": {
+    "game": "F1 2020",
+    "urls": [
+     "https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/",
+     "https://www.gpfans.com/en/f1-news/53262/f1-2020-lewis-hamilton-driver-rating-revealed",
+     "https://www.gpfans.com/en/f1-news/53294/f1-2020-ferrari-driver-ratings-revealed"
+    ],
+    "note": "Codemasters' launch ratings as published team by team (June 2020); McLaren's were not found"
+   },
+   "2021": {
+    "game": "F1 2021",
+    "urls": [
+     "https://boxthislap.org/f1-2021-ratings-revealed/"
+    ],
+    "note": "launch ratings (July 2021)"
+   },
+   "2022": {
+    "game": "F1 22",
+    "urls": [
+     "https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/"
+    ],
+    "note": "launch ratings (24 June 2022, data through Monaco)"
+   },
+   "2023": {
+    "game": "F1 23",
+    "urls": [
+     "https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/"
+    ],
+    "note": "initial ratings (June 2023)"
+   },
+   "2024": {
+    "game": "F1 24",
+    "urls": [
+     "https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge"
+    ],
+    "note": "launch ratings (May 2024)"
+   },
+   "2025": {
+    "game": "F1 25",
+    "urls": [
+     "https://insider-gaming.com/f1-25-ratings-all-driver-ratings-listed/",
+     "https://traxion.gg/verstappen-heads-f1-25-games-driver-ratings-piastri-eighth/"
+    ],
+    "note": "launch ratings (May 2025); the same as the stock gamedb's default dataset"
+   }
+  },
+  "model": {
+   "fit_error_loo": {
+    "racecraft": {
+     "mae": 3.83,
+     "max": 15.0
+    },
+    "awareness": {
+     "mae": 5.09,
+     "max": 20.0
+    },
+    "pace": {
+     "mae": 2.68,
+     "max": 13.2
+    },
+    "experience": {
+     "mae": 4.12,
+     "max": 27.6
+    },
+    "overall": {
+     "mae": 1.98,
+     "max": 11.1
+    },
+    "overall_from_official_stats": {
+     "mae": 0.68,
+     "max": 3.5
+    }
+   },
+   "calibration": "118 driver-seasons 2020-2025"
+  },
+  "counts": {
+   "model": 101,
+   "official": 98,
+   "stock": 43
+  },
   "years": {
    "2016": {
     "lewis_hamilton": {
-     "experience": 82.9,
-     "racecraft": 93.0,
-     "awareness": 93.0,
-     "pace": 90.0,
+     "experience": 79.9,
+     "racecraft": 96.8,
+     "awareness": 87.3,
+     "pace": 93.7,
      "focus": 80.1,
-     "overall": 90.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.0 pace and 167 starts"
+     "overall": 93.1,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nico_rosberg": {
-     "experience": 84.7,
-     "racecraft": 90.9,
-     "awareness": 82.9,
-     "pace": 88.9,
+     "experience": 82.8,
+     "racecraft": 91.9,
+     "awareness": 91.5,
+     "pace": 93.0,
      "focus": 80.9,
-     "overall": 88.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 185 starts"
+     "overall": 91.9,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sebastian_vettel": {
-     "experience": 81.7,
-     "racecraft": 93.1,
-     "awareness": 84.1,
-     "pace": 87.1,
+     "experience": 79.8,
+     "racecraft": 94.5,
+     "awareness": 86.5,
+     "pace": 90.6,
      "focus": 83.9,
-     "overall": 88.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.1 pace and 158 starts"
+     "overall": 90.6,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kimi_raikkonen": {
-     "experience": 88.6,
-     "racecraft": 91.3,
-     "awareness": 84.3,
-     "pace": 86.3,
+     "experience": 87.8,
+     "racecraft": 88.7,
+     "awareness": 87.0,
+     "pace": 87.4,
      "focus": 86.8,
      "overall": 87.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 229 starts"
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniel_ricciardo": {
-     "experience": 76.4,
-     "racecraft": 90.6,
-     "awareness": 94.6,
-     "pace": 91.6,
+     "experience": 68.1,
+     "racecraft": 89.4,
+     "awareness": 89.5,
+     "pace": 90.6,
      "focus": 72.4,
-     "overall": 90.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +9.6 pace and 88 starts"
+     "overall": 88.6,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "max_verstappen": {
-     "experience": 58.1,
-     "racecraft": 90.6,
-     "awareness": 79.6,
-     "pace": 90.6,
+     "experience": 55.2,
+     "racecraft": 87.1,
+     "awareness": 85.5,
+     "pace": 86.6,
      "focus": 75.0,
-     "overall": 87.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.4 pace and 19 starts"
+     "overall": 84.4,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "fernando_alonso": {
-     "experience": 88.9,
-     "racecraft": 90.4,
-     "awareness": 81.4,
-     "pace": 87.4,
+     "experience": 90.3,
+     "racecraft": 89.1,
+     "awareness": 84.4,
+     "pace": 85.8,
      "focus": 92.9,
-     "overall": 87.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 252 starts"
+     "overall": 87.0,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jenson_button": {
-     "experience": 94.1,
-     "racecraft": 94.0,
-     "awareness": 95.0,
-     "pace": 85.0,
+     "experience": 92.6,
+     "racecraft": 86.3,
+     "awareness": 82.0,
+     "pace": 81.0,
      "focus": 87.9,
-     "overall": 88.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 284 starts"
+     "overall": 83.4,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergio_perez": {
-     "experience": 77.5,
-     "racecraft": 94.7,
-     "awareness": 80.7,
-     "pace": 86.7,
+     "experience": 69.6,
+     "racecraft": 87.0,
+     "awareness": 86.7,
+     "pace": 84.6,
      "focus": 83.2,
-     "overall": 87.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.7 pace and 94 starts"
+     "overall": 84.4,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nico_hulkenberg": {
-     "experience": 78.6,
-     "racecraft": 91.7,
-     "awareness": 90.7,
-     "pace": 87.7,
+     "experience": 70.2,
+     "racecraft": 85.2,
+     "awareness": 84.1,
+     "pace": 84.4,
      "focus": 85.9,
-     "overall": 88.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.7 pace and 96 starts"
+     "overall": 83.6,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kevin_magnussen": {
-     "experience": 55.4,
-     "racecraft": 69.5,
-     "awareness": 73.5,
-     "pace": 76.5,
+     "experience": 55.2,
+     "racecraft": 81.1,
+     "awareness": 79.9,
+     "pace": 78.3,
      "focus": 83.2,
-     "overall": 72.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.5 pace and 19 starts"
+     "overall": 77.6,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jolyon_palmer": {
-     "experience": 50.0,
-     "racecraft": 78.0,
-     "awareness": 70.0,
-     "pace": 76.0,
+     "experience": 49.2,
+     "racecraft": 75.8,
+     "awareness": 73.5,
+     "pace": 71.3,
      "focus": 80.9,
-     "overall": 74.3,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 71.2,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "felipe_massa": {
-     "experience": 88.6,
-     "racecraft": 88.5,
-     "awareness": 86.5,
-     "pace": 85.5,
+     "experience": 87.8,
+     "racecraft": 86.3,
+     "awareness": 85.5,
+     "pace": 83.0,
      "focus": 84.6,
-     "overall": 86.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 229 starts"
+     "overall": 84.5,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "valtteri_bottas": {
-     "experience": 72.7,
-     "racecraft": 76.1,
-     "awareness": 99.0,
-     "pace": 87.1,
+     "experience": 63.4,
+     "racecraft": 83.6,
+     "awareness": 85.7,
+     "pace": 85.3,
      "focus": 77.3,
-     "overall": 83.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.1 pace and 56 starts"
+     "overall": 83.3,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "carlos_sainz-jr": {
-     "experience": 58.1,
-     "racecraft": 95.2,
-     "awareness": 87.2,
-     "pace": 87.2,
+     "experience": 55.2,
+     "racecraft": 82.2,
+     "awareness": 81.9,
+     "pace": 83.0,
      "focus": 91.3,
-     "overall": 87.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.8 pace and 19 starts"
+     "overall": 80.7,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniil_kvyat": {
-     "experience": 67.4,
-     "racecraft": 86.8,
-     "awareness": 78.8,
-     "pace": 84.8,
+     "experience": 58.1,
+     "racecraft": 81.4,
+     "awareness": 79.3,
+     "pace": 77.5,
      "focus": 80.9,
-     "overall": 83.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 37 starts"
+     "overall": 77.4,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "marcus_ericsson": {
-     "experience": 66.3,
-     "racecraft": 83.9,
+     "experience": 58.0,
+     "racecraft": 82.2,
      "awareness": 75.9,
-     "pace": 81.9,
+     "pace": 75.7,
      "focus": 80.9,
-     "overall": 80.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 35 starts"
+     "overall": 76.3,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "felipe_nasr": {
-     "experience": 58.1,
-     "racecraft": 82.7,
-     "awareness": 74.7,
-     "pace": 80.7,
+     "experience": 55.2,
+     "racecraft": 77.1,
+     "awareness": 82.4,
+     "pace": 76.4,
      "focus": 80.9,
-     "overall": 79.2,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 19 starts"
+     "overall": 75.5,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "romain_grosjean": {
-     "experience": 76.2,
-     "racecraft": 80.5,
-     "awareness": 72.5,
-     "pace": 78.5,
+     "experience": 67.0,
+     "racecraft": 83.2,
+     "awareness": 83.6,
+     "pace": 82.8,
      "focus": 80.9,
-     "overall": 78.5,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 83 starts"
+     "overall": 81.8,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "esteban_gutierrez": {
-     "experience": 67.9,
-     "racecraft": 79.9,
-     "awareness": 71.9,
-     "pace": 77.9,
+     "experience": 58.1,
+     "racecraft": 77.9,
+     "awareness": 78.9,
+     "pace": 77.3,
      "focus": 80.9,
-     "overall": 77.3,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 38 starts"
+     "overall": 76.2,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "pascal_wehrlein": {
-     "experience": 50.0,
-     "racecraft": 85.0,
-     "awareness": 77.0,
-     "pace": 83.0,
+     "experience": 49.2,
+     "racecraft": 73.8,
+     "awareness": 76.7,
+     "pace": 75.3,
      "focus": 80.9,
-     "overall": 80.8,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 73.1,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "rio_haryanto": {
-     "experience": 50.0,
-     "racecraft": 82.7,
-     "awareness": 74.7,
-     "pace": 80.7,
+     "experience": 49.2,
+     "racecraft": 66.0,
+     "awareness": 74.8,
+     "pace": 65.3,
      "focus": 80.9,
-     "overall": 78.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 65.0,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "stoffel_vandoorne": {
-     "experience": 50.0,
-     "racecraft": 84.9,
-     "awareness": 76.9,
-     "pace": 82.9,
+     "experience": 49.2,
+     "racecraft": 76.0,
+     "awareness": 71.9,
+     "pace": 73.8,
      "focus": 80.9,
-     "overall": 80.7,
-     "source": "Classic Seasons pace of 2017; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 72.5,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "esteban_ocon": {
-     "experience": 49.4,
-     "racecraft": 86.6,
-     "awareness": 79.6,
-     "pace": 85.6,
+     "experience": 49.2,
+     "racecraft": 74.1,
+     "awareness": 73.2,
+     "pace": 68.4,
      "focus": 61.7,
-     "overall": 82.9,
-     "source": "Classic Seasons pace of 2017; others from stock 2025 moved by +0.6 pace and 0 starts"
+     "overall": 69.0,
+     "source": "model from 2016 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2017": {
     "lewis_hamilton": {
-     "experience": 85.0,
-     "racecraft": 93.0,
-     "awareness": 93.0,
-     "pace": 90.0,
+     "experience": 83.4,
+     "racecraft": 95.8,
+     "awareness": 88.4,
+     "pace": 93.9,
      "focus": 80.1,
-     "overall": 90.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.0 pace and 188 starts"
+     "overall": 93.3,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "valtteri_bottas": {
-     "experience": 75.1,
-     "racecraft": 75.8,
-     "awareness": 99.0,
-     "pace": 86.8,
+     "experience": 65.7,
+     "racecraft": 88.1,
+     "awareness": 87.9,
+     "pace": 88.6,
      "focus": 77.3,
-     "overall": 83.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 77 starts"
+     "overall": 86.8,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sebastian_vettel": {
-     "experience": 84.0,
-     "racecraft": 94.0,
-     "awareness": 85.0,
-     "pace": 88.0,
+     "experience": 81.6,
+     "racecraft": 95.2,
+     "awareness": 88.0,
+     "pace": 93.6,
      "focus": 83.9,
-     "overall": 89.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 179 starts"
+     "overall": 92.8,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kimi_raikkonen": {
-     "experience": 90.4,
-     "racecraft": 90.4,
-     "awareness": 83.4,
-     "pace": 85.4,
+     "experience": 90.1,
+     "racecraft": 89.3,
+     "awareness": 88.3,
+     "pace": 88.1,
      "focus": 86.8,
-     "overall": 87.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 250 starts"
+     "overall": 88.6,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniel_ricciardo": {
-     "experience": 80.6,
-     "racecraft": 89.5,
-     "awareness": 93.5,
-     "pace": 90.5,
+     "experience": 74.4,
+     "racecraft": 92.2,
+     "awareness": 86.5,
+     "pace": 89.0,
      "focus": 72.4,
-     "overall": 89.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +8.5 pace and 109 starts"
+     "overall": 88.7,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "max_verstappen": {
-     "experience": 68.9,
-     "racecraft": 91.7,
-     "awareness": 80.7,
-     "pace": 91.7,
+     "experience": 58.2,
+     "racecraft": 90.9,
+     "awareness": 82.3,
+     "pace": 87.7,
      "focus": 75.0,
-     "overall": 89.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -4.3 pace and 40 starts"
+     "overall": 86.1,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "fernando_alonso": {
-     "experience": 90.7,
-     "racecraft": 90.4,
-     "awareness": 81.4,
-     "pace": 87.4,
+     "experience": 91.5,
+     "racecraft": 89.2,
+     "awareness": 81.5,
+     "pace": 86.0,
      "focus": 92.9,
-     "overall": 88.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 272 starts"
+     "overall": 87.0,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "stoffel_vandoorne": {
-     "experience": 51.0,
-     "racecraft": 84.9,
-     "awareness": 76.9,
-     "pace": 82.9,
+     "experience": 50.5,
+     "racecraft": 76.6,
+     "awareness": 74.6,
+     "pace": 74.1,
      "focus": 80.9,
-     "overall": 80.8,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 1 starts"
+     "overall": 73.2,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergio_perez": {
-     "experience": 80.5,
-     "racecraft": 94.3,
-     "awareness": 80.3,
-     "pace": 86.3,
+     "experience": 75.4,
+     "racecraft": 88.1,
+     "awareness": 86.0,
+     "pace": 84.8,
      "focus": 83.2,
-     "overall": 87.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.3 pace and 115 starts"
+     "overall": 85.2,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "esteban_ocon": {
-     "experience": 51.4,
-     "racecraft": 86.6,
-     "awareness": 79.6,
-     "pace": 85.6,
+     "experience": 52.6,
+     "racecraft": 80.4,
+     "awareness": 80.3,
+     "pace": 75.9,
      "focus": 61.7,
-     "overall": 83.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 9 starts"
+     "overall": 75.8,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nico_hulkenberg": {
-     "experience": 81.0,
-     "racecraft": 92.1,
-     "awareness": 91.1,
-     "pace": 88.1,
+     "experience": 75.7,
+     "racecraft": 84.8,
+     "awareness": 85.5,
+     "pace": 86.3,
      "focus": 85.9,
-     "overall": 89.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +6.1 pace and 117 starts"
+     "overall": 85.1,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jolyon_palmer": {
-     "experience": 59.1,
-     "racecraft": 78.0,
-     "awareness": 70.0,
-     "pace": 76.0,
+     "experience": 56.5,
+     "racecraft": 80.2,
+     "awareness": 76.9,
+     "pace": 75.0,
      "focus": 80.9,
-     "overall": 74.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+     "overall": 75.3,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "felipe_massa": {
-     "experience": 90.3,
-     "racecraft": 88.8,
-     "awareness": 86.8,
-     "pace": 85.8,
+     "experience": 90.1,
+     "racecraft": 87.3,
+     "awareness": 85.9,
+     "pace": 84.9,
      "focus": 84.6,
-     "overall": 87.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.8 pace and 250 starts"
+     "overall": 86.0,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "lance_stroll": {
-     "experience": 50.0,
-     "racecraft": 81.2,
-     "awareness": 78.2,
-     "pace": 76.2,
+     "experience": 49.2,
+     "racecraft": 77.3,
+     "awareness": 75.3,
+     "pace": 73.3,
      "focus": 55.8,
-     "overall": 75.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.2 pace and 0 starts"
+     "overall": 72.9,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "carlos_sainz-jr": {
-     "experience": 68.9,
-     "racecraft": 94.5,
-     "awareness": 86.5,
-     "pace": 86.5,
+     "experience": 58.2,
+     "racecraft": 85.9,
+     "awareness": 82.2,
+     "pace": 84.0,
      "focus": 91.3,
-     "overall": 87.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 40 starts"
+     "overall": 82.6,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniil_kvyat": {
-     "experience": 73.4,
-     "racecraft": 87.4,
+     "experience": 63.4,
+     "racecraft": 80.9,
      "awareness": 79.4,
-     "pace": 85.4,
+     "pace": 77.8,
      "focus": 80.9,
-     "overall": 84.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 58 starts"
+     "overall": 77.8,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "marcus_ericsson": {
-     "experience": 73.1,
-     "racecraft": 83.9,
-     "awareness": 75.9,
-     "pace": 81.9,
+     "experience": 63.4,
+     "racecraft": 81.2,
+     "awareness": 78.0,
+     "pace": 74.9,
      "focus": 80.9,
-     "overall": 81.4,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 56 starts"
+     "overall": 76.1,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "pascal_wehrlein": {
-     "experience": 59.1,
-     "racecraft": 85.0,
-     "awareness": 77.0,
-     "pace": 83.0,
+     "experience": 56.5,
+     "racecraft": 77.3,
+     "awareness": 82.6,
+     "pace": 78.0,
      "focus": 80.9,
-     "overall": 81.4,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+     "overall": 76.6,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "romain_grosjean": {
-     "experience": 80.7,
-     "racecraft": 80.5,
-     "awareness": 72.5,
-     "pace": 78.5,
+     "experience": 72.8,
+     "racecraft": 83.5,
+     "awareness": 84.2,
+     "pace": 81.6,
      "focus": 80.9,
-     "overall": 78.8,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 104 starts"
+     "overall": 81.7,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kevin_magnussen": {
-     "experience": 66.2,
-     "racecraft": 69.5,
-     "awareness": 73.5,
-     "pace": 76.5,
+     "experience": 58.2,
+     "racecraft": 82.1,
+     "awareness": 81.4,
+     "pace": 78.7,
      "focus": 83.2,
-     "overall": 73.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.5 pace and 40 starts"
+     "overall": 78.4,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jenson_button": {
-     "experience": 95.9,
-     "racecraft": 94.0,
-     "awareness": 95.0,
-     "pace": 85.0,
+     "experience": 96.1,
+     "racecraft": 83.9,
+     "awareness": 77.8,
+     "pace": 81.6,
      "focus": 87.9,
-     "overall": 89.1,
-     "source": "Classic Seasons pace of 2016; others from stock 2025 moved by +0.0 pace and 305 starts"
+     "overall": 83.0,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "brendon_hartley": {
-     "experience": 50.0,
-     "racecraft": 82.9,
-     "awareness": 74.9,
-     "pace": 80.9,
+     "experience": 49.2,
+     "racecraft": 79.0,
+     "awareness": 65.7,
+     "pace": 70.2,
      "focus": 80.9,
-     "overall": 78.8,
-     "source": "Classic Seasons pace of 2018; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 70.9,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "pierre_gasly": {
-     "experience": 50.6,
-     "racecraft": 86.6,
-     "awareness": 77.6,
-     "pace": 84.6,
+     "experience": 49.2,
+     "racecraft": 73.2,
+     "awareness": 74.8,
+     "pace": 67.6,
      "focus": 80.9,
-     "overall": 82.2,
-     "source": "Classic Seasons pace of 2018; others from stock 2025 moved by -1.4 pace and 0 starts"
+     "overall": 68.4,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "antonio_giovinazzi": {
-     "experience": 50.0,
-     "racecraft": 88.7,
-     "awareness": 80.7,
-     "pace": 86.7,
+     "experience": 49.2,
+     "racecraft": 75.3,
+     "awareness": 71.8,
+     "pace": 67.8,
      "focus": 80.9,
-     "overall": 84.2,
-     "source": "Classic Seasons pace of 2019; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 68.9,
+     "source": "model from 2017 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2018": {
     "lewis_hamilton": {
-     "experience": 87.0,
-     "racecraft": 92.2,
-     "awareness": 92.2,
-     "pace": 89.2,
+     "experience": 85.4,
+     "racecraft": 95.8,
+     "awareness": 89.5,
+     "pace": 95.1,
      "focus": 80.1,
-     "overall": 90.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 208 starts"
+     "overall": 94.2,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "valtteri_bottas": {
-     "experience": 78.5,
-     "racecraft": 76.3,
-     "awareness": 99.0,
-     "pace": 87.3,
+     "experience": 70.6,
+     "racecraft": 89.7,
+     "awareness": 87.8,
+     "pace": 89.2,
      "focus": 77.3,
-     "overall": 84.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.3 pace and 97 starts"
+     "overall": 87.9,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sebastian_vettel": {
-     "experience": 86.0,
-     "racecraft": 94.0,
-     "awareness": 85.0,
-     "pace": 88.0,
+     "experience": 84.5,
+     "racecraft": 93.7,
+     "awareness": 89.3,
+     "pace": 94.6,
      "focus": 83.9,
-     "overall": 89.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 199 starts"
+     "overall": 93.2,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kimi_raikkonen": {
-     "experience": 92.1,
-     "racecraft": 90.3,
-     "awareness": 83.3,
-     "pace": 85.3,
+     "experience": 91.4,
+     "racecraft": 91.5,
+     "awareness": 90.0,
+     "pace": 90.1,
      "focus": 86.8,
-     "overall": 87.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 270 starts"
+     "overall": 90.6,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniel_ricciardo": {
-     "experience": 80.6,
-     "racecraft": 89.0,
-     "awareness": 93.0,
-     "pace": 90.0,
+     "experience": 77.0,
+     "racecraft": 93.9,
+     "awareness": 81.3,
+     "pace": 86.5,
      "focus": 72.4,
-     "overall": 89.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +8.0 pace and 129 starts"
+     "overall": 87.6,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "max_verstappen": {
-     "experience": 73.6,
-     "racecraft": 92.2,
-     "awareness": 81.2,
-     "pace": 92.2,
+     "experience": 63.5,
+     "racecraft": 94.4,
+     "awareness": 82.4,
+     "pace": 89.9,
      "focus": 75.0,
-     "overall": 90.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.8 pace and 60 starts"
+     "overall": 88.8,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "fernando_alonso": {
-     "experience": 92.3,
-     "racecraft": 90.4,
-     "awareness": 81.4,
-     "pace": 87.4,
+     "experience": 93.5,
+     "racecraft": 89.8,
+     "awareness": 80.7,
+     "pace": 86.3,
      "focus": 92.9,
-     "overall": 88.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 291 starts"
+     "overall": 87.4,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "stoffel_vandoorne": {
-     "experience": 59.1,
-     "racecraft": 84.9,
-     "awareness": 76.9,
-     "pace": 82.9,
+     "experience": 56.5,
+     "racecraft": 79.5,
+     "awareness": 78.7,
+     "pace": 74.2,
      "focus": 80.9,
-     "overall": 81.3,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+     "overall": 74.8,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergio_perez": {
-     "experience": 80.5,
-     "racecraft": 93.4,
-     "awareness": 79.4,
-     "pace": 85.4,
+     "experience": 77.8,
+     "racecraft": 86.4,
+     "awareness": 86.3,
+     "pace": 83.5,
      "focus": 83.2,
-     "overall": 86.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 135 starts"
+     "overall": 84.1,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "esteban_ocon": {
-     "experience": 62.6,
-     "racecraft": 87.0,
-     "awareness": 80.0,
-     "pace": 86.0,
+     "experience": 57.7,
+     "racecraft": 83.5,
+     "awareness": 81.3,
+     "pace": 81.2,
      "focus": 61.7,
-     "overall": 84.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.0 pace and 29 starts"
+     "overall": 80.2,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nico_hulkenberg": {
-     "experience": 81.0,
-     "racecraft": 92.5,
-     "awareness": 91.5,
-     "pace": 88.5,
+     "experience": 78.0,
+     "racecraft": 87.0,
+     "awareness": 84.8,
+     "pace": 86.2,
      "focus": 85.9,
-     "overall": 89.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +6.5 pace and 137 starts"
+     "overall": 85.7,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "carlos_sainz-jr": {
-     "experience": 73.6,
-     "racecraft": 94.5,
-     "awareness": 86.5,
-     "pace": 86.5,
+     "experience": 63.5,
+     "racecraft": 84.1,
+     "awareness": 83.5,
+     "pace": 82.3,
      "focus": 91.3,
-     "overall": 87.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 60 starts"
+     "overall": 81.6,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "lance_stroll": {
-     "experience": 58.6,
-     "racecraft": 82.9,
-     "awareness": 79.9,
-     "pace": 77.9,
+     "experience": 55.9,
+     "racecraft": 78.1,
+     "awareness": 80.6,
+     "pace": 76.7,
      "focus": 55.8,
-     "overall": 78.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.9 pace and 20 starts"
+     "overall": 75.9,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergey_sirotkin": {
-     "experience": 50.0,
-     "racecraft": 80.8,
-     "awareness": 72.8,
-     "pace": 78.8,
+     "experience": 49.2,
+     "racecraft": 71.3,
+     "awareness": 73.3,
+     "pace": 70.5,
      "focus": 80.9,
-     "overall": 76.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 69.4,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "pierre_gasly": {
-     "experience": 52.6,
-     "racecraft": 86.6,
-     "awareness": 77.6,
-     "pace": 84.6,
+     "experience": 52.2,
+     "racecraft": 76.1,
+     "awareness": 78.4,
+     "pace": 75.3,
      "focus": 80.9,
-     "overall": 82.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 5 starts"
+     "overall": 74.1,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "brendon_hartley": {
-     "experience": 52.0,
-     "racecraft": 82.9,
-     "awareness": 74.9,
-     "pace": 80.9,
+     "experience": 52.1,
+     "racecraft": 77.8,
+     "awareness": 71.2,
+     "pace": 72.6,
      "focus": 80.9,
-     "overall": 79.0,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 4 starts"
+     "overall": 72.5,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "marcus_ericsson": {
-     "experience": 75.4,
-     "racecraft": 83.9,
-     "awareness": 75.9,
-     "pace": 81.9,
+     "experience": 65.5,
+     "racecraft": 81.5,
+     "awareness": 77.9,
+     "pace": 75.2,
      "focus": 80.9,
-     "overall": 81.6,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 76 starts"
+     "overall": 76.5,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "charles_leclerc": {
-     "experience": 50.0,
-     "racecraft": 93.2,
-     "awareness": 91.2,
-     "pace": 88.2,
+     "experience": 49.2,
+     "racecraft": 79.0,
+     "awareness": 74.4,
+     "pace": 79.5,
      "focus": 88.2,
-     "overall": 87.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.8 pace and 0 starts"
+     "overall": 76.8,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "romain_grosjean": {
-     "experience": 81.0,
-     "racecraft": 80.8,
-     "awareness": 72.8,
-     "pace": 78.8,
+     "experience": 76.5,
+     "racecraft": 82.2,
+     "awareness": 83.0,
+     "pace": 82.6,
      "focus": 80.9,
-     "overall": 79.1,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 124 starts"
+     "overall": 82.1,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kevin_magnussen": {
-     "experience": 70.9,
-     "racecraft": 69.2,
-     "awareness": 73.2,
-     "pace": 76.2,
+     "experience": 63.5,
+     "racecraft": 82.5,
+     "awareness": 83.8,
+     "pace": 81.0,
      "focus": 83.2,
-     "overall": 73.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.8 pace and 60 starts"
+     "overall": 80.4,
+     "source": "model from 2018 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2019": {
     "lewis_hamilton": {
-     "experience": 87.0,
-     "racecraft": 91.7,
-     "awareness": 91.7,
-     "pace": 88.7,
+     "experience": 87.8,
+     "racecraft": 94.8,
+     "awareness": 90.6,
+     "pace": 95.3,
      "focus": 80.1,
-     "overall": 89.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.7 pace and 229 starts"
+     "overall": 94.3,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "valtteri_bottas": {
-     "experience": 80.6,
-     "racecraft": 76.4,
-     "awareness": 99.0,
-     "pace": 87.4,
+     "experience": 75.8,
+     "racecraft": 91.2,
+     "awareness": 88.6,
+     "pace": 90.1,
      "focus": 77.3,
-     "overall": 84.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.4 pace and 118 starts"
+     "overall": 89.3,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sebastian_vettel": {
-     "experience": 86.9,
-     "racecraft": 93.0,
-     "awareness": 84.0,
-     "pace": 87.0,
+     "experience": 86.8,
+     "racecraft": 91.7,
+     "awareness": 88.7,
+     "pace": 92.4,
      "focus": 83.9,
-     "overall": 88.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.0 pace and 220 starts"
+     "overall": 91.5,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "charles_leclerc": {
-     "experience": 59.1,
-     "racecraft": 93.2,
-     "awareness": 91.2,
-     "pace": 88.2,
+     "experience": 56.5,
+     "racecraft": 85.4,
+     "awareness": 83.3,
+     "pace": 86.8,
      "focus": 88.2,
-     "overall": 87.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.8 pace and 21 starts"
+     "overall": 84.0,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "max_verstappen": {
-     "experience": 76.0,
-     "racecraft": 92.6,
-     "awareness": 81.6,
-     "pace": 92.6,
+     "experience": 66.6,
+     "racecraft": 94.1,
+     "awareness": 85.9,
+     "pace": 92.2,
      "focus": 75.0,
-     "overall": 90.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.4 pace and 81 starts"
+     "overall": 90.5,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "pierre_gasly": {
-     "experience": 62.3,
-     "racecraft": 86.6,
-     "awareness": 77.6,
-     "pace": 84.6,
+     "experience": 57.6,
+     "racecraft": 82.2,
+     "awareness": 80.3,
+     "pace": 80.4,
      "focus": 80.9,
-     "overall": 83.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 26 starts"
+     "overall": 79.3,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "carlos_sainz-jr": {
-     "experience": 76.0,
-     "racecraft": 96.0,
-     "awareness": 88.0,
-     "pace": 88.0,
+     "experience": 66.6,
+     "racecraft": 86.5,
+     "awareness": 84.2,
+     "pace": 84.1,
      "focus": 91.3,
-     "overall": 89.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 81 starts"
+     "overall": 83.5,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "lando_norris": {
-     "experience": 50.0,
-     "racecraft": 82.4,
-     "awareness": 73.4,
-     "pace": 87.4,
+     "experience": 49.2,
+     "racecraft": 75.2,
+     "awareness": 76.0,
+     "pace": 77.0,
      "focus": 82.5,
-     "overall": 82.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -6.6 pace and 0 starts"
+     "overall": 74.4,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergio_perez": {
-     "experience": 81.1,
-     "racecraft": 93.0,
-     "awareness": 79.0,
-     "pace": 85.0,
+     "experience": 79.8,
+     "racecraft": 87.8,
+     "awareness": 84.6,
+     "pace": 84.3,
      "focus": 83.2,
-     "overall": 86.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 156 starts"
+     "overall": 85.0,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "lance_stroll": {
-     "experience": 69.4,
-     "racecraft": 84.7,
-     "awareness": 81.7,
-     "pace": 79.7,
+     "experience": 58.9,
+     "racecraft": 79.8,
+     "awareness": 79.9,
+     "pace": 76.5,
      "focus": 55.8,
-     "overall": 80.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.7 pace and 41 starts"
+     "overall": 76.4,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniel_ricciardo": {
-     "experience": 80.7,
-     "racecraft": 88.6,
-     "awareness": 92.6,
-     "pace": 89.6,
+     "experience": 79.8,
+     "racecraft": 89.7,
+     "awareness": 82.0,
+     "pace": 86.0,
      "focus": 72.4,
-     "overall": 88.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +7.6 pace and 150 starts"
+     "overall": 86.3,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nico_hulkenberg": {
-     "experience": 81.8,
-     "racecraft": 91.5,
-     "awareness": 90.5,
-     "pace": 87.5,
+     "experience": 79.8,
+     "racecraft": 84.6,
+     "awareness": 83.0,
+     "pace": 82.8,
      "focus": 85.9,
-     "overall": 88.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.5 pace and 158 starts"
+     "overall": 83.1,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "george_russell": {
-     "experience": 50.0,
-     "racecraft": 91.3,
-     "awareness": 83.3,
-     "pace": 89.3,
+     "experience": 49.2,
+     "racecraft": 73.3,
+     "awareness": 73.1,
+     "pace": 70.9,
      "focus": 87.2,
-     "overall": 86.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 0 starts"
+     "overall": 70.2,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "robert_kubica": {
-     "experience": 75.4,
-     "racecraft": 86.0,
-     "awareness": 78.0,
-     "pace": 84.0,
+     "experience": 65.5,
+     "racecraft": 70.1,
+     "awareness": 87.2,
+     "pace": 72.4,
      "focus": 80.9,
-     "overall": 83.5,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 76 starts"
+     "overall": 72.3,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "daniil_kvyat": {
-     "experience": 75.1,
-     "racecraft": 86.6,
-     "awareness": 78.6,
-     "pace": 84.6,
+     "experience": 64.9,
+     "racecraft": 85.9,
+     "awareness": 80.8,
+     "pace": 80.8,
      "focus": 80.9,
-     "overall": 84.1,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 73 starts"
+     "overall": 81.1,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "alex_albon": {
-     "experience": 50.0,
-     "racecraft": 80.5,
-     "awareness": 76.5,
-     "pace": 83.5,
+     "experience": 49.2,
+     "racecraft": 79.7,
+     "awareness": 76.8,
+     "pace": 75.0,
      "focus": 88.0,
-     "overall": 79.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 0 starts"
+     "overall": 74.6,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kimi_raikkonen": {
-     "experience": 93.9,
-     "racecraft": 91.4,
-     "awareness": 84.4,
-     "pace": 86.4,
+     "experience": 93.5,
+     "racecraft": 88.7,
+     "awareness": 87.7,
+     "pace": 87.7,
      "focus": 86.8,
-     "overall": 88.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 291 starts"
+     "overall": 88.4,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "antonio_giovinazzi": {
-     "experience": 51.5,
-     "racecraft": 88.7,
-     "awareness": 80.7,
-     "pace": 86.7,
+     "experience": 51.2,
+     "racecraft": 72.1,
+     "awareness": 77.1,
+     "pace": 73.9,
      "focus": 80.9,
-     "overall": 84.3,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 2 starts"
+     "overall": 72.0,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "romain_grosjean": {
-     "experience": 81.0,
-     "racecraft": 78.9,
-     "awareness": 70.9,
-     "pace": 76.9,
+     "experience": 79.1,
+     "racecraft": 79.4,
+     "awareness": 81.7,
+     "pace": 82.2,
      "focus": 80.9,
-     "overall": 77.3,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 145 starts"
+     "overall": 81.1,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "kevin_magnussen": {
-     "experience": 73.3,
-     "racecraft": 71.1,
-     "awareness": 75.1,
-     "pace": 78.1,
+     "experience": 66.6,
+     "racecraft": 78.9,
+     "awareness": 84.6,
+     "pace": 82.6,
      "focus": 83.2,
-     "overall": 75.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.9 pace and 81 starts"
+     "overall": 80.5,
+     "source": "model from 2019 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2020": {
     "lewis_hamilton": {
-     "experience": 88.7,
-     "racecraft": 91.5,
-     "awareness": 91.5,
-     "pace": 88.5,
+     "experience": 89,
+     "racecraft": 93,
+     "awareness": 95,
+     "pace": 96,
      "focus": 80.1,
-     "overall": 89.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.5 pace and 250 starts"
+     "overall": 94.6,
+     "official_overall": 94,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "valtteri_bottas": {
-     "experience": 80.6,
-     "racecraft": 76.4,
+     "experience": 71,
+     "racecraft": 89,
      "awareness": 99.0,
-     "pace": 87.4,
+     "pace": 91,
      "focus": 77.3,
-     "overall": 84.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.4 pace and 139 starts"
+     "overall": 89.6,
+     "official_overall": 90,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "sebastian_vettel": {
-     "experience": 87.8,
-     "racecraft": 90.9,
-     "awareness": 81.9,
-     "pace": 84.9,
+     "experience": 88,
+     "racecraft": 89,
+     "awareness": 81,
+     "pace": 94,
      "focus": 83.9,
-     "overall": 86.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.9 pace and 241 starts"
+     "overall": 91.2,
+     "official_overall": 89,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "charles_leclerc": {
-     "experience": 69.9,
-     "racecraft": 94.2,
-     "awareness": 92.2,
-     "pace": 89.2,
+     "experience": 56,
+     "racecraft": 92,
+     "awareness": 82,
+     "pace": 93,
      "focus": 88.2,
-     "overall": 89.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.8 pace and 42 starts"
+     "overall": 89.3,
+     "official_overall": 86,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "max_verstappen": {
-     "experience": 80.2,
-     "racecraft": 91.4,
-     "awareness": 80.4,
-     "pace": 91.4,
+     "experience": 68,
+     "racecraft": 94,
+     "awareness": 84,
+     "pace": 96,
      "focus": 75.0,
-     "overall": 89.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -4.6 pace and 102 starts"
+     "overall": 92.6,
+     "official_overall": 90,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "alex_albon": {
-     "experience": 59.1,
-     "racecraft": 81.3,
-     "awareness": 77.3,
-     "pace": 84.3,
+     "experience": 52,
+     "racecraft": 87,
+     "awareness": 78,
+     "pace": 83,
      "focus": 88.0,
-     "overall": 81.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 21 starts"
+     "overall": 81.6,
+     "official_overall": 79,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "carlos_sainz-jr": {
-     "experience": 80.2,
-     "racecraft": 96.0,
-     "awareness": 88.0,
-     "pace": 88.0,
+     "experience": 72.1,
+     "racecraft": 89.8,
+     "awareness": 84.2,
+     "pace": 85.9,
      "focus": 91.3,
-     "overall": 89.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 102 starts"
+     "overall": 85.9,
+     "source": "model from 2020 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "lando_norris": {
-     "experience": 59.1,
-     "racecraft": 83.8,
-     "awareness": 74.8,
-     "pace": 88.8,
+     "experience": 56.5,
+     "racecraft": 82.6,
+     "awareness": 81.6,
+     "pace": 82.2,
      "focus": 82.5,
-     "overall": 84.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 21 starts"
+     "overall": 80.4,
+     "source": "model from 2020 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "sergio_perez": {
-     "experience": 83.4,
-     "racecraft": 92.0,
-     "awareness": 78.0,
-     "pace": 84.0,
+     "experience": 78,
+     "racecraft": 91,
+     "awareness": 80,
+     "pace": 86,
      "focus": 83.2,
-     "overall": 85.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 177 starts"
+     "overall": 86.4,
+     "official_overall": 85,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "lance_stroll": {
-     "experience": 73.8,
-     "racecraft": 87.0,
-     "awareness": 84.0,
-     "pace": 82.0,
+     "experience": 57,
+     "racecraft": 86,
+     "awareness": 73,
+     "pace": 83,
      "focus": 55.8,
-     "overall": 83.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +6.0 pace and 62 starts"
+     "overall": 81.3,
+     "official_overall": 78,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "daniel_ricciardo": {
-     "experience": 82.9,
-     "racecraft": 87.2,
-     "awareness": 91.2,
-     "pace": 88.2,
+     "experience": 76,
+     "racecraft": 90,
+     "awareness": 86,
+     "pace": 90,
      "focus": 72.4,
-     "overall": 87.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +6.2 pace and 171 starts"
+     "overall": 88.7,
+     "official_overall": 87,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "esteban_ocon": {
-     "experience": 71.8,
-     "racecraft": 86.8,
-     "awareness": 79.8,
-     "pace": 85.8,
+     "experience": 54,
+     "racecraft": 90,
+     "awareness": 79,
+     "pace": 82,
      "focus": 61.7,
-     "overall": 84.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.8 pace and 50 starts"
+     "overall": 82.1,
+     "official_overall": 80,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "george_russell": {
-     "experience": 59.1,
-     "racecraft": 91.3,
-     "awareness": 83.3,
-     "pace": 89.3,
+     "experience": 52,
+     "racecraft": 73,
+     "awareness": 78,
+     "pace": 80,
      "focus": 87.2,
-     "overall": 87.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 21 starts"
+     "overall": 75.9,
+     "official_overall": 75,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "nicholas_latifi": {
-     "experience": 50.0,
-     "racecraft": 82.7,
-     "awareness": 74.7,
-     "pace": 80.7,
+     "experience": 32,
+     "racecraft": 60,
+     "awareness": 80,
+     "pace": 64,
      "focus": 80.9,
-     "overall": 78.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 61.7,
+     "official_overall": 64,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "pierre_gasly": {
-     "experience": 72.7,
-     "racecraft": 88.2,
-     "awareness": 79.2,
-     "pace": 86.2,
+     "experience": 53,
+     "racecraft": 85,
+     "awareness": 87,
+     "pace": 80,
      "focus": 80.9,
-     "overall": 85.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.2 pace and 47 starts"
+     "overall": 80.0,
+     "official_overall": 80,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "daniil_kvyat": {
-     "experience": 78.1,
-     "racecraft": 85.8,
-     "awareness": 77.8,
-     "pace": 83.8,
+     "experience": 63,
+     "racecraft": 86,
+     "awareness": 74,
+     "pace": 85,
      "focus": 80.9,
-     "overall": 83.5,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 94 starts"
+     "overall": 82.9,
+     "official_overall": 80,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "kimi_raikkonen": {
-     "experience": 95.8,
-     "racecraft": 91.5,
-     "awareness": 84.5,
-     "pace": 86.5,
+     "experience": 98,
+     "racecraft": 84,
+     "awareness": 91,
+     "pace": 83,
      "focus": 86.8,
-     "overall": 88.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 312 starts"
+     "overall": 84.9,
+     "official_overall": 87,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "antonio_giovinazzi": {
-     "experience": 60.2,
-     "racecraft": 89.7,
-     "awareness": 81.7,
-     "pace": 87.7,
+     "experience": 47,
+     "racecraft": 73,
+     "awareness": 70,
+     "pace": 79,
      "focus": 80.9,
-     "overall": 85.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 23 starts"
+     "overall": 74.4,
+     "official_overall": 73,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "romain_grosjean": {
-     "experience": 82.8,
-     "racecraft": 79.4,
-     "awareness": 71.4,
-     "pace": 77.4,
+     "experience": 75,
+     "racecraft": 81,
+     "awareness": 77,
+     "pace": 83,
      "focus": 80.9,
-     "overall": 77.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 166 starts"
+     "overall": 81.4,
+     "official_overall": 80,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "kevin_magnussen": {
-     "experience": 77.5,
-     "racecraft": 70.6,
-     "awareness": 74.6,
-     "pace": 77.6,
+     "experience": 65,
+     "racecraft": 79,
+     "awareness": 73,
+     "pace": 83,
      "focus": 83.2,
-     "overall": 75.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -4.4 pace and 102 starts"
+     "overall": 79.9,
+     "official_overall": 78,
+     "source": "EA F1 2020 launch ratings (https://www.gpfans.com/en/f1-news/53235/f1-2020-first-driver-ratings-revealed/)"
     },
     "nico_hulkenberg": {
-     "experience": 84.1,
-     "racecraft": 91.5,
-     "awareness": 90.5,
-     "pace": 87.5,
+     "experience": 81.6,
+     "racecraft": 85.2,
+     "awareness": 78.6,
+     "pace": 80.2,
      "focus": 85.9,
-     "overall": 88.6,
-     "source": "Classic Seasons pace of 2019; others from stock 2025 moved by +5.5 pace and 179 starts"
+     "overall": 81.6,
+     "source": "model from 2020 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jack_aitken": {
-     "experience": 50.0,
-     "racecraft": 79.4,
-     "awareness": 71.4,
-     "pace": 77.4,
+     "experience": 49.2,
+     "racecraft": 70.2,
+     "awareness": 77.5,
+     "pace": 71.8,
      "focus": 80.9,
-     "overall": 75.6,
-     "source": "no pace data: the season's slowest Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 70.1,
+     "source": "model from 2020 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2021": {
     "lewis_hamilton": {
-     "experience": 90.1,
-     "racecraft": 92.1,
-     "awareness": 92.1,
-     "pace": 89.1,
+     "experience": 92,
+     "racecraft": 94,
+     "awareness": 89,
+     "pace": 98,
      "focus": 80.1,
-     "overall": 90.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.1 pace and 266 starts"
+     "overall": 95.8,
+     "official_overall": 95,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "valtteri_bottas": {
-     "experience": 81.2,
-     "racecraft": 75.5,
+     "experience": 75,
+     "racecraft": 89,
      "awareness": 99.0,
-     "pace": 86.5,
+     "pace": 92,
      "focus": 77.3,
-     "overall": 83.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.5 pace and 156 starts"
+     "overall": 90.4,
+     "official_overall": 92,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "charles_leclerc": {
-     "experience": 73.5,
-     "racecraft": 94.4,
-     "awareness": 92.4,
-     "pace": 89.4,
+     "experience": 62,
+     "racecraft": 88,
+     "awareness": 87,
+     "pace": 92,
      "focus": 88.2,
-     "overall": 89.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 59 starts"
+     "overall": 88.4,
+     "official_overall": 88,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "carlos_sainz-jr": {
-     "experience": 81.0,
-     "racecraft": 96.0,
-     "awareness": 88.0,
-     "pace": 88.0,
+     "experience": 69,
+     "racecraft": 88,
+     "awareness": 94,
+     "pace": 85,
      "focus": 91.3,
-     "overall": 89.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 119 starts"
+     "overall": 85.4,
+     "official_overall": 87,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "max_verstappen": {
-     "experience": 81.0,
-     "racecraft": 90.9,
-     "awareness": 79.9,
-     "pace": 90.9,
+     "experience": 69,
+     "racecraft": 96,
+     "awareness": 96,
+     "pace": 97,
      "focus": 75.0,
-     "overall": 89.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.1 pace and 119 starts"
+     "overall": 94.6,
+     "official_overall": 95,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "sergio_perez": {
-     "experience": 84.9,
-     "racecraft": 93.5,
-     "awareness": 79.5,
-     "pace": 85.5,
+     "experience": 81,
+     "racecraft": 92,
+     "awareness": 84,
+     "pace": 87,
      "focus": 83.2,
-     "overall": 87.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 192 starts"
+     "overall": 87.8,
+     "official_overall": 87,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "lando_norris": {
-     "experience": 67.9,
-     "racecraft": 85.3,
-     "awareness": 76.3,
-     "pace": 90.3,
+     "experience": 60,
+     "racecraft": 96,
+     "awareness": 99.0,
+     "pace": 89,
      "focus": 82.5,
-     "overall": 86.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.7 pace and 38 starts"
+     "overall": 89.6,
+     "official_overall": 91,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "daniel_ricciardo": {
-     "experience": 84.6,
-     "racecraft": 86.0,
-     "awareness": 90.0,
-     "pace": 87.0,
+     "experience": 80,
+     "racecraft": 94,
+     "awareness": 91,
+     "pace": 88,
      "focus": 72.4,
-     "overall": 86.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 188 starts"
+     "overall": 89.4,
+     "official_overall": 90,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "sebastian_vettel": {
-     "experience": 89.3,
-     "racecraft": 89.6,
-     "awareness": 80.6,
-     "pace": 83.6,
+     "experience": 91,
+     "racecraft": 93,
+     "awareness": 87,
+     "pace": 88,
      "focus": 83.9,
-     "overall": 85.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 258 starts"
+     "overall": 89.6,
+     "official_overall": 89,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "lance_stroll": {
-     "experience": 75.6,
-     "racecraft": 86.8,
-     "awareness": 83.8,
-     "pace": 81.8,
+     "experience": 62,
+     "racecraft": 93,
+     "awareness": 82,
+     "pace": 82,
      "focus": 55.8,
-     "overall": 82.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.8 pace and 78 starts"
+     "overall": 83.7,
+     "official_overall": 83,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "fernando_alonso": {
-     "experience": 94.2,
-     "racecraft": 89.3,
-     "awareness": 80.3,
-     "pace": 86.3,
+     "experience": 99.0,
+     "racecraft": 89,
+     "awareness": 94,
+     "pace": 86,
      "focus": 92.9,
-     "overall": 87.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 312 starts"
+     "overall": 88.4,
+     "official_overall": 89,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "esteban_ocon": {
-     "experience": 73.8,
-     "racecraft": 86.6,
-     "awareness": 79.6,
-     "pace": 85.6,
+     "experience": 60,
+     "racecraft": 93,
+     "awareness": 98,
+     "pace": 79,
      "focus": 61.7,
-     "overall": 84.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 67 starts"
+     "overall": 83.0,
+     "official_overall": 86,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "george_russell": {
-     "experience": 67.9,
-     "racecraft": 90.6,
-     "awareness": 82.6,
-     "pace": 88.6,
+     "experience": 60,
+     "racecraft": 76,
+     "awareness": 99.0,
+     "pace": 83,
      "focus": 87.2,
-     "overall": 87.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 38 starts"
+     "overall": 80.5,
+     "official_overall": 84,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "nicholas_latifi": {
-     "experience": 57.1,
-     "racecraft": 83.3,
-     "awareness": 75.3,
-     "pace": 81.3,
+     "experience": 55,
+     "racecraft": 69,
+     "awareness": 79,
+     "pace": 70,
      "focus": 80.9,
-     "overall": 79.7,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 17 starts"
+     "overall": 69.3,
+     "official_overall": 71,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "pierre_gasly": {
-     "experience": 74.6,
-     "racecraft": 89.1,
-     "awareness": 80.1,
-     "pace": 87.1,
+     "experience": 59,
+     "racecraft": 92,
+     "awareness": 99.0,
+     "pace": 89,
      "focus": 80.9,
-     "overall": 86.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.1 pace and 64 starts"
+     "overall": 88.4,
+     "official_overall": 90,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "yuki_tsunoda": {
-     "experience": 50.0,
-     "racecraft": 73.2,
-     "awareness": 72.2,
-     "pace": 80.2,
+     "experience": 46,
+     "racecraft": 88,
+     "awareness": 78,
+     "pace": 86,
      "focus": 83.2,
-     "overall": 75.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -4.8 pace and 0 starts"
+     "overall": 83.1,
+     "official_overall": 82,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "kimi_raikkonen": {
-     "experience": 97.3,
-     "racecraft": 90.4,
-     "awareness": 83.4,
-     "pace": 85.4,
+     "experience": 99.0,
+     "racecraft": 91,
+     "awareness": 84,
+     "pace": 86,
      "focus": 86.8,
-     "overall": 87.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 329 starts"
+     "overall": 88.2,
+     "official_overall": 87,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "antonio_giovinazzi": {
-     "experience": 68.9,
-     "racecraft": 91.9,
-     "awareness": 83.9,
-     "pace": 89.9,
+     "experience": 54,
+     "racecraft": 82,
+     "awareness": 82,
+     "pace": 80,
      "focus": 80.9,
-     "overall": 88.5,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 40 starts"
+     "overall": 78.9,
+     "official_overall": 79,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "mick_schumacher": {
-     "experience": 50.0,
-     "racecraft": 74.6,
-     "awareness": 66.6,
-     "pace": 72.6,
+     "experience": 47,
+     "racecraft": 65,
+     "awareness": 81,
+     "pace": 83,
      "focus": 80.9,
-     "overall": 71.1,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 75.1,
+     "official_overall": 76,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "nikita_mazepin": {
-     "experience": 50.0,
-     "racecraft": 67.9,
-     "awareness": 59.9,
-     "pace": 65.9,
+     "experience": 47,
+     "racecraft": 65,
+     "awareness": 78,
+     "pace": 66,
      "focus": 80.9,
-     "overall": 64.9,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+     "overall": 65.2,
+     "official_overall": 67,
+     "source": "EA F1 2021 launch ratings (https://boxthislap.org/f1-2021-ratings-revealed/)"
     },
     "robert_kubica": {
-     "experience": 78.9,
-     "racecraft": 86.0,
-     "awareness": 78.0,
-     "pace": 84.0,
+     "experience": 70.6,
+     "racecraft": 76.8,
+     "awareness": 76.0,
+     "pace": 73.4,
      "focus": 80.9,
-     "overall": 83.8,
-     "source": "Classic Seasons pace of 2019; no stock statistics: others from pace (median stock offsets) and 97 starts"
+     "overall": 74.4,
+     "source": "model from 2021 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2022": {
     "lewis_hamilton": {
-     "experience": 92.1,
-     "racecraft": 91.8,
-     "awareness": 91.8,
-     "pace": 88.8,
+     "experience": 93,
+     "racecraft": 96,
+     "awareness": 92,
+     "pace": 93,
      "focus": 80.1,
-     "overall": 90.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.8 pace and 288 starts"
+     "overall": 93.8,
+     "official_overall": 94,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "george_russell": {
-     "experience": 73.6,
-     "racecraft": 90.7,
-     "awareness": 82.7,
-     "pace": 88.7,
+     "experience": 64,
+     "racecraft": 90,
+     "awareness": 86,
+     "pace": 93,
      "focus": 87.2,
-     "overall": 87.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.3 pace and 60 starts"
+     "overall": 89.6,
+     "official_overall": 90,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "charles_leclerc": {
-     "experience": 76.0,
-     "racecraft": 94.6,
-     "awareness": 92.6,
-     "pace": 89.6,
+     "experience": 65,
+     "racecraft": 94,
+     "awareness": 91,
+     "pace": 95,
      "focus": 88.2,
-     "overall": 90.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 81 starts"
+     "overall": 92.3,
+     "official_overall": 92,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "carlos_sainz-jr": {
-     "experience": 81.0,
-     "racecraft": 96.0,
-     "awareness": 88.0,
-     "pace": 88.0,
+     "experience": 72,
+     "racecraft": 89,
+     "awareness": 89,
+     "pace": 87,
      "focus": 91.3,
-     "overall": 89.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 141 starts"
+     "overall": 86.6,
+     "official_overall": 87,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "max_verstappen": {
-     "experience": 81.0,
-     "racecraft": 91.2,
-     "awareness": 80.2,
-     "pace": 91.2,
+     "experience": 72,
+     "racecraft": 98,
+     "awareness": 79,
+     "pace": 97,
      "focus": 75.0,
-     "overall": 89.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -4.8 pace and 141 starts"
+     "overall": 94.2,
+     "official_overall": 94,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "sergio_perez": {
-     "experience": 86.5,
-     "racecraft": 94.2,
-     "awareness": 80.2,
-     "pace": 86.2,
+     "experience": 83,
+     "racecraft": 89,
+     "awareness": 85,
+     "pace": 89,
      "focus": 83.2,
-     "overall": 88.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.2 pace and 214 starts"
+     "overall": 88.3,
+     "official_overall": 88,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "lando_norris": {
-     "experience": 73.6,
-     "racecraft": 86.1,
-     "awareness": 77.1,
-     "pace": 91.1,
+     "experience": 64,
+     "racecraft": 94,
+     "awareness": 82,
+     "pace": 92,
      "focus": 82.5,
-     "overall": 87.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.9 pace and 60 starts"
+     "overall": 89.9,
+     "official_overall": 90,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "daniel_ricciardo": {
-     "experience": 86.6,
-     "racecraft": 85.5,
-     "awareness": 89.5,
-     "pace": 86.5,
+     "experience": 82,
+     "racecraft": 88,
+     "awareness": 93,
+     "pace": 80,
      "focus": 72.4,
-     "overall": 86.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +4.5 pace and 210 starts"
+     "overall": 83.4,
+     "official_overall": 83,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "sebastian_vettel": {
-     "experience": 91.3,
-     "racecraft": 89.0,
-     "awareness": 80.0,
-     "pace": 83.0,
+     "experience": 91,
+     "racecraft": 87,
+     "awareness": 92,
+     "pace": 83,
      "focus": 83.9,
-     "overall": 85.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 280 starts"
+     "overall": 85.4,
+     "official_overall": 85,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "lance_stroll": {
-     "experience": 79.7,
-     "racecraft": 86.0,
-     "awareness": 83.0,
-     "pace": 81.0,
+     "experience": 65,
+     "racecraft": 89,
+     "awareness": 76,
+     "pace": 77,
      "focus": 55.8,
-     "overall": 82.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 100 starts"
+     "overall": 79.5,
+     "official_overall": 80,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "fernando_alonso": {
-     "experience": 96.1,
-     "racecraft": 89.6,
-     "awareness": 80.6,
-     "pace": 86.6,
+     "experience": 98,
+     "racecraft": 88,
+     "awareness": 78,
+     "pace": 89,
      "focus": 92.9,
-     "overall": 87.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 334 starts"
+     "overall": 88.6,
+     "official_overall": 89,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "esteban_ocon": {
-     "experience": 76.3,
-     "racecraft": 86.0,
-     "awareness": 79.0,
-     "pace": 85.0,
+     "experience": 63,
+     "racecraft": 90,
+     "awareness": 76,
+     "pace": 82,
      "focus": 61.7,
-     "overall": 84.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 89 starts"
+     "overall": 82.5,
+     "official_overall": 83,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "alex_albon": {
-     "experience": 67.9,
-     "racecraft": 84.7,
-     "awareness": 80.7,
-     "pace": 87.7,
+     "experience": 59,
+     "racecraft": 90,
+     "awareness": 76,
+     "pace": 81,
      "focus": 88.0,
-     "overall": 84.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.7 pace and 38 starts"
+     "overall": 81.6,
+     "official_overall": 82,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "nicholas_latifi": {
-     "experience": 68.4,
-     "racecraft": 83.2,
-     "awareness": 75.2,
-     "pace": 81.2,
+     "experience": 60,
+     "racecraft": 80,
+     "awareness": 76,
+     "pace": 66,
      "focus": 80.9,
-     "overall": 80.4,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 39 starts"
+     "overall": 70.3,
+     "official_overall": 70,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "pierre_gasly": {
-     "experience": 77.1,
-     "racecraft": 87.4,
-     "awareness": 78.4,
-     "pace": 85.4,
+     "experience": 62,
+     "racecraft": 90,
+     "awareness": 79,
+     "pace": 84,
      "focus": 80.9,
-     "overall": 84.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 86 starts"
+     "overall": 83.8,
+     "official_overall": 84,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "yuki_tsunoda": {
-     "experience": 59.7,
-     "racecraft": 75.7,
-     "awareness": 74.7,
-     "pace": 82.7,
+     "experience": 55,
+     "racecraft": 76,
+     "awareness": 74,
+     "pace": 83,
      "focus": 83.2,
-     "overall": 78.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.3 pace and 22 starts"
+     "overall": 78.4,
+     "official_overall": 78,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "valtteri_bottas": {
-     "experience": 83.6,
-     "racecraft": 75.4,
-     "awareness": 99.0,
-     "pace": 86.4,
+     "experience": 77,
+     "racecraft": 84,
+     "awareness": 93,
+     "pace": 90,
      "focus": 77.3,
-     "overall": 84.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.4 pace and 178 starts"
+     "overall": 87.6,
+     "official_overall": 88,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "guanyu_zhou": {
-     "experience": 43.5,
-     "racecraft": 78.5,
-     "awareness": 82.5,
-     "pace": 83.5,
+     "experience": 47,
+     "racecraft": 80,
+     "awareness": 73,
+     "pace": 67,
      "focus": 79.0,
-     "overall": 79.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 0 starts"
+     "overall": 69.7,
+     "official_overall": 70,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "kevin_magnussen": {
-     "experience": 78.3,
-     "racecraft": 69.8,
-     "awareness": 73.8,
-     "pace": 76.8,
+     "experience": 68,
+     "racecraft": 82,
+     "awareness": 84,
+     "pace": 82,
      "focus": 83.2,
-     "overall": 74.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 119 starts"
+     "overall": 81.1,
+     "official_overall": 81,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "mick_schumacher": {
-     "experience": 59.7,
-     "racecraft": 74.6,
-     "awareness": 66.6,
-     "pace": 72.6,
+     "experience": 56,
+     "racecraft": 79,
+     "awareness": 80,
+     "pace": 79,
      "focus": 80.9,
-     "overall": 71.8,
-     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 22 starts"
+     "overall": 77.4,
+     "official_overall": 77,
+     "source": "EA F1 22 launch ratings (https://traxion.gg/f1-22-driver-ratings-unveiled-verstappen-hamilton-tied-at-the-top/)"
     },
     "nico_hulkenberg": {
-     "experience": 84.4,
-     "racecraft": 88.2,
-     "awareness": 87.2,
-     "pace": 84.2,
+     "experience": 82.2,
+     "racecraft": 82.7,
+     "awareness": 79.0,
+     "pace": 78.3,
      "focus": 85.9,
-     "overall": 85.6,
-     "source": "Classic Seasons pace of 2023; others from stock 2025 moved by +2.2 pace and 182 starts"
+     "overall": 79.9,
+     "source": "model from 2022 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "nyck_de-vries": {
-     "experience": 46.0,
-     "racecraft": 84.0,
-     "awareness": 75.0,
-     "pace": 67.0,
+     "experience": 49.2,
+     "racecraft": 71.2,
+     "awareness": 75.2,
+     "pace": 75.8,
      "focus": 70.7,
-     "overall": 70.9,
-     "source": "Classic Seasons pace of 2023; others from stock 2025 moved by +0.0 pace and 0 starts"
+     "overall": 72.5,
+     "source": "model from 2022 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2023": {
     "lewis_hamilton": {
-     "experience": 94.0,
-     "racecraft": 91.3,
-     "awareness": 91.3,
-     "pace": 88.3,
+     "experience": 97,
+     "racecraft": 94,
+     "awareness": 94,
+     "pace": 90,
      "focus": 80.1,
-     "overall": 89.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.3 pace and 310 starts"
+     "overall": 91.9,
+     "official_overall": 92,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "george_russell": {
-     "experience": 76.1,
-     "racecraft": 91.0,
-     "awareness": 83.0,
-     "pace": 89.0,
+     "experience": 76,
+     "racecraft": 87,
+     "awareness": 83,
+     "pace": 91,
      "focus": 87.2,
      "overall": 88.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 82 starts"
+     "official_overall": 88,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "charles_leclerc": {
-     "experience": 80.5,
-     "racecraft": 94.6,
-     "awareness": 92.6,
-     "pace": 89.6,
+     "experience": 77,
+     "racecraft": 92,
+     "awareness": 85,
+     "pace": 90,
      "focus": 88.2,
-     "overall": 90.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 103 starts"
+     "overall": 89.3,
+     "official_overall": 89,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "carlos_sainz-jr": {
-     "experience": 82.4,
-     "racecraft": 96.1,
-     "awareness": 88.1,
-     "pace": 88.1,
+     "experience": 84,
+     "racecraft": 92,
+     "awareness": 81,
+     "pace": 87,
      "focus": 91.3,
-     "overall": 90.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 163 starts"
+     "overall": 87.8,
+     "official_overall": 88,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "max_verstappen": {
-     "experience": 82.4,
-     "racecraft": 93.0,
-     "awareness": 82.0,
-     "pace": 93.0,
+     "experience": 84,
+     "racecraft": 97,
+     "awareness": 85,
+     "pace": 95,
      "focus": 75.0,
-     "overall": 91.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.0 pace and 163 starts"
+     "overall": 94.1,
+     "official_overall": 94,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "sergio_perez": {
-     "experience": 87.0,
-     "racecraft": 93.4,
-     "awareness": 79.4,
-     "pace": 85.4,
+     "experience": 91,
+     "racecraft": 93,
+     "awareness": 86,
+     "pace": 87,
      "focus": 83.2,
-     "overall": 87.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 236 starts"
+     "overall": 88.9,
+     "official_overall": 89,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "lando_norris": {
-     "experience": 76.1,
-     "racecraft": 86.4,
-     "awareness": 77.4,
-     "pace": 91.4,
+     "experience": 76,
+     "racecraft": 91,
+     "awareness": 79,
+     "pace": 91,
      "focus": 82.5,
-     "overall": 87.9,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.6 pace and 82 starts"
+     "overall": 89.1,
+     "official_overall": 89,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "oscar_piastri": {
-     "experience": 50.0,
-     "racecraft": 94.1,
-     "awareness": 88.1,
-     "pace": 89.1,
+     "experience": 74,
+     "racecraft": 73,
+     "awareness": 79,
+     "pace": 77,
      "focus": 84.9,
-     "overall": 87.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.1 pace and 0 starts"
+     "overall": 75.8,
+     "official_overall": 74,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "fernando_alonso": {
-     "experience": 98.0,
-     "racecraft": 89.3,
-     "awareness": 80.3,
-     "pace": 86.3,
+     "experience": 99.0,
+     "racecraft": 91,
+     "awareness": 78,
+     "pace": 93,
      "focus": 92.9,
-     "overall": 87.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 356 starts"
+     "overall": 91.8,
+     "official_overall": 92,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "lance_stroll": {
-     "experience": 81.0,
-     "racecraft": 84.4,
-     "awareness": 81.4,
-     "pace": 79.4,
+     "experience": 79,
+     "racecraft": 91,
+     "awareness": 78,
+     "pace": 81,
      "focus": 55.8,
-     "overall": 81.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.4 pace and 122 starts"
+     "overall": 83.5,
+     "official_overall": 84,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "pierre_gasly": {
-     "experience": 81.6,
-     "racecraft": 87.7,
-     "awareness": 78.7,
-     "pace": 85.7,
+     "experience": 78,
+     "racecraft": 89,
+     "awareness": 76,
+     "pace": 85,
      "focus": 80.9,
-     "overall": 85.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.3 pace and 108 starts"
+     "overall": 85.0,
+     "official_overall": 85,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "esteban_ocon": {
-     "experience": 80.4,
-     "racecraft": 86.0,
-     "awareness": 79.0,
-     "pace": 85.0,
+     "experience": 77,
+     "racecraft": 92,
+     "awareness": 76,
+     "pace": 86,
      "focus": 61.7,
-     "overall": 84.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 111 starts"
+     "overall": 86.4,
+     "official_overall": 86,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "alex_albon": {
-     "experience": 73.5,
-     "racecraft": 84.6,
-     "awareness": 80.6,
-     "pace": 87.6,
+     "experience": 75,
+     "racecraft": 81,
+     "awareness": 78,
+     "pace": 86,
      "focus": 88.0,
-     "overall": 85.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.6 pace and 59 starts"
+     "overall": 83.2,
+     "official_overall": 83,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "logan_sargeant": {
-     "experience": 45.1,
-     "racecraft": 75.6,
-     "awareness": 82.6,
-     "pace": 79.6,
+     "experience": 48,
+     "racecraft": 84,
+     "awareness": 75,
+     "pace": 67,
      "focus": 72.3,
-     "overall": 76.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +7.6 pace and 0 starts"
+     "overall": 71.1,
+     "official_overall": 71,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "yuki_tsunoda": {
-     "experience": 71.0,
-     "racecraft": 76.3,
-     "awareness": 75.3,
-     "pace": 83.3,
+     "experience": 69,
+     "racecraft": 79,
+     "awareness": 75,
+     "pace": 87,
      "focus": 83.2,
-     "overall": 79.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.7 pace and 44 starts"
+     "overall": 82.6,
+     "official_overall": 83,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "nyck_de-vries": {
-     "experience": 47.0,
-     "racecraft": 84.0,
-     "awareness": 75.0,
-     "pace": 67.0,
+     "experience": 50,
+     "racecraft": 84,
+     "awareness": 75,
+     "pace": 67,
      "focus": 70.7,
-     "overall": 71.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 1 starts"
+     "overall": 71.2,
+     "official_overall": 71,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "valtteri_bottas": {
-     "experience": 85.8,
-     "racecraft": 75.8,
-     "awareness": 99.0,
-     "pace": 86.8,
+     "experience": 88,
+     "racecraft": 86,
+     "awareness": 97,
+     "pace": 86,
      "focus": 77.3,
-     "overall": 84.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 200 starts"
+     "overall": 86.9,
+     "official_overall": 87,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "guanyu_zhou": {
-     "experience": 53.2,
-     "racecraft": 78.1,
-     "awareness": 82.1,
-     "pace": 83.1,
+     "experience": 63,
+     "racecraft": 78,
+     "awareness": 74,
+     "pace": 81,
      "focus": 79.0,
-     "overall": 79.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 22 starts"
+     "overall": 78.4,
+     "official_overall": 78,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "nico_hulkenberg": {
-     "experience": 84.6,
-     "racecraft": 88.2,
-     "awareness": 87.2,
-     "pace": 84.2,
+     "experience": 86,
+     "racecraft": 79,
+     "awareness": 81,
+     "pace": 80,
      "focus": 85.9,
-     "overall": 85.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 184 starts"
+     "overall": 80.2,
+     "official_overall": 80,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "kevin_magnussen": {
-     "experience": 78.3,
-     "racecraft": 69.8,
-     "awareness": 73.8,
-     "pace": 76.8,
+     "experience": 81,
+     "racecraft": 79,
+     "awareness": 85,
+     "pace": 82,
      "focus": 83.2,
-     "overall": 74.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 141 starts"
+     "overall": 81.3,
+     "official_overall": 81,
+     "source": "EA F1 23 launch ratings (https://traxion.gg/verstappen-leads-alonso-hamilton-in-initial-f1-23-driver-ratings/)"
     },
     "daniel_ricciardo": {
-     "experience": 86.8,
-     "racecraft": 85.5,
-     "awareness": 89.5,
-     "pace": 86.5,
+     "experience": 88.1,
+     "racecraft": 83.8,
+     "awareness": 83.8,
+     "pace": 82.5,
      "focus": 72.4,
-     "overall": 86.5,
-     "source": "Classic Seasons pace of 2022; others from stock 2025 moved by +4.5 pace and 232 starts"
+     "overall": 83.4,
+     "source": "model from 2023 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "liam_lawson": {
-     "experience": 50.0,
-     "racecraft": 76.0,
-     "awareness": 75.0,
-     "pace": 85.0,
+     "experience": 49.2,
+     "racecraft": 76.1,
+     "awareness": 73.5,
+     "pace": 73.7,
      "focus": 63.6,
-     "overall": 79.2,
-     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+     "overall": 72.6,
+     "source": "model from 2023 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2024": {
     "lewis_hamilton": {
-     "experience": 95.9,
-     "racecraft": 90.3,
-     "awareness": 90.3,
-     "pace": 87.3,
+     "experience": 97,
+     "racecraft": 90,
+     "awareness": 92,
+     "pace": 87,
      "focus": 80.1,
-     "overall": 89.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 332 starts"
+     "overall": 88.9,
+     "official_overall": 89,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "george_russell": {
-     "experience": 80.7,
-     "racecraft": 91.8,
-     "awareness": 83.8,
-     "pace": 89.8,
+     "experience": 78,
+     "racecraft": 87,
+     "awareness": 84,
+     "pace": 88,
      "focus": 87.2,
-     "overall": 89.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.2 pace and 104 starts"
+     "overall": 86.7,
+     "official_overall": 87,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "charles_leclerc": {
-     "experience": 81.0,
-     "racecraft": 94.3,
-     "awareness": 92.3,
-     "pace": 89.3,
+     "experience": 78,
+     "racecraft": 91,
+     "awareness": 90,
+     "pace": 89,
      "focus": 88.2,
-     "overall": 90.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 125 starts"
+     "overall": 88.9,
+     "official_overall": 89,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "carlos_sainz-jr": {
-     "experience": 84.7,
-     "racecraft": 96.6,
-     "awareness": 88.6,
-     "pace": 88.6,
+     "experience": 85,
+     "racecraft": 93,
+     "awareness": 89,
+     "pace": 88,
      "focus": 91.3,
-     "overall": 90.6,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 185 starts"
+     "overall": 89.3,
+     "official_overall": 89,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "max_verstappen": {
-     "experience": 84.7,
-     "racecraft": 93.5,
-     "awareness": 82.5,
-     "pace": 93.5,
+     "experience": 85,
+     "racecraft": 98,
+     "awareness": 94,
+     "pace": 96,
      "focus": 75.0,
-     "overall": 92.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.5 pace and 185 starts"
+     "overall": 95.6,
+     "official_overall": 96,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "sergio_perez": {
-     "experience": 88.9,
-     "racecraft": 93.9,
-     "awareness": 79.9,
-     "pace": 85.9,
+     "experience": 91,
+     "racecraft": 93,
+     "awareness": 79,
+     "pace": 85,
      "focus": 83.2,
-     "overall": 88.0,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.9 pace and 258 starts"
+     "overall": 87.3,
+     "official_overall": 87,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "lando_norris": {
-     "experience": 80.7,
-     "racecraft": 86.7,
-     "awareness": 77.7,
-     "pace": 91.7,
+     "experience": 78,
+     "racecraft": 89,
+     "awareness": 85,
+     "pace": 90,
      "focus": 82.5,
      "overall": 88.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.3 pace and 104 starts"
+     "official_overall": 89,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "oscar_piastri": {
-     "experience": 59.7,
-     "racecraft": 94.2,
-     "awareness": 88.2,
-     "pace": 89.2,
+     "experience": 62,
+     "racecraft": 85,
+     "awareness": 81,
+     "pace": 86,
      "focus": 84.9,
-     "overall": 88.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 22 starts"
+     "overall": 83.6,
+     "official_overall": 84,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "fernando_alonso": {
-     "experience": 98.5,
-     "racecraft": 87.9,
-     "awareness": 78.9,
-     "pace": 84.9,
+     "experience": 99.0,
+     "racecraft": 94,
+     "awareness": 81,
+     "pace": 91,
      "focus": 92.9,
-     "overall": 86.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -2.1 pace and 378 starts"
+     "overall": 91.7,
+     "official_overall": 92,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "lance_stroll": {
-     "experience": 81.0,
-     "racecraft": 84.1,
-     "awareness": 81.1,
-     "pace": 79.1,
+     "experience": 80,
+     "racecraft": 83,
+     "awareness": 79,
+     "pace": 79,
      "focus": 55.8,
-     "overall": 80.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.1 pace and 144 starts"
+     "overall": 80.2,
+     "official_overall": 80,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "pierre_gasly": {
-     "experience": 81.6,
-     "racecraft": 87.6,
-     "awareness": 78.6,
-     "pace": 85.6,
+     "experience": 79,
+     "racecraft": 85,
+     "awareness": 78,
+     "pace": 85,
      "focus": 80.9,
-     "overall": 85.4,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 130 starts"
+     "overall": 84.1,
+     "official_overall": 84,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "esteban_ocon": {
-     "experience": 80.4,
-     "racecraft": 86.3,
-     "awareness": 79.3,
-     "pace": 85.3,
+     "experience": 79,
+     "racecraft": 83,
+     "awareness": 80,
+     "pace": 83,
      "focus": 61.7,
-     "overall": 84.8,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 133 starts"
+     "overall": 82.5,
+     "official_overall": 83,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "alex_albon": {
-     "experience": 76.0,
-     "racecraft": 83.2,
-     "awareness": 79.2,
-     "pace": 86.2,
+     "experience": 77,
+     "racecraft": 83,
+     "awareness": 79,
+     "pace": 87,
      "focus": 88.0,
-     "overall": 84.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +1.2 pace and 81 starts"
+     "overall": 84.6,
+     "official_overall": 85,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "logan_sargeant": {
-     "experience": 54.8,
-     "racecraft": 77.0,
-     "awareness": 84.0,
-     "pace": 81.0,
+     "experience": 62,
+     "racecraft": 68,
+     "awareness": 75,
+     "pace": 72,
      "focus": 72.3,
-     "overall": 78.2,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +9.0 pace and 22 starts"
+     "overall": 70.4,
+     "official_overall": 70,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "yuki_tsunoda": {
-     "experience": 74.3,
-     "racecraft": 77.0,
-     "awareness": 76.0,
-     "pace": 84.0,
+     "experience": 72,
+     "racecraft": 74,
+     "awareness": 77,
+     "pace": 86,
      "focus": 83.2,
-     "overall": 80.7,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 66 starts"
+     "overall": 80.9,
+     "official_overall": 81,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "daniel_ricciardo": {
-     "experience": 87.4,
-     "racecraft": 79.7,
-     "awareness": 83.7,
-     "pace": 80.7,
+     "experience": 89,
+     "racecraft": 81,
+     "awareness": 85,
+     "pace": 82,
      "focus": 72.4,
-     "overall": 81.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -1.3 pace and 239 starts"
+     "overall": 82.4,
+     "official_overall": 82,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "valtteri_bottas": {
-     "experience": 86.6,
-     "racecraft": 75.8,
-     "awareness": 99.0,
-     "pace": 86.8,
+     "experience": 88,
+     "racecraft": 72,
+     "awareness": 97,
+     "pace": 83,
      "focus": 77.3,
-     "overall": 84.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 222 starts"
+     "overall": 81.2,
+     "official_overall": 81,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "guanyu_zhou": {
-     "experience": 64.5,
-     "racecraft": 78.1,
-     "awareness": 82.1,
-     "pace": 83.1,
+     "experience": 68,
+     "racecraft": 78,
+     "awareness": 82,
+     "pace": 83,
      "focus": 79.0,
-     "overall": 80.3,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 44 starts"
+     "overall": 80.4,
+     "official_overall": 80,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "nico_hulkenberg": {
-     "experience": 86.8,
-     "racecraft": 86.4,
-     "awareness": 85.4,
-     "pace": 82.4,
+     "experience": 85,
+     "racecraft": 82,
+     "awareness": 85,
+     "pace": 81,
      "focus": 85.9,
-     "overall": 84.1,
-     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 206 starts"
+     "overall": 81.9,
+     "official_overall": 82,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "kevin_magnussen": {
-     "experience": 79.7,
-     "racecraft": 71.6,
-     "awareness": 75.6,
-     "pace": 78.6,
+     "experience": 82,
+     "racecraft": 75,
+     "awareness": 79,
+     "pace": 82,
      "focus": 83.2,
-     "overall": 76.5,
-     "source": "Classic Seasons pace; others from stock 2025 moved by -3.4 pace and 163 starts"
+     "overall": 79.8,
+     "official_overall": 80,
+     "source": "EA F1 24 launch ratings (https://clutchpoints.com/gaming/f1-24-roster-driver-ratings-max-verstappen-leads-the-charge)"
     },
     "oliver_bearman": {
-     "experience": 50.0,
-     "racecraft": 84.0,
-     "awareness": 65.0,
-     "pace": 73.0,
+     "experience": 49.2,
+     "racecraft": 73.1,
+     "awareness": 78.0,
+     "pace": 69.8,
      "focus": 85.6,
-     "overall": 73.9,
-     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+     "overall": 69.9,
+     "source": "model from 2024 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "jack_doohan": {
-     "experience": 50.0,
-     "racecraft": 71.0,
-     "awareness": 67.0,
-     "pace": 78.0,
+     "experience": 49.2,
+     "racecraft": 72.9,
+     "awareness": 68.9,
+     "pace": 71.1,
      "focus": 80.0,
-     "overall": 73.2,
-     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+     "overall": 69.9,
+     "source": "model from 2024 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "franco_colapinto": {
-     "experience": 50.0,
-     "racecraft": 88.0,
-     "awareness": 76.0,
-     "pace": 74.0,
+     "experience": 49.2,
+     "racecraft": 79.1,
+     "awareness": 69.9,
+     "pace": 75.0,
      "focus": 55.0,
-     "overall": 76.4,
-     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+     "overall": 74.0,
+     "source": "model from 2024 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     },
     "liam_lawson": {
-     "experience": 52.0,
-     "racecraft": 76.0,
-     "awareness": 75.0,
-     "pace": 85.0,
+     "experience": 52.2,
+     "racecraft": 77.4,
+     "awareness": 75.4,
+     "pace": 76.2,
      "focus": 63.6,
-     "overall": 79.4,
-     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 5 starts"
+     "overall": 74.8,
+     "source": "model from 2024 results (tools/ratings_model.py, leave-one-out overall error 1.98 on the 2020-2025 launch ratings)"
     }
    },
    "2025": {
@@ -15405,7 +15502,8 @@
      "pace": 90.0,
      "focus": 87.2,
      "overall": 89.5,
-     "source": "stock default (2025) dataset"
+     "official_overall": 90,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "andrea-kimi_antonelli": {
      "experience": 50.0,
@@ -15414,7 +15512,8 @@
      "pace": 76.0,
      "focus": 80.0,
      "overall": 71.8,
-     "source": "stock default (2025) dataset"
+     "official_overall": 72,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "charles_leclerc": {
      "experience": 81.0,
@@ -15423,7 +15522,8 @@
      "pace": 90.0,
      "focus": 88.2,
      "overall": 91.0,
-     "source": "stock default (2025) dataset"
+     "official_overall": 91,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "lewis_hamilton": {
      "experience": 98.0,
@@ -15432,7 +15532,8 @@
      "pace": 87.0,
      "focus": 80.1,
      "overall": 88.9,
-     "source": "stock default (2025) dataset"
+     "official_overall": 89,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "max_verstappen": {
      "experience": 87.0,
@@ -15441,7 +15542,8 @@
      "pace": 96.0,
      "focus": 75.0,
      "overall": 94.6,
-     "source": "stock default (2025) dataset"
+     "official_overall": 95,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "yuki_tsunoda": {
      "experience": 77.0,
@@ -15450,7 +15552,8 @@
      "pace": 85.0,
      "focus": 83.2,
      "overall": 81.9,
-     "source": "stock default (2025) dataset"
+     "official_overall": 82,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "oscar_piastri": {
      "experience": 72.0,
@@ -15459,7 +15562,8 @@
      "pace": 87.0,
      "focus": 84.9,
      "overall": 87.3,
-     "source": "stock default (2025) dataset"
+     "official_overall": 87,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "lando_norris": {
      "experience": 81.0,
@@ -15468,7 +15572,8 @@
      "pace": 94.0,
      "focus": 82.5,
      "overall": 90.6,
-     "source": "stock default (2025) dataset"
+     "official_overall": 91,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "lance_stroll": {
      "experience": 83.0,
@@ -15477,7 +15582,8 @@
      "pace": 76.0,
      "focus": 55.8,
      "overall": 78.1,
-     "source": "stock default (2025) dataset"
+     "official_overall": 78,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "fernando_alonso": {
      "experience": 99.0,
@@ -15486,7 +15592,8 @@
      "pace": 87.0,
      "focus": 92.9,
      "overall": 88.3,
-     "source": "stock default (2025) dataset"
+     "official_overall": 88,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "pierre_gasly": {
      "experience": 82.0,
@@ -15495,7 +15602,8 @@
      "pace": 86.0,
      "focus": 80.9,
      "overall": 85.8,
-     "source": "stock default (2025) dataset"
+     "official_overall": 86,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "franco_colapinto": {
      "experience": 52.0,
@@ -15504,7 +15612,7 @@
      "pace": 74.0,
      "focus": 55.0,
      "overall": 76.6,
-     "source": "stock default (2025) dataset"
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "alex_albon": {
      "experience": 81.0,
@@ -15513,7 +15621,8 @@
      "pace": 85.0,
      "focus": 88.0,
      "overall": 83.4,
-     "source": "stock default (2025) dataset"
+     "official_overall": 83,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "carlos_sainz-jr": {
      "experience": 87.0,
@@ -15522,7 +15631,8 @@
      "pace": 88.0,
      "focus": 91.3,
      "overall": 90.2,
-     "source": "stock default (2025) dataset"
+     "official_overall": 90,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "isack_hadjar": {
      "experience": 51.0,
@@ -15531,7 +15641,8 @@
      "pace": 72.0,
      "focus": 60.0,
      "overall": 68.3,
-     "source": "stock default (2025) dataset"
+     "official_overall": 68,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "liam_lawson": {
      "experience": 54.0,
@@ -15540,7 +15651,8 @@
      "pace": 85.0,
      "focus": 63.6,
      "overall": 79.5,
-     "source": "stock default (2025) dataset"
+     "official_overall": 80,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "nico_hulkenberg": {
      "experience": 87.0,
@@ -15549,7 +15661,8 @@
      "pace": 82.0,
      "focus": 85.9,
      "overall": 83.7,
-     "source": "stock default (2025) dataset"
+     "official_overall": 84,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "gabriel_bortoleto": {
      "experience": 50.0,
@@ -15558,7 +15671,8 @@
      "pace": 77.0,
      "focus": 55.0,
      "overall": 74.1,
-     "source": "stock default (2025) dataset"
+     "official_overall": 74,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "esteban_ocon": {
      "experience": 81.0,
@@ -15567,7 +15681,8 @@
      "pace": 85.0,
      "focus": 61.7,
      "overall": 84.6,
-     "source": "stock default (2025) dataset"
+     "official_overall": 85,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "oliver_bearman": {
      "experience": 52.0,
@@ -15576,7 +15691,8 @@
      "pace": 73.0,
      "focus": 85.6,
      "overall": 74.1,
-     "source": "stock default (2025) dataset"
+     "official_overall": 74,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     },
     "jack_doohan": {
      "experience": 51.0,
@@ -15585,7 +15701,8 @@
      "pace": 78.0,
      "focus": 80.0,
      "overall": 73.3,
-     "source": "stock default (2025) dataset"
+     "official_overall": 73,
+     "source": "stock default dataset (EA's F1 25 launch ratings)"
     }
    },
    "2026": {
