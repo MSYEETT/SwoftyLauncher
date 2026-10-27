@@ -638,16 +638,14 @@ impl SessionRecord {
         }
     }
 
-    /// Whether to show the session as a crash. A stop or a quit is not one,
-    /// and an end without an exit code tells nothing.
+    /// Whether to show the session as a crash: only an end with evidence of
+    /// one, a crash exit code or an exception the mod loader saw. F1 25 also
+    /// leaves -1 and other codes when it is closed, so an `Unknown` end shows
+    /// as closed, not crashed.
     pub fn crashed(&self) -> bool {
         match &self.end {
-            Some(e) => match e.end {
-                Ending::Crash => true,
-                Ending::Unknown => e.exit_code.is_some_and(|c| c != 0),
-                Ending::Quit | Ending::Stopped => false,
-            },
-            None => self.exit_code.is_some_and(|c| c != 0),
+            Some(e) => e.end == Ending::Crash,
+            None => self.exit_code.is_some_and(|c| crash_code(c as u32)),
         }
     }
 
@@ -991,7 +989,12 @@ mod tests {
         assert_eq!((live.started, live.exit_code), (Some(100.5), None));
         assert!(!live.crashed());
         std::fs::write(dir.join("exit_code"), "3\n").unwrap();
-        assert!(SessionRecord::read(&dir).crashed());
+        assert!(
+            !SessionRecord::read(&dir).crashed(),
+            "a code that is not a crash code"
+        );
+        std::fs::write(dir.join("exit_code"), "-1073741819\n").unwrap();
+        assert!(SessionRecord::read(&dir).crashed(), "an access violation");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -1104,8 +1107,8 @@ mod tests {
         std::fs::write(dir.join("exit_code"), "-1\n").unwrap();
         std::fs::write(dir.join("game_end"), "200\n").unwrap();
         assert!(
-            SessionRecord::read(&dir).crashed(),
-            "no end file: any non-zero code"
+            !SessionRecord::read(&dir).crashed(),
+            "no end file: -1 is not a crash code"
         );
         let mut end = SessionEnd::resolve(Some(-1), "", Some("Stop in the launcher closed F1 25"), None);
         end.write(&dir).unwrap();
@@ -1114,7 +1117,7 @@ mod tests {
         assert!(!record.crashed());
         for (ending, code, shown) in [
             (Ending::Crash, Some(-1), true),
-            (Ending::Unknown, Some(-1), true),
+            (Ending::Unknown, Some(-1), false),
             (Ending::Unknown, None, false),
             (Ending::Quit, Some(0), false),
         ] {
