@@ -1,16 +1,18 @@
 ---
 title: Providers
-description: Records added up front with Registry::add, and dynamic providers that compute records on read, fill a registry's base in standard library 2.0.
+description: Who fills a registry's base. Records added up front with Registry::add, dynamic providers that compute records on read, and shared ids such as venues that go to the last provider in load order.
 ---
 
 # Providers
 
-A **provider** fills the base of records under its own id. A record has exactly one base. Every other addon changes it through a [layer](/std/layers).
+A **provider** is the addon that fills a record's **base**: the value every [layer](/std/layers) starts from. Progressive Career provides `swofty.progressive/2017`, its 2017 line-up, and a what-if addon layers that record to change the grid. A record has exactly one base, under the provider's own id. Every other addon changes it through a layer.
 
 An addon provides in two ways, and can use both for one registry:
 
 - **`add`**: records you know up front, added in `SWOFTY_REGISTER`.
-- **`provide`**: a callback the core calls when a record is read, cached until you `invalidate` it.
+- **`provide`**: a callback the core calls when a record is read. The core caches the result until you `invalidate` it.
+
+Shared ids, such as the venue `venue/sochi`, are the one case where several addons provide the same id. The last one in load order wins (see [Shared ids](#shared-ids)).
 
 ## Records added up front
 
@@ -18,7 +20,7 @@ An addon provides in two ways, and can use both for one registry:
 
 Progressive Career keeps its history in its own `data/years.json`. At the early stage it reads that file and adds one `career.season` record per year.
 
-`years.json` stays Progressive's private format. The registry records are the public one: any addon can read the 2016 grid, or layer it.
+`years.json` is Progressive's private format. The registry records are the public one: any addon can read the 2016 grid or layer it.
 
 <template #example>
 <Example root="swofty.progressive" code-file="native/src/register.cpp" data-file="registry/seasons.json" files="swofty.json, data/years.json, native/progressive.dll">
@@ -91,9 +93,9 @@ SWOFTY_ADDON()
 
 <Split>
 
-A dynamic provider is a callback. The core calls it the first time a record is read, and caches the result until the provider calls `invalidate`.
+A **dynamic provider** is a callback. The core calls it the first time a record is read, and caches the result until the provider calls `invalidate`.
 
-Return `std::nullopt` for an id that isn't yours: the core tries the next provider. The second callback lists the ids you answer, so [listing](/std/reading#listing) finds them.
+Return `std::nullopt` for an id that isn't yours, and the core tries the next provider. The second callback lists the ids you answer. [Listing](/std/reading#listing) finds them through it.
 
 <template #example>
 <Example root="swofty.progressive" code-file="native/src/ratings.cpp" files="swofty.json, native/src/register.cpp, native/progressive.dll">
@@ -110,11 +112,15 @@ using namespace swofty;
 // id: "swofty.progressive/<year>/<driver>"
 static std::optional<career::DriverRatings> ratings(std::string_view id)
 {
-    auto parts = swofty::split(id);         // {"swofty.progressive", "2017", "max_verstappen"}
-    if (parts.size() != 3 || parts[0] != "swofty.progressive")
+    constexpr std::string_view prefix = "swofty.progressive/";
+    if (!id.starts_with(prefix))
         return std::nullopt;                // not ours
-    int year = std::stoi(std::string(parts[1]));
-    return progressive::ratings_model().season_start(std::string(parts[2]), year);
+    std::string_view rest = id.substr(prefix.size());              // "2017/max_verstappen"
+    std::size_t slash = rest.find('/');
+    if (slash == std::string_view::npos)
+        return std::nullopt;
+    int year = std::stoi(std::string(rest.substr(0, slash)));
+    return progressive::ratings_model().season_start(std::string(rest.substr(slash + 1)), year);
 }
 
 static void list(std::function<void(std::string_view)> add)
@@ -145,7 +151,7 @@ void on_ratings_model_reloaded()
 }
 ```
 
-The cached value is dropped, the next read calls the provider again, and [watchers](/std/reading#watching) are told.
+The core drops the cached value, calls the provider again on the next read, and tells [watchers](/std/reading#watching).
 
 ## Both together
 
@@ -177,11 +183,35 @@ SWOFTY_ON_LOAD
 
 To change another addon's records, use a [layer](/std/layers), not a second provider.
 
+## Shared ids
+
+The core owns a few kinds of shared ids, each for something real that several addons can bring:
+
+- `venue/<key>`: a real circuit, provided by a track;
+- `person/<key>`: a real driver, provided by a driver record;
+- `constructor/<key>`: a real team, provided by a team record.
+
+A record says which shared ids it provides. Other records refer to the shared id, and the reference resolves to the provider. When two enabled addons provide the same id, the last one in load order wins, the same as every other contest between addons. The core logs the result, and the conflicts report lists the loser.
+
+```cpp
+// mod.sochi: a track that is the real Sochi Autodrom
+tracks::tracks.add("sochi", { .code = "sochi", .base = tracks::tracks["game/baku"],
+                              .provides = { tracks::venues["venue/sochi"] } });
+```
+
+```text
+[registry] track.venue venue/sochi: provided by mod.sochi/sochi and community.sochi-2014/sochi;
+           community.sochi-2014/sochi wins (later in load order). The conflicts report lists it.
+```
+
+A 2016 calendar that asks for `venue/sochi` gets the winning track. Moving `mod.sochi` later in the load order makes it the winner instead. The [Tracks](/std/systems/tracks), [Drivers](/std/systems/drivers) and [Teams](/std/systems/teams) pages show each provider's record.
+
 ## Threads and timing
 
-- `add`, `variant` and `provide` are accepted in `SWOFTY_REGISTER`, and at any time while the game runs. A record added late takes effect the next time the game reads that data (see [When changes apply](/std/build)).
-- A call made before the core's setup (from a 1.x `SwoftyAddonInit`) is queued and applied in load order.
-- A dynamic provider runs on the thread that reads the record, under the registry's lock. It must not read the same registry (a re-entrant read gets nothing, with `Status::late`) and must return quickly.
+- `add`, `variant` and `provide` work in `SWOFTY_REGISTER`. On a registry the game reads only at boot (`Applies::boot`), that's the only place they work: after the boot apply, the core refuses them with `late` and a log line that says to move the call into `SWOFTY_REGISTER`.
+- On every other registry they also work at any time while the game runs. A record added then takes effect the next time the game reads that data (see [When changes apply](/std/build)).
+- A call made before the core is set up, from `SwoftyAddonInit`, is queued and applied in load order.
+- A dynamic provider runs on the thread that reads the record, under the registry's lock. It must return quickly, and it must not read the same registry: a re-entrant read gets nothing, with `Status::late`.
 
 ## Without code
 
