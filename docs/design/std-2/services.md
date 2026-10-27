@@ -116,7 +116,7 @@ In 2.0 they use the service, like any other addon would. The `GetProcAddress` ex
 ```json
 // the consumer
 {
-  "requires": { "service:progressive.history": ">=1" }
+  "requires": [ { "service": "progressive.history", "version": ">=1" } ]
 }
 ```
 

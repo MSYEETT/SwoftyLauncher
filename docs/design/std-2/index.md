@@ -136,6 +136,9 @@ The registry and its subfeatures come first. Then the parts that connect addons 
   - **Career snapshots**: the effective values frozen into each career.
 - **[Content registries](./content)**: GP/TT season packages, era boxes, cars, engine sounds, liveries, helmets, tracks and identities.
 - **[Systems catalogue](./systems)**: every game system's registries, hook points, operations and readiness, and the limits the core enforces for all of them.
+- **[Your own systems](./custom-systems)**: an addon's own registries, scope, projection, scoped hooks and service; a six-compound tyre system others extend.
+- **[Dependencies and guards](./dependencies)**: needing addons, registries and single records like tracks; what happens when they're missing; guards; careers that remember what they were made with.
+- **[Events](./events)**: the lifecycle from boot to the chequered flag, with the context of everything, scoped and overridable by content owners.
 - **[Build time and run time](./build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
 - **[Versioning](./versioning)**: how registries, hook payloads and tables change over time, only ever growing.
   - **Schema versions**: minor adds; a major adds a new version next to the old one.
@@ -152,6 +155,8 @@ The registry and its subfeatures come first. Then the parts that connect addons 
 - **[Operations](./operations)**: the core's verbs that apply data to the game.
 - **[The launcher side](./launcher)**: registries in the build, launcher pages that edit layers, the conflicts view and Send Logs.
 - **[Manifest](./manifest)**: how an addon declares all of the above.
+- **[The Simplified importer](./importer)**: imported mods recognised as records others stack on; everything else kept exactly as it builds today.
+- **[Coverage](./coverage)**: every Addon Browser addon and the common imported mods, today and in 2.0.
 - **[Compatibility](./compatibility)**: why every 1.x addon keeps working, and how the release proves it.
 - **[The C ABI](./abi)**: the tables under the C++ wrappers.
 - **[Rollout and docs](./rollout)**: the releases, and how the public docs are written.

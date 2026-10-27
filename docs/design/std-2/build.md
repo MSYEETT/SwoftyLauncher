@@ -50,7 +50,7 @@ launcher  {"id":7,"method":"build","params":{"profile":"default","registries":{"
 plugin    {"id":7,"result":{"ops":[{"op":"file.put","source":"generated/presets.json","target":"swofty/addons/tails.whatif-history/presets.json"}]}}
 ```
 
-**Order:** appliers run before every addon's own operations, so a 1.x addon's hand-written operations still apply last, exactly as they did. That keeps the build of a 1.x profile byte-identical (see [Compatibility](./compatibility)).
+**Order:** a record is applied at the load-order position of the addon that provides it, and a layer at the position of the addon that wrote it, interleaved with every addon's own operations. A profile of 1.x addons has no records, so its build is byte-identical to 1.x (see [Compatibility](./compatibility)). An imported mod's recognised records apply through its own raw operations, at its own position (see [The Simplified importer](./importer)).
 
 ## Run time: the core reads records
 

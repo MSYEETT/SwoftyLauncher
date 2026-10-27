@@ -14,7 +14,7 @@ There are two kinds, and an addon can use both for one registry.
 A static provider is JSON in the addon, named in the manifest. The launcher reads it too, so launcher pages can show the base without the game running.
 
 ```json
-// swofty.json
+// registry.json
 {
   "provides": [
     { "registry": "career.season", "file": "registry/seasons.json" },
