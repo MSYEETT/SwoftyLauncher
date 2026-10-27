@@ -177,6 +177,12 @@ using Game_ContractTeamSelect_OnExit_t = uint64_t(void *state);
 inline constexpr fn<"Game_ContractTeamSelect_OnExit", Game_ContractTeamSelect_OnExit_t> Game_ContractTeamSelect_OnExit{}; // L2 experimental
 using Game_ContractTeamSelect_OnUpdate_t = uint32_t *(void *state, uint32_t *link);
 inline constexpr fn<"Game_ContractTeamSelect_OnUpdate", Game_ContractTeamSelect_OnUpdate_t> Game_ContractTeamSelect_OnUpdate{}; // L2 experimental
+using Game_CreateSessionDlcSelectTab_BuildTiles_t = void(void *view_model);
+inline constexpr fn<"Game_CreateSessionDlcSelectTab_BuildTiles", Game_CreateSessionDlcSelectTab_BuildTiles_t> Game_CreateSessionDlcSelectTab_BuildTiles{}; // L2 experimental
+using Game_CreateSessionDlcSelectTab_FillTile_t = void *(void *tile, void *node, const char *title, const char *command, const char *image);
+inline constexpr fn<"Game_CreateSessionDlcSelectTab_FillTile", Game_CreateSessionDlcSelectTab_FillTile_t> Game_CreateSessionDlcSelectTab_FillTile{}; // L2 experimental
+using Game_CreateSessionDlcSelectTab_HandleCommand_t = char *(void *view_model, void *command);
+inline constexpr fn<"Game_CreateSessionDlcSelectTab_HandleCommand", Game_CreateSessionDlcSelectTab_HandleCommand_t> Game_CreateSessionDlcSelectTab_HandleCommand{}; // L2 experimental
 using Game_DriverContracts_AdvanceSecretMeeting_t = void(void *contracts, uint32_t driver, uint8_t notify);
 inline constexpr fn<"Game_DriverContracts_AdvanceSecretMeeting", Game_DriverContracts_AdvanceSecretMeeting_t> Game_DriverContracts_AdvanceSecretMeeting{}; // L2 experimental
 using Game_DriverContracts_BuildOffers_t = void(void *contracts, uint32_t driver);
@@ -195,6 +201,10 @@ using Game_EntrantsUi_OnCharacterListLoaded_t = int64_t(void *ctx, const void *m
 inline constexpr fn<"Game_EntrantsUi_OnCharacterListLoaded", Game_EntrantsUi_OnCharacterListLoaded_t> Game_EntrantsUi_OnCharacterListLoaded{}; // L2 experimental
 using Game_F1WorldActivityContainer_SelectEntrantList_t = void(void *container, const char *entrant_list);
 inline constexpr fn<"Game_F1WorldActivityContainer_SelectEntrantList", Game_F1WorldActivityContainer_SelectEntrantList_t> Game_F1WorldActivityContainer_SelectEntrantList{}; // L2 experimental
+using Game_Network_CategoryOptionUsing_t = void(void *self);
+inline constexpr fn<"Game_Network_CategoryOptionUsing", Game_Network_CategoryOptionUsing_t> Game_Network_CategoryOptionUsing{}; // L2 experimental
+using Game_OptionsStore_FindOption_t = uint64_t(void *map, const char **name);
+inline constexpr fn<"Game_OptionsStore_FindOption", Game_OptionsStore_FindOption_t> Game_OptionsStore_FindOption{}; // L2 experimental
 using Game_Refresh_PerformanceComparison_t = void(void *comparison);
 inline constexpr fn<"Game_Refresh_PerformanceComparison", Game_Refresh_PerformanceComparison_t> Game_Refresh_PerformanceComparison{}; // L2 experimental
 using Game_Rnd_CalcUpgradeTypeProgress_t = float(void *const *instances, uint8_t type, uint8_t state, const void *meta);
@@ -216,6 +226,7 @@ inline constexpr fn<"Game_SpeechSystem_PostLine", Game_SpeechSystem_PostLine_t> 
 inline constexpr data<"g_Game_FlowLinkStay", uint32_t> g_Game_FlowLinkStay{}; // L2 experimental
 inline constexpr data<"g_Game_Manager", void *> g_Game_Manager{}; // L2 experimental
 inline constexpr data<"g_Game_MessageBus", void *> g_Game_MessageBus{}; // L2 experimental
+inline constexpr data<"g_Game_OptionsStore", void *> g_Game_OptionsStore{}; // L2 experimental
 inline constexpr data<"g_Game_Root", void *> g_Game_Root{}; // L2 experimental
 inline constexpr data<"k_Game_TrackListComponentDesc", void *> k_Game_TrackListComponentDesc{}; // L2 experimental, TrackListComponent
 inline constexpr call<"site_Game_CareerContinue_DriverSlotTitle"> site_Game_CareerContinue_DriverSlotTitle{}; // L2 experimental

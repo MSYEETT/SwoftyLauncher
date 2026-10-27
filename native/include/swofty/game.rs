@@ -1934,6 +1934,16 @@ pub type Game_ContractTeamSelect_OnEnter_t = unsafe extern "C" fn(state: *mut c_
 pub type Game_ContractTeamSelect_OnExit_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
 pub type Game_ContractTeamSelect_OnUpdate_t =
     unsafe extern "C" fn(state: *mut c_void, link: *mut u32) -> *mut u32;
+pub type Game_CreateSessionDlcSelectTab_BuildTiles_t = unsafe extern "C" fn(view_model: *mut c_void);
+pub type Game_CreateSessionDlcSelectTab_FillTile_t = unsafe extern "C" fn(
+    tile: *mut c_void,
+    node: *mut c_void,
+    title: *const c_char,
+    command: *const c_char,
+    image: *const c_char,
+) -> *mut c_void;
+pub type Game_CreateSessionDlcSelectTab_HandleCommand_t =
+    unsafe extern "C" fn(view_model: *mut c_void, command: *mut c_void) -> *mut c_char;
 pub type Game_DriverContracts_AdvanceSecretMeeting_t =
     unsafe extern "C" fn(contracts: *mut c_void, driver: u32, notify: u8);
 pub type Game_DriverContracts_BuildOffers_t = unsafe extern "C" fn(contracts: *mut c_void, driver: u32);
@@ -1957,6 +1967,9 @@ pub type Game_EntrantsUi_OnCharacterListLoaded_t =
     unsafe extern "C" fn(ctx: *mut c_void, message: *const c_void) -> i64;
 pub type Game_F1WorldActivityContainer_SelectEntrantList_t =
     unsafe extern "C" fn(container: *mut c_void, entrant_list: *const c_char);
+pub type Game_Network_CategoryOptionUsing_t = unsafe extern "C" fn(self_: *mut c_void);
+pub type Game_OptionsStore_FindOption_t =
+    unsafe extern "C" fn(map: *mut c_void, name: *mut *const c_char) -> u64;
 pub type Game_Refresh_PerformanceComparison_t = unsafe extern "C" fn(comparison: *mut c_void);
 pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
@@ -2039,6 +2052,8 @@ pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
+pub type Vm_List_AppendChild_t = unsafe extern "C" fn(list: *mut c_void) -> *mut *mut c_void;
+pub type Vm_Release_Node_t = unsafe extern "C" fn(registry: *mut c_void, node: *mut c_void);
 pub type Vm_Resolve_RegistryNode_t = unsafe extern "C" fn(
     registry: *mut c_void,
     path: *const c_char,
@@ -2385,6 +2400,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_CreateSessionDlcSelectTab_BuildTiles: Binding = Binding {
+        id: "Game_CreateSessionDlcSelectTab_BuildTiles",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CreateSessionDlcSelectTab_FillTile: Binding = Binding {
+        id: "Game_CreateSessionDlcSelectTab_FillTile",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_CreateSessionDlcSelectTab_HandleCommand: Binding = Binding {
+        id: "Game_CreateSessionDlcSelectTab_HandleCommand",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_DriverContracts_AdvanceSecretMeeting: Binding = Binding {
         id: "Game_DriverContracts_AdvanceSecretMeeting",
         kind: "func",
@@ -2427,6 +2457,16 @@ pub mod bindings {
     };
     pub const Game_F1WorldActivityContainer_SelectEntrantList: Binding = Binding {
         id: "Game_F1WorldActivityContainer_SelectEntrantList",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Network_CategoryOptionUsing: Binding = Binding {
+        id: "Game_Network_CategoryOptionUsing",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_OptionsStore_FindOption: Binding = Binding {
+        id: "Game_OptionsStore_FindOption",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2600,6 +2640,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Vm_List_AppendChild: Binding = Binding {
+        id: "Vm_List_AppendChild",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Vm_Release_Node: Binding = Binding {
+        id: "Vm_Release_Node",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Vm_Resolve_RegistryNode: Binding = Binding {
         id: "Vm_Resolve_RegistryNode",
         kind: "func",
@@ -2662,6 +2712,11 @@ pub mod bindings {
     };
     pub const g_Game_MessageBus: Binding = Binding {
         id: "g_Game_MessageBus",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_OptionsStore: Binding = Binding {
+        id: "g_Game_OptionsStore",
         kind: "data",
         status: Status::Experimental,
     };

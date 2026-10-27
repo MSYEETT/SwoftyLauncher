@@ -7643,7 +7643,8 @@
    ],
    "used_by": [
     "native/src/core/dbread.cpp",
-    "native/src/core/career.cpp"
+    "native/src/core/career.cpp",
+    "native/src/core/car_category.cpp"
    ]
   },
   {
@@ -67622,7 +67623,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
   },
   {
    "id": "game.invite_manager_session_invitation_ignored_request_id",
@@ -74178,6 +74181,194 @@
    ],
    "used_by": [
     "addons/progressive/native/src/ui/logos.cpp"
+   ]
+  },
+  {
+   "id": "game.create_session_dlc_select_build_tiles",
+   "section": ".xtls",
+   "pattern": "48 8D BE 30 06 00 00 80 BE 70 07 00 00 00 74 0F 48 89 F9 E8 ?? ?? ?? ?? C6 86 70 07 00 00 00 48 8B 46 10 48 8D 50 08 48 85 C0 4C 8D 35 ?? ?? ?? ?? 49 0F 44 D6 4C 8D 05 93 BB CC 03 48 89 F9 E8 ?? ?? ?? ?? 48 8D 9E 50 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? 48 8D 9E D0 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? C6 44 24 30 00",
+   "match": "0x141a4027b",
+   "anchor": "-0x21b",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a40060",
+   "kind": "func_start",
+   "names": [
+    "Game_CreateSessionDlcSelectTab_BuildTiles"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "vm.list_append_child",
+   "section": ".xtls",
+   "pattern": "48 8D BE 30 06 00 00 80 BE 70 07 00 00 00 74 0F 48 89 F9 E8 ?? ?? ?? ?? C6 86 70 07 00 00 00 48 8B 46 10 48 8D 50 08 48 85 C0 4C 8D 35 ?? ?? ?? ?? 49 0F 44 D6 4C 8D 05 93 BB CC 03 48 89 F9 E8 ?? ?? ?? ?? 48 8D 9E 50 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? 48 8D 9E D0 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? C6 44 24 30 00",
+   "match": "0x141a4027b",
+   "anchor": "0x4f",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x4e"
+   },
+   "target": "0x1442bb920",
+   "kind": "call",
+   "names": [
+    "Vm_List_AppendChild"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "game.create_session_dlc_select_fill_tile",
+   "section": ".xtls",
+   "pattern": "48 8D BE 30 06 00 00 80 BE 70 07 00 00 00 74 0F 48 89 F9 E8 ?? ?? ?? ?? C6 86 70 07 00 00 00 48 8B 46 10 48 8D 50 08 48 85 C0 4C 8D 35 ?? ?? ?? ?? 49 0F 44 D6 4C 8D 05 93 BB CC 03 48 89 F9 E8 ?? ?? ?? ?? 48 8D 9E 50 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? 48 8D 9E D0 06 00 00 48 89 F9 E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 89 4C 24 20 4C 8D 05 ?? ?? ?? ?? 4C 8D 0D ?? ?? ?? ?? 48 89 D9 48 89 C2 E8 ?? ?? ?? ?? C6 44 24 30 00",
+   "match": "0x141a4027b",
+   "anchor": "0x74",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x73"
+   },
+   "target": "0x141a404c0",
+   "kind": "call",
+   "names": [
+    "Game_CreateSessionDlcSelectTab_FillTile"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "game.create_session_dlc_select_handle_command",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 48 48 8B 02 48 85 C0 0F 84 34 06 00 00 48 89 CE 8B 00",
+   "match": "0x141a3f7f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a3f7f0",
+   "kind": "func_start",
+   "names": [
+    "Game_CreateSessionDlcSelectTab_HandleCommand"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "vm.release_node",
+   "section": ".xtls",
+   "pattern": "48 89 CF 48 8D 71 08 48 89 F2 E8 28 13 6A 02 48 8D 1D ?? ?? ?? ?? 48 89 9F 20 01 00 00 48 8B 87 28 01 00 00 48 85 C0 74 57 48 8B 8F 30 01 00 00 48 8B 97 38 01 00 00 48 85 D2 74 04 48 89 4A 08 4C 8D B7 28 01 00 00 4C 8D 87 30 01 00 00 48 85 C9 74 04 48 89 51 10 C5 F8 57 C0 C4 C1 78 11 00 4C 39 70 28 75 04 48 89 48 28 48 8B 0D ?? ?? ?? ?? 49 8B 16 E8 ?? ?? ?? ?? 49 C7 06 00 00 00 00",
+   "match": "0x141b6ba29",
+   "anchor": "0x75",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x74"
+   },
+   "target": "0x1442b3d70",
+   "kind": "call",
+   "names": [
+    "Vm_Release_Node"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "game.options_store_lookup",
+   "section": ".xtls",
+   "pattern": "48 8B 35 ?? ?? ?? ?? 48 8D 05 ?? ?? ?? ?? 48 89 44 24 40 48 8D 8E 70 02 00 00 48 8D 54 24 40 E8 ?? ?? ?? ?? 48 C1 E0 04 48 03 86 88 02 00 00 48 3B 86 90 02 00 00 0F 84 EB 00 00 00",
+   "match": "0x14315daa9",
+   "anchor": "0x20",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x1f"
+   },
+   "target": "0x142b5dfd0",
+   "kind": "call",
+   "names": [
+    "Game_OptionsStore_FindOption"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "game.options_store_global",
+   "section": ".xtls",
+   "pattern": "48 8B 35 ?? ?? ?? ?? 48 8D 05 ?? ?? ?? ?? 48 89 44 24 40 48 8D 8E 70 02 00 00 48 8D 54 24 40 E8 ?? ?? ?? ?? 48 C1 E0 04 48 03 86 88 02 00 00 48 3B 86 90 02 00 00 0F 84 EB 00 00 00",
+   "match": "0x14315daa9",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146079258",
+   "kind": "data",
+   "names": [
+    "g_Game_OptionsStore"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "mp-carcat",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
    ]
   }
  ]
