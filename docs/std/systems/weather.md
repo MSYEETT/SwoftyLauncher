@@ -39,7 +39,7 @@ struct Climate {
     float temperature_min;                     // degrees C
     float temperature_max;
 };
-inline Registry<Climate> climates{"weather.track"};          // x-applies: boot
+inline Registry<Climate> climates{"weather.track", { .applies = Applies::boot }};
 
 struct Slot {
     Kind kind;                                 // the weather in this slot
@@ -53,7 +53,7 @@ struct Forecast {
     std::vector<Slot> slots;                   // the script, in order
     std::optional<uint32_t> seed;              // a fixed random seed for what the script leaves open
 };
-inline Registry<Forecast> forecasts{"weather.forecast"};     // x-applies: session (a career keeps its own copy)
+inline Registry<Forecast> forecasts{"weather.forecast", { .applies = Applies::session, .snapshot = true }};
 
 namespace events {
 

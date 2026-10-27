@@ -35,7 +35,7 @@ struct Look {
     float strength = 1.0f;                     // 0: the game's colours, 1: the full look
     int order = 0;                             // looks stack in ascending order
 };
-inline Registry<Look> looks{"graphics.look"};                // x-applies: read (each change regrades at once)
+inline Registry<Look> looks{"graphics.look", { .applies = Applies::read }};   // (each change regrades at once)
 
 struct Pass {
     Path shader;                               // HLSL, built against swofty/postfx.hlsli
@@ -43,7 +43,7 @@ struct Pass {
     bool before_hud = true;                    // run on the frame before the HUD is drawn
     std::map<std::string, float> params;       // constants the shader reads
 };
-inline Registry<Pass> passes{"graphics.pass"};               // x-applies: read
+inline Registry<Pass> passes{"graphics.pass", { .applies = Applies::read }};
 
 enum class Policy { set, at_most, at_least };
 
@@ -52,7 +52,7 @@ struct Setting {
     int value;                                 // bools are 0 and 1
     Policy policy = Policy::set;               // at_most: cap the player's choice instead of replacing it
 };
-inline Registry<Setting> settings{"graphics.setting"};       // x-applies: read (when the game reads the setting)
+inline Registry<Setting> settings{"graphics.setting", { .applies = Applies::read }};   // (when the game reads the setting)
 
 namespace events {
 

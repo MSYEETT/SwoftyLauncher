@@ -42,22 +42,22 @@ struct Unit {
     std::optional<VtfSection> ers;             // EnergyRecoverySystem; nullopt: the car has no ERS (as F2 cars don't)
     VtfSection upgrades;                       // radUpgradeEngine, ERS, FuelConsumption, WearES, WearMGUK, WearMGUH
 };
-inline Registry<Unit> units{"power_unit"};                    // x-applies: boot
+inline Registry<Unit> units{"power_unit", { .applies = Applies::boot }};
 
 struct Supplier {
-    std::string name;                          // lng key of the supplier name
+    Text name;                                 // the supplier name
     std::string nationality;                   // "japan", "italy", ...
     std::string rev_dial;                      // the HUD rev dial and rev lights fields
     StatId stat_id = StatId::automatic;        // an entrants.engines row
 };
-inline Registry<Supplier> suppliers{"engine.supplier"};       // x-applies: boot
+inline Registry<Supplier> suppliers{"engine.supplier", { .applies = Applies::boot }};
 
 struct DrsRule {
     int race_start = 2;                        // DRS opens on this lap after the start
     int red_flag_restart = 2;                  // ... after a red-flag restart
     int safety_car_end = 2;                    // ... after a full safety car ends
 };
-inline Registry<DrsRule> drs_rules{"rules.drs"};               // x-applies: boot
+inline Registry<DrsRule> drs_rules{"rules.drs", { .applies = Applies::boot }};
 
 enum class Component { ce, es, gearbox, ice, mguh, mguk, tc };
 
@@ -73,7 +73,7 @@ struct ComponentRules {
     int subsequent_grid_drop = 5;              // places for each part after that
     int parc_ferme_grid_drop = 22;             // places for a change under parc fermé
 };
-inline Registry<ComponentRules> component_rules{"rules.pu_components"};   // x-applies: boot
+inline Registry<ComponentRules> component_rules{"rules.pu_components", { .applies = Applies::boot }};
 
 namespace events {
 

@@ -52,6 +52,7 @@ using namespace swofty;
 inline const events::Selector scope = events::setup_mode("swofty.f1-1990/f1_1990");   // Grand Prix stays stock
 
 struct TyreCompound {
+    static constexpr Version version{1, 0};
     std::string letter;                        // "A" .. "E", "W"; at most 2 characters
     int softness = 0;                          // 1 = hardest; 0 for the wet
     Ref<tyres::Physical> physical;             // its compound in the car pack's .vcmpd
@@ -59,7 +60,8 @@ struct TyreCompound {
     bool qualifying_only = false;
     bool wet = false;
 };
-inline Registry<TyreCompound> compounds{"swofty.f1-1990.tyre_compound", { .version = 1, .applies = Applies::boot }};
+SWOFTY_RECORD(TyreCompound, letter, softness, physical, colour, qualifying_only, wet)
+inline Registry<TyreCompound> compounds{"swofty.f1-1990.tyre_compound", { .applies = Applies::boot }};
 
 struct RoundTyres {
     int round;                                 // the key
@@ -67,16 +69,18 @@ struct RoundTyres {
     std::vector<Ref<TyreCompound>> race;       // empty: the season default
     std::vector<Ref<TyreCompound>> qualifying;
 };
+SWOFTY_RECORD(RoundTyres, round, venue, race, qualifying)
 
 struct TyreRules {
+    static constexpr Version version{1, 0};
     std::vector<Ref<TyreCompound>> race;       // the default race compounds
     std::vector<Ref<TyreCompound>> qualifying;
     Ref<TyreCompound> wet;
     struct { int race = 7, qualifying = 3, wet = 3; } sets;
-    std::vector<RoundTyres> rounds;            // keyed by round
-    RoundTyres &round(int n);                  // the round's entry, added when missing
+    Keyed<RoundTyres, &RoundTyres::round> rounds;   // a layer changes one round: rounds.at(4)
 };
-inline Registry<TyreRules> tyre_rules{"swofty.f1-1990.tyre_rules", { .version = 1, .applies = Applies::boot }};
+SWOFTY_RECORD(TyreRules, race, qualifying, wet, sets, rounds)
+inline Registry<TyreRules> tyre_rules{"swofty.f1-1990.tyre_rules", { .applies = Applies::boot }};
 
 namespace events {
 struct CompoundFitted {                        // a car leaves its pit box on a new set
@@ -144,7 +148,7 @@ SWOFTY_REGISTER
         },
     });
 
-    f1990::tyre_rules.check([](const f1990::TyreRules &r, Errors &err) {
+    f1990::tyre_rules.check([](const f1990::TyreRules &r, swofty::Errors &err) {
         for (const auto &round : r.rounds)
             if (f1990::dry_count(r, round) > 4)
                 err.add("/rounds/round=" + std::to_string(round.round), "names more than 4 dry compounds; 4 fit");
@@ -341,8 +345,8 @@ SWOFTY_REGISTER
     });
 
     f1990::tyre_rules.layer(f1990::tyre_rules["swofty.f1-1990/season"], [=](f1990::TyreRules &r) {
-        r.round(4).qualifying = { f };                   // Monaco
-        r.round(10).qualifying = { f };                  // Hungary
+        r.rounds.at(4).qualifying = { f };               // Monaco
+        r.rounds.at(10).qualifying = { f };              // Hungary
     });
 
     // C wears 15% faster wherever it's used
@@ -404,7 +408,9 @@ When the core resolves:
 
 ```cpp
 struct ChampionshipRules { int best_results = 0; };            // 0: every result counts
-inline Registry<ChampionshipRules> championship_rules{"swofty.f1-1990.championship_rules"};
+SWOFTY_RECORD(ChampionshipRules, best_results)
+inline Registry<ChampionshipRules> championship_rules{"swofty.f1-1990.championship_rules",
+                                                      { .applies = Applies::read, .snapshot = true }};
 
 SWOFTY_REGISTER
 {

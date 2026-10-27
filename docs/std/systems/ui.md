@@ -41,18 +41,18 @@ struct TextureSlice {
     std::string name;                          // the slice name the UI asks for: "cs_f1_2017"
     Path image;                                // png or svg; the core makes the BC7 slice and its mips
 };
-inline Registry<TextureSlice> texture_slices{"ui.texture_slice"};   // x-applies: boot (every archive that carries the array)
+inline Registry<TextureSlice> texture_slices{"ui.texture_slice", { .applies = Applies::boot }};   // (every archive that carries the array)
 
 enum class Place { home, career, f1_world, car_category };
 
 struct Tile {
     Place place;
-    std::string title;                         // lng key
+    Text title;
     Ref<TextureSlice> image;
     Ref<Route> route;                          // what a press opens
     events::Selector gate;                     // shown only where it matches; empty: always
 };
-inline Registry<Tile> tiles{"ui.tile"};                              // x-applies: read
+inline Registry<Tile> tiles{"ui.tile", { .applies = Applies::read }};
 
 struct Screen {
     Path file;                                 // the .ui file
@@ -60,32 +60,32 @@ struct Screen {
     std::string anchor;                        // where it opens from
     std::string view_model;                    // the view-model path it binds
 };
-inline Registry<Screen> screens{"ui.screen"};                        // x-applies: boot
+inline Registry<Screen> screens{"ui.screen", { .applies = Applies::boot }};
 
 struct Route {
     std::string file;                          // routes_frontend_general.uir, ...
     std::string clone_of;                      // the route group it copies
     Ref<Screen> opens;
 };
-inline Registry<Route> routes{"ui.route"};                           // x-applies: boot
+inline Registry<Route> routes{"ui.route", { .applies = Applies::boot }};
 
 struct Option {
     std::string id;                            // options_system option
     std::vector<std::string> restriction_tags; // where it shows: "gamesetup_f1", ...
 };
-inline Registry<Option> options{"ui.option"};                        // x-applies: boot
+inline Registry<Option> options{"ui.option", { .applies = Applies::boot }};
 
 struct HudWidget {
     std::string view_model;                    // the VM path it binds
     Path tmpl;                                 // its template
 };
-inline Registry<HudWidget> hud_widgets{"hud.widget"};               // x-applies: session
+inline Registry<HudWidget> hud_widgets{"hud.widget", { .applies = Applies::session }};
 
 struct String {
     std::map<std::string, std::string> text;   // per language; "*" for every language
     events::Selector within;                   // a career, a content, a mode; empty: everywhere
 };
-inline Registry<String> strings{"lang.string"};                      // x-applies: read; the id is the lng key
+inline Registry<String> strings{"lang.string", { .applies = Applies::read }};   // the id is the lng key
 
 namespace events {
 
@@ -113,7 +113,8 @@ struct LangLookup {                            // Loc_LangSet_Find
 };
 
 // also: HomeTiles (ui.home.tiles), CareerContentTiles (ui.career_content.tiles), CarCategoryTiles
-// (ui.car_category.tiles), ScreenBuilt (ui.screen.built), RouteOpen (ui.route.open), MfdPages (hud.mfd.pages)
+// (ui.car_category.tiles), TrackSelectBuild (ui.track_select.build), ScreenBuilt (ui.screen.built),
+// RouteOpen (ui.route.open), MfdPages (hud.mfd.pages)
 
 } // namespace events
 
@@ -151,7 +152,7 @@ using namespace swofty;
 
 SWOFTY_REGISTER
 {
-    auto box_art = ui::texture_slices.add("era_f1_2017", {
+    ui::texture_slices.add("era_f1_2017", {
         .array = "overrides.home_screen.tiles_solo_6x6",
         .name = "cs_f1_2017",
         .image = file("art/era/f1_2017.png"),
@@ -160,7 +161,7 @@ SWOFTY_REGISTER
     content::era_boxes.add("f1_2017", {
         .package = content::packages["swofty.classic-seasons-2017/f1_2017"],
         .title = "lng_cs_era_2017",
-        .image = box_art,
+        .image = "#overrides.home_screen.tiles_solo_6x6[cs_f1_2017]",   // the slice above
         .order = 2017,
     });
 
@@ -195,7 +196,7 @@ SWOFTY_ADDON()
   },
   "era.box": {
     "f1_2017": { "package": "swofty.classic-seasons-2017/f1_2017", "title": "lng_cs_era_2017",
-                 "image": "swofty.classic-seasons-2017/era_f1_2017", "order": 2017 }
+                 "image": "#overrides.home_screen.tiles_solo_6x6[cs_f1_2017]", "order": 2017 }
   },
   "lang.string": {
     "lng_cs_era_2017": { "text": { "*": "F1 2017" } }

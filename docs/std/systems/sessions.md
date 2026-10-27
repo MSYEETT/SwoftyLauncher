@@ -51,7 +51,7 @@ struct Points {
     std::array<std::vector<int>, 3> reduced;   // reduced_points_data: races stopped at 75, 50 and 25 % distance
     StatId stat_id = StatId::automatic;        // a game_setup.session_standings row
 };
-inline Registry<Points> points{"session.points"};                  // x-applies: boot
+inline Registry<Points> points{"session.points", { .applies = Applies::boot }};
 
 struct GridRule;                               // how a race group's grid forms
 GridRule grid_type(std::string_view game_type);                    // one of the game's grid types: "qualifying", ...
@@ -62,7 +62,7 @@ enum class GroupType { practice, qualifying, race };
 struct Group {
     GroupType type;
     std::vector<Session> sessions;             // in order
-    std::string label;                         // lng key the group shows; the core scopes it to this mode
+    Text label;                                // the name the group shows; the core scopes it to this mode
     GridRule grid = grid_type("qualifying");   // race groups: how the grid forms
     Ref<Points> standings;                     // race groups: the points
 };
@@ -70,7 +70,7 @@ struct Group {
 struct Format {
     std::vector<Group> groups;                 // practice, qualifying and race groups of one weekend_structure
 };
-inline Registry<Format> formats{"session.weekend_format"};         // x-applies: boot
+inline Registry<Format> formats{"session.weekend_format", { .applies = Applies::boot }};
 
 struct Length {
     float laps_multiplier = 1.0f;              // race laps from the track's full distance
@@ -79,7 +79,7 @@ struct Length {
     int weather_slots = 0;                     // forecast slots across the session
     int flashback_limit = -1;                  // -1: unlimited
 };
-inline Registry<Length> lengths{"session.length"};                 // x-applies: boot
+inline Registry<Length> lengths{"session.length", { .applies = Applies::boot }};
 
 struct RulesProfile {
     bool blue_flags = true;
@@ -89,20 +89,20 @@ struct RulesProfile {
     bool jump_starts = true;
     bool parc_ferme = true;
 };
-inline Registry<RulesProfile> rules_profiles{"session.rules_profile"};   // x-applies: boot
+inline Registry<RulesProfile> rules_profiles{"session.rules_profile", { .applies = Applies::boot }};
 
 struct SafetyCar {
     std::array<int, 8> max_deployments = { 0, 0, 3, 3, 2, 3, 5, 8 };   // per race length option
     std::array<int, 8> max_red_flags = { 0, 0, 1, 1, 1, 1, 2, 3 };
 };
-inline Registry<SafetyCar> safety_car{"session.safety_car"};       // x-applies: boot
+inline Registry<SafetyCar> safety_car{"session.safety_car", { .applies = Applies::boot }};
 
 struct Grid {
-    int max_entrants = 22;                     // the applier raises _entrant_instancecount_ and the track slots with it
-    int max_teams = 11;
+    int cars = 22;                             // max_entrants; the core raises _entrant_instancecount_ and the track slots with it
+    int teams = 11;                            // max_teams
     bool reuse_entrants = false;
 };
-inline Registry<Grid> grids{"session.grid"};                       // x-applies: boot
+inline Registry<Grid> grids{"session.grid", { .applies = Applies::boot }};
 
 struct Mode {
     std::string branding;                      // a game_setup.branding row: logos, MFD, car setup
@@ -117,7 +117,15 @@ struct Mode {
     std::vector<Ref<tracks::Track>> restricted_tracks;
     StatId stat_id = StatId::automatic;        // a game_setup_modes row: 31 or lower (a u32 mask)
 };
-inline Registry<Mode> modes{"session.mode"};                       // x-applies: boot
+inline Registry<Mode> modes{"session.mode", { .applies = Applies::boot }};
+
+struct Rules {                                 // a box's session rules: the value content::Package::rules holds
+    Ref<Mode> mode;                            // the setup mode the box runs under; empty: the box's default
+    Ref<Points> points;                        // empty: the mode's
+    bool refuelling = false;
+    std::optional<float> race_fuel_kg;         // the race fuel load; nullopt: the track's
+};
+SWOFTY_RECORD(Rules, mode, points, refuelling, race_fuel_kg)
 
 enum class PenaltyKind { warning, time, drive_through, stop_go, grid, disqualification };
 
@@ -216,8 +224,8 @@ SWOFTY_REGISTER
     } });
 
     auto grid = sessions::grids.variant("f1_1990", sessions::grids["game/f1_26"], [](sessions::Grid &g) {
-        g.max_entrants = option<int>("cars");              // 22 or 26; applies from the next game start
-        g.max_teams = g.max_entrants / 2;
+        g.cars = option<int>("cars");                      // 22 or 26; applies from the next game start
+        g.teams = g.cars / 2;
     });
 
     sessions::modes.variant("f1_1990", sessions::modes["game/f1_26"], [=](sessions::Mode &m) {
@@ -257,7 +265,7 @@ SWOFTY_ADDON()
     ] }
   },
   "session.grid": {
-    "f1_1990": { "extends": "game/f1_26", "max_entrants": 26, "max_teams": 13 }
+    "f1_1990": { "extends": "game/f1_26", "cars": 26, "teams": 13 }
   },
   "session.mode": {
     "f1_1990": { "extends": "game/f1_26", "format": "swofty.f1-1990/two_qualifying", "grid": "swofty.f1-1990/f1_1990" }

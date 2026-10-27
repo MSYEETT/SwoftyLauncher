@@ -32,11 +32,12 @@ The AI system is how each AI car races (its race-craft block), which baked track
 
 namespace swofty::ai {
 
-enum class CarClass { f1, f1_26, f2, classic, safety_car, other };
+enum class Class { f1, f1_26, f2, classic, safety_car, other };
 
 struct VehicleConfig {                         // entrants.vehicles.vehicle_N.ai_vehicle_config: 221 values in 30 groups
     Ref<cars::Vehicle> vehicle;                // the car it belongs to
-    CarClass cls;                              // only ers_use, traction control, trailbraking, race-start rpm differ by class
+    Class cls;                                 // "class" in data files; only ers_use, traction control, trailbraking and race-start rpm differ by class
+    struct { float overtake_aggression, defend_aggression; } racecraft;
     struct { Curve vehicle_buffer; } buffer_space;                       // space kept from other cars, by speed
     struct { float proportional_gain, integral_gain, derivative_gain, output_smoothing_half_life; } steering_pid;
     struct { float time_to_half_rotate_steering_wheel; } steering_controller;   // reaction after a hit
@@ -46,36 +47,35 @@ struct VehicleConfig {                         // entrants.vehicles.vehicle_N.ai
     struct { float aero_speed_reduction_factor, burst_speed_reduction_factor; } damage;   // driving a damaged car
     // ... allow_to_pass, blocking, drafting, defending, overtake, ers_use, swerve, trailbraking, yielding, race starts
 };
-inline Registry<VehicleConfig> vehicle_configs{"ai.vehicle_config"};   // x-applies: session (read at session enter)
+inline Registry<VehicleConfig> vehicle_configs{"ai.vehicle_config", { .applies = Applies::session }};   // (read at session enter)
 
 struct PackageMaps {
     Ref<cars::Package> package;                // vehicle_package.ai_vehicle_package_config
     std::map<std::string, Curve> driver_parameter_maps;   // difficulty x characteristic
 };
-inline Registry<PackageMaps> package_maps{"ai.package_maps"};          // x-applies: boot
+inline Registry<PackageMaps> package_maps{"ai.package_maps", { .applies = Applies::boot }};
 
 enum class Slot { by_pace, fixed };
 
-struct TrackPack {
-    Ref<cars::Vehicle> vehicle;
+struct TrackPack {                             // a car points at one through cars::Vehicle::ai (AiSlot::track_pack)
     std::string folder;                        // ai_package_folder: environment_package/tracks/<t>/ai/<folder>/
-    std::string asset_filename;                // the baked set inside it (acpd, brpd, ers_boost_data, vp_times, ...)
     Slot slot = Slot::by_pace;                 // by_pace: the core picks the baked car closest in lap time
+    Ref<cars::Vehicle> pace_of;                // by_pace: the car whose lap time it matches; empty: the car itself
 };
-inline Registry<TrackPack> track_packs{"ai.track_pack"};               // x-applies: session
+inline Registry<TrackPack> track_packs{"ai.track_pack", { .applies = Applies::session }};
 
 struct General {
     std::map<std::string, float> settings;     // ai.general_ai_settings (5)
     std::vector<std::string> behaviours;       // ai.behaviour_system.behaviours (5)
     std::map<std::string, Curve> variation;    // ai.driver_variation.in_race: 84 form curves
 };
-inline Registry<General> general{"ai.general"};                        // x-applies: boot
+inline Registry<General> general{"ai.general", { .applies = Applies::boot }};
 
 struct Difficulty {
     events::Selector within;                   // a career, a content, a session type
     float pace = 1.0f;                         // scale on the difficulty the player picked
 };
-inline Registry<Difficulty> difficulty{"ai.difficulty_profile"};       // x-applies: read; needs the slider found (unknown)
+inline Registry<Difficulty> difficulty{"ai.difficulty_profile", { .applies = Applies::read }};   // needs the slider found (unknown)
 
 namespace events {
 
@@ -97,7 +97,7 @@ struct ResolveSettings {                       // Ai_Resolve_GeneralSettings
 } // namespace events
 
 Result set_vehicle_config(Ref<cars::Vehicle> vehicle, Edit<VehicleConfig> edit);   // before session load
-Result assign_track_pack(Ref<cars::Vehicle> vehicle, std::string_view folder);
+Result assign_track_pack(Ref<cars::Vehicle> vehicle, Ref<TrackPack> pack);   // before session load
 
 } // namespace swofty::ai
 ```
@@ -113,7 +113,7 @@ Result assign_track_pack(Ref<cars::Vehicle> vehicle, std::string_view folder);
 
 AI Racing Tweaks makes the AI race closer and lose control more like a person. In 1.x it names 599 stock cars one at a time (13,371 database operations), so cars other addons add never get its values.
 
-In 2.0 it writes one layer with a selector over every F1 car: stock, Classic Seasons, F1 1990, and cars added after it was written. Each value comes from one of its options, so changing an option re-runs the edit.
+In 2.0 it writes one layer with a selector over every F1 car: stock, Classic Seasons, F1 1990, and cars added after it was written. A selector layers each matching record itself, so the tuning reaches every year, past the years' own values (see [The base, years and careers](/std/inheritance)). Each value comes from one of its options, so changing an option re-runs the edit.
 
 <template #example>
 <Example root="kizi.ai-tweaks" code-file="native/src/racecraft.cpp" data-file="registry/layers.json" files="swofty.json, native/CMakeLists.txt, native/src/contact.cpp">
@@ -129,7 +129,7 @@ using namespace swofty;
 SWOFTY_REGISTER
 {
     auto f1 = where<ai::VehicleConfig>([](const ai::VehicleConfig &c) {
-        return c.cls == ai::CarClass::f1 || c.cls == ai::CarClass::f1_26;
+        return c.cls == ai::Class::f1 || c.cls == ai::Class::f1_26;
     });
 
     ai::vehicle_configs.layer(f1, [](ai::VehicleConfig &c) {
@@ -162,14 +162,16 @@ SWOFTY_ADDON()
 ```json
 {
   "ai.vehicle_config": {
-    "$select": {
-      "where": { "cls": ["f1", "f1_26"] },
-      "patch": {
-        "buffer_space": { "vehicle_buffer": "@v2@minx:50,maxx:500,miny:0,maxy:1,0:0.15,1:0.15" },
-        "pedal_controller": { "lateral_traction_slip_angle_cut_in_proportion": 0.75 },
-        "lost_control": { "angle": 0.3 }
+    "$select": [
+      {
+        "where": { "class": ["f1", "f1_26"] },
+        "patch": {
+          "buffer_space": { "vehicle_buffer": "@v2@minx:50,maxx:500,miny:0,maxy:1,0:0.15,1:0.15" },
+          "pedal_controller": { "lateral_traction_slip_angle_cut_in_proportion": 0.75 },
+          "lost_control": { "angle": 0.3 }
+        }
       }
-    }
+    ]
   }
 }
 ```
@@ -190,19 +192,18 @@ The data version holds the default values only. Following the options takes code
 
 ## Track packs
 
-The AI drives from baked tables per track, car package and car. EA's bake tools are compiled out of the game, so a new car borrows the baked set of a stock car. `Slot::by_pace` picks the one closest in lap time:
+The AI drives from baked tables per track, car package and car (acpd, brpd, ers_boost_data, vp_times, ...; about 7 MB per team per track). EA's bake tools are compiled out of the game, so a new car borrows the baked set of a stock car. `Slot::by_pace` picks the one closest in lap time, and the car points at the pack:
 
 ```cpp
-ai::track_packs.add("ferrari_2017", {
-    .vehicle = cars::vehicles["swofty.classic-seasons-2017/ferrari"],
-    .folder = "f1_2026",
-    .asset_filename = "ferrari",
-    .slot = ai::Slot::by_pace,
+auto pack = ai::track_packs.add("ferrari", { .folder = "f1_2026", .slot = ai::Slot::by_pace });
+
+cars::vehicles.layer(cars::vehicles["swofty.classic-seasons-2017/ferrari"], [=](cars::Vehicle &v) {
+    v.ai = { .track_pack = pack, .asset_filename = "auto" };
 });
 ```
 
 ```text
-[registry] ai.track_pack swofty.classic-seasons-2017/ferrari_2017: slot by pace -> f1_2026/ferrari (0.12 % off)
+[registry] ai.track_pack swofty.classic-seasons-2017/ferrari: slot by pace -> f1_2026/ferrari (0.12 % off)
 ```
 
 ## General settings and difficulty
@@ -224,7 +225,7 @@ events::on<ai::events::ConfigLoad>().in(events::content("swofty.f1-1990/f1_caree
     .after([](const ai::events::ConfigLoad &l, const events::Context &) { f1990::soften_starts(l.config); });
 
 ai::set_vehicle_config(cars::vehicles["game/williams_2025"], [](ai::VehicleConfig &c) { c.lost_control.angle = 0.4f; });
-ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], "f1_2026");
+ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], ai::track_packs["swofty.f1-1990/f1_1990"]);
 ```
 
 ## Readiness and limits

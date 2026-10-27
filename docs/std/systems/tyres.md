@@ -49,10 +49,10 @@ struct Physical {
     bool full_wet = false;                     // is_full_wet
     StatId stat_id = StatId::automatic;        // a tyres.physical_compounds row
 };
-inline Registry<Physical> physical{"tyre.physical"};         // x-applies: boot
+inline Registry<Physical> physical{"tyre.physical", { .applies = Applies::boot }};
 
 struct Visual {
-    std::string name;                          // lng key: "lng_f1990_tyre_c"
+    Text name;                                 // "lng_f1990_tyre_c"
     Colour colour;                             // the sidewall and UI colour
     std::string material_context;              // the sidewall material in the car package's teams/common.erp
     std::string audio_id;                      // "Soft", "Wet", ...
@@ -60,7 +60,7 @@ struct Visual {
     Path icon_worn;                            // the _worn slice in osd.car_settings_icons
     StatId stat_id = StatId::automatic;        // a tyres.visual_compounds row
 };
-inline Registry<Visual> visual{"tyre.visual"};               // x-applies: boot
+inline Registry<Visual> visual{"tyre.visual", { .applies = Applies::boot }};
 
 struct Option {
     std::string name;                          // "Softer", "Medium", ... (F1 layout) or "SuperSoft", "Soft", ... (F2 layout)
@@ -75,13 +75,13 @@ struct Class {
     float track_wear_scale = 1.0f;             // track_wear_scales
     StatId stat_id = StatId::automatic;        // a tyres.compound_classes row
 };
-inline Registry<Class> classes{"tyre.class"};                // x-applies: boot
+inline Registry<Class> classes{"tyre.class", { .applies = Applies::boot }};
 
 struct Allocation {
     std::map<sessions::Session, std::array<int, 5>> sets;   // sets per session, one number per option, in option order
     StatId stat_id = StatId::automatic;        // a tyres.allocation_tyre_presets row
 };
-inline Registry<Allocation> allocations{"tyre.allocation"};  // x-applies: boot
+inline Registry<Allocation> allocations{"tyre.allocation", { .applies = Applies::boot }};
 
 struct Event {
     Ref<tracks::Track> track;                  // the event's track
@@ -90,13 +90,13 @@ struct Event {
     Ref<Allocation> mandatory;                 // mandatory_tyre_presets; empty: none
     int required_pitstops = 0;                 // MandatoryPitstopsOverride
 };
-inline Registry<Event> per_event{"tyre.event"};              // x-applies: session
+inline Registry<Event> per_event{"tyre.event", { .applies = Applies::session }};
 
 struct WearScale {
     Ref<tracks::Track> track;                  // TrackTyreWearScaleSet: one per track
     std::array<float, 5> scale;                // Softer, Medium, Harder, Intermediate, Wet
 };
-inline Registry<WearScale> wear_scales{"tyre.wear_scale"};   // x-applies: boot
+inline Registry<WearScale> wear_scales{"tyre.wear_scale", { .applies = Applies::boot }};
 
 struct Rules {
     events::Selector within;                   // where the rules apply: a setup mode, a data group, a car package
@@ -106,7 +106,7 @@ struct Rules {
     std::vector<sessions::Session> carry_over_unused;   // these sessions hand their unused sets on
     bool refill_when_empty = false;            // a car with no fresh set of a compound borrows unused ones
 };
-inline Registry<Rules> rules{"tyre.rules"};                  // x-applies: read (a career keeps its own copy)
+inline Registry<Rules> rules{"tyre.rules", { .applies = Applies::read, .snapshot = true }};
 
 namespace events {
 

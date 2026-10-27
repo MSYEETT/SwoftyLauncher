@@ -40,80 +40,96 @@ enum class Kind { driver_career, my_team };
 struct Mode {
     std::string data_group;                    // partitions 8 career tables and the save slots: "f1_career_progressive"
     std::string save_container;                // save_data.name: the mode's own container in the profile save
+    Text title;                                // the career tile's title
     Kind kind = Kind::driver_career;
     StatId stat_id = StatId::automatic;        // a game_modes.ModeChampionship row
 };
-inline Registry<Mode> modes{"career.mode"};                       // x-applies: boot
+SWOFTY_RECORD(Mode, data_group, save_container, title, kind, stat_id)
+inline Registry<Mode> modes{"career.mode", { .applies = Applies::boot }};
 
 struct Content {
     Ref<Mode> mode;
-    std::string title;                         // lng key on the tile
     Path tile;                                 // the tile image
     Ref<Content> model;                        // clone the 8 data-group tables, championship and components from it
     Ref<Calendar> calendar;
 };
-inline Registry<Content> contents{"career.content"};              // x-applies: boot (tile, gate, slot predicate)
+SWOFTY_RECORD(Content, mode, tile, model, calendar)
+inline Registry<Content> contents{"career.content", { .applies = Applies::boot }};   // (tile, gate, slot predicate)
 
-struct Seat {
-    int slot;                                  // the team slot, 1..11
-    Ref<teams::Identity> team;
+struct SeasonTeam {
+    int slot = 0;                              // 1-11, the career team that carries this season's team
+    Ref<teams::Identity> team;                 // empty: the slot is empty this season
     std::array<Ref<drivers::Identity>, 2> seats;
-    Ref<drivers::Identity> reserve;
 };
+SWOFTY_RECORD(SeasonTeam, slot, team, seats)
 
-struct Change {
-    int round;                                 // from this round on
-    int slot, seat;
-    Ref<drivers::Identity> driver;             // who takes the seat
+enum class ChangeKind { swap, stand_in };
+
+struct SeasonChange {
+    int round = 0, slot = 0, seat = 0;         // from this round on, this seat
+    Ref<drivers::Identity> out, in;
+    ChangeKind kind = ChangeKind::swap;
+    std::optional<int> until_round;            // stand_in only
 };
+SWOFTY_RECORD(SeasonChange, round, slot, seat, out, in, kind, until_round)
 
 struct Season {
-    Ref<Content> content;
-    int year;
-    std::vector<Seat> teams;                   // keyed by slot
-    std::vector<Change> changes;               // mid-season swaps
+    static constexpr Version version{1, 0};
+    std::string data_group;
+    int year = 0;
+    Keyed<SeasonTeam, &SeasonTeam::slot> teams;
+    Keyed<SeasonChange, &SeasonChange::round, &SeasonChange::slot, &SeasonChange::seat> changes;
+    json::Value extra;                         // fields from a newer minor, kept for the round trip
 };
-inline Registry<Season> seasons{"career.season"};                 // x-applies: read (career snapshot)
+SWOFTY_RECORD(Season, data_group, year, teams, changes)
+inline Registry<Season> seasons{"career.season", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
 
-struct Round { int round; Ref<tracks::Venue> venue; std::chrono::year_month_day date; std::string name; };
+struct Round {
+    int round = 0;
+    Text race;                                 // the race name: "lng_gp_usa"
+    Ref<tracks::Venue> venue;                  // resolves to the first enabled track that provides it
+    std::chrono::year_month_day date;          // the game dates weekends from the track data in the mode's year
+};
+SWOFTY_RECORD(Round, round, race, venue, date)
 
 struct Calendar {
-    std::vector<Round> rounds;                 // schedule.event_lists rows
+    Keyed<Round, &Round::round> rounds;        // schedule.event_lists rows
     int seasons = 10;                          // _season_instancecount_: the career length
     std::vector<int> transfer_windows;         // the round after which a window opens
 };
-inline Registry<Calendar> calendars{"career.calendar"};           // x-applies: boot
+inline Registry<Calendar> calendars{"career.calendar", { .applies = Applies::boot }};
 
 struct DriverRatings {
     Ref<Season> season;
     Ref<drivers::Identity> driver;
     int experience, racecraft, awareness, pace;   // 0..100
 };
-inline Registry<DriverRatings> ratings{"career.driver_ratings"};  // x-applies: read (career snapshot)
+SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, pace)
+inline Registry<DriverRatings> ratings{"career.driver_ratings", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
 
 struct RndDepartment {
-    std::string name;                          // lng key
+    Text name;
     Colour colour;
     Path icon;
     float cost_scale = 1.0f;                   // UpgradeDepartmentEntry economy scale
 };
-inline Registry<RndDepartment> rnd_departments{"career.rnd.department"};   // x-applies: content
+inline Registry<RndDepartment> rnd_departments{"career.rnd.department", { .applies = Applies::content }};
 
 struct Character {
     Ref<Character> replaces;                   // the stock character it stands in for, per data group
-    std::string first_name, last_name;         // lng keys
+    Text first_name, last_name;
     Path portrait;                             // the core makes the message_avatars slice
     std::vector<std::string> mute;             // speech lines it mutes: "agent", "agent_cutscene"
 };
-inline Registry<Character> characters{"career.character"};        // x-applies: content
+inline Registry<Character> characters{"career.character", { .applies = Applies::content }};
 
-inline Registry<Market> markets{"career.market"};                 // retirements, firings, availability; read
-inline Registry<ContractRules> contract_rules{"career.contract_rules"};   // salary and rating ranges, secret meetings; boot
-inline Registry<RndTree> rnd_trees{"career.rnd.tree"};            // one team's tree: nodes, links, coordinates; boot
-inline Registry<Facility> facilities{"career.facility"};          // a My Team facility and its perk tree; boot
-inline Registry<Economy> economy{"career.economy"};               // resource point rates, budgets, initial cash; boot
-inline Registry<Sponsor> sponsors{"career.sponsor"};              // a sponsor and its loyalty track; boot
-inline Registry<Wizard> wizards{"career.wizard"};                 // new-career setup steps; content
+inline Registry<Market> markets{"career.market", { .applies = Applies::read, .snapshot = true }};   // retirements, firings, availability
+inline Registry<ContractRules> contract_rules{"career.contract_rules", { .applies = Applies::boot }};   // salary, rating ranges, secret meetings
+inline Registry<RndTree> rnd_trees{"career.rnd.tree", { .applies = Applies::boot }};             // one team's tree: nodes, links, coordinates
+inline Registry<Facility> facilities{"career.facility", { .applies = Applies::boot }};           // a My Team facility and its perk tree
+inline Registry<Economy> economy{"career.economy", { .applies = Applies::boot }};                // resource point rates, budgets, initial cash
+inline Registry<Sponsor> sponsors{"career.sponsor", { .applies = Applies::boot }};               // a sponsor and its loyalty track
+inline Registry<Wizard> wizards{"career.wizard", { .applies = Applies::content }};               // new-career setup steps
 
 namespace events {
 
@@ -145,7 +161,7 @@ struct StandingsRebuild {                      // Career_Rebuild_SeasonStandings
     void *championship;                        // the standings the game just rebuilt
 };
 
-// also: ContractDecide (career.contract.decide), ContractSign (career.contract.sign),
+// also: Loaded (career.loaded), Unloaded (career.unloaded), ContractDecide (career.contract.decide), ContractSign (career.contract.sign),
 // SeasonProcess (career.season.process), LineupChanges (career.lineup.changes),
 // WeekendCreate (career.weekend.create), RndStart (career.rnd.start), and the lifecycle in Events
 
@@ -170,7 +186,7 @@ Result apply_dropped_scores(const events::StandingsRebuild &s, int best_results)
 
 <Split>
 
-Progressive Career plays Driver Career from 2016 to 2026 with each year's real line-ups and ratings. Its mode is a variant of Driver Career with its own data group and save container, so its careers never mix with stock ones.
+Progressive Career plays Driver Career from 2016 to 2026 with each year's real line-ups and ratings. Its mode is a variant of the 2026 Driver Career with its own data group and save container, so its careers never mix with stock ones, and changes other addons make to the stock mode flow into it.
 
 It reads its own `data/years.json` and registers a season and a set of ratings per year. At each season start it applies the line-up.
 
@@ -190,24 +206,24 @@ static const events::Selector kProgressive = events::content("swofty.progressive
 
 SWOFTY_REGISTER
 {
-    auto mode = career::modes.variant("driver_career_progressive", career::modes["game/driver_career"], [](career::Mode &m) {
+    auto mode = career::modes.variant("progressive", career::modes["game/f1_career_2026"], [](career::Mode &m) {
         m.data_group = "f1_career_progressive";
         m.save_container = "driver_career_progressive";
+        m.title = "lng_progressive_title";
     });
 
-    auto content = career::contents.add("f1_career_progressive", {
+    career::contents.add("f1_career_progressive", {
         .mode = mode,
-        .title = "lng_progressive_title",
         .tile = file("art/tile.png"),
         .model = career::contents["game/f1_career_2026"],
     });
 
     for (const progressive::Year &y : progressive::years()) {
-        auto season = career::seasons.add(std::to_string(y.year), {
-            .content = content,
+        auto season = career::seasons.add(std::to_string(y.year), {      // "swofty.progressive/2017"
+            .data_group = "f1_career_progressive",
             .year = y.year,
-            .teams = y.seats(),                    // slot, team, two seats and a reserve
-            .changes = y.changes(),                // mid-season swaps by round
+            .teams = y.teams(),                    // slot, team, two seats
+            .changes = y.changes(),                // mid-season swaps and stand-ins by round
         });
         for (const progressive::Rating &r : y.ratings)
             career::ratings.add(std::format("{}/{}", y.year, r.driver), {
@@ -239,17 +255,17 @@ SWOFTY_ADDON()
 ```json
 {
   "career.mode": {
-    "driver_career_progressive": { "extends": "game/driver_career", "data_group": "f1_career_progressive",
-                                   "save_container": "driver_career_progressive" }
+    "progressive": { "extends": "game/f1_career_2026", "data_group": "f1_career_progressive",
+                     "save_container": "driver_career_progressive", "title": "lng_progressive_title" }
   },
   "career.content": {
-    "f1_career_progressive": { "mode": "swofty.progressive/driver_career_progressive", "title": "lng_progressive_title",
-                               "tile": "art/tile.png", "model": "game/f1_career_2026" }
+    "f1_career_progressive": { "mode": "swofty.progressive/progressive", "tile": "art/tile.png",
+                               "model": "game/f1_career_2026" }
   },
   "career.season": {
-    "2017": { "content": "swofty.progressive/f1_career_progressive", "year": 2017,
+    "2017": { "data_group": "f1_career_progressive", "year": 2017,
               "teams": [ { "slot": 1, "team": "game/mercedes", "seats": ["game/lewis_hamilton", "game/valtteri_bottas"] } ],
-              "changes": [ { "round": 15, "slot": 7, "seat": 1, "driver": "game/pierre_gasly" } ] }
+              "changes": [ { "round": 15, "slot": 7, "seat": 1, "out": "game/daniil_kvyat", "in": "game/pierre_gasly" } ] }
   },
   "career.driver_ratings": {
     "2017/game/lewis_hamilton": { "season": "swofty.progressive/2017", "driver": "game/lewis_hamilton",
@@ -266,7 +282,7 @@ SWOFTY_ADDON()
 ```text
 [registry] register: swofty.progressive (progressive.dll) 1 career.mode, 1 career.content, 11 career.season,
            242 career.driver_ratings (early stage, 3.8 ms)
-[registry] stat ids: career.mode swofty.progressive/driver_career_progressive -> 82
+[registry] stat ids: career.mode swofty.progressive/progressive -> 82
 [registry] applied at boot: career.mode 1, career.content 1 (8 data-group tables cloned from game/f1_career_2026) (1,204 database records)
 [registry] content swofty.progressive/f1_career_progressive active: career snapshot of career.season 11, career.driver_ratings 242 (61 KB)
 [progressive] 2016: 22 seat(s) set, 0 unchanged, 0 refused
@@ -279,8 +295,9 @@ The data version has no season-start handler: it lists the seasons, and applying
 ```cpp
 auto calendar = career::calendars.add("f1_1990", {
     .rounds = {
-        { 1, tracks::venues["venue/phoenix"].or_else(tracks::venues["venue/las_vegas"]), 1990y / 3 / 11, "lng_gp_usa" },
-        { 4, tracks::venues["venue/monaco"], 1990y / 5 / 27, "lng_gp_monaco" },
+        { .round = 1, .race = "lng_gp_usa", .venue = tracks::venues["venue/phoenix"].or_else(tracks::venues["venue/las_vegas"]),
+          .date = 1990y / 3 / 11 },
+        { .round = 4, .race = "lng_gp_monaco", .venue = tracks::venues["venue/monaco"], .date = 1990y / 5 / 27 },
     },
     .seasons = 1,
 });
