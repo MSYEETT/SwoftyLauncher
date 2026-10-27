@@ -2371,8 +2371,21 @@ mod tests {
         assert_eq!(a.1.digest, b.1.digest, "{:#?}\n{:#?}", a.1.addons, b.1.addons);
         let track = a.1.addons.iter().find(|x| x.id == "mod.track").unwrap();
         assert!(matches!(track.source, fingerprint::Source::Built(_)), "{track:?}");
+        let detail = track.detail.as_ref().unwrap();
+        assert!(
+            detail.parts.contains_key("Assets") && detail.parts.contains_key("declared"),
+            "{detail:?}"
+        );
+        assert_eq!(detail.paths, ["a.dds"]);
         let (_, other) = prints("c", "track.zip", "another texture");
         assert_ne!(other.digest, a.1.digest);
+        let found = fingerprint::compare(&other, &a.1, &[]);
+        assert!(
+            found
+                .iter()
+                .any(|m| m.differences == ["a.dds differs".to_owned()]),
+            "{found:?}"
+        );
     }
 
     struct Rows(AddonManifest);
