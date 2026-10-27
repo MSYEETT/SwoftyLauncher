@@ -1,11 +1,18 @@
 ---
 title: Teams
-description: Teams in code - team identity, logos per context and pit times as typed registries, with the logo and name events and the team operations, in standard library 2.0.
+description: Teams in code - team identity, shared constructor ids, logos per context and pit times as typed registries, with the logo and name events and the team operations.
 ---
 
 # Teams
 
-A team is a `teams::Identity` record: its names, colours, logo and the side data the game finds by its label.
+Rename teams, change their colours and logos, or add a team the game doesn't have. Team Names, for example, lets the player rename Mercedes and pick its colours on a launcher page, and its code applies those choices as edits on the stock `teams::Identity` record.
+
+A few terms used on this page:
+
+- A **team** is a `teams::Identity` record: one row in the game's `entrants.teams` table, with its names, colours, logo and the side data the game finds by its label.
+- A **constructor** is a real Formula 1 team, with an id under `constructor/` that the core owns. Every pack that adds the 2017 Toro Rosso says its team is `constructor/toro_rosso`.
+- A **logo** is a `teams::Logo` record: one image for each place a logo shows.
+- A **layer** changes values on a record that already exists. A layer can be **profile-scope**: it applies only in the launcher profile that set it.
 
 ## The header
 
@@ -16,6 +23,12 @@ A team is a `teams::Identity` record: its names, colours, logo and the side data
 #include <swofty/registry.hpp>
 
 namespace swofty::teams {
+
+struct Constructor {                               // a real team; the core owns the constructor/ ids
+    std::string name;                              // "Scuderia Toro Rosso"
+    std::string country;                           // "italy"
+    Ref<Identity> team;                            // resolved: the last enabled team in load order that is this constructor
+};
 
 struct Colours {
     Colour menu;                                   // ui_team_colour: menus and the timing tower
@@ -33,6 +46,7 @@ struct Names {
 
 struct Identity {                                  // one entrants.teams row
     Ref<Identity> donor;                           // the row it copies, all 30 keys with story_info (new teams)
+    Ref<Constructor> constructor;                  // the real team it is; empty: a fictional team
     Names names;                                   // the team's names
     Colours colours;                               // the team's colours
     std::optional<Colours> wear;                   // team_wear_*: empty follows colours (the kit follows primary)
@@ -55,6 +69,7 @@ struct PitTimes {                                  // one pit_lane.pit_times row
     Ref<PitTimes> from;                            // copy another team's row
 };
 
+inline Registry<Constructor> constructors{"team.constructor", { .applies = Applies::boot }};
 inline Registry<Identity> identities{"team.identity", { .applies = Applies::boot }};   // names and colours also on read
 inline Registry<Logo> logos{"team.logo", { .applies = Applies::read }};
 inline Registry<PitTimes> pit_times{"team.pit_times", { .applies = Applies::boot }};
@@ -97,9 +112,9 @@ struct NameResolve {                               // display-name lookups: befo
 
 Team Names lets the player rename teams and change their colours from a launcher page. The page writes the player's choices to the addon's own storage. The addon's code reads them in the game and applies them as profile-scope edits on the stock team records.
 
-- A name is written as text in every language (`Text::literal`); the core makes the lang key.
-- The kit follows the primary colour unless `wear` is set.
-- Classic Career and Progressive change the same 2026 teams. Load order decides per field, and the conflicts report names both.
+- **A name is written as text** in every language (`Text::literal`), and the core makes the lang key.
+- **The kit follows the primary colour** unless `wear` is set.
+- **Classic Career and Progressive change the same 2026 teams.** Load order decides each field, and the conflicts report names both addons.
 
 <template #example>
 <Example root="custom.team-names" code-file="native/src/names.cpp" data-file="registry/layers.json" files="swofty.json, bin/team-names-helper.exe, launcher/main.go">
@@ -165,11 +180,12 @@ SWOFTY_ADDON()
 
 ## A new team
 
-A new team copies a stock row. The core copies every key, `story_info` included, writes its pit times and allocates the stat id:
+A new team copies a stock row. The core copies every key, `story_info` included, writes its pit times and allocates the stat id from the install's store:
 
 ```cpp
 auto toro_rosso = teams::identities.add("toro_rosso", {
     .donor = teams::identities["game/tororosso"],
+    .constructor = teams::constructors["constructor/toro_rosso"],
     .names = { .title = Text::key("lng_cs_team_17_toro_rosso"), .code = "STR" },
     .colours = { .menu = 0xFF0A1E3C, .primary = 0xFF0A1E3C, .secondary = 0xFFC8102E },
     .livery_name = "cs17_toro_rosso",
@@ -178,13 +194,26 @@ auto toro_rosso = teams::identities.add("toro_rosso", {
 teams::pit_times.add("toro_rosso", { .team = toro_rosso, .from = teams::pit_times["game/tororosso"] });
 ```
 
+## Real teams
+
+A `constructor/` id works as a team reference: `teams::identities["constructor/toro_rosso"]` resolves to the last enabled team in load order that is that constructor. Career addons and line-ups name constructors, not one pack's keys, and they work with whichever pack provides the team. Each pack's team is still its own row with its own stat id.
+
+```cpp
+// a 2017 season slot that takes Toro Rosso from whichever 2017 pack provides it
+career::SeasonTeam slot = { .slot = 7, .team = teams::identities["constructor/toro_rosso"] };
+```
+
+```text
+[registry] team.constructor constructor/toro_rosso: provided by swofty.classic-seasons-2017/toro_rosso
+```
+
 ## Logos per context
 
 <Split>
 
-Each logo record holds one image per context. The core builds the texture arrays from every logo record, slice by slice, so Classic Seasons, car ports and season packs each change their own teams' slices and all of them apply. Today they replace whole `overrides.uidb` images.
+Each logo record holds one image per context. The core builds the texture arrays from every logo record, slice by slice. Classic Seasons, car ports and season packs each change their own teams' slices, and all of them apply.
 
-Progressive changes logos per season. In 1.x `progressive_logos.dll` redirects the format sites itself. In 2.0 it subscribes to `team.logo.resolve`.
+Progressive changes logos per season through `team.logo.resolve`. The game formats logos every frame on the HUD and in menus. The hook point runs when content becomes active or a session loads, once per team and context. The core builds a table from the results, and the game reads the table each frame.
 
 <template #example>
 <Example root="swofty.progressive" code-file="native/src/logos.cpp" files="swofty.json, logos/williams_2017_driver_select.png">
@@ -224,10 +253,10 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 
 ## Readiness and limits
 
-- **Partial.** The logo format sites (`site_Game_DriverSelect_TeamLogoFormat`, `site_Game_TeamSelect_TeamLogoFormat`) are L2 and shipped; the HUD badge builders are L1; the team record layout behind `Sess_Load_Teams` is L1, so `set_colours` waits on it.
+- **Partial.** The logo format sites (`site_Game_DriverSelect_TeamLogoFormat`, `site_Game_TeamSelect_TeamLogoFormat`) are L2 and shipped. The HUD badge builders are L1. The team record layout behind `Sess_Load_Teams` is L1, and `set_colours` waits on it.
 - **Unknown:** a single logo-key resolver (logos are formatted at several sites) and the display-name lookups behind `team.name.resolve`.
-- **Stat ids:** teams use ids up to 514.
+- **Stat ids:** teams use ids up to 514, from the install's store.
 - **A new team row needs all 30 keys,** `story_info` included, or the game reads garbage.
 - **Side data** is found by team label: pit times, showroom history, animation team data, team customisation per season, initial cash, renown, team icons, standings.
-- **Grid:** `team_position` and garages limit how many teams a session holds (see [Tracks](/std/systems/tracks)).
-- **Colours** are signed ARGB in the database; the core converts them.
+- **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
+- **Colours** are signed ARGB in the database, and the core converts them.
