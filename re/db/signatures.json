@@ -74370,6 +74370,62 @@
    "used_by": [
     "native/src/core/car_category.cpp"
    ]
+  },
+  {
+   "id": "game.ers_new_lap_vehicle_lookup",
+   "section": ".xtls",
+   "pattern": "48 8B 41 30 4C 8B 41 38 4C 39 C0 74 2C 0F B6 52 10 66 66 66 66 66 66 2E 0F 1F 84 00 00 00 00 00 4C 8B 08 4D 8B 49 28 41 38 91 E8 00 00 00",
+   "match": "0x1425180d0",
+   "anchor": "0x23",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1425180f3",
+   "kind": "mid",
+   "names": [
+    "site_Game_ErsNewLap_VehicleLookup"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "lapguard",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/ers_newlap.cpp"
+   ],
+   "expect": "4D 8B 49 28 41 38 91 E8 00 00 00",
+   "func_start": "0x1425180d0"
+  },
+  {
+   "id": "game.ers_new_lap_next_vehicle",
+   "section": ".xtls",
+   "pattern": "48 8B 41 30 4C 8B 41 38 4C 39 C0 74 2C 0F B6 52 10 66 66 66 66 66 66 2E 0F 1F 84 00 00 00 00 00 4C 8B 08 4D 8B 49 28 41 38 91 E8 00 00 00 74 0C 48 83 C0 08 4C 39 C0",
+   "match": "0x1425180d0",
+   "anchor": "0x30",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142518100",
+   "kind": "mid",
+   "names": [
+    "site_Game_ErsNewLap_NextVehicle"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "lapguard",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/ers_newlap.cpp"
+   ],
+   "expect": "48 83 C0 08 4C 39 C0",
+   "func_start": "0x1425180d0"
   }
  ]
 }

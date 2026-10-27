@@ -236,6 +236,8 @@ inline constexpr call<"site_Game_DriverSelectHeader_BuildTabs"> site_Game_Driver
 inline constexpr site<"site_Game_DriverSelect_BackRoute"> site_Game_DriverSelect_BackRoute{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_BadgeFormat"> site_Game_DriverSelect_BadgeFormat{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_TeamLogoFormat"> site_Game_DriverSelect_TeamLogoFormat{}; // L2 experimental
+inline constexpr site<"site_Game_ErsNewLap_NextVehicle"> site_Game_ErsNewLap_NextVehicle{}; // L2 experimental
+inline constexpr site<"site_Game_ErsNewLap_VehicleLookup"> site_Game_ErsNewLap_VehicleLookup{}; // L2 experimental
 inline constexpr site<"site_Game_SaveData_ContainersChildren"> site_Game_SaveData_ContainersChildren{}; // L3 stable
 inline constexpr site<"site_Game_SaveData_ContainersCount"> site_Game_SaveData_ContainersCount{}; // L3 stable
 inline constexpr site<"site_Game_SaveData_ContainersDone"> site_Game_SaveData_ContainersDone{}; // L2 experimental

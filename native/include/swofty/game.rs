@@ -3735,6 +3735,16 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Game_ErsNewLap_NextVehicle: Binding = Binding {
+        id: "site_Game_ErsNewLap_NextVehicle",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_ErsNewLap_VehicleLookup: Binding = Binding {
+        id: "site_Game_ErsNewLap_VehicleLookup",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_SaveData_ContainersChildren: Binding = Binding {
         id: "site_Game_SaveData_ContainersChildren",
         kind: "site",
