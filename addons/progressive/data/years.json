@@ -242,7 +242,8 @@
   "development": "in-season pace of a real team relative to the year's car: checkpoints {at: 0..1 of the season, delta_pct: qualifying gap % minus the team's season mean, > 0 slower}; null without data (2026, the filler)",
   "changes": "per year 2016-2025, the real mid-season line-up changes from the Jolpica race entries (data/rounds.json): from real round `round` (of `real_round_count`, at `circuit`, game track `track`) `in` races `seat` (team position) of career `slot` in place of `out`, with his real `number` and `look` (that team and year, else that team's nearest year, else his look that year); `until_round` when `out` gets the seat back, else `permanent`. kind: stand_in (`out` did not race meanwhile), move (`out` raced for another team), replace (`out` left). The season's line-up (`teams`) is the start; `calendar` lists the real rounds",
   "changes_skipped": "real changes whose incoming driver is not in the game; the seat keeps its driver",
-  "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the career team slots in constructors' order, `drivers` the drivers in game labels; the season-start order of the career's standings"
+  "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the career team slots in constructors' order, `drivers` the drivers in game labels; the season-start order of the career's standings",
+  "ratings": "per year, every driver of the season (line-up, stand-ins, mid-season changes): the base value of each driver statistic (`stats`: name, the game's stat_id and overall weight) and the overall rating they make, written into the career at each season's first Team HQ (tools/ratings.py: 2025/2026 stock datasets at career start; 2016-2024 Classic Seasons pace with the other statistics moved from stock 2025 by the pace change and real race starts)"
  },
  "seasons": {
   "2016": {
@@ -13475,5 +13476,2318 @@
   "cs24_sauber",
   "cs24_toro_rosso",
   "cs24_williams"
- ]
+ ],
+ "ratings": {
+  "stats": [
+   {
+    "name": "experience",
+    "stat_id": 0,
+    "weight": 0.25
+   },
+   {
+    "name": "racecraft",
+    "stat_id": 1,
+    "weight": 1.0
+   },
+   {
+    "name": "awareness",
+    "stat_id": 3,
+    "weight": 0.25
+   },
+   {
+    "name": "pace",
+    "stat_id": 4,
+    "weight": 2.0
+   },
+   {
+    "name": "focus",
+    "stat_id": 5,
+    "weight": 0.0
+   }
+  ],
+  "experience_scale": [
+   [
+    0.0,
+    50.0
+   ],
+   [
+    0.0,
+    50.0
+   ],
+   [
+    0.0,
+    51.0
+   ],
+   [
+    1.0,
+    51.0
+   ],
+   [
+    3.0,
+    52.0
+   ],
+   [
+    9.0,
+    52.0
+   ],
+   [
+    11.0,
+    54.0
+   ],
+   [
+    46.0,
+    72.0
+   ],
+   [
+    90.0,
+    77.0
+   ],
+   [
+    105.0,
+    81.0
+   ],
+   [
+    128.0,
+    81.0
+   ],
+   [
+    128.0,
+    81.0
+   ],
+   [
+    149.0,
+    81.0
+   ],
+   [
+    155.0,
+    81.5
+   ],
+   [
+    168.0,
+    83.0
+   ],
+   [
+    208.0,
+    87.0
+   ],
+   [
+    209.0,
+    87.0
+   ],
+   [
+    230.0,
+    87.0
+   ],
+   [
+    356.0,
+    98.0
+   ],
+   [
+    402.0,
+    99.0
+   ]
+  ],
+  "years": {
+   "2016": {
+    "lewis_hamilton": {
+     "experience": 82.9,
+     "racecraft": 93.0,
+     "awareness": 93.0,
+     "pace": 90.0,
+     "focus": 80.1,
+     "overall": 90.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.0 pace and 167 starts"
+    },
+    "nico_rosberg": {
+     "experience": 84.7,
+     "racecraft": 90.9,
+     "awareness": 82.9,
+     "pace": 88.9,
+     "focus": 80.9,
+     "overall": 88.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 185 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 81.7,
+     "racecraft": 93.1,
+     "awareness": 84.1,
+     "pace": 87.1,
+     "focus": 83.9,
+     "overall": 88.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.1 pace and 158 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 88.6,
+     "racecraft": 91.3,
+     "awareness": 84.3,
+     "pace": 86.3,
+     "focus": 86.8,
+     "overall": 87.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 229 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 76.4,
+     "racecraft": 90.6,
+     "awareness": 94.6,
+     "pace": 91.6,
+     "focus": 72.4,
+     "overall": 90.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +9.6 pace and 88 starts"
+    },
+    "max_verstappen": {
+     "experience": 58.1,
+     "racecraft": 90.6,
+     "awareness": 79.6,
+     "pace": 90.6,
+     "focus": 75.0,
+     "overall": 87.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.4 pace and 19 starts"
+    },
+    "fernando_alonso": {
+     "experience": 88.9,
+     "racecraft": 90.4,
+     "awareness": 81.4,
+     "pace": 87.4,
+     "focus": 92.9,
+     "overall": 87.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 252 starts"
+    },
+    "jenson_button": {
+     "experience": 94.1,
+     "racecraft": 94.0,
+     "awareness": 95.0,
+     "pace": 85.0,
+     "focus": 87.9,
+     "overall": 88.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 284 starts"
+    },
+    "sergio_perez": {
+     "experience": 77.5,
+     "racecraft": 94.7,
+     "awareness": 80.7,
+     "pace": 86.7,
+     "focus": 83.2,
+     "overall": 87.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.7 pace and 94 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 78.6,
+     "racecraft": 91.7,
+     "awareness": 90.7,
+     "pace": 87.7,
+     "focus": 85.9,
+     "overall": 88.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.7 pace and 96 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 55.4,
+     "racecraft": 69.5,
+     "awareness": 73.5,
+     "pace": 76.5,
+     "focus": 83.2,
+     "overall": 72.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.5 pace and 19 starts"
+    },
+    "jolyon_palmer": {
+     "experience": 50.0,
+     "racecraft": 78.0,
+     "awareness": 70.0,
+     "pace": 76.0,
+     "focus": 80.9,
+     "overall": 74.3,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "felipe_massa": {
+     "experience": 88.6,
+     "racecraft": 88.5,
+     "awareness": 86.5,
+     "pace": 85.5,
+     "focus": 84.6,
+     "overall": 86.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 229 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 72.7,
+     "racecraft": 76.1,
+     "awareness": 99.0,
+     "pace": 87.1,
+     "focus": 77.3,
+     "overall": 83.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.1 pace and 56 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 58.1,
+     "racecraft": 95.2,
+     "awareness": 87.2,
+     "pace": 87.2,
+     "focus": 91.3,
+     "overall": 87.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.8 pace and 19 starts"
+    },
+    "daniil_kvyat": {
+     "experience": 67.4,
+     "racecraft": 86.8,
+     "awareness": 78.8,
+     "pace": 84.8,
+     "focus": 80.9,
+     "overall": 83.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 37 starts"
+    },
+    "marcus_ericsson": {
+     "experience": 66.3,
+     "racecraft": 83.9,
+     "awareness": 75.9,
+     "pace": 81.9,
+     "focus": 80.9,
+     "overall": 80.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 35 starts"
+    },
+    "felipe_nasr": {
+     "experience": 58.1,
+     "racecraft": 82.7,
+     "awareness": 74.7,
+     "pace": 80.7,
+     "focus": 80.9,
+     "overall": 79.2,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 19 starts"
+    },
+    "romain_grosjean": {
+     "experience": 76.2,
+     "racecraft": 80.5,
+     "awareness": 72.5,
+     "pace": 78.5,
+     "focus": 80.9,
+     "overall": 78.5,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 83 starts"
+    },
+    "esteban_gutierrez": {
+     "experience": 67.9,
+     "racecraft": 79.9,
+     "awareness": 71.9,
+     "pace": 77.9,
+     "focus": 80.9,
+     "overall": 77.3,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 38 starts"
+    },
+    "pascal_wehrlein": {
+     "experience": 50.0,
+     "racecraft": 85.0,
+     "awareness": 77.0,
+     "pace": 83.0,
+     "focus": 80.9,
+     "overall": 80.8,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "rio_haryanto": {
+     "experience": 50.0,
+     "racecraft": 82.7,
+     "awareness": 74.7,
+     "pace": 80.7,
+     "focus": 80.9,
+     "overall": 78.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "stoffel_vandoorne": {
+     "experience": 50.0,
+     "racecraft": 84.9,
+     "awareness": 76.9,
+     "pace": 82.9,
+     "focus": 80.9,
+     "overall": 80.7,
+     "source": "Classic Seasons pace of 2017; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "esteban_ocon": {
+     "experience": 49.4,
+     "racecraft": 86.6,
+     "awareness": 79.6,
+     "pace": 85.6,
+     "focus": 61.7,
+     "overall": 82.9,
+     "source": "Classic Seasons pace of 2017; others from stock 2025 moved by +0.6 pace and 0 starts"
+    }
+   },
+   "2017": {
+    "lewis_hamilton": {
+     "experience": 85.0,
+     "racecraft": 93.0,
+     "awareness": 93.0,
+     "pace": 90.0,
+     "focus": 80.1,
+     "overall": 90.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.0 pace and 188 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 75.1,
+     "racecraft": 75.8,
+     "awareness": 99.0,
+     "pace": 86.8,
+     "focus": 77.3,
+     "overall": 83.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 77 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 84.0,
+     "racecraft": 94.0,
+     "awareness": 85.0,
+     "pace": 88.0,
+     "focus": 83.9,
+     "overall": 89.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 179 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 90.4,
+     "racecraft": 90.4,
+     "awareness": 83.4,
+     "pace": 85.4,
+     "focus": 86.8,
+     "overall": 87.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 250 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 80.6,
+     "racecraft": 89.5,
+     "awareness": 93.5,
+     "pace": 90.5,
+     "focus": 72.4,
+     "overall": 89.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +8.5 pace and 109 starts"
+    },
+    "max_verstappen": {
+     "experience": 68.9,
+     "racecraft": 91.7,
+     "awareness": 80.7,
+     "pace": 91.7,
+     "focus": 75.0,
+     "overall": 89.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -4.3 pace and 40 starts"
+    },
+    "fernando_alonso": {
+     "experience": 90.7,
+     "racecraft": 90.4,
+     "awareness": 81.4,
+     "pace": 87.4,
+     "focus": 92.9,
+     "overall": 88.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 272 starts"
+    },
+    "stoffel_vandoorne": {
+     "experience": 51.0,
+     "racecraft": 84.9,
+     "awareness": 76.9,
+     "pace": 82.9,
+     "focus": 80.9,
+     "overall": 80.8,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 1 starts"
+    },
+    "sergio_perez": {
+     "experience": 80.5,
+     "racecraft": 94.3,
+     "awareness": 80.3,
+     "pace": 86.3,
+     "focus": 83.2,
+     "overall": 87.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.3 pace and 115 starts"
+    },
+    "esteban_ocon": {
+     "experience": 51.4,
+     "racecraft": 86.6,
+     "awareness": 79.6,
+     "pace": 85.6,
+     "focus": 61.7,
+     "overall": 83.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 9 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 81.0,
+     "racecraft": 92.1,
+     "awareness": 91.1,
+     "pace": 88.1,
+     "focus": 85.9,
+     "overall": 89.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +6.1 pace and 117 starts"
+    },
+    "jolyon_palmer": {
+     "experience": 59.1,
+     "racecraft": 78.0,
+     "awareness": 70.0,
+     "pace": 76.0,
+     "focus": 80.9,
+     "overall": 74.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+    },
+    "felipe_massa": {
+     "experience": 90.3,
+     "racecraft": 88.8,
+     "awareness": 86.8,
+     "pace": 85.8,
+     "focus": 84.6,
+     "overall": 87.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.8 pace and 250 starts"
+    },
+    "lance_stroll": {
+     "experience": 50.0,
+     "racecraft": 81.2,
+     "awareness": 78.2,
+     "pace": 76.2,
+     "focus": 55.8,
+     "overall": 75.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.2 pace and 0 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 68.9,
+     "racecraft": 94.5,
+     "awareness": 86.5,
+     "pace": 86.5,
+     "focus": 91.3,
+     "overall": 87.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 40 starts"
+    },
+    "daniil_kvyat": {
+     "experience": 73.4,
+     "racecraft": 87.4,
+     "awareness": 79.4,
+     "pace": 85.4,
+     "focus": 80.9,
+     "overall": 84.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 58 starts"
+    },
+    "marcus_ericsson": {
+     "experience": 73.1,
+     "racecraft": 83.9,
+     "awareness": 75.9,
+     "pace": 81.9,
+     "focus": 80.9,
+     "overall": 81.4,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 56 starts"
+    },
+    "pascal_wehrlein": {
+     "experience": 59.1,
+     "racecraft": 85.0,
+     "awareness": 77.0,
+     "pace": 83.0,
+     "focus": 80.9,
+     "overall": 81.4,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+    },
+    "romain_grosjean": {
+     "experience": 80.7,
+     "racecraft": 80.5,
+     "awareness": 72.5,
+     "pace": 78.5,
+     "focus": 80.9,
+     "overall": 78.8,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 104 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 66.2,
+     "racecraft": 69.5,
+     "awareness": 73.5,
+     "pace": 76.5,
+     "focus": 83.2,
+     "overall": 73.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.5 pace and 40 starts"
+    },
+    "jenson_button": {
+     "experience": 95.9,
+     "racecraft": 94.0,
+     "awareness": 95.0,
+     "pace": 85.0,
+     "focus": 87.9,
+     "overall": 89.1,
+     "source": "Classic Seasons pace of 2016; others from stock 2025 moved by +0.0 pace and 305 starts"
+    },
+    "brendon_hartley": {
+     "experience": 50.0,
+     "racecraft": 82.9,
+     "awareness": 74.9,
+     "pace": 80.9,
+     "focus": 80.9,
+     "overall": 78.8,
+     "source": "Classic Seasons pace of 2018; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "pierre_gasly": {
+     "experience": 50.6,
+     "racecraft": 86.6,
+     "awareness": 77.6,
+     "pace": 84.6,
+     "focus": 80.9,
+     "overall": 82.2,
+     "source": "Classic Seasons pace of 2018; others from stock 2025 moved by -1.4 pace and 0 starts"
+    },
+    "antonio_giovinazzi": {
+     "experience": 50.0,
+     "racecraft": 88.7,
+     "awareness": 80.7,
+     "pace": 86.7,
+     "focus": 80.9,
+     "overall": 84.2,
+     "source": "Classic Seasons pace of 2019; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    }
+   },
+   "2018": {
+    "lewis_hamilton": {
+     "experience": 87.0,
+     "racecraft": 92.2,
+     "awareness": 92.2,
+     "pace": 89.2,
+     "focus": 80.1,
+     "overall": 90.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 208 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 78.5,
+     "racecraft": 76.3,
+     "awareness": 99.0,
+     "pace": 87.3,
+     "focus": 77.3,
+     "overall": 84.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.3 pace and 97 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 86.0,
+     "racecraft": 94.0,
+     "awareness": 85.0,
+     "pace": 88.0,
+     "focus": 83.9,
+     "overall": 89.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 199 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 92.1,
+     "racecraft": 90.3,
+     "awareness": 83.3,
+     "pace": 85.3,
+     "focus": 86.8,
+     "overall": 87.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 270 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 80.6,
+     "racecraft": 89.0,
+     "awareness": 93.0,
+     "pace": 90.0,
+     "focus": 72.4,
+     "overall": 89.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +8.0 pace and 129 starts"
+    },
+    "max_verstappen": {
+     "experience": 73.6,
+     "racecraft": 92.2,
+     "awareness": 81.2,
+     "pace": 92.2,
+     "focus": 75.0,
+     "overall": 90.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.8 pace and 60 starts"
+    },
+    "fernando_alonso": {
+     "experience": 92.3,
+     "racecraft": 90.4,
+     "awareness": 81.4,
+     "pace": 87.4,
+     "focus": 92.9,
+     "overall": 88.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 291 starts"
+    },
+    "stoffel_vandoorne": {
+     "experience": 59.1,
+     "racecraft": 84.9,
+     "awareness": 76.9,
+     "pace": 82.9,
+     "focus": 80.9,
+     "overall": 81.3,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 21 starts"
+    },
+    "sergio_perez": {
+     "experience": 80.5,
+     "racecraft": 93.4,
+     "awareness": 79.4,
+     "pace": 85.4,
+     "focus": 83.2,
+     "overall": 86.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 135 starts"
+    },
+    "esteban_ocon": {
+     "experience": 62.6,
+     "racecraft": 87.0,
+     "awareness": 80.0,
+     "pace": 86.0,
+     "focus": 61.7,
+     "overall": 84.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.0 pace and 29 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 81.0,
+     "racecraft": 92.5,
+     "awareness": 91.5,
+     "pace": 88.5,
+     "focus": 85.9,
+     "overall": 89.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +6.5 pace and 137 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 73.6,
+     "racecraft": 94.5,
+     "awareness": 86.5,
+     "pace": 86.5,
+     "focus": 91.3,
+     "overall": 87.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 60 starts"
+    },
+    "lance_stroll": {
+     "experience": 58.6,
+     "racecraft": 82.9,
+     "awareness": 79.9,
+     "pace": 77.9,
+     "focus": 55.8,
+     "overall": 78.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.9 pace and 20 starts"
+    },
+    "sergey_sirotkin": {
+     "experience": 50.0,
+     "racecraft": 80.8,
+     "awareness": 72.8,
+     "pace": 78.8,
+     "focus": 80.9,
+     "overall": 76.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "pierre_gasly": {
+     "experience": 52.6,
+     "racecraft": 86.6,
+     "awareness": 77.6,
+     "pace": 84.6,
+     "focus": 80.9,
+     "overall": 82.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 5 starts"
+    },
+    "brendon_hartley": {
+     "experience": 52.0,
+     "racecraft": 82.9,
+     "awareness": 74.9,
+     "pace": 80.9,
+     "focus": 80.9,
+     "overall": 79.0,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 4 starts"
+    },
+    "marcus_ericsson": {
+     "experience": 75.4,
+     "racecraft": 83.9,
+     "awareness": 75.9,
+     "pace": 81.9,
+     "focus": 80.9,
+     "overall": 81.6,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 76 starts"
+    },
+    "charles_leclerc": {
+     "experience": 50.0,
+     "racecraft": 93.2,
+     "awareness": 91.2,
+     "pace": 88.2,
+     "focus": 88.2,
+     "overall": 87.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.8 pace and 0 starts"
+    },
+    "romain_grosjean": {
+     "experience": 81.0,
+     "racecraft": 80.8,
+     "awareness": 72.8,
+     "pace": 78.8,
+     "focus": 80.9,
+     "overall": 79.1,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 124 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 70.9,
+     "racecraft": 69.2,
+     "awareness": 73.2,
+     "pace": 76.2,
+     "focus": 83.2,
+     "overall": 73.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.8 pace and 60 starts"
+    }
+   },
+   "2019": {
+    "lewis_hamilton": {
+     "experience": 87.0,
+     "racecraft": 91.7,
+     "awareness": 91.7,
+     "pace": 88.7,
+     "focus": 80.1,
+     "overall": 89.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.7 pace and 229 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 80.6,
+     "racecraft": 76.4,
+     "awareness": 99.0,
+     "pace": 87.4,
+     "focus": 77.3,
+     "overall": 84.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.4 pace and 118 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 86.9,
+     "racecraft": 93.0,
+     "awareness": 84.0,
+     "pace": 87.0,
+     "focus": 83.9,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.0 pace and 220 starts"
+    },
+    "charles_leclerc": {
+     "experience": 59.1,
+     "racecraft": 93.2,
+     "awareness": 91.2,
+     "pace": 88.2,
+     "focus": 88.2,
+     "overall": 87.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.8 pace and 21 starts"
+    },
+    "max_verstappen": {
+     "experience": 76.0,
+     "racecraft": 92.6,
+     "awareness": 81.6,
+     "pace": 92.6,
+     "focus": 75.0,
+     "overall": 90.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.4 pace and 81 starts"
+    },
+    "pierre_gasly": {
+     "experience": 62.3,
+     "racecraft": 86.6,
+     "awareness": 77.6,
+     "pace": 84.6,
+     "focus": 80.9,
+     "overall": 83.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 26 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 76.0,
+     "racecraft": 96.0,
+     "awareness": 88.0,
+     "pace": 88.0,
+     "focus": 91.3,
+     "overall": 89.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 81 starts"
+    },
+    "lando_norris": {
+     "experience": 50.0,
+     "racecraft": 82.4,
+     "awareness": 73.4,
+     "pace": 87.4,
+     "focus": 82.5,
+     "overall": 82.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -6.6 pace and 0 starts"
+    },
+    "sergio_perez": {
+     "experience": 81.1,
+     "racecraft": 93.0,
+     "awareness": 79.0,
+     "pace": 85.0,
+     "focus": 83.2,
+     "overall": 86.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 156 starts"
+    },
+    "lance_stroll": {
+     "experience": 69.4,
+     "racecraft": 84.7,
+     "awareness": 81.7,
+     "pace": 79.7,
+     "focus": 55.8,
+     "overall": 80.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.7 pace and 41 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 80.7,
+     "racecraft": 88.6,
+     "awareness": 92.6,
+     "pace": 89.6,
+     "focus": 72.4,
+     "overall": 88.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +7.6 pace and 150 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 81.8,
+     "racecraft": 91.5,
+     "awareness": 90.5,
+     "pace": 87.5,
+     "focus": 85.9,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.5 pace and 158 starts"
+    },
+    "george_russell": {
+     "experience": 50.0,
+     "racecraft": 91.3,
+     "awareness": 83.3,
+     "pace": 89.3,
+     "focus": 87.2,
+     "overall": 86.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 0 starts"
+    },
+    "robert_kubica": {
+     "experience": 75.4,
+     "racecraft": 86.0,
+     "awareness": 78.0,
+     "pace": 84.0,
+     "focus": 80.9,
+     "overall": 83.5,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 76 starts"
+    },
+    "daniil_kvyat": {
+     "experience": 75.1,
+     "racecraft": 86.6,
+     "awareness": 78.6,
+     "pace": 84.6,
+     "focus": 80.9,
+     "overall": 84.1,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 73 starts"
+    },
+    "alex_albon": {
+     "experience": 50.0,
+     "racecraft": 80.5,
+     "awareness": 76.5,
+     "pace": 83.5,
+     "focus": 88.0,
+     "overall": 79.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.5 pace and 0 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 93.9,
+     "racecraft": 91.4,
+     "awareness": 84.4,
+     "pace": 86.4,
+     "focus": 86.8,
+     "overall": 88.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 291 starts"
+    },
+    "antonio_giovinazzi": {
+     "experience": 51.5,
+     "racecraft": 88.7,
+     "awareness": 80.7,
+     "pace": 86.7,
+     "focus": 80.9,
+     "overall": 84.3,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 2 starts"
+    },
+    "romain_grosjean": {
+     "experience": 81.0,
+     "racecraft": 78.9,
+     "awareness": 70.9,
+     "pace": 76.9,
+     "focus": 80.9,
+     "overall": 77.3,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 145 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 73.3,
+     "racecraft": 71.1,
+     "awareness": 75.1,
+     "pace": 78.1,
+     "focus": 83.2,
+     "overall": 75.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.9 pace and 81 starts"
+    }
+   },
+   "2020": {
+    "lewis_hamilton": {
+     "experience": 88.7,
+     "racecraft": 91.5,
+     "awareness": 91.5,
+     "pace": 88.5,
+     "focus": 80.1,
+     "overall": 89.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.5 pace and 250 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 80.6,
+     "racecraft": 76.4,
+     "awareness": 99.0,
+     "pace": 87.4,
+     "focus": 77.3,
+     "overall": 84.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.4 pace and 139 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 87.8,
+     "racecraft": 90.9,
+     "awareness": 81.9,
+     "pace": 84.9,
+     "focus": 83.9,
+     "overall": 86.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.9 pace and 241 starts"
+    },
+    "charles_leclerc": {
+     "experience": 69.9,
+     "racecraft": 94.2,
+     "awareness": 92.2,
+     "pace": 89.2,
+     "focus": 88.2,
+     "overall": 89.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.8 pace and 42 starts"
+    },
+    "max_verstappen": {
+     "experience": 80.2,
+     "racecraft": 91.4,
+     "awareness": 80.4,
+     "pace": 91.4,
+     "focus": 75.0,
+     "overall": 89.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -4.6 pace and 102 starts"
+    },
+    "alex_albon": {
+     "experience": 59.1,
+     "racecraft": 81.3,
+     "awareness": 77.3,
+     "pace": 84.3,
+     "focus": 88.0,
+     "overall": 81.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 21 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 80.2,
+     "racecraft": 96.0,
+     "awareness": 88.0,
+     "pace": 88.0,
+     "focus": 91.3,
+     "overall": 89.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 102 starts"
+    },
+    "lando_norris": {
+     "experience": 59.1,
+     "racecraft": 83.8,
+     "awareness": 74.8,
+     "pace": 88.8,
+     "focus": 82.5,
+     "overall": 84.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 21 starts"
+    },
+    "sergio_perez": {
+     "experience": 83.4,
+     "racecraft": 92.0,
+     "awareness": 78.0,
+     "pace": 84.0,
+     "focus": 83.2,
+     "overall": 85.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 177 starts"
+    },
+    "lance_stroll": {
+     "experience": 73.8,
+     "racecraft": 87.0,
+     "awareness": 84.0,
+     "pace": 82.0,
+     "focus": 55.8,
+     "overall": 83.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +6.0 pace and 62 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 82.9,
+     "racecraft": 87.2,
+     "awareness": 91.2,
+     "pace": 88.2,
+     "focus": 72.4,
+     "overall": 87.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +6.2 pace and 171 starts"
+    },
+    "esteban_ocon": {
+     "experience": 71.8,
+     "racecraft": 86.8,
+     "awareness": 79.8,
+     "pace": 85.8,
+     "focus": 61.7,
+     "overall": 84.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.8 pace and 50 starts"
+    },
+    "george_russell": {
+     "experience": 59.1,
+     "racecraft": 91.3,
+     "awareness": 83.3,
+     "pace": 89.3,
+     "focus": 87.2,
+     "overall": 87.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 21 starts"
+    },
+    "nicholas_latifi": {
+     "experience": 50.0,
+     "racecraft": 82.7,
+     "awareness": 74.7,
+     "pace": 80.7,
+     "focus": 80.9,
+     "overall": 78.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "pierre_gasly": {
+     "experience": 72.7,
+     "racecraft": 88.2,
+     "awareness": 79.2,
+     "pace": 86.2,
+     "focus": 80.9,
+     "overall": 85.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.2 pace and 47 starts"
+    },
+    "daniil_kvyat": {
+     "experience": 78.1,
+     "racecraft": 85.8,
+     "awareness": 77.8,
+     "pace": 83.8,
+     "focus": 80.9,
+     "overall": 83.5,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 94 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 95.8,
+     "racecraft": 91.5,
+     "awareness": 84.5,
+     "pace": 86.5,
+     "focus": 86.8,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 312 starts"
+    },
+    "antonio_giovinazzi": {
+     "experience": 60.2,
+     "racecraft": 89.7,
+     "awareness": 81.7,
+     "pace": 87.7,
+     "focus": 80.9,
+     "overall": 85.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 23 starts"
+    },
+    "romain_grosjean": {
+     "experience": 82.8,
+     "racecraft": 79.4,
+     "awareness": 71.4,
+     "pace": 77.4,
+     "focus": 80.9,
+     "overall": 77.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 166 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 77.5,
+     "racecraft": 70.6,
+     "awareness": 74.6,
+     "pace": 77.6,
+     "focus": 83.2,
+     "overall": 75.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -4.4 pace and 102 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 84.1,
+     "racecraft": 91.5,
+     "awareness": 90.5,
+     "pace": 87.5,
+     "focus": 85.9,
+     "overall": 88.6,
+     "source": "Classic Seasons pace of 2019; others from stock 2025 moved by +5.5 pace and 179 starts"
+    },
+    "jack_aitken": {
+     "experience": 50.0,
+     "racecraft": 79.4,
+     "awareness": 71.4,
+     "pace": 77.4,
+     "focus": 80.9,
+     "overall": 75.6,
+     "source": "no pace data: the season's slowest Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    }
+   },
+   "2021": {
+    "lewis_hamilton": {
+     "experience": 90.1,
+     "racecraft": 92.1,
+     "awareness": 92.1,
+     "pace": 89.1,
+     "focus": 80.1,
+     "overall": 90.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.1 pace and 266 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 81.2,
+     "racecraft": 75.5,
+     "awareness": 99.0,
+     "pace": 86.5,
+     "focus": 77.3,
+     "overall": 83.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.5 pace and 156 starts"
+    },
+    "charles_leclerc": {
+     "experience": 73.5,
+     "racecraft": 94.4,
+     "awareness": 92.4,
+     "pace": 89.4,
+     "focus": 88.2,
+     "overall": 89.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 59 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 81.0,
+     "racecraft": 96.0,
+     "awareness": 88.0,
+     "pace": 88.0,
+     "focus": 91.3,
+     "overall": 89.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 119 starts"
+    },
+    "max_verstappen": {
+     "experience": 81.0,
+     "racecraft": 90.9,
+     "awareness": 79.9,
+     "pace": 90.9,
+     "focus": 75.0,
+     "overall": 89.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.1 pace and 119 starts"
+    },
+    "sergio_perez": {
+     "experience": 84.9,
+     "racecraft": 93.5,
+     "awareness": 79.5,
+     "pace": 85.5,
+     "focus": 83.2,
+     "overall": 87.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 192 starts"
+    },
+    "lando_norris": {
+     "experience": 67.9,
+     "racecraft": 85.3,
+     "awareness": 76.3,
+     "pace": 90.3,
+     "focus": 82.5,
+     "overall": 86.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.7 pace and 38 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 84.6,
+     "racecraft": 86.0,
+     "awareness": 90.0,
+     "pace": 87.0,
+     "focus": 72.4,
+     "overall": 86.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 188 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 89.3,
+     "racecraft": 89.6,
+     "awareness": 80.6,
+     "pace": 83.6,
+     "focus": 83.9,
+     "overall": 85.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 258 starts"
+    },
+    "lance_stroll": {
+     "experience": 75.6,
+     "racecraft": 86.8,
+     "awareness": 83.8,
+     "pace": 81.8,
+     "focus": 55.8,
+     "overall": 82.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.8 pace and 78 starts"
+    },
+    "fernando_alonso": {
+     "experience": 94.2,
+     "racecraft": 89.3,
+     "awareness": 80.3,
+     "pace": 86.3,
+     "focus": 92.9,
+     "overall": 87.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 312 starts"
+    },
+    "esteban_ocon": {
+     "experience": 73.8,
+     "racecraft": 86.6,
+     "awareness": 79.6,
+     "pace": 85.6,
+     "focus": 61.7,
+     "overall": 84.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 67 starts"
+    },
+    "george_russell": {
+     "experience": 67.9,
+     "racecraft": 90.6,
+     "awareness": 82.6,
+     "pace": 88.6,
+     "focus": 87.2,
+     "overall": 87.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.4 pace and 38 starts"
+    },
+    "nicholas_latifi": {
+     "experience": 57.1,
+     "racecraft": 83.3,
+     "awareness": 75.3,
+     "pace": 81.3,
+     "focus": 80.9,
+     "overall": 79.7,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 17 starts"
+    },
+    "pierre_gasly": {
+     "experience": 74.6,
+     "racecraft": 89.1,
+     "awareness": 80.1,
+     "pace": 87.1,
+     "focus": 80.9,
+     "overall": 86.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.1 pace and 64 starts"
+    },
+    "yuki_tsunoda": {
+     "experience": 50.0,
+     "racecraft": 73.2,
+     "awareness": 72.2,
+     "pace": 80.2,
+     "focus": 83.2,
+     "overall": 75.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -4.8 pace and 0 starts"
+    },
+    "kimi_raikkonen": {
+     "experience": 97.3,
+     "racecraft": 90.4,
+     "awareness": 83.4,
+     "pace": 85.4,
+     "focus": 86.8,
+     "overall": 87.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 329 starts"
+    },
+    "antonio_giovinazzi": {
+     "experience": 68.9,
+     "racecraft": 91.9,
+     "awareness": 83.9,
+     "pace": 89.9,
+     "focus": 80.9,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 40 starts"
+    },
+    "mick_schumacher": {
+     "experience": 50.0,
+     "racecraft": 74.6,
+     "awareness": 66.6,
+     "pace": 72.6,
+     "focus": 80.9,
+     "overall": 71.1,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "nikita_mazepin": {
+     "experience": 50.0,
+     "racecraft": 67.9,
+     "awareness": 59.9,
+     "pace": 65.9,
+     "focus": 80.9,
+     "overall": 64.9,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 0 starts"
+    },
+    "robert_kubica": {
+     "experience": 78.9,
+     "racecraft": 86.0,
+     "awareness": 78.0,
+     "pace": 84.0,
+     "focus": 80.9,
+     "overall": 83.8,
+     "source": "Classic Seasons pace of 2019; no stock statistics: others from pace (median stock offsets) and 97 starts"
+    }
+   },
+   "2022": {
+    "lewis_hamilton": {
+     "experience": 92.1,
+     "racecraft": 91.8,
+     "awareness": 91.8,
+     "pace": 88.8,
+     "focus": 80.1,
+     "overall": 90.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.8 pace and 288 starts"
+    },
+    "george_russell": {
+     "experience": 73.6,
+     "racecraft": 90.7,
+     "awareness": 82.7,
+     "pace": 88.7,
+     "focus": 87.2,
+     "overall": 87.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.3 pace and 60 starts"
+    },
+    "charles_leclerc": {
+     "experience": 76.0,
+     "racecraft": 94.6,
+     "awareness": 92.6,
+     "pace": 89.6,
+     "focus": 88.2,
+     "overall": 90.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 81 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 81.0,
+     "racecraft": 96.0,
+     "awareness": 88.0,
+     "pace": 88.0,
+     "focus": 91.3,
+     "overall": 89.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 141 starts"
+    },
+    "max_verstappen": {
+     "experience": 81.0,
+     "racecraft": 91.2,
+     "awareness": 80.2,
+     "pace": 91.2,
+     "focus": 75.0,
+     "overall": 89.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -4.8 pace and 141 starts"
+    },
+    "sergio_perez": {
+     "experience": 86.5,
+     "racecraft": 94.2,
+     "awareness": 80.2,
+     "pace": 86.2,
+     "focus": 83.2,
+     "overall": 88.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.2 pace and 214 starts"
+    },
+    "lando_norris": {
+     "experience": 73.6,
+     "racecraft": 86.1,
+     "awareness": 77.1,
+     "pace": 91.1,
+     "focus": 82.5,
+     "overall": 87.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.9 pace and 60 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 86.6,
+     "racecraft": 85.5,
+     "awareness": 89.5,
+     "pace": 86.5,
+     "focus": 72.4,
+     "overall": 86.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +4.5 pace and 210 starts"
+    },
+    "sebastian_vettel": {
+     "experience": 91.3,
+     "racecraft": 89.0,
+     "awareness": 80.0,
+     "pace": 83.0,
+     "focus": 83.9,
+     "overall": 85.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 280 starts"
+    },
+    "lance_stroll": {
+     "experience": 79.7,
+     "racecraft": 86.0,
+     "awareness": 83.0,
+     "pace": 81.0,
+     "focus": 55.8,
+     "overall": 82.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +5.0 pace and 100 starts"
+    },
+    "fernando_alonso": {
+     "experience": 96.1,
+     "racecraft": 89.6,
+     "awareness": 80.6,
+     "pace": 86.6,
+     "focus": 92.9,
+     "overall": 87.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 334 starts"
+    },
+    "esteban_ocon": {
+     "experience": 76.3,
+     "racecraft": 86.0,
+     "awareness": 79.0,
+     "pace": 85.0,
+     "focus": 61.7,
+     "overall": 84.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 89 starts"
+    },
+    "alex_albon": {
+     "experience": 67.9,
+     "racecraft": 84.7,
+     "awareness": 80.7,
+     "pace": 87.7,
+     "focus": 88.0,
+     "overall": 84.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.7 pace and 38 starts"
+    },
+    "nicholas_latifi": {
+     "experience": 68.4,
+     "racecraft": 83.2,
+     "awareness": 75.2,
+     "pace": 81.2,
+     "focus": 80.9,
+     "overall": 80.4,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 39 starts"
+    },
+    "pierre_gasly": {
+     "experience": 77.1,
+     "racecraft": 87.4,
+     "awareness": 78.4,
+     "pace": 85.4,
+     "focus": 80.9,
+     "overall": 84.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.6 pace and 86 starts"
+    },
+    "yuki_tsunoda": {
+     "experience": 59.7,
+     "racecraft": 75.7,
+     "awareness": 74.7,
+     "pace": 82.7,
+     "focus": 83.2,
+     "overall": 78.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.3 pace and 22 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 83.6,
+     "racecraft": 75.4,
+     "awareness": 99.0,
+     "pace": 86.4,
+     "focus": 77.3,
+     "overall": 84.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.4 pace and 178 starts"
+    },
+    "guanyu_zhou": {
+     "experience": 43.5,
+     "racecraft": 78.5,
+     "awareness": 82.5,
+     "pace": 83.5,
+     "focus": 79.0,
+     "overall": 79.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.5 pace and 0 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 78.3,
+     "racecraft": 69.8,
+     "awareness": 73.8,
+     "pace": 76.8,
+     "focus": 83.2,
+     "overall": 74.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 119 starts"
+    },
+    "mick_schumacher": {
+     "experience": 59.7,
+     "racecraft": 74.6,
+     "awareness": 66.6,
+     "pace": 72.6,
+     "focus": 80.9,
+     "overall": 71.8,
+     "source": "Classic Seasons pace; no stock statistics: others from pace (median stock offsets) and 22 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 84.4,
+     "racecraft": 88.2,
+     "awareness": 87.2,
+     "pace": 84.2,
+     "focus": 85.9,
+     "overall": 85.6,
+     "source": "Classic Seasons pace of 2023; others from stock 2025 moved by +2.2 pace and 182 starts"
+    },
+    "nyck_de-vries": {
+     "experience": 46.0,
+     "racecraft": 84.0,
+     "awareness": 75.0,
+     "pace": 67.0,
+     "focus": 70.7,
+     "overall": 70.9,
+     "source": "Classic Seasons pace of 2023; others from stock 2025 moved by +0.0 pace and 0 starts"
+    }
+   },
+   "2023": {
+    "lewis_hamilton": {
+     "experience": 94.0,
+     "racecraft": 91.3,
+     "awareness": 91.3,
+     "pace": 88.3,
+     "focus": 80.1,
+     "overall": 89.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.3 pace and 310 starts"
+    },
+    "george_russell": {
+     "experience": 76.1,
+     "racecraft": 91.0,
+     "awareness": 83.0,
+     "pace": 89.0,
+     "focus": 87.2,
+     "overall": 88.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 82 starts"
+    },
+    "charles_leclerc": {
+     "experience": 80.5,
+     "racecraft": 94.6,
+     "awareness": 92.6,
+     "pace": 89.6,
+     "focus": 88.2,
+     "overall": 90.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 103 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 82.4,
+     "racecraft": 96.1,
+     "awareness": 88.1,
+     "pace": 88.1,
+     "focus": 91.3,
+     "overall": 90.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 163 starts"
+    },
+    "max_verstappen": {
+     "experience": 82.4,
+     "racecraft": 93.0,
+     "awareness": 82.0,
+     "pace": 93.0,
+     "focus": 75.0,
+     "overall": 91.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.0 pace and 163 starts"
+    },
+    "sergio_perez": {
+     "experience": 87.0,
+     "racecraft": 93.4,
+     "awareness": 79.4,
+     "pace": 85.4,
+     "focus": 83.2,
+     "overall": 87.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 236 starts"
+    },
+    "lando_norris": {
+     "experience": 76.1,
+     "racecraft": 86.4,
+     "awareness": 77.4,
+     "pace": 91.4,
+     "focus": 82.5,
+     "overall": 87.9,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.6 pace and 82 starts"
+    },
+    "oscar_piastri": {
+     "experience": 50.0,
+     "racecraft": 94.1,
+     "awareness": 88.1,
+     "pace": 89.1,
+     "focus": 84.9,
+     "overall": 87.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.1 pace and 0 starts"
+    },
+    "fernando_alonso": {
+     "experience": 98.0,
+     "racecraft": 89.3,
+     "awareness": 80.3,
+     "pace": 86.3,
+     "focus": 92.9,
+     "overall": 87.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 356 starts"
+    },
+    "lance_stroll": {
+     "experience": 81.0,
+     "racecraft": 84.4,
+     "awareness": 81.4,
+     "pace": 79.4,
+     "focus": 55.8,
+     "overall": 81.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.4 pace and 122 starts"
+    },
+    "pierre_gasly": {
+     "experience": 81.6,
+     "racecraft": 87.7,
+     "awareness": 78.7,
+     "pace": 85.7,
+     "focus": 80.9,
+     "overall": 85.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.3 pace and 108 starts"
+    },
+    "esteban_ocon": {
+     "experience": 80.4,
+     "racecraft": 86.0,
+     "awareness": 79.0,
+     "pace": 85.0,
+     "focus": 61.7,
+     "overall": 84.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 111 starts"
+    },
+    "alex_albon": {
+     "experience": 73.5,
+     "racecraft": 84.6,
+     "awareness": 80.6,
+     "pace": 87.6,
+     "focus": 88.0,
+     "overall": 85.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.6 pace and 59 starts"
+    },
+    "logan_sargeant": {
+     "experience": 45.1,
+     "racecraft": 75.6,
+     "awareness": 82.6,
+     "pace": 79.6,
+     "focus": 72.3,
+     "overall": 76.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +7.6 pace and 0 starts"
+    },
+    "yuki_tsunoda": {
+     "experience": 71.0,
+     "racecraft": 76.3,
+     "awareness": 75.3,
+     "pace": 83.3,
+     "focus": 83.2,
+     "overall": 79.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.7 pace and 44 starts"
+    },
+    "nyck_de-vries": {
+     "experience": 47.0,
+     "racecraft": 84.0,
+     "awareness": 75.0,
+     "pace": 67.0,
+     "focus": 70.7,
+     "overall": 71.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.0 pace and 1 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 85.8,
+     "racecraft": 75.8,
+     "awareness": 99.0,
+     "pace": 86.8,
+     "focus": 77.3,
+     "overall": 84.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 200 starts"
+    },
+    "guanyu_zhou": {
+     "experience": 53.2,
+     "racecraft": 78.1,
+     "awareness": 82.1,
+     "pace": 83.1,
+     "focus": 79.0,
+     "overall": 79.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 22 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 84.6,
+     "racecraft": 88.2,
+     "awareness": 87.2,
+     "pace": 84.2,
+     "focus": 85.9,
+     "overall": 85.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 184 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 78.3,
+     "racecraft": 69.8,
+     "awareness": 73.8,
+     "pace": 76.8,
+     "focus": 83.2,
+     "overall": 74.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -5.2 pace and 141 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 86.8,
+     "racecraft": 85.5,
+     "awareness": 89.5,
+     "pace": 86.5,
+     "focus": 72.4,
+     "overall": 86.5,
+     "source": "Classic Seasons pace of 2022; others from stock 2025 moved by +4.5 pace and 232 starts"
+    },
+    "liam_lawson": {
+     "experience": 50.0,
+     "racecraft": 76.0,
+     "awareness": 75.0,
+     "pace": 85.0,
+     "focus": 63.6,
+     "overall": 79.2,
+     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+    }
+   },
+   "2024": {
+    "lewis_hamilton": {
+     "experience": 95.9,
+     "racecraft": 90.3,
+     "awareness": 90.3,
+     "pace": 87.3,
+     "focus": 80.1,
+     "overall": 89.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 332 starts"
+    },
+    "george_russell": {
+     "experience": 80.7,
+     "racecraft": 91.8,
+     "awareness": 83.8,
+     "pace": 89.8,
+     "focus": 87.2,
+     "overall": 89.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.2 pace and 104 starts"
+    },
+    "charles_leclerc": {
+     "experience": 81.0,
+     "racecraft": 94.3,
+     "awareness": 92.3,
+     "pace": 89.3,
+     "focus": 88.2,
+     "overall": 90.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.7 pace and 125 starts"
+    },
+    "carlos_sainz-jr": {
+     "experience": 84.7,
+     "racecraft": 96.6,
+     "awareness": 88.6,
+     "pace": 88.6,
+     "focus": 91.3,
+     "overall": 90.6,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.6 pace and 185 starts"
+    },
+    "max_verstappen": {
+     "experience": 84.7,
+     "racecraft": 93.5,
+     "awareness": 82.5,
+     "pace": 93.5,
+     "focus": 75.0,
+     "overall": 92.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.5 pace and 185 starts"
+    },
+    "sergio_perez": {
+     "experience": 88.9,
+     "racecraft": 93.9,
+     "awareness": 79.9,
+     "pace": 85.9,
+     "focus": 83.2,
+     "overall": 88.0,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.9 pace and 258 starts"
+    },
+    "lando_norris": {
+     "experience": 80.7,
+     "racecraft": 86.7,
+     "awareness": 77.7,
+     "pace": 91.7,
+     "focus": 82.5,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.3 pace and 104 starts"
+    },
+    "oscar_piastri": {
+     "experience": 59.7,
+     "racecraft": 94.2,
+     "awareness": 88.2,
+     "pace": 89.2,
+     "focus": 84.9,
+     "overall": 88.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +2.2 pace and 22 starts"
+    },
+    "fernando_alonso": {
+     "experience": 98.5,
+     "racecraft": 87.9,
+     "awareness": 78.9,
+     "pace": 84.9,
+     "focus": 92.9,
+     "overall": 86.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -2.1 pace and 378 starts"
+    },
+    "lance_stroll": {
+     "experience": 81.0,
+     "racecraft": 84.1,
+     "awareness": 81.1,
+     "pace": 79.1,
+     "focus": 55.8,
+     "overall": 80.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.1 pace and 144 starts"
+    },
+    "pierre_gasly": {
+     "experience": 81.6,
+     "racecraft": 87.6,
+     "awareness": 78.6,
+     "pace": 85.6,
+     "focus": 80.9,
+     "overall": 85.4,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -0.4 pace and 130 starts"
+    },
+    "esteban_ocon": {
+     "experience": 80.4,
+     "racecraft": 86.3,
+     "awareness": 79.3,
+     "pace": 85.3,
+     "focus": 61.7,
+     "overall": 84.8,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.3 pace and 133 starts"
+    },
+    "alex_albon": {
+     "experience": 76.0,
+     "racecraft": 83.2,
+     "awareness": 79.2,
+     "pace": 86.2,
+     "focus": 88.0,
+     "overall": 84.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +1.2 pace and 81 starts"
+    },
+    "logan_sargeant": {
+     "experience": 54.8,
+     "racecraft": 77.0,
+     "awareness": 84.0,
+     "pace": 81.0,
+     "focus": 72.3,
+     "overall": 78.2,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +9.0 pace and 22 starts"
+    },
+    "yuki_tsunoda": {
+     "experience": 74.3,
+     "racecraft": 77.0,
+     "awareness": 76.0,
+     "pace": 84.0,
+     "focus": 83.2,
+     "overall": 80.7,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.0 pace and 66 starts"
+    },
+    "daniel_ricciardo": {
+     "experience": 87.4,
+     "racecraft": 79.7,
+     "awareness": 83.7,
+     "pace": 80.7,
+     "focus": 72.4,
+     "overall": 81.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -1.3 pace and 239 starts"
+    },
+    "valtteri_bottas": {
+     "experience": 86.6,
+     "racecraft": 75.8,
+     "awareness": 99.0,
+     "pace": 86.8,
+     "focus": 77.3,
+     "overall": 84.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +3.8 pace and 222 starts"
+    },
+    "guanyu_zhou": {
+     "experience": 64.5,
+     "racecraft": 78.1,
+     "awareness": 82.1,
+     "pace": 83.1,
+     "focus": 79.0,
+     "overall": 80.3,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.1 pace and 44 starts"
+    },
+    "nico_hulkenberg": {
+     "experience": 86.8,
+     "racecraft": 86.4,
+     "awareness": 85.4,
+     "pace": 82.4,
+     "focus": 85.9,
+     "overall": 84.1,
+     "source": "Classic Seasons pace; others from stock 2025 moved by +0.4 pace and 206 starts"
+    },
+    "kevin_magnussen": {
+     "experience": 79.7,
+     "racecraft": 71.6,
+     "awareness": 75.6,
+     "pace": 78.6,
+     "focus": 83.2,
+     "overall": 76.5,
+     "source": "Classic Seasons pace; others from stock 2025 moved by -3.4 pace and 163 starts"
+    },
+    "oliver_bearman": {
+     "experience": 50.0,
+     "racecraft": 84.0,
+     "awareness": 65.0,
+     "pace": 73.0,
+     "focus": 85.6,
+     "overall": 73.9,
+     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+    },
+    "jack_doohan": {
+     "experience": 50.0,
+     "racecraft": 71.0,
+     "awareness": 67.0,
+     "pace": 78.0,
+     "focus": 80.0,
+     "overall": 73.2,
+     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+    },
+    "franco_colapinto": {
+     "experience": 50.0,
+     "racecraft": 88.0,
+     "awareness": 76.0,
+     "pace": 74.0,
+     "focus": 55.0,
+     "overall": 76.4,
+     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 0 starts"
+    },
+    "liam_lawson": {
+     "experience": 52.0,
+     "racecraft": 76.0,
+     "awareness": 75.0,
+     "pace": 85.0,
+     "focus": 63.6,
+     "overall": 79.4,
+     "source": "stock 2025 pace; others from stock 2025 moved by +0.0 pace and 5 starts"
+    }
+   },
+   "2025": {
+    "george_russell": {
+     "experience": 81.0,
+     "racecraft": 92.0,
+     "awareness": 84.0,
+     "pace": 90.0,
+     "focus": 87.2,
+     "overall": 89.5,
+     "source": "stock default (2025) dataset"
+    },
+    "andrea-kimi_antonelli": {
+     "experience": 50.0,
+     "racecraft": 67.0,
+     "awareness": 79.0,
+     "pace": 76.0,
+     "focus": 80.0,
+     "overall": 71.8,
+     "source": "stock default (2025) dataset"
+    },
+    "charles_leclerc": {
+     "experience": 81.0,
+     "racecraft": 95.0,
+     "awareness": 93.0,
+     "pace": 90.0,
+     "focus": 88.2,
+     "overall": 91.0,
+     "source": "stock default (2025) dataset"
+    },
+    "lewis_hamilton": {
+     "experience": 98.0,
+     "racecraft": 90.0,
+     "awareness": 90.0,
+     "pace": 87.0,
+     "focus": 80.1,
+     "overall": 88.9,
+     "source": "stock default (2025) dataset"
+    },
+    "max_verstappen": {
+     "experience": 87.0,
+     "racecraft": 96.0,
+     "awareness": 85.0,
+     "pace": 96.0,
+     "focus": 75.0,
+     "overall": 94.6,
+     "source": "stock default (2025) dataset"
+    },
+    "yuki_tsunoda": {
+     "experience": 77.0,
+     "racecraft": 78.0,
+     "awareness": 77.0,
+     "pace": 85.0,
+     "focus": 83.2,
+     "overall": 81.9,
+     "source": "stock default (2025) dataset"
+    },
+    "oscar_piastri": {
+     "experience": 72.0,
+     "racecraft": 92.0,
+     "awareness": 86.0,
+     "pace": 87.0,
+     "focus": 84.9,
+     "overall": 87.3,
+     "source": "stock default (2025) dataset"
+    },
+    "lando_norris": {
+     "experience": 81.0,
+     "racecraft": 89.0,
+     "awareness": 80.0,
+     "pace": 94.0,
+     "focus": 82.5,
+     "overall": 90.6,
+     "source": "stock default (2025) dataset"
+    },
+    "lance_stroll": {
+     "experience": 83.0,
+     "racecraft": 81.0,
+     "awareness": 78.0,
+     "pace": 76.0,
+     "focus": 55.8,
+     "overall": 78.1,
+     "source": "stock default (2025) dataset"
+    },
+    "fernando_alonso": {
+     "experience": 99.0,
+     "racecraft": 90.0,
+     "awareness": 81.0,
+     "pace": 87.0,
+     "focus": 92.9,
+     "overall": 88.3,
+     "source": "stock default (2025) dataset"
+    },
+    "pierre_gasly": {
+     "experience": 82.0,
+     "racecraft": 88.0,
+     "awareness": 79.0,
+     "pace": 86.0,
+     "focus": 80.9,
+     "overall": 85.8,
+     "source": "stock default (2025) dataset"
+    },
+    "franco_colapinto": {
+     "experience": 52.0,
+     "racecraft": 88.0,
+     "awareness": 76.0,
+     "pace": 74.0,
+     "focus": 55.0,
+     "overall": 76.6,
+     "source": "stock default (2025) dataset"
+    },
+    "alex_albon": {
+     "experience": 81.0,
+     "racecraft": 82.0,
+     "awareness": 78.0,
+     "pace": 85.0,
+     "focus": 88.0,
+     "overall": 83.4,
+     "source": "stock default (2025) dataset"
+    },
+    "carlos_sainz-jr": {
+     "experience": 87.0,
+     "racecraft": 96.0,
+     "awareness": 88.0,
+     "pace": 88.0,
+     "focus": 91.3,
+     "overall": 90.2,
+     "source": "stock default (2025) dataset"
+    },
+    "isack_hadjar": {
+     "experience": 51.0,
+     "racecraft": 66.0,
+     "awareness": 65.0,
+     "pace": 72.0,
+     "focus": 60.0,
+     "overall": 68.3,
+     "source": "stock default (2025) dataset"
+    },
+    "liam_lawson": {
+     "experience": 54.0,
+     "racecraft": 76.0,
+     "awareness": 75.0,
+     "pace": 85.0,
+     "focus": 63.6,
+     "overall": 79.5,
+     "source": "stock default (2025) dataset"
+    },
+    "nico_hulkenberg": {
+     "experience": 87.0,
+     "racecraft": 86.0,
+     "awareness": 85.0,
+     "pace": 82.0,
+     "focus": 85.9,
+     "overall": 83.7,
+     "source": "stock default (2025) dataset"
+    },
+    "gabriel_bortoleto": {
+     "experience": 50.0,
+     "racecraft": 76.0,
+     "awareness": 68.0,
+     "pace": 77.0,
+     "focus": 55.0,
+     "overall": 74.1,
+     "source": "stock default (2025) dataset"
+    },
+    "esteban_ocon": {
+     "experience": 81.0,
+     "racecraft": 86.0,
+     "awareness": 79.0,
+     "pace": 85.0,
+     "focus": 61.7,
+     "overall": 84.6,
+     "source": "stock default (2025) dataset"
+    },
+    "oliver_bearman": {
+     "experience": 52.0,
+     "racecraft": 84.0,
+     "awareness": 65.0,
+     "pace": 73.0,
+     "focus": 85.6,
+     "overall": 74.1,
+     "source": "stock default (2025) dataset"
+    },
+    "jack_doohan": {
+     "experience": 51.0,
+     "racecraft": 71.0,
+     "awareness": 67.0,
+     "pace": 78.0,
+     "focus": 80.0,
+     "overall": 73.3,
+     "source": "stock default (2025) dataset"
+    }
+   },
+   "2026": {
+    "george_russell": {
+     "experience": 83.0,
+     "racecraft": 94.0,
+     "awareness": 93.0,
+     "pace": 94.0,
+     "focus": 87.2,
+     "overall": 93.1,
+     "source": "stock 2026 dataset"
+    },
+    "andrea-kimi_antonelli": {
+     "experience": 70.0,
+     "racecraft": 83.0,
+     "awareness": 75.0,
+     "pace": 85.0,
+     "focus": 90.0,
+     "overall": 82.6,
+     "source": "stock 2026 dataset"
+    },
+    "charles_leclerc": {
+     "experience": 83.0,
+     "racecraft": 92.0,
+     "awareness": 91.0,
+     "pace": 93.0,
+     "focus": 88.2,
+     "overall": 91.9,
+     "source": "stock 2026 dataset"
+    },
+    "lewis_hamilton": {
+     "experience": 98.0,
+     "racecraft": 93.0,
+     "awareness": 91.0,
+     "pace": 89.0,
+     "focus": 80.1,
+     "overall": 90.9,
+     "source": "stock 2026 dataset"
+    },
+    "max_verstappen": {
+     "experience": 88.0,
+     "racecraft": 96.0,
+     "awareness": 82.0,
+     "pace": 97.0,
+     "focus": 75.0,
+     "overall": 95.0,
+     "source": "stock 2026 dataset"
+    },
+    "isack_hadjar": {
+     "experience": 71.0,
+     "racecraft": 81.0,
+     "awareness": 82.0,
+     "pace": 85.0,
+     "focus": 60.0,
+     "overall": 82.6,
+     "source": "stock 2026 dataset"
+    },
+    "oscar_piastri": {
+     "experience": 77.0,
+     "racecraft": 95.0,
+     "awareness": 81.0,
+     "pace": 91.0,
+     "focus": 84.9,
+     "overall": 90.4,
+     "source": "stock 2026 dataset"
+    },
+    "lando_norris": {
+     "experience": 83.0,
+     "racecraft": 93.0,
+     "awareness": 82.0,
+     "pace": 97.0,
+     "focus": 82.5,
+     "overall": 93.8,
+     "source": "stock 2026 dataset"
+    },
+    "lance_stroll": {
+     "experience": 84.0,
+     "racecraft": 77.0,
+     "awareness": 73.0,
+     "pace": 77.0,
+     "focus": 44.2,
+     "overall": 77.2,
+     "source": "stock 2026 dataset"
+    },
+    "fernando_alonso": {
+     "experience": 99.0,
+     "racecraft": 87.0,
+     "awareness": 85.0,
+     "pace": 91.0,
+     "focus": 90.0,
+     "overall": 90.0,
+     "source": "stock 2026 dataset"
+    },
+    "pierre_gasly": {
+     "experience": 83.0,
+     "racecraft": 83.0,
+     "awareness": 78.0,
+     "pace": 85.0,
+     "focus": 80.9,
+     "overall": 83.8,
+     "source": "stock 2026 dataset"
+    },
+    "franco_colapinto": {
+     "experience": 69.0,
+     "racecraft": 71.0,
+     "awareness": 74.0,
+     "pace": 75.0,
+     "focus": 55.0,
+     "overall": 73.4,
+     "source": "stock 2026 dataset"
+    },
+    "alex_albon": {
+     "experience": 84.0,
+     "racecraft": 87.0,
+     "awareness": 77.0,
+     "pace": 85.0,
+     "focus": 88.0,
+     "overall": 84.9,
+     "source": "stock 2026 dataset"
+    },
+    "carlos_sainz-jr": {
+     "experience": 88.0,
+     "racecraft": 88.0,
+     "awareness": 80.0,
+     "pace": 86.0,
+     "focus": 91.3,
+     "overall": 86.3,
+     "source": "stock 2026 dataset"
+    },
+    "arvid_lindblad": {
+     "experience": 32.0,
+     "racecraft": 70.0,
+     "awareness": 60.0,
+     "pace": 72.0,
+     "focus": 61.2,
+     "overall": 67.7,
+     "source": "stock 2026 dataset"
+    },
+    "liam_lawson": {
+     "experience": 73.0,
+     "racecraft": 79.0,
+     "awareness": 71.0,
+     "pace": 81.0,
+     "focus": 70.0,
+     "overall": 79.1,
+     "source": "stock 2026 dataset"
+    },
+    "nico_hulkenberg": {
+     "experience": 88.0,
+     "racecraft": 85.0,
+     "awareness": 85.0,
+     "pace": 85.0,
+     "focus": 85.9,
+     "overall": 85.2,
+     "source": "stock 2026 dataset"
+    },
+    "gabriel_bortoleto": {
+     "experience": 69.0,
+     "racecraft": 81.0,
+     "awareness": 77.0,
+     "pace": 81.0,
+     "focus": 55.0,
+     "overall": 79.9,
+     "source": "stock 2026 dataset"
+    },
+    "esteban_ocon": {
+     "experience": 83.0,
+     "racecraft": 85.0,
+     "awareness": 84.0,
+     "pace": 84.0,
+     "focus": 78.0,
+     "overall": 84.2,
+     "source": "stock 2026 dataset"
+    },
+    "oliver_bearman": {
+     "experience": 72.0,
+     "racecraft": 88.0,
+     "awareness": 70.0,
+     "pace": 83.0,
+     "focus": 85.6,
+     "overall": 82.7,
+     "source": "stock 2026 dataset"
+    },
+    "sergio_perez": {
+     "experience": 92.0,
+     "racecraft": 83.0,
+     "awareness": 81.0,
+     "pace": 85.0,
+     "focus": 83.2,
+     "overall": 84.6,
+     "source": "stock 2026 dataset"
+    },
+    "valtteri_bottas": {
+     "experience": 89.0,
+     "racecraft": 75.0,
+     "awareness": 95.0,
+     "pace": 87.0,
+     "focus": 77.3,
+     "overall": 84.3,
+     "source": "stock 2026 dataset"
+    }
+   }
+  }
+ }
 }
