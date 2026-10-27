@@ -25,6 +25,9 @@ pub const ERROR_VIRUS_DELETED: i32 = 226;
 pub const REFUSED_EXIT: u8 = 225;
 /// The loader's first line once version.dll is running in the game.
 pub const ATTACHED: &str = "(version.dll proxy) attached";
+/// The tail of the attach line that survives when a concurrent writer
+/// overwrites the start of it.
+const ATTACHED_TAIL: &str = "proxy) attached";
 /// The offline play stub's line when it has the game image and resumes it.
 const PATCHING: &str = "game image at ";
 /// The loader's line in its fallback log naming the game folder's log it
@@ -455,7 +458,7 @@ pub enum Attach {
 /// with lines but no attach line (only the offline play stub's), `None` for
 /// an empty one.
 pub fn attached(text: &str) -> Option<bool> {
-    if text.contains(ATTACHED) {
+    if text.contains(ATTACHED_TAIL) {
         return Some(true);
     }
     (!text.trim().is_empty()).then_some(false)
@@ -668,6 +671,13 @@ mod tests {
             Some(true)
         );
         assert_eq!(attached(""), None);
+    }
+
+    #[test]
+    fn reads_an_attach_line_with_a_clobbered_start() {
+        let clobbered = ".dll proxy) attached, pid 12316\r\n\
+                         2026-10-27 18:31:45.051 [ 2416] host: F1_25.exe\n";
+        assert_eq!(attached(clobbered), Some(true));
     }
 
     #[test]
