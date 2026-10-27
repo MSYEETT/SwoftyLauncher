@@ -1537,16 +1537,27 @@ impl Shell {
             .child(v_flex().gap(px(6.)).children(state.mismatches.iter().map(|mm| {
                 h_flex()
                     .gap(px(10.))
-                    .items_center()
+                    .items_start()
                     .text_size(px(13.))
                     .child(
                         div()
+                            .mt(px(7.))
                             .size(px(4.))
                             .flex_shrink_0()
                             .rounded_full()
                             .bg(p.text_placeholder),
                     )
-                    .child(div().flex_1().min_w_0().child(difference_text(mm)))
+                    .child(v_flex().flex_1().min_w_0().child(difference_text(mm)).when_some(
+                        mm.differences.first(),
+                        |d, first| {
+                            d.child(
+                                div()
+                                    .text_size(px(12.))
+                                    .text_color(p.text_muted)
+                                    .child(first.clone()),
+                            )
+                        },
+                    ))
             })))
             .child(
                 h_flex()
