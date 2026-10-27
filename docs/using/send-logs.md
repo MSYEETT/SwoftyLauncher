@@ -16,6 +16,26 @@ When your data folder has no launch log and no game session, the dialog warns: *
 
 The dialog shows the progress, then **Sent — thanks!**. If the logs could not be sent, it shows the reason, such as no connection to Discord or the HTTP status Discord returned, and **Try again**. The launcher remembers your username for next time.
 
+## When F1 25 crashes
+
+When a game session ends in a crash, the launcher opens a full-window **F1 25 crashed** screen. It reads what the game left behind: the session's `loader.log`, the crash report and the files in the game folder.
+
+- When it recognises the crash, the screen names the cause and the steps to fix it, with **Send Logs to Developers** and **Got it**.
+- When it doesn't, the screen says **We couldn't tell why it crashed**, with **Send Logs to Developers**, **Join the support Discord** and **Close**.
+
+| Cause | What the launcher looks for |
+|---|---|
+| Your graphics driver stopped responding | `DXGI_ERROR_DEVICE_REMOVED` (`0x887a0005`) in the crash. When Swofty's in-game overlay drew just before, the screen names the addons it drew for |
+| F1 25 ran out of graphics memory | `E_OUTOFMEMORY` (`0x8007000e`) in the crash |
+| A program that hooks into games | The crash in RivaTuner Statistics Server, Windhawk, Medal, Discord's overlay, OBS Studio's game capture, the NVIDIA app's overlay, the Steam overlay, Special K, or Windows' force feedback driver for a wheel (`pid.dll`) |
+| Graphics mods in the game folder | ReShade, OptiScaler, Special K or an ASI loader in the game folder, and a crash in graphics code or before the game's window opened |
+| A crash in the graphics driver | The crash in an NVIDIA, AMD or Intel driver DLL |
+| A crash in frame generation | The crash in DLSS Frame Generation or XeSS frame generation |
+
+Under Wine or Proton, the graphics driver and memory checks are skipped.
+
+A session counts as a crash when it ended with a crash exit code or an exception the mod loader saw. A game that closes with another code, such as -1, shows as closed, not crashed. The screen opens by itself for a crash from the last 15 minutes. The play bar keeps **Crashed** with the cause, and **What happened** opens the screen again. `state/wrapper-run.log` gets a `[crash] known problem <id>: <title>` line, or `[crash] no known problem matches this crash`.
+
 ## Send the zip yourself
 
 The launcher keeps a copy of the zip in `$DATA/logs/`, the newest 10. To send it to someone else, such as the author of a track or a mod:

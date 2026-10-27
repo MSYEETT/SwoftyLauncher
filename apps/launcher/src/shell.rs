@@ -25,6 +25,7 @@ use swofty_core::stock;
 use swofty_core::store::Store;
 use swofty_core::view::View;
 
+use crate::crash_modal::{self, CrashView};
 use crate::game::{self, Install, Launch, Owner, Probe};
 use crate::game_edited::Edited;
 use crate::library::{AddonIcon, Library, SectionItem};
@@ -112,6 +113,9 @@ pub struct Shell {
     pub(crate) mp_toasts: Vec<Notification>,
     pub(crate) mp_page: crate::multiplayer::Multiplayer,
     pub(crate) crash: Option<(PathBuf, Result<String, StartFailure>)>,
+    /// The newest crash's diagnosis, and whether its modal is open.
+    pub(crate) crash_view: Option<CrashView>,
+    pub(crate) crash_open: bool,
     pub(crate) dismissed: Option<PathBuf>,
     pub(crate) launch: Option<Launch>,
     pub(crate) notice: Option<String>,
@@ -453,6 +457,8 @@ impl Shell {
             mp_toasts: Vec::new(),
             mp_page: crate::multiplayer::Multiplayer::new(window, cx),
             crash: None,
+            crash_view: None,
+            crash_open: false,
             dismissed: None,
             launch: None,
             notice: None,
@@ -670,14 +676,35 @@ impl Shell {
         {
             let session = s.clone();
             let game_dir = self.install.as_ref().map(|i| i.dir.clone());
+            let store = self.store.clone();
+            let fresh = s
+                .ended
+                .is_some_and(|e| game::now_secs() - e < crash_modal::FRESH_SECS);
             self.crash = Some((s.dir.clone(), Ok(String::new())));
             cx.spawn(async move |this, cx| {
                 let dir = session.dir.clone();
-                let summary = cx
+                let (summary, diagnosis) = cx
                     .background_executor()
-                    .spawn(async move { game::crash_summary(&session, game_dir.as_deref()) })
+                    .spawn(async move {
+                        let summary = game::crash_summary(&session, game_dir.as_deref());
+                        let names = store
+                            .addons()
+                            .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
+                            .unwrap_or_default();
+                        let diagnosis =
+                            swofty_core::known_problems::crash(&session, game_dir.as_deref(), names);
+                        (summary, diagnosis)
+                    })
                     .await;
                 this.update(cx, |s, cx| {
+                    if let Ok(text) = &summary {
+                        s.crash_view = Some(CrashView {
+                            dir: dir.clone(),
+                            diagnosis,
+                            summary: text.clone(),
+                        });
+                        s.crash_open |= fresh;
+                    }
                     s.crash = Some((dir, summary));
                     cx.notify();
                 })
@@ -1670,6 +1697,7 @@ impl Render for Shell {
             .child(self.play_bar(p, wide, cx))
             .children(self.progress_card(p))
             .children(self.task_dialog(p, window, cx))
+            .children(self.crash_overlay(p, cx))
             .when(self.dropping, |d| d.child(self.drop_overlay(p)))
     }
 }

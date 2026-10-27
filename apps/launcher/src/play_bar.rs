@@ -332,10 +332,17 @@ impl Shell {
                 if let Some(Err(failure)) = ending {
                     return launch_failed(row, failure, p).child(open).child(dismiss);
                 }
-                let summary = ending
-                    .and_then(|e| e.as_ref().ok())
+                let view = self.crash_view.as_ref().filter(|v| v.dir == session.dir);
+                let details = view.map(|_| {
+                    link("crash-details", "What happened", p).on_click(cx.listener(|this, _, _, cx| {
+                        this.crash_open = true;
+                        cx.notify();
+                    }))
+                });
+                let summary = view
+                    .map(|v| v.headline())
+                    .or_else(|| ending.and_then(|e| e.as_ref().ok()).cloned())
                     .filter(|s| !s.is_empty())
-                    .cloned()
                     .unwrap_or_else(|| "reading the log…".into());
                 let crashed = format!(
                     "Crashed {}",
@@ -359,6 +366,7 @@ impl Shell {
                                             .font_weight(FontWeight::MEDIUM)
                                             .child(crashed),
                                     )
+                                    .children(details)
                                     .child(open)
                                     .child(dismiss),
                             )

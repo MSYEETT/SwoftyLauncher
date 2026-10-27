@@ -5,6 +5,7 @@ mod admin_needed;
 mod blocks;
 mod browser;
 mod console;
+mod crash_modal;
 mod db;
 mod discord;
 mod ea_app;
