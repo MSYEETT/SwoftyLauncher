@@ -902,6 +902,9 @@ fn play(
     end.write(&dir)?;
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
+    if end.end == swofty_core::session::Ending::Crash {
+        note_known_problem(store, game, &dir);
+    }
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
@@ -910,6 +913,20 @@ fn play(
     }
     note_failed_launch(store, loader, code, launched.elapsed().unwrap_or_default());
     Ok(code)
+}
+
+/// The known problem a crashed session matches, for the session log and Send
+/// Logs; the launcher shows the same diagnosis to the player.
+fn note_known_problem(store: &Store, game: &Path, dir: &Path) {
+    let names = store
+        .addons()
+        .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
+        .unwrap_or_default();
+    let record = SessionRecord::read(dir);
+    match swofty_core::known_problems::crash(&record, Some(game), names) {
+        Some(d) => say("crash", &format!("known problem {}: {}", d.id, d.title)),
+        None => say("crash", "no known problem matches this crash"),
+    }
 }
 
 const EA_UNREAD: &str =
