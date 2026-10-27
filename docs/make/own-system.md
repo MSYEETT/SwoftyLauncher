@@ -253,7 +253,7 @@ SWOFTY_ON_LOAD
             auto range = offered();
             if (choice.wanted_slot >= range.size())
                 return;
-            if (ctx.session_type() == events::SessionType::race
+            if (ctx.in(events::session_type({ events::SessionType::race }))
                 && f1990::compounds.get(range[choice.wanted_slot])->qualifying_only)
                 choice.wanted_slot = 1;          // the softest race compound
         })
