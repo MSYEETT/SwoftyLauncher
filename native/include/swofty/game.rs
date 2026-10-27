@@ -78,6 +78,26 @@ pub struct RnDDepartmentConfig {
 }
 
 #[repr(C)]
+pub struct TrackDataRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TrackDataSet {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TrackDataSystem {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TrackDataTrack {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct UiLayoutStep {
     _opaque: [u8; 0],
 }
