@@ -866,6 +866,9 @@ impl Shell {
         self.blocked_seen = game::blocked_at(&self.store.root).unwrap_or(0.0);
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
         self.note_lonely_bases(window, cx);
+        if let Some(d) = swofty_core::known_problems::outdated_exe(install.version().as_deref()) {
+            window.push_notification(Notification::warning(d.text()).title(d.title).autohide(false), cx);
+        }
         match Launch::start(
             &self.store,
             &self.library.profile.name,

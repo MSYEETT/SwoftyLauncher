@@ -371,6 +371,10 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     let lock = crate::recover::lock(store, &info)?;
     crate::recover::stale(store, &lock, g, Scope::All, &info)?;
     crate::offline::gate(store, false)?;
+    let version = swofty_core::exe_version::read(&g.dir.join(GAME_EXE));
+    if let Some(d) = swofty_core::known_problems::outdated_exe(version.as_deref()) {
+        say("warning", &format!("{}: {}", d.title, d.text()));
+    }
     if let Some(reason) = swofty_core::compat::elevation_blocker(&g.dir) {
         bail!("{reason}");
     }

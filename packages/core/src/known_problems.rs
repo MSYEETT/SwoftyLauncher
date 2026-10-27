@@ -105,6 +105,29 @@ pub fn outdated_game(
     })
 }
 
+/// An F1 25 older than [`LATEST_GAME_VERSION`], before a modded launch: the
+/// mod loader can't hook into it, so addons may not load. None when the
+/// version is unknown or not older.
+pub fn outdated_exe(version: Option<&str>) -> Option<Diagnosis> {
+    let version = version?.trim();
+    if older_game(version, LATEST_GAME_VERSION) != Some(true) {
+        return None;
+    }
+    Some(Diagnosis {
+        id: "outdated_exe",
+        title: "F1 25 needs the latest update".to_owned(),
+        what: format!(
+            "Your F1 25 is {version}. Mods are made for {LATEST_GAME_VERSION}, the latest update, and may not \
+             load on an older one."
+        ),
+        steps: vec![format!(
+            "Update F1 25 in Steam or the EA app. If Steam says it is up to date, verify the game files \
+             ({}), then press Play again.",
+            crate::stock::STEAM_VERIFY_URL
+        )],
+    })
+}
+
 /// What a crashed session left behind, as the rules read it.
 #[derive(Debug, Clone, Default)]
 pub struct Evidence {
@@ -1037,6 +1060,23 @@ mod tests {
                 "{other}"
             );
         }
+    }
+
+    #[test]
+    fn an_older_game_is_told_to_update_before_play() {
+        let d = outdated_exe(Some("1.0.138.5601")).unwrap();
+        assert_eq!(d.id, "outdated_exe");
+        assert!(d.what.starts_with("Your F1 25 is 1.0.138.5601."), "{}", d.what);
+        assert!(
+            d.text().contains("Update F1 25 in Steam or the EA app"),
+            "{}",
+            d.text()
+        );
+        assert!(d.text().contains("steam://validate/3059520"), "{}", d.text());
+        assert_eq!(outdated_exe(Some(LATEST_GAME_VERSION)), None);
+        assert_eq!(outdated_exe(Some("1.0.142.1")), None);
+        assert_eq!(outdated_exe(Some("unknown")), None);
+        assert_eq!(outdated_exe(None), None);
     }
 
     #[test]
