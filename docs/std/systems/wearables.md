@@ -1,11 +1,18 @@
 ---
 title: Helmets, suits and gloves
-description: Helmets, suits, gloves and team kits per season in code - typed registries, the catalogue event and the look operation, in standard library 2.0.
+description: Helmets, suits, gloves and team kits per season in code - typed registries, the catalogue event and the look operation.
 ---
 
 # Helmets, suits and gloves
 
-A helmet, suit or pair of gloves is a record with its archive and colours, and a team's kit for a season is a `wearables::SeasonSet`.
+Add helmets drivers can pick, give a team its suits and gloves for a season, or put a helmet on one driver for a whole career. Helmet Exchange's Hamilton 2017 helmet, for example, is one `wearables::Helmet` record: its archive, the stock helmet it starts from, its name in the picker and the driver who can pick it.
+
+A few terms used on this page:
+
+- A **helmet**, **suit** or pair of **gloves** is a record with its archive and colours: one item row in the game's customisation tables.
+- A **season set** is a `wearables::SeasonSet`: a team's suit and gloves for one year.
+- A driver wears items through a **look**, a `drivers::Look` record (see [Drivers](/std/systems/drivers)).
+- A **career-scope** edit applies only inside one career. A **layer** changes values on a record that already exists.
 
 ## The header
 
@@ -83,8 +90,9 @@ A driver wears items through a [look](/std/systems/drivers): `drivers::set_look`
 Helmet Exchange turns helmet mods into helmets of their own, instead of replacing a driver's helmet. Its launcher page converts each mod on the player's PC and writes the list to the addon's storage. The addon registers each helmet in the game.
 
 - **Who can pick it:** the driver the mod was made for (in any year or team), another driver, or any driver.
-- **The career choice** is a career-scope edit on the player's look, so it's worn in every session of that career and nowhere else.
+- **The career choice** is a career-scope edit on the player's look. It's worn in every session of that career and nowhere else.
 - In the game, helmet names end in (HX).
+- **An imported helmet applies everywhere.** The importer doesn't ask where. Applies to on the importer page puts it on another driver too, and the original driver keeps it.
 
 <template #example>
 <Example root="giggles.helmet-exchange" code-file="native/src/helmets.cpp" data-file="registry/helmets.json" files="swofty.json, helmets/hamilton_2017_helmet.erp, launcher/main.go, THIRD_PARTY_NOTICES.md">
@@ -162,7 +170,7 @@ The career choice has no data form: it needs the Helmets tab's code.
 ```text
 [registry] register: giggles.helmet-exchange (helmet_exchange.dll) 12 helmet (early stage, 0.5 ms)
 [registry] stat ids: helmet giggles.helmet-exchange/hamilton_2017 -> 1041
-[registry] applied at boot: helmet 12 (12 rows, 12 asset groups with deps on the team livery group; archives served in memory)
+[registry] applied at boot: helmet 12 (12 rows, 12 asset groups with deps on the team livery group, added to the asset manifest)
 [registry] layer from giggles.helmet-exchange on driver.look game/lewis_hamilton registered at run time (career); applies from the next session load
 [registry] content career 3f2a active: 1 scoped change applied (driver.look game/lewis_hamilton /helmet)
 ```
@@ -171,7 +179,7 @@ The career choice has no data form: it needs the Helmets tab's code.
 
 <Split>
 
-Classic Seasons gives each season's teams their suits and gloves. A season set is one `team_customisation_for_year` row; the suit and gloves are records of their own.
+Classic Seasons gives each season's teams their suits and gloves. A season set is one `team_customisation_for_year` row, and the suit and gloves are records of their own. A season's own team kit wins over the base kit in that season.
 
 <template #example>
 <Example root="swofty.classic-seasons-2016" code-file="native/src/kit.cpp" data-file="registry/kit.json" files="swofty.json, kit/mercedes_2016_suit.erp, kit/mercedes_2016_gloves.erp">
@@ -221,11 +229,11 @@ events::on<wearables::events::CatalogueBuild>().after([](wearables::events::Cata
 
 ## Readiness and limits
 
-- **Records: ready,** shipped at scale: the Classic Seasons shared addon has 124 season helmets (ids 868 to 1040, 253 MB) and suits with ids 974 to 1034.
+- **Records: ready,** shipped at scale. The Classic Seasons shared addon has 124 season helmets (ids 868 to 1040, 253 MB) and suits with ids 974 to 1034.
 - **Events: unknown (L1).** `Game_Build_CustomisationCatalogue`, the helmet decal, spawn and thumbnail functions are L1.
-- **Every item row needs every printf-built colour key** (`colour_N_default`). The catalogue build crashes on a row without them; the core fills them from `colours` or the `from` row.
-- **Asset groups need deps on the team livery group,** or cutscenes crash. The core registers them with the deps.
-- **Customisable designs** (`tier01_liveryNN`) have no diffuse; the game composites them from `_m` masks with the row's default colours.
+- **Every item row needs every printf-built colour key** (`colour_N_default`). The catalogue build crashes on a row without them. The core fills them from `colours` or the `from` row.
+- **Asset groups need deps on the team livery group,** or cutscenes crash. The core adds them to the asset manifest at boot with the deps, and the game reads the archives from the addon folder.
+- **Customisable designs** (`tier01_liveryNN`) have no diffuse. The game composites them from `_m` masks with the row's default colours.
 - **Converted F1 23 materials render invisible,** and `.mipmaps` sidecar names must match exactly, year suffix included.
 - **The Helmets tab** lists up to 63 helmets per driver.
-- **Per-event helmets** (a helmet for one race weekend) have no record yet.
+- **Per-event helmets** (a helmet for one race weekend) have no record.
