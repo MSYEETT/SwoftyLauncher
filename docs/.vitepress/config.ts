@@ -398,6 +398,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Compatibility", link: "/design/std-2/compatibility" },
                   { text: "The C ABI", link: "/design/std-2/abi" },
                   { text: "Rollout and docs", link: "/design/std-2/rollout" },
+                  { text: "Implementation plan", link: "/design/std-2/implementation" },
                 ],
               },
             ],

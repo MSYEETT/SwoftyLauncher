@@ -109,6 +109,7 @@ The registry and its subfeatures come first. Then the parts that connect addons 
 - **[Compatibility](./compatibility)**: why every 1.x addon keeps working, and how the release proves it.
 - **[The C ABI](./abi)**: the tables under the C++ wrappers.
 - **[Rollout and docs](./rollout)**: the releases, and how the public docs are written.
+- **[Implementation plan](./implementation)**: how parallel agents build 2.0.0 in rounds.
 
 ## Where 1.x is today
 
