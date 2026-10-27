@@ -12,12 +12,16 @@ for the season's extra car (2016 Manor on the Sauber slot): 2016 McLaren F1_m_mc
 and the Wwise switch state stay the donor's, so the layer is rewritten byte for byte, and the label is the car's own
 key in audio.audio_car_data: sounds.py copies the donor's 43 records under it from the stock database (meta.json) with
 bundle_name the season bundle of the team's `engine` in data/seasons.json. data/sounds.json names each maker's bundle
-in the game of the season (an old game's `bndl` version 0x6a bundles play in F1 25 as they are) or a stock F1 25
-bundle ("stock"). A season bundle that is not stock is copied to the season addon's sounds/ (not committed) as
-cs<yy>_<maker>.bdl. gen.py ships the bundles with file.put to audio/2025/bundles/, adds each one's
-audio.audio_bundle_settings row (a copy of its maker's 2025 row) and puts each car's records. build_cars.py sets the
-labels when it builds a season; run on its own, the tool sets them in the built cars (only the season's own cs_/cx_
-package layers), copies the bundles and writes meta.json. A rerun changes nothing.
+in the game of the season (F1 25 loads an old game's `bndl` version 0x6a bundles) or a stock F1 25 bundle
+("stock"). A season bundle that is not stock is copied to the season addon's sounds/ (not committed) as
+cs<yy>_<maker>.bdl. F1 25's part reader (FUN_144524b30) reads 16 variation layers in every part, with no version
+check: 21 curves of 1032 bytes (16 layer curves, then 5 global ones) and 16 layer masks. F1 2016 to F1 2018 parts
+(0x71) hold 8 layers (13 curves, 8 masks), so F1 25 read 8 layer curves, the 5 global curves and all 16 masks from
+the part's samples. widen() gives those parts 16 layers, layer i + 8 a copy of layer i, and sets the part's block
+size; the game then picks among the same layer curves as the old game did. gen.py ships the bundles with file.put to
+audio/2025/bundles/, adds each one's audio.audio_bundle_settings row (a copy of its maker's 2025 row) and puts each
+car's records. build_cars.py sets the labels when it builds a season; run on its own, the tool sets them in the built
+cars (only the season's own cs_/cx_ package layers), copies the bundles and writes meta.json. A rerun changes nothing.
 
     python3 tools/sounds.py --games <folder holding the old game folders> --f1-23 <F1 23> [--game <F1 25>]
         [--years 2016-2024]
@@ -28,7 +32,7 @@ import hashlib
 import json
 import os
 import re
-import shutil
+import struct
 import sys
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -44,6 +48,11 @@ DATA = json.loads((ROOT / "data" / "seasons.json").read_text())
 SOURCES = json.loads((ROOT / "data" / "sounds.json").read_text())["seasons"]
 SWITCH = re.compile(rb"\nswitchName\x00(.)", re.DOTALL)
 STOCK_BUNDLES = "audio/2025/bundles"
+PART = re.compile(rb"ego[a-z]")
+LAYERS = 16
+GLOBAL_CURVES = 5
+CURVE_BYTES = 1032
+BLOCK_HEAD = 24
 DB = "game_package/gamedatabases/gamedatabases.2025.bin"
 CAR_DATA = "audio.audio_car_data"
 FIELDS = [
@@ -154,6 +163,53 @@ def source(year, maker, games, f1_23, game):
     return root / src["bundle"].format(maker=maker)
 
 
+def layer_count(size):
+    layers, rest = divmod(size - BLOCK_HEAD - GLOBAL_CURVES * CURVE_BYTES, CURVE_BYTES + 4)
+    return layers if not rest and layers > 0 else None
+
+
+def parts(data):
+    version, flags = struct.unpack_from("<i", data, 4)[0], 3
+    if version > 0x73:
+        flags = 7 if version == 0x74 else struct.unpack_from("<I", data, 0x40)[0]
+    first = struct.unpack_from("<i", data, 0x10)[0] + 0x3c
+    starts = []
+    for m in PART.finditer(data, first):
+        p = m.start()
+        if p + 72 > len(data):
+            break
+        ver, zero, rate, size = (struct.unpack_from("<i", data, p + o)[0] for o in (4, 8, 52, 68))
+        if 0x60 <= ver <= 0x7f and zero == 0 and rate == 48000 and layer_count(size):
+            starts.append(p)
+    if not starts or starts[0] != first or len(starts) != 2 * bin(flags & 7).count("1"):
+        raise SystemExit(f"bundle parts at {starts}, part flags {flags}")
+    return starts
+
+
+def widen(data):
+    out, at = bytearray(), 0
+    for p in parts(data):
+        size = struct.unpack_from("<i", data, p + 68)[0]
+        layers = layer_count(size)
+        if layers == LAYERS:
+            continue
+        if LAYERS % layers:
+            raise SystemExit(f"a bundle part with {layers} layers")
+        block = data[p + 72:p + 72 + size]
+        curves = BLOCK_HEAD + (layers + GLOBAL_CURVES) * CURVE_BYTES
+        layer = [block[BLOCK_HEAD + i * CURVE_BYTES:BLOCK_HEAD + (i + 1) * CURVE_BYTES] for i in range(layers)]
+        mask = [block[curves + i * 4:curves + i * 4 + 4] for i in range(layers)]
+        new = (block[:BLOCK_HEAD] + b"".join(layer[i % layers] for i in range(LAYERS))
+               + block[BLOCK_HEAD + layers * CURVE_BYTES:curves] + b"".join(mask[i % layers] for i in range(LAYERS)))
+        out += data[at:p + 68] + struct.pack("<i", len(new)) + new
+        at = p + 72 + size
+    out += data[at:]
+    out = bytes(out)
+    if any(layer_count(struct.unpack_from("<i", out, p + 68)[0]) != LAYERS for p in parts(out)):
+        raise SystemExit("a bundle part kept its old layer count")
+    return out
+
+
 def copy_bundles(year, makers, games, f1_23, game):
     out = year_dir(year) / "sounds"
     meta, keep = [], set()
@@ -166,11 +222,13 @@ def copy_bundles(year, makers, games, f1_23, game):
             continue
         target = out / f"{name}.bdl"
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists() or target.read_bytes() != src.read_bytes():
-            shutil.copyfile(src, target)
+        data = widen(src.read_bytes())
+        if not target.exists() or target.read_bytes() != data:
+            target.write_bytes(data)
         keep.add(target.name)
         meta.append({"name": name, "maker": maker, "game": SOURCES[str(year)]["game"],
-                     "source": SOURCES[str(year)]["bundle"].format(maker=maker), "bytes": target.stat().st_size,
+                     "source": SOURCES[str(year)]["bundle"].format(maker=maker),
+                     "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(), "bytes": target.stat().st_size,
                      "sha256": hashlib.sha256(target.read_bytes()).hexdigest()})
     if out.exists():
         for stale in out.glob("*.bdl"):
