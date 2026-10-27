@@ -207,7 +207,7 @@ swofty build
 
 ```text
 profile modded: swofty.core -> yourname.my-addon                 the load order
-yourname.my-addon: add-row entrants.teams.team_11 (from ...): copied 212 key(s)   lines from each addon's ops
+yourname.my-addon: add-row entrants.teams.team_11 (from ...): copied <n> key(s)   lines from each addon's ops
 files: 2 game file(s) replaced, 1 added                          the build route's loose files
 runtime: swofty/assets.json with 3 asset group(s), 4 resource(s), 12 database edit(s), 1 language table(s), 0 overlay file(s)
                                                                  what goes the runtime route

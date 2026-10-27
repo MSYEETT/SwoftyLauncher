@@ -99,8 +99,8 @@ dataset-scoped set is not implemented yet
 The build prints, prefixed with the addon's id:
 
 ```text
-my-addon: add-row entrants.teams.team_11 (from entrants.teams.team[_metadata_=williams_26]): stat_id 340 (the source's is 338)
-my-addon: add-row entrants.teams.team_11 (from entrants.teams.team[_metadata_=williams_26]): copied 212 key(s)
+my-addon: add-row entrants.teams.team_<n> (from entrants.teams.team[_metadata_=williams_26]): stat_id <id> (the source's is <id>)
+my-addon: add-row entrants.teams.team_<n> (from entrants.teams.team[_metadata_=williams_26]): copied <n> key(s)
 ```
 
 It fails with one of:
