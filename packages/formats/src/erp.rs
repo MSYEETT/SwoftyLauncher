@@ -185,18 +185,107 @@ pub fn compress_at(data: &[u8], level: i32) -> Result<Vec<u8>> {
 }
 
 static PACKED: std::sync::Mutex<Option<std::path::PathBuf>> = std::sync::Mutex::new(None);
+
+static WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A count that grows as fragments are compressed and archives written, so a
+/// caller can tell a long build that is working from one that is stuck.
+pub fn work() -> u64 {
+    WORK.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn worked() {
+    WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
 const PACKED_MIN: usize = 16 << 10;
 
 pub fn cache_compressed(dir: Option<std::path::PathBuf>) {
+    if dir.is_none() {
+        ENCODERS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    }
     *PACKED.lock().unwrap_or_else(|e| e.into_inner()) = dir;
 }
 
+type Encoder = zstd::zstd_safe::CCtx<'static>;
+
+/// Compression contexts kept between fragments, by level. Setting one up
+/// starts a worker thread and allocates its window, which cost as much as
+/// compressing a small fragment. A reused context keeps its parameters, so it
+/// writes the same bytes as a new one.
+static ENCODERS: std::sync::Mutex<Vec<(i32, Encoder)>> = std::sync::Mutex::new(Vec::new());
+
+fn zstd_error(code: usize) -> Error {
+    Error::Format(format!("zstd: {}", zstd::zstd_safe::get_error_name(code)))
+}
+
+/// The settings the zstd command line compresses with: a checksum, and its
+/// multithreaded path with one worker, whose output differs from the
+/// single-threaded encoder's on large inputs.
+fn encoder(level: i32) -> Result<Encoder> {
+    use zstd::zstd_safe::CParameter;
+    let mut ctx =
+        Encoder::try_create().ok_or_else(|| Error::Format("zstd: no memory for an encoder".into()))?;
+    for p in [
+        CParameter::CompressionLevel(level),
+        CParameter::ChecksumFlag(true),
+        CParameter::NbWorkers(1),
+    ] {
+        ctx.set_parameter(p).map_err(zstd_error)?;
+    }
+    Ok(ctx)
+}
+
 fn encode(data: &[u8], level: i32) -> Result<Vec<u8>> {
-    let mut enc = zstd::Encoder::new(Vec::new(), level)?;
-    enc.include_checksum(true)?;
-    enc.multithread(1)?;
-    std::io::Write::write_all(&mut enc, data)?;
-    Ok(enc.finish()?)
+    use zstd::zstd_safe::{InBuffer, OutBuffer, ResetDirective, zstd_sys::ZSTD_EndDirective};
+    worked();
+    let pooled = {
+        let mut pool = ENCODERS.lock().unwrap_or_else(|e| e.into_inner());
+        pool.iter()
+            .position(|(l, _)| *l == level)
+            .map(|i| pool.swap_remove(i).1)
+    };
+    let mut ctx = match pooled {
+        Some(ctx) => ctx,
+        None => encoder(level)?,
+    };
+    ctx.reset(ResetDirective::SessionOnly).map_err(zstd_error)?;
+    let mut out: Vec<u8> = Vec::with_capacity(zstd::compress_bound(data.len()) + 64);
+    let mut input = InBuffer::around(data);
+    // The input goes in first and the frame ends after, as a stream writer
+    // does, so the frame header carries no content size, like the command
+    // line's.
+    while input.pos() < data.len() {
+        if out.capacity() - out.len() < (1 << 16) {
+            out.reserve(1 << 16);
+        }
+        let at = out.len();
+        ctx.compress_stream2(
+            &mut OutBuffer::around_pos(&mut out, at),
+            &mut input,
+            ZSTD_EndDirective::ZSTD_e_continue,
+        )
+        .map_err(zstd_error)?;
+    }
+    let mut end = InBuffer::around(&[]);
+    loop {
+        let at = out.len();
+        let left = ctx
+            .compress_stream2(
+                &mut OutBuffer::around_pos(&mut out, at),
+                &mut end,
+                ZSTD_EndDirective::ZSTD_e_end,
+            )
+            .map_err(zstd_error)?;
+        if left == 0 {
+            break;
+        }
+        out.reserve(left.max(1 << 16));
+    }
+    ENCODERS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push((level, ctx));
+    Ok(out)
 }
 
 fn compress_cached(dir: &Path, data: &[u8], level: i32) -> Result<Vec<u8>> {
@@ -485,6 +574,7 @@ impl ErpFile {
             std::fs::remove_file(&tmp).ok();
             return Err(crate::io_at(dst)(e));
         }
+        worked();
         Ok(())
     }
 }
@@ -492,6 +582,58 @@ impl ErpFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn streamed(data: &[u8], level: i32) -> Vec<u8> {
+        let mut enc = zstd::Encoder::new(Vec::new(), level).unwrap();
+        enc.include_checksum(true).unwrap();
+        enc.multithread(1).unwrap();
+        std::io::Write::write_all(&mut enc, data).unwrap();
+        enc.finish().unwrap()
+    }
+
+    #[test]
+    fn a_reused_encoder_writes_what_a_new_one_does() {
+        let mut seed = 7u64;
+        let mut noisy = |n: usize| -> Vec<u8> {
+            (0..n)
+                .map(|i| {
+                    seed = seed
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    if i % 3 == 0 {
+                        (seed >> 59) as u8
+                    } else {
+                        b"track_asset_"[i % 12]
+                    }
+                })
+                .collect()
+        };
+        let inputs = [
+            Vec::new(),
+            noisy(1),
+            noisy(4 << 10),
+            noisy(70 << 10),
+            noisy(3 << 20),
+            noisy(9 << 20),
+        ];
+        for level in [3, ZSTD_LEVEL] {
+            for _ in 0..2 {
+                for data in &inputs {
+                    assert_eq!(
+                        encode(data, level).unwrap(),
+                        streamed(data, level),
+                        "{} bytes, level {level}",
+                        data.len()
+                    );
+                }
+            }
+        }
+        cache_compressed(None);
+        assert_eq!(
+            encode(&inputs[2], ZSTD_LEVEL).unwrap(),
+            streamed(&inputs[2], ZSTD_LEVEL)
+        );
+    }
 
     fn sample() -> Erp {
         let mut header = [0u8; HEADER_LEN];
