@@ -1,65 +1,81 @@
 ---
 title: Game systems
-description: Every game system in standard library 2.0 - its registries, hook points and operations, how ready the reverse engineering is, and the limits the core enforces for every registry.
+description: Every game system in standard library 2.0 as a typed C++ header - its records, registries, events and operations, when each applies in the game, how ready the reverse engineering is, and the limits the core enforces for every registry.
 ---
 
 # Game systems
 
-Every system an addon can touch has a domain here. Each domain lists:
+Each game system is a C++ header under `swofty/systems/`, with its record structs, typed registry handles, events and operations, in its own namespace.
 
-- **registries:** what addons provide, layer and extend, at build time or run time;
-- **hook points:** the game functions the core owns, one ordered chain each;
-- **operations:** the core's verbs;
-- **readiness:** how much of it the reverse engineering has verified;
-- **limits:** the game's own limits that the core enforces for it.
+```cpp
+#include <swofty/registry.hpp>
+#include <swofty/systems/cars.hpp>
+#include <swofty/systems/sounds.hpp>
 
-The [first-party addons](/design/std-2/coverage) and [your own systems](./custom) are built from these.
+using namespace swofty;
 
-## The systems
+SWOFTY_REGISTER
+{
+    auto v10 = sounds::engine_sounds.add("v10_screamer", { .bundle = file("sounds/v10_screamer.bdl"),
+                                                            .settings_from = sounds::engine_sounds["game/ferrari_2025"] });
+    cars::vehicles.layer(cars::vehicles["swofty.classic-seasons-2017/ferrari"], [=](cars::Vehicle &v) { v.engine_sound = v10; });
+}
 
-- **[Cars](./cars)**: car packages, handling, damage and parts as registries; the hook points and operations for cars at run time.
-- **[Liveries](./liveries)**: liveries, decal sets and sponsor packs as registries, and the hook points for special liveries.
-- **[Teams](./teams)**: team identity, logos per context and pit times as registries, with the logo and name hook points.
-- **[Drivers](./drivers)**: driver identity, heads, looks and season ratings as registries, with the ratings, number and head hook points.
-- **[Helmets, suits and gloves](./wearables)**: helmets, suits, gloves and team kits per season as registries.
-- **[Sounds](./sounds)**: engine sounds and a car's audio data as registries, and the bundle hook point.
-- **[Tracks](./tracks)**: tracks, per-season track data, world layers and slots as registries, with the track data and fuel hook points.
-- **[Tyres](./tyres)**: tyre compounds, classes, allocations, wear and rules as registries, with the class, allocation and set-choice hook points.
-- **[Power units, ERS and DRS](./power-units)**: power units, engine suppliers, DRS and component rules as registries, with the engine wear and penalty hook points.
-- **[Sessions and weekends](./sessions)**: setup modes, weekend formats, points, rules profiles, safety car and grid as registries, with the session hook points.
-- **[Weather](./weather)**: track climate and scripted forecasts as registries, and the weather setup hook point.
-- **[AI](./ai)**: aI vehicle configs, difficulty maps and baked track packs as registries, with the AI config hook points.
-- **[Career](./career)**: career modes, seasons, calendars, contracts, R&D, economy and characters as registries, with the career hook points.
-- **[UI and strings](./ui)**: era boxes, screens, tiles, texture slices, options, HUD widgets and strings as registries, with the UI hook points.
-- **[Graphics, replays and telemetry](./graphics)**: looks, post-process passes, graphics settings, replay cameras and telemetry channels.
-- **[Seasons and GP/TT content](/std/content)**: a whole GP/TT season as records, and other addons building on it.
+SWOFTY_ADDON()
+```
+
+Every system page has the header, a complete addon modelled on a real one, smaller examples for the rest, and the readiness and limits. Each main example also shows the same addon as data files, for addons with no DLL.
+
+## The map
+
+- **[Seasons and GP/TT content](/std/content)** `swofty/systems/content.hpp`: `content::packages`, `era_boxes`.
+- **[Cars](./cars)** `swofty/systems/cars.hpp`: `cars::vehicles`, `packages`, `handling`, `damage_models`, `parts`.
+- **[Liveries](./liveries)** `swofty/systems/liveries.hpp`: `liveries::liveries`, `decal_sets`, `sponsor_packs`, `ai_assignments`.
+- **[Teams](./teams)** `swofty/systems/teams.hpp`: `teams::identities`, `logos`, `pit_times`.
+- **[Drivers](./drivers)** `swofty/systems/drivers.hpp`: `drivers::identities`, `heads`, `looks`, `stats`.
+- **[Helmets, suits and gloves](./wearables)** `swofty/systems/wearables.hpp`: `wearables::helmets`, `suits`, `gloves`, `season_sets`.
+- **[Sounds](./sounds)** `swofty/systems/sounds.hpp`: `sounds::engine_sounds`, `car_audio`.
+- **[Tracks](./tracks)** `swofty/systems/tracks.hpp`: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines`.
+- **[Tyres](./tyres)** `swofty/systems/tyres.hpp`: `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
+- **[Power units, ERS and DRS](./power-units)** `swofty/systems/power.hpp`: `power::units`, `suppliers`, `drs_rules`, `component_rules`.
+- **[Sessions and weekends](./sessions)** `swofty/systems/sessions.hpp`: `sessions::modes`, `formats`, `lengths`, `points`, `rules_profiles`, `safety_car`, `grids`.
+- **[Weather](./weather)** `swofty/systems/weather.hpp`: `weather::climates`, `forecasts`.
+- **[AI](./ai)** `swofty/systems/ai.hpp`: `ai::vehicle_configs`, `package_maps`, `track_packs`, `general`, `difficulty`.
+- **[Career](./career)** `swofty/systems/career.hpp`: `career::contents`, `modes`, `seasons`, `calendars`, `ratings`, `markets`, `contract_rules`, `rnd_trees`, `rnd_departments`, `facilities`, `economy`, `sponsors`, `characters`, `wizards`.
+- **[UI and strings](./ui)** `swofty/systems/ui.hpp`: `ui::screens`, `tiles`, `texture_slices`, `routes`, `options`, `hud_widgets`, `strings`.
+- **[Graphics, replays and telemetry](./graphics)** `swofty/systems/graphics.hpp`: `graphics::looks`, `passes`, `settings`.
 - **[Your own systems](./custom)**: an addon's own registries, scope, projection, scoped hooks and service.
+
+## When a registry applies
+
+Addons run live in the game. `SWOFTY_REGISTER` only declares; the core applies each change at the moment the game reads that data. Each registry says when, with `RegistryOptions::applies` (`x-applies` in its schema):
+
+```cpp
+inline Registry<Vehicle> vehicles{"vehicle", { .applies = Applies::boot }};   // database rows, before the database loads
+inline Registry<PackageTrack> per_package{"track.per_package", { .applies = Applies::content }};   // when a box, career or season is active; put back after
+inline Registry<TrackData> data{"track.data", { .applies = Applies::session }};   // at session load
+inline Registry<Logo> logos{"team.logo", { .applies = Applies::read }};   // on every read, through the registry
+```
+
+Files the game opens by path (archives, engine bundles, VTFs) are served in memory through the core's runtime asset route when the game opens them.
+
+An addon can also register and layer while the game runs, from `SWOFTY_ON_LOAD` or an event. The change takes effect at the next moment the game reads that data, and the core says when:
+
+```text
+[registry] layer from tails.whatif-history on career.season f1_career_progressive/2017 registered at run time; applies from the next session load
+[registry] layer from mod.esp on vehicle game/ferrari_2026 registered at run time; applies from the next game start (boot data)
+```
 
 ## Limits every registry inherits
 
-The game has hard limits. In 1.x every addon finds them alone, usually as a crash. In 2.0 the core owns them, once, for every registry:
+The game has hard limits. In 1.x every addon finds them alone, usually as a crash. In 2.0 the core owns them once, for every registry.
 
-```text
-row counts     A table only reads rows below its _instancecount_. Appliers bump it; nobody writes it by hand.
-missing keys   A copied row that lacks a key a stock row has reads garbage, not null. Appliers copy every key
-               of the donor row, including the printf-built and stack-built ones (tools/track_keys.py, deps.rs).
-side data      Rows are found by label too: setup presets by package folder, track data by mode mask, AI data
-               by ai_package_folder/asset_filename. Appliers write the side data with the row.
-record budget  The game's value map is sized at load and grows at 838,860 records; runtime edits get about 95k.
-               The launcher counts every applier's records and bakes the database when it has to.
-stat ids       Small, per-table pools: entrant lists 0-255, drivers 0-254 (58 free), teams to 514, vehicles to
-               538, setup modes and seasons <= 31. The core allocates them; a record says "stat_id": "auto".
-grid           32 vehicle slots, a 27-car clamp at session enter, an AI table of 30, a wheel map that rehashes
-               at the 26th car. session.grid refuses a size the build can't hold, naming the limit.
-save heap      Profile saves live in a 3 MB SAVE_DATA heap. Snapshots are budgeted (see Scopes and snapshots).
-boot-once      Driver statistics, AI handling and setup presets are read once (at boot or session enter).
-               Runtime layers on them fire at those moments, through hook points.
-EA build       Every hook point and operation resolves on both the Steam and the EA build, or reports unavailable.
-```
+**Stat ids.** The pools are small and differ per table. A record leaves `stat_id` at `StatId::automatic`, and the core allocates it:
 
-```json
-// a record asking the core for ids instead of picking them
-{ "driver.identity": { "f1990/alain_prost": { "stat_id": "auto", "name": "lng_f1990_prost", "number": 1 } } }
+```cpp
+drivers::identities.variant("alain_prost", drivers::identities["game/jarno_opmeer"], [](drivers::Identity &d) {
+    d.number = 1;                                  // d.stat_id stays StatId::automatic
+});
 ```
 
 ```text
@@ -67,16 +83,48 @@ EA build       Every hook point and operation resolves on both the Steam and the
 [registry] stat ids: setup mode f1990/f1_1990 -> 16 (pool 5,7,16-31)
 ```
 
-An id the core allocated stays the same in every later build of the profile, so saves keep pointing at the same rows.
+```text
+entrant lists  0-255          drivers  0-254 (58 free)       teams  to 514
+vehicles       to 538         heads    265+                  setup modes and seasons  <= 31 (mask bits)
+```
+
+An id the core allocated stays the same at every later start, so saves keep pointing at the same rows. Track ids are pinned for the install (see [Dependencies and guards](/std/dependencies)).
+
+**The record budget.** The game's value map is sized when the database loads and grows at 838,860 records; growing it after load leaves dangling pointers. The core counts the records addons register in `SWOFTY_REGISTER` and sizes the map before the game loads the database. Until that lands (an RE item), the room is about 95k records minus a 4,096 margin. A registration past the room is refused, naming the addon:
+
+```text
+[registry] room: 81,240 of 91,904 records used (swofty.classic-seasons-* 15,300, mod.hockenheim 1,712, ...)
+[registry] register: mod.bigpack refused 14,980 records: past the database room (10,664 left); nothing from mod.bigpack applied
+```
+
+**The grid.** 32 vehicle slots, a 27-car clamp at session enter, an AI table of 30, and a per-vehicle map that rehashes at the 26th car. A grid the build can't hold is refused when the registry resolves, naming the limit:
+
+```cpp
+sessions::grids.layer(sessions::grids["game/f1_2026"], [](sessions::Grid &g) { g.cars = 34; });
+```
+
+```text
+[registry] session.grid game/f1_2026: edit by someone.biggrid refused: 34 cars, the game holds 32 vehicle slots (27 without
+           the grid patch); the record keeps 26
+```
+
+**The rest:**
+
+- **Row counts.** A table reads only the rows below its `_instancecount_`. The core bumps it; nobody writes it.
+- **Missing keys.** A copied row that lacks a key a stock row has reads garbage, not null. The core copies every key of the donor or base row, the printf-built and stack-built ones included (`tools/track_keys.py`, `deps.rs`).
+- **Side data.** Rows are found by label too: setup presets by package folder, track data by mode mask, AI data by `ai_package_folder/asset_filename`. The core writes the side data with the row.
+- **Save heap.** Profile saves live in a 3 MB `SAVE_DATA` heap. Career snapshots are budgeted (see [Scopes and snapshots](/std/scopes)).
+- **Read once.** Driver statistics (at boot), AI handling and setup presets (at session enter) are read once. Edits on them apply at those moments, or through an event.
+- **Both builds.** Every event and operation resolves on the Steam and the EA build, or reports `unavailable`.
 
 ## The order
 
-Domains move into the core in this order. It follows readiness, how many addons need each domain, and today's conflicts:
+Systems move into the core in this order. It follows readiness, how many addons need each system, and today's conflicts:
 
 1. **Career seasons, line-ups and contracts:** the most L2 code, and two addons already wrap the same functions.
-2. **Content at build time:** vehicle, package, engine sound, livery, wearables, heads, team and driver identity, texture slices. The most addons, and most of today's file conflicts.
+2. **Content at boot:** vehicle, package, engine sound, livery, wearables, heads, team and driver identity, texture slices. The most addons, and most of today's file conflicts. The core owns stat-id allocation and the record budget from day one, because these registries fill the database.
 3. **Tracks and track data.**
 4. **Tyres:** the custom tyre systems.
 5. **Session rules:** grid size, weekend formats, points.
 6. **UI and strings.**
-7. **Later:** AI, power unit and DRS at run time, weather, graphics, telemetry, replays. The reverse engineering they need is scheduled now: the AI difficulty application, the DRS decision, the engine component selector, and the attribute map.
+7. **Later:** AI, power unit and DRS at run time, weather, graphics, telemetry, replays. The reverse engineering they need is scheduled now: the AI difficulty application, the DRS decision, the engine component selector, the attribute map, a single team-logo resolver and the per-box track list builder.
