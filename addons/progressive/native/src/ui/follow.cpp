@@ -22,7 +22,9 @@
 // event is added as in the stock game and its scene is skipped as above. A new career's event (no
 // contract yet) is added as in the stock game too: it comes while the career is created, before it
 // has a weekend, and the game's signing reads the weekend source's (+0x270, vtable slot +0xa0)
-// weekend for Career_Build_LineupChanges without a null check. A contract event already on his
+// weekend for Career_Build_LineupChanges without a null check. Every signing checks that weekend
+// first: Start Next Season adds the new season's contract event before its calendar is built, so
+// that event also stays until a Team HQ with a weekend signs and removes it. A contract event already on his
 // driver calendar (a new career's, a save from before this, a renegotiation added at the season start) is found at
 // career.loaded (when progressive.dll's store already answers follow) and at every Team HQ: after
 // signing it is removed with Game_CareerActivities_RemoveActivity, the game's own remover, each one
@@ -84,6 +86,7 @@ constexpr uintptr_t kRatingRanges = 0x318; // DriverCareerContractsManagerCompon
 constexpr uintptr_t kContractRating = 0x18; // built contract record: overall rating
 constexpr uintptr_t kContractSeasons = 0x20;
 constexpr uintptr_t kContractEnd = 0x24;
+constexpr uintptr_t kVtCurrentWeekend = 0xa0; // weekend source vtable slot: the current Weekend, or null
 
 struct RatingRange {
     uint32_t min, max, minus, plus;
@@ -99,6 +102,7 @@ constexpr uintptr_t kCachedStat = 0x2e;
 namespace sc = progressive::scene;
 
 sc::Skip g_scene;
+bool g_no_weekend_said = false;
 
 template <class T> T rdv(uintptr_t a, T def = T{})
 {
@@ -109,6 +113,14 @@ template <class T> T rdv(uintptr_t a, T def = T{})
 bool same_key(uint32_t a, uint32_t b)
 {
     return ((a ^ b) & 0xffff00ffu) == 0;
+}
+
+bool has_weekend(uintptr_t contracts)
+{
+    uintptr_t src = rdv<uintptr_t>(contracts + offsetof(DriverCareerContractsManagerComponent, weekend_source));
+    uintptr_t vt = src ? rdv<uintptr_t>(src) : 0;
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekend) : 0;
+    return swofty::mem::in_image(fn) && reinterpret_cast<void *(*)(void *)>(fn)(reinterpret_cast<void *>(src));
 }
 
 uint32_t continue_link()
@@ -262,6 +274,15 @@ bool sign(uintptr_t contracts)
         swofty::log("[progressive] follow: no team to sign with; the contract scene stays");
         return false;
     }
+    if (!has_weekend(contracts)) {
+        if (!g_no_weekend_said)
+            swofty::log("[progressive] follow: driver %u: no current race weekend yet (a season before its calendar is "
+                        "built); nothing signed until a Team HQ with one, since the game's signing reads it",
+                        driver >> 16);
+        g_no_weekend_said = true;
+        return false;
+    }
+    g_no_weekend_said = false;
     alignas(16) uint8_t buf[0x80] = {};
     Career_Build_DriverContract(reinterpret_cast<void *>(contracts), buf, driver, team, 0, 0, 1);
     int32_t base = rdv<int32_t>(reinterpret_cast<uintptr_t>(buf) + kContractRating);

@@ -44,6 +44,11 @@
 // unique team keys of their rows and skip a teamless one, so they leave the slot out. A weekend
 // built before the apply is rebuilt by the game's Weekend::start when its first session's
 // entrants differ from the career rows with a car (rebuild_entrants, weekend_logic.hpp).
+// A plan that moves or releases drivers waits until the current Season has its weekends and
+// current_weekend is one of them: MessageDriverMovesFinalised (and the career load) ends a
+// teammate rivalry whose rival left the player's team, and the eTeammate reward (0x1412590b0)
+// reads Season.weekends[current_weekend] unchecked. After Finish Season the next season's first
+// Team HQ has no weekends yet, so the apply runs at a later Team HQ.
 
 #include <algorithm>
 #include <atomic>
@@ -1871,6 +1876,18 @@ void season_hub(const swofty::career::State &state)
             ++g_failures;
         }
         contract_left_alone(before, c, year, "the season plan was refused");
+        return;
+    }
+    if ((!p.moves.empty() || !p.releases.empty()) && !(read && cal.current_ok)) {
+        static std::string waiting;
+        std::string now = c->key + "|" + std::to_string(year);
+        if (waiting != now) {
+            waiting = now;
+            swofty::log("[progressive] season %d: waiting for the season's race weekends before moving drivers (%s); "
+                        "the game ends a rivalry whose rival leaves the player's team against the current weekend",
+                        year, read ? "the current round is past the calendar" : "the calendar is not built yet");
+        }
+        contract_left_alone(before, c, year, "the season's race weekends are not built yet");
         return;
     }
     char why[256];

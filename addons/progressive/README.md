@@ -19,6 +19,7 @@ In Team HQ, the **Progressive Settings** tab changes R&D for the loaded career a
 ## What changes each season
 
 - Every seat takes the real line-up of the year, fitted around you with as few changes as possible. Mid-season changes (stand-ins and swaps) happen at the matching race, scaled to your calendar's length.
+- A new season's line-up arrives at the first Team HQ that has the season's race calendar, so after Start Next Season the seats change once the calendar is set.
 - 2017 to 2025 run with 10 teams and 20 cars; 2016 has Manor and 2026 has Cadillac.
 - Every AI driver takes his ratings of that season (experience, racecraft, awareness, pace, focus and the overall they make), mid-season stand-ins included: EA's launch ratings of each season's game for 2020 to 2026, and for 2016 to 2019 a model of the real results calibrated on them. Your driver starts a new career with his real ratings of the starting season; from there his ratings are his own. The first 2026 season brings back the game's 2026 ratings, and the game's own ratings carry on from there.
 - Standings start each season in the previous real season's final order.
