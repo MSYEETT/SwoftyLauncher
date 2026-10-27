@@ -610,7 +610,7 @@ impl Shell {
     }
 
     pub(crate) fn update_bar(&self, p: Palette) -> Option<impl IntoElement> {
-        if !self.store.config().updates.check {
+        if !self.update_check {
             return None;
         }
         let bar = h_flex()

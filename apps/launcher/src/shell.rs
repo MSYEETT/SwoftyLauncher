@@ -141,6 +141,8 @@ pub struct Shell {
     pub(crate) dropping: bool,
     pub(crate) vr_profiles: BTreeSet<String>,
     pub(crate) start_store: bool,
+    /// `updates.check` from config.json, read when the library loads.
+    pub(crate) update_check: bool,
     pub(crate) updates: crate::update::Updates,
     pub(crate) forms: HashMap<String, crate::blocks::FormSlot>,
     pub(crate) searches: HashMap<String, crate::blocks::SearchSlot>,
@@ -373,6 +375,7 @@ impl Shell {
         } = prepared;
         let vr_profiles = config.vr_profiles;
         let start_store = config.launch.start_store;
+        let update_check = config.updates.check;
         let stale = store.clone();
         cx.background_executor()
             .spawn(async move {
@@ -514,6 +517,7 @@ impl Shell {
             dropping: false,
             vr_profiles,
             start_store,
+            update_check,
             updates: crate::update::Updates::new(),
             forms: HashMap::new(),
             searches: HashMap::new(),
@@ -604,7 +608,7 @@ impl Shell {
 
     fn apply(&mut self, probe: Probe, window: &mut Window, cx: &mut Context<Self>) {
         let before = (self.requests, self.processes.clone(), self.session.clone());
-        let was_live = self.launch.is_some() || !self.processes.is_empty();
+        let was_live = self.launch.is_some();
         self.requests = probe.requests;
         if let Some(n) = probe.recovered.filter(|n| n.at > self.recovered_seen) {
             self.recovered_seen = n.at;
@@ -655,8 +659,11 @@ impl Shell {
             self.copies = found.all;
             self.missing_copies = found.missing;
             self.detected = true;
-            if changed || probe.merged {
+            if probe.merged {
                 self.reload(cx);
+            } else if changed {
+                self.refresh_views(cx);
+                self.db_profile_changed(cx);
             }
         } else if probe.merged {
             self.reload(cx);
@@ -744,7 +751,7 @@ impl Shell {
         }
         self.session = probe.session;
         self.db_poll(cx);
-        let live = was_live || self.launch.is_some() || !self.processes.is_empty();
+        let live = was_live || self.launch.is_some();
         if live
             || before != (self.requests, self.processes.clone(), self.session.clone())
             || self.painted.elapsed() >= REPAINT
@@ -758,6 +765,7 @@ impl Shell {
         let config = self.store.config();
         self.vr_profiles = config.vr_profiles;
         self.start_store = config.launch.start_store;
+        self.update_check = config.updates.check;
         if matches!(self.page, Page::Section(i) if i >= self.library.sections.len()) {
             self.page = Page::Addons;
         }
