@@ -1,11 +1,13 @@
 ---
 title: The C ABI
-description: The SwoftyAddonRegister export and the SwoftyRegistry, SwoftyHooks and SwoftyServices tables under the standard library 2.0 C++ wrappers.
+description: The SwoftyAddonRegister export and the SwoftyRegistry, SwoftyHooks and SwoftyServices tables under the standard library's C++ wrappers.
 ---
 
 # The C ABI
 
-The typed C++ API sits on one new export, `SwoftyAddonRegister`, and three C tables appended to `SwoftyApi`.
+The typed C++ API sits on one export, `SwoftyAddonRegister`, and three C tables appended to `SwoftyApi` in API version 9. A C caller, or an addon in another language, uses these directly.
+
+For example, a `SWOFTY_REGISTER` block that adds an engine sound becomes one `registry->add` call from `SwoftyAddonRegister`, at the early stage.
 
 ## The registration export
 
@@ -13,10 +15,10 @@ The typed C++ API sits on one new export, `SwoftyAddonRegister`, and three C tab
 
 `SWOFTY_REGISTER` blocks collect into a list in the DLL. When the DLL has at least one, `SWOFTY_ADDON()` also exports `SwoftyAddonRegister`.
 
-- The loader calls `SwoftyAddonRegister` at the early stage, before the game loads its database, on the loader thread, addon by addon in load order.
-- Then `SwoftyAddonInit` and `SWOFTY_ON_LOAD` run as in 1.x.
-- The build turns on `"early": true` for any DLL that exports `SwoftyAddonRegister`. The addon's `swofty.json` doesn't change.
-- A DLL without `SWOFTY_REGISTER` exports only what 1.x exported.
+- The loader loads every DLL that exports `SwoftyAddonRegister` at the early stage, and calls only `SwoftyAddonRegister` there: before the game loads its database, on the loader thread, addon by addon in load order.
+- `SwoftyAddonInit`, which runs `SWOFTY_ON_LOAD`, runs at the stage the manifest asks for: the window stage, unless the DLL's entry in `swofty.json` sets `"early": true`.
+- The addon's `swofty.json` doesn't change.
+- A DLL without `SWOFTY_REGISTER` exports only what an addon made for 1.5 exports.
 
 <template #example>
 <Example root="mod.esp" code-file="native/src/esp.cpp" files="swofty.json, native/build.sh, sounds/v10_screamer.bdl">
@@ -48,7 +50,7 @@ extern "C" __declspec(dllexport) int SwoftyAddonRegister(const SwoftyApi *a)    
 {
     return ::swofty::detail::run_register(a);   // every SWOFTY_REGISTER block, in source order
 }
-extern "C" __declspec(dllexport) int SwoftyAddonInit(const SwoftyApi *a)               // as in 1.x
+extern "C" __declspec(dllexport) int SwoftyAddonInit(const SwoftyApi *a)               // the manifest's stage
 {
     return ::swofty::detail::init(a, nullptr);
 }
@@ -67,12 +69,12 @@ extern "C" __declspec(dllexport) int SwoftyAddonInit(const SwoftyApi *a)        
 ```text
 addon esp.dll: calling SwoftyAddonRegister (API v9) at the early stage
 [registry] register: mod.esp (esp.dll) 1 engine_sound, 1 layer on vehicle (early stage, 0.4 ms)
-addon esp.dll: calling SwoftyAddonInit (API v9)
+addon esp.dll: calling SwoftyAddonInit (API v9) at the window stage (manifest: early false)
 ```
 
 ## The tables
 
-Like every 1.x table, the three tables are appended to `SwoftyApi` and also exported for feature detection. So an addon built against the 2.0 headers still loads on a 1.x core, and sees the libraries as unavailable.
+Like every other table, the three tables are appended to `SwoftyApi` and also exported for feature detection. An addon built against the 1.6 headers still loads on a 1.5 core, and sees the three libraries as unavailable.
 
 ```c
 /* swofty_api.h */
@@ -164,7 +166,7 @@ typedef struct SwoftyServices {
     const SwoftyHooks *hooks;
     const SwoftyServices *services;
 
-/* core exports, for an addon that must also load on a 1.x core */
+/* core exports, for an addon that must also load on a 1.5 core */
 SWOFTY_EXPORT const SwoftyRegistry *SwoftyCoreRegistry(void);
 SWOFTY_EXPORT const SwoftyHooks *SwoftyCoreHooks(void);
 SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
@@ -202,7 +204,7 @@ An edit crosses the ABI as JSON:
 - The core calls the `SwoftyEditFn` with the effective value so far.
 - The wrapper reads it into `T` through `SWOFTY_RECORD`, runs the edit, and writes the struct's fields back over the value it got. Fields `T` doesn't list come through unchanged.
 - The core diffs `in` and `out`. The changed fields become the edit's origins and its conflicts. It then validates the result. A failing edit is dropped, with a log line naming the addon.
-- `option` called during an edit records that the edit depends on that option, and the core runs the edit again when the player changes it. Outside an edit, it's a plain read of the calling addon's option, like 1.x `setting`.
+- `option` called during an edit records that the edit depends on that option, and the core runs the edit again when the player changes it. Outside an edit, it's a plain read of the calling addon's option, like `setting`.
 
 ## Rules
 
@@ -211,11 +213,12 @@ An edit crosses the ABI as JSON:
 - **Timing:**
   - the registry calls (`declare`, `add`, `variant`, `provide`, `provide_fn`, `layer`, `layer_fn`, `layer_select`) are accepted from `SwoftyAddonRegister` on, and at any time after it while the game runs. A change made after the game read that data takes effect at the next moment it reads it, and the core logs when ("applies from the next session load", "applies from the next game start");
   - `define`, `attach`, `publish` and `when` are accepted from `SwoftyAddonInit` on;
-  - a call before the core's setup queues and is applied in load order, the same as 1.x event subscriptions.
+  - a call before the core's setup queues and is applied in load order, the same as event subscriptions made with `subscribe`.
 - **Threads:**
   - `SwoftyAddonRegister` runs on the loader thread;
   - registry reads, layers, `publish` and `when` work from any thread;
   - providers, edits and selector matches run on the thread that resolves the record. They must return quickly and not read the registry they belong to (a re-entrant read returns `late`);
   - watchers and `when` callbacks run on the flow thread;
-  - game hook points run on the thread the game calls the function on.
-- **Growth:** fields are only appended. A table's `version` names the last layout the core fills (see [Versioning](/std/versioning#abi-and-table-versions)). On a 1.x core, `SwoftyAddonRegister` is never called, and the 2.0 libraries read as unavailable.
+  - game hook points run on the thread the game calls the function on. On a point the catalogue marks `hot`, the core calls a `SwoftyHookFn` when it builds the point's table at a content or session moment, not on each game call (see [Hooks](/std/hooks#hook-points-the-game-calls-every-frame)).
+- **Faults:** the core calls every `SwoftyHookFn` inside a guard. A fault in the after phase is logged with the addon and the point, and that handler is detached for the session. A fault in the before or replace phase crashes the game, and the crash report names the addon, the point and the phase.
+- **Growth:** fields are only appended. A table's `version` names the last layout the core fills (see [Versioning](/std/versioning#abi-and-table-versions)). On a 1.5 core, `SwoftyAddonRegister` is never called, and the three libraries read as unavailable.
