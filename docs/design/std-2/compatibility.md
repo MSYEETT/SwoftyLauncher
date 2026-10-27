@@ -5,7 +5,7 @@ description: Why every 1.x addon keeps working on standard library 2.0, how each
 
 # Compatibility
 
-**No 1.x addon needs a change or a rebuild to work on 2.0.** Nothing a 1.x addon uses is removed or changes meaning in any 2.x release.
+**No 1.x addon needs a change or a rebuild to work on 2.0.** Nothing a 1.x addon uses is removed or changes meaning, in 2.x or in any later version.
 
 ## What stays exactly as it is
 
@@ -97,7 +97,7 @@ tools/compat/run.sh
 - a Team HQ tab;
 - a wizard route.
 
-## Deprecation
+## Nothing is removed
 
-- A 1.x table or call stays supported for all of 2.x.
-- Removing one needs a launcher 3.0, with its replacement documented, and at least one 2.x release in which the core logs, once per session, which DLL still uses it.
+- Every 1.x table, call, manifest field and mixin rule stays, in 2.x and in every later version.
+- When 2.0 has a better way, the 1.x page says so and links to it, and the old way keeps working. Players never see a warning about it.

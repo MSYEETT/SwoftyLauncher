@@ -71,7 +71,7 @@ void on_team_hq()
 A service table follows the [versioning](./versioning) rules:
 
 - **Minor:** append a function at the end and raise `version`. Old consumers never read past `size`.
-- **Major:** a new name (`progressive.history2`) published next to the old one, which stays for the rest of the launcher major.
+- **Major:** a new name (`progressive.history2`) published next to the old one. The old one keeps being published.
 
 ```cpp
 // version 2 appends one function; version 1 consumers are unaffected

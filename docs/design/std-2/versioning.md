@@ -7,11 +7,11 @@ description: How registries, hook payloads, services and the C ABI change over t
 
 Everything other addons depend on has a version. They all follow one rule:
 
-**Adding is a minor change. Removing, renaming or changing what something means is a major change, and a major change keeps the old version working beside the new one.**
+**The standard library only ever grows. Adding is a minor change. Renaming or changing what something means is a major change, and a major change is added next to the old version, which keeps working in every later release. Nothing is ever removed.**
 
 What carries a version:
 
-- **Launcher:** semver, `2.0.0`. A major launcher version is the only place an old interface may be removed.
+- **Launcher:** semver, `2.0.0`. A major launcher version marks a large addition. It never removes anything.
 - **C ABI:** `SWOFTY_API_VERSION` (an integer, 9 in 2.0). `SwoftyApi` and every core table only ever grow.
 - **Core tables:** each table's `version` field names its last layout.
 - **Registry schemas:** `major.minor`, in `x-version`.
@@ -114,7 +114,7 @@ With the adapter in place:
 - **Old readers:** a 1.x reader that calls `get<Season>` (built against 1.x) gets the effective value downgraded to 1.x.
 - **Old layers:** a 1.x addon's layer is upgraded to 2.0 before it's applied, so it still overrides.
 - **Old snapshots:** a career saved with 1.x is upgraded on load.
-- **Old majors are kept** for the rest of the launcher major they shipped in, and dropped only in the next launcher major.
+- **Every major is kept**, with its adapter, in every later release. A 2.0 addon that reads `career.season@1` still works on launcher 3.x and later.
 
 A reader asks for the major it was built against:
 
@@ -144,7 +144,7 @@ default:                   swofty::log("[grid] change kind %d is newer than this
 
 The SDK's `from_json` already follows this rule, so a hand-written addon that sticks to the typed structs gets it for free.
 
-## Lifecycle
+## Status
 
 Every registry, hook point, service and table field has a status:
 
@@ -155,13 +155,13 @@ Every registry, hook point, service and table field has a status:
 // a newer one
 { "status": "experimental", "since": "2.2.0", "feature": "registry_team_identity" }
 
-// on its way out
-{ "status": "deprecated", "since": "2.0.0", "deprecated": "2.4.0", "replacement": "career.season@2" }
+// a newer major exists; this one still works, and always will
+{ "status": "superseded", "since": "2.0.0", "superseded": "2.4.0", "by": "career.season@2" }
 ```
 
-- **experimental:** off unless an addon lists the feature in `experimental_features`. It may change in any release, minor rules don't apply yet. The docs mark it.
+- **experimental:** on for an addon that lists the feature in `experimental_features`. Its shape can still change before it's stable, and the docs mark it. Once stable, it follows every rule on this page.
 - **stable:** the rules on this page apply.
-- **deprecated:** still works. The core logs once per session when an addon uses it, naming the replacement. Removed only in the next launcher major.
+- **superseded:** a newer version or a better way exists. The old one keeps working, with no warning to players. The docs point to the newer one.
 
 To go from experimental to stable, a registry or hook point needs:
 
