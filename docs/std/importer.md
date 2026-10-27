@@ -61,6 +61,27 @@ Now the livery and the handling are separate fields. When R&D Tyres layers `vehi
 }
 ```
 
+## Every year by default
+
+What a player drops in becomes part of the **base**, which every GP/TT box and career inherits, unless an addon sets its own value for that year:
+
+```text
+dropped in                         becomes                                              shows in
+Macarena Red Bull livery           livery record + layer on game/redbull_2026            every box whose Red Bull is the base car
+Hockenheim track zip               track record (provides venue/hockenheimring)          every box's track select, with base data
+V10 engine sound pack              engine_sound records + layers on the base cars        every box using those base cars
+```
+
+A year addon keeps its own look by setting its own value. Classic Seasons' 2017 Red Bull is a variant of the base car that sets its 2017 livery, and a variant's own value beats layers on its base:
+
+```text
+[registry] vehicle swofty.classic-seasons-2017/redbull: /livery set by the variant (2017 livery);
+           layer on game/redbull_2026 from mod.macarena-red-bull-v1-0 not inherited for this field
+[registry] vehicle game/redbull_2026: /livery -> mod.macarena-red-bull-v1-0/redbull_2026
+```
+
+To put a drop-in on a year's car too, the player picks that car in **Applies to** (see [Targeting another base](#targeting-another-base)), and then the drop-in wins there.
+
 ## Recognisers
 
 Each recogniser lives next to the [applier](/std/build) it inverts, in `packages/core/src/std/`. A recogniser may only claim part of a mod if the applier rebuilds exactly that part, byte for byte. Anything else stays raw.
