@@ -1,23 +1,28 @@
 ---
 title: Manifest
-description: swofty.json names the addon; registry.json, next to it, only holds requires, recommends and data-file guards. Everything an addon registers is code, in standard library 2.0.
+description: swofty.json names the addon; registry.json, next to it, holds what the addon needs, breaks, conflicts with and was once called; registry.lock.json records what the addon registers. Everything an addon registers is code.
 ---
 
 # Manifest
 
-An addon names itself in `swofty.json`, the 1.x manifest, unchanged. Everything it registers is code. `registry.json`, an optional file next to it, only holds `requires`, `recommends` and data-file `guards`.
+An addon names itself in `swofty.json`, the manifest every launcher reads. Everything it registers is code. Two optional files sit next to `swofty.json`:
+
+- **`registry.json`** holds what the addon needs and recommends, the addons it breaks or conflicts with, the ids it was published under before, and guards for addons without code. You write it.
+- **`registry.lock.json`** records what the addon's code registers. `swofty dev pack` writes it. You never edit it.
+
+For example, Progressive Career provides ten seasons and a career mode in its DLL. Its `registry.json` says it needs the `career.season` registry, and its lock file lists the ten seasons it provides.
 
 <Split>
 
-Progressive Career 2.0 provides seasons and ratings, makes its career mode a variant of the stock one, replaces a hook, defines its own hook point and publishes a service. All of it is in the DLL.
+Progressive Career provides seasons and ratings, makes its career mode a variant of the stock one, replaces a hook, defines its own hook point and publishes a service. All of it is in the DLL.
 
 Its manifests stay small:
 
-- `swofty.json` is the 1.x manifest, apart from the version;
-- `registry.json` only says what Progressive needs and recommends, so the launcher can check it before the game starts.
+- `swofty.json` names the addon, its version, its options and its build operations;
+- `registry.json` only says what Progressive needs and recommends. The launcher checks it before the game starts.
 
 <template #example>
-<Example root="swofty.progressive" code-file="native/src/progressive.cpp" files="swofty.json, registry.json, native/progressive.dll, data/years.json, api/progressive_api/hooks.hpp, api/progressive_api/history.hpp">
+<Example root="swofty.progressive" code-file="native/src/progressive.cpp" files="swofty.json, registry.json, registry.lock.json, native/progressive.dll, data/years.json, api/progressive_api/hooks.hpp, api/progressive_api/history.hpp">
 <template #code>
 
 ```cpp
@@ -68,12 +73,12 @@ SWOFTY_ADDON()
 </Split>
 
 ```json
-// swofty.json: the 1.x manifest, unchanged apart from the version
+// swofty.json
 {
   "schema_version": 1,
   "id": "swofty.progressive",
   "name": "Progressive Career",
-  "version": "2.0.0",
+  "version": "1.3.0",
   "author": "Swofty",
   "kind": ["database", "native"],
   "category": "career",
@@ -100,14 +105,36 @@ SWOFTY_ADDON()
 [registry] register: swofty.progressive (progressive.dll) 1 career.mode, 10 career.season, 1 provider on career.driver_ratings (early stage, 1.8 ms)
 ```
 
-- **`swofty.json` gets no new fields.** It's still the 1.x manifest: id, name, version, compat, options, operations, launcher.
-- **A 1.x launcher never opens `registry.json`,** and a 1.x core never calls `SWOFTY_REGISTER`. On launcher 1.5 this addon is Progressive Career 1.x: its database rows and DLLs, which keep their own `years.json` path. On 2.0 it adds the registry records the other addons build on.
-- **The build turns on `"early": true`** for a DLL with a `SWOFTY_REGISTER`. You don't set it.
+- **`swofty.json` keeps the fields every launcher reads:** id, name, version, compat, options, operations, launcher. `schema_version` stays 1, and the 1.6 standard library adds no field to it.
+- **On launcher 1.5 and earlier,** `registry.json` is never opened and `SWOFTY_REGISTER` is never called. This addon then runs from its build operations and DLLs, which keep their own `years.json` path. On 1.6 it also adds the registry records the other addons build on.
+- **`SWOFTY_REGISTER` runs at the early stage.** The loader loads the DLL then and calls its registration. `SWOFTY_ON_LOAD` runs at the stage `swofty.json` asks for: the window stage, unless the DLL's entry sets `"early": true`. Having a `SWOFTY_REGISTER` doesn't change that stage.
 - **Headers others include** (`api/progressive_api/hooks.hpp`, `api/progressive_api/history.hpp`) ship in the addon's folder. Its docs page links them.
 
-## What moved to code
+## The lock file
 
-Every field `registry.json` used to have is now a call. The manifest has no entry for anything an addon registers:
+`swofty dev pack` runs the addon's `SWOFTY_REGISTER` against a recorder, outside the game, and writes `registry.lock.json` into the addon:
+
+```json
+// swofty.progressive/registry.lock.json, written by swofty dev pack
+{
+  "generated_by": "swofty dev pack 1.6.0",
+  "provides": {
+    "career.mode": [ { "id": "swofty.progressive/progressive", "label": "lng_progressive_title" } ],
+    "career.season": [ "swofty.progressive/2016", "swofty.progressive/2017", "...", "swofty.progressive/2025" ]
+  },
+  "providers": [ "career.driver_ratings" ],
+  "needs": [ { "record": "track:venue/sochi", "policy": "optional" } ]
+}
+```
+
+- **What it records:** every id the code registers, with its label, what each record provides (a track's venue), and every reference the code uses, required or optional.
+- **Who reads it:** the launcher, for the check before Play and the importer's **Applies to** picker, and the Addon Browser, to answer "which addon provides `venue/sochi`" and install it.
+- **What it isn't:** nothing is applied from it. The game runs `SWOFTY_REGISTER` and applies everything live.
+- **Options:** an edit that reads an option is recorded with the option's default.
+
+## Everything else is code
+
+The manifests have no entry for anything an addon registers:
 
 ```cpp
 // registries: an addon's own registry is a handle and a record struct
@@ -150,11 +177,11 @@ guards::on(guards::Point::career_content_open, check);
 
 ## Options stay in swofty.json
 
-An option stays in `swofty.json`, where ADDON SETTINGS and the launcher already find it (see [options](/reference/addons/manifest#options)). An edit reads it with `swofty::option<T>()`:
+An option stays in `swofty.json`, where ADDON SETTINGS and the launcher find it (see [options](/reference/addons/manifest#options)). An edit reads it with `swofty::option<T>()`:
 
 <Split>
 
-Heavier Damage Realism has one damage level option instead of 16 pre-built copies of every car. Its edit reads the option, so the core re-runs it when the player changes the level.
+Heavier Damage Realism has one damage level option instead of 16 pre-built copies of every car. Its edit reads the option, and the core re-runs the edit when the player changes the level.
 
 <template #example>
 <Example root="william09leo.heavier-damage-realism" code-file="native/src/damage.cpp" files="swofty.json, native/damage.dll">
@@ -192,9 +219,9 @@ SWOFTY_ADDON()
 { "options": [ { "id": "damage", "type": "choice", "values": ["realistic", "heavy", "brutal"], "default": "realistic" } ] }
 ```
 
-## An addon only useful with 2.0
+## An addon that needs 1.6
 
-Tails' "what if" addon only layers registries, so it's useless without 2.0 and says so with `"compat": { "launcher": ">=2.0.0" }` in `swofty.json`. A 1.x launcher then says it needs a newer launcher instead of installing something that does nothing.
+Tails' "what if" addon only layers registries, so it does nothing without the 1.6 standard library. It says so with `"compat": { "launcher": ">=1.6.0" }` in `swofty.json`. Launcher 1.5 then says it needs a newer launcher instead of installing something that does nothing.
 
 ```json
 // swofty.json
@@ -206,7 +233,7 @@ Tails' "what if" addon only layers registries, so it's useless without 2.0 and s
   "author": "Tails",
   "kind": ["native"],
   "category": "career",
-  "compat": { "game": "f1_25", "launcher": ">=2.0.0" },
+  "compat": { "game": "f1_25", "launcher": ">=1.6.0" },
   "operations": { "native": [ { "dll": "native/whatif.dll" } ] },
   "launcher": {
     "program": { "windows": "bin/whatif.exe", "linux": "bin/whatif" },
@@ -238,12 +265,10 @@ In code, a requirement is stated where it's used:
 - a hard `Ref` is **required**: the core checks it in game, and a guard stops the player with a popup;
 - `.optional()` is **recommended**: a missing record drops the element that holds it.
 
-The `registry.json` copy lets the launcher check before the game starts, and before the addon has ever run. It's optional: without it, the in-game guards still stop the player cleanly.
-
-An addon without code states the same in `registry.json` only.
+The lock file records both, so the launcher checks them before the game starts. The `registry.json` copy adds a `for` text for players and works for an addon without code.
 
 <template #example>
-<Example root="mod.esp" code-file="native/src/esp.cpp" data-file="registry.json" files="swofty.json, sounds/v10_screamer.bdl, native/esp.dll">
+<Example root="mod.esp" code-file="native/src/esp.cpp" data-file="registry.json" files="swofty.json, registry.lock.json, sounds/v10_screamer.bdl, native/esp.dll">
 <template #code>
 
 ```cpp
@@ -306,10 +331,14 @@ See [Guards](/std/dependencies#guards) for the points, `block`, `require` and th
   - `{ "hook": "career.calendar.add_activity", "version": ">=1" }`
   - `{ "record": "vehicle:swofty.classic-seasons-2017/ferrari", "version": ">=1.0.0" }` (`version` optional)
 
-  Play stops while one is missing. See [Dependencies and guards](/std/dependencies).
+  Play stops while a `registry` or `record` entry is missing. The core checks `service` and `hook` entries in game, once every addon has loaded, and shows a missing one as a status line on the addon's tile. See [Dependencies and guards](/std/dependencies).
 - **`recommends`:** the same entries, optional, each with a `for` shown to players. They never stop Play.
+- **`breaks`:** `[{ "id", "version", "why" }]`, addon versions this addon doesn't work with. Play stops while one is installed and on.
+- **`conflicts`:** the same shape. The launcher warns before Play.
+- **`aliases`:** `[{ "id" }]`, ids this addon was published under before a rename. The Addon Browser accepts an alias only from the same Browser author. See [Renamed addons](/std/dependencies#renamed-addons).
+- **`saves`:** `{ "careers": "loaded" }` records the addon in every career loaded while it's on.
 - **`guards`:** declarative guards, for addons without code.
 
 ## Addon requirements stay in swofty.json
 
-`swofty.json`'s 1.x `requires` (`[{id, version}]`, see [requires](/reference/addons/manifest#requires-conflicts-load-after)) keeps meaning "this addon needs that addon". `registry.json`'s `requires` adds finer dependencies: a single track, a registry version, a service, a hook point. The launcher checks both, in the same place, with the same messages.
+`swofty.json`'s `requires` (`[{id, version}]`, see [requires](/reference/addons/manifest#requires-conflicts-load-after)) means "this addon needs that addon". `registry.json`'s `requires` adds finer dependencies: a single track, a registry version, a service, a hook point. The launcher checks both, in the same place, with the same messages.

@@ -1,15 +1,17 @@
 ---
 title: The launcher side
-description: What the launcher does in standard library 2.0 (install, build, check dependencies, start the game), launcher pages that edit an addon's own per-profile data, the conflicts view and Send Logs.
+description: What the launcher does (install, build, check dependencies, start the game), what it knows about code addons before and after a session, launcher pages that edit an addon's own per-profile data, the conflicts view, Send Logs and Developer mode.
 ---
 
 # The launcher side
 
-The launcher installs addons, builds their 1.x operations, checks the dependencies their manifests declare and starts the game. It never needs to know what addons register: registrations are code, and they're live in the game.
+The launcher installs addons, builds their build operations, checks the dependencies they declare and starts the game. Addons register their records in code, and the core applies them in the game. The launcher doesn't run that code. What it knows about a code addon comes from two files: the `registry.lock.json` the addon ships, made when it was packed, and the `registry/catalog.json` the core writes after each session.
+
+For example, Tails' "what if" addon edits Progressive Career's grids from a launcher page. The page saves the player's edits in the addon's own data. The addon's DLL reads them in the game and applies them as a layer.
 
 <Split>
 
-Tails' "what if" addon edits Progressive Career's grids from a launcher page. The page never touches a registry:
+The page never touches a registry:
 
 1. the page saves the player's seats in the addon's own **per-profile state**;
 2. the addon's **build step** puts that state in the addon's folder in the game;
@@ -60,23 +62,53 @@ SWOFTY_ADDON()
 
 ## What the launcher does
 
-- **Installs** addons, with their data files (`registry/*.json`) in their folders.
-- **Builds** each addon's 1.x operations and its launcher plugin's build reply, in load order, as in 1.x.
-- **Checks dependencies** before Play: `swofty.json`'s 1.x `requires` and `registry.json`'s `requires` (see [Manifest](/std/manifest) and [Dependencies and guards](/std/dependencies)).
-- **Starts the game.** The core applies every registration, data file and layer in game, at the moment the game reads that data.
+- **Installs** addons, with their data files (`registry/*.json`) and their `registry.lock.json` in their folders.
+- **Builds** each addon's build operations and its launcher plugin's build reply, in load order.
+- **Checks dependencies** before Play: `swofty.json`'s `requires`, and `registry.json`'s `requires`, `breaks` and `conflicts` (see [Manifest](/std/manifest) and [Dependencies and guards](/std/dependencies)). An unmet `requires` or a `breaks` on an installed addon stops Play with a message naming the fix. A `conflicts` entry warns.
+- **Starts the game.** The core applies every registration, data file and layer in the game, at the moment the game reads that data.
 
-A profile of 1.x addons builds exactly as in 1.x (see [Compatibility](/std/compatibility)).
+A profile of addons made for 1.5 and earlier builds exactly as before (see [Compatibility](/std/compatibility)).
 
-### The registry folder in the game
+## What the launcher knows about code addons
 
-The build writes one index, so the core finds data-file addons (they have no DLL in `settings.json`'s `plugins`). The core writes the diagnostics:
+Before the game runs, the launcher reads each enabled addon's `registry.lock.json`. `swofty dev pack` writes it when the addon is packed, by running the addon's `SWOFTY_REGISTER` against a recorder. It lists the ids the addon registers, their labels, and what they provide and need. Nothing is applied from it: the game applies everything live. With it, the launcher can:
+
+- check before Play that a code addon's tracks and cars are there for the content that needs them;
+- list a code addon's cars in the importer's **Applies to** picker;
+- show what an addon provides on its page.
+
+After each session, the core writes `registry/catalog.json`: what actually loaded, with every record's label, owner and variant chain, each box's teams and track list, and what was refused or dropped. The launcher shows it marked "as of your last session".
+
+```json
+// registry.lock.json in mod.sochi, written by swofty dev pack
+{
+  "generated_by": "swofty dev pack 1.6.0",
+  "provides": { "track": [ { "id": "mod.sochi/sochi", "label": "Sochi Autodrom" } ],
+                "track.venue": [ "venue/sochi" ] },
+  "needs": []
+}
+```
+
+## Profiles
+
+- **Each launcher profile has its own addon storage.** What an addon writes with `swofty::storage` in one profile isn't seen in another. The launcher keeps each profile's copy in `$DATA/addon-storage/<id>/profiles/<profile>/` between sessions.
+- **Saves are shared** by every profile, as the game keeps one save.
+- **Each career has an id.** The career index records which profile started it, and the launcher shows that next to the career.
+- **The vanilla profile** warns before Play when a career needs addons, and backs up the saves.
+
+## The registry folder in the game
+
+The build writes one index, so the core finds data-file addons (they have no DLL in `settings.json`'s `plugins`). The core writes the reports:
 
 ```text
 <game>/swofty/
   registry/
     index.json                          load order and each enabled addon's data files, written by the build
+    catalog.json                        written by the core after each session: what loaded
     effective.json                      written by the core at each session load and on a crash
     conflicts.json                      written by the core at each session load
+    room.json                           written by the core after each boot: how full the game database is
+    ids.json                            the stat-id store, kept by the core
   addons/
     mod.esp/registry/sounds.json        a data file, installed with its addon
     mod.esp/registry/layers.json
@@ -96,9 +128,23 @@ The build writes one index, so the core finds data-file addons (they have no DLL
 
 The core validates every data file and every edit when it applies them. A broken one is dropped, logged with the addon's name, and listed in `conflicts.json`.
 
+When `room.json` says the profile's records don't fit in the game database, the next launch moves the database edits of build operations to the file route, padded so the game grows its own table while it loads. That costs one restart.
+
+## Status lines
+
+Players learn that something didn't apply from a status line on the addon's tile, in ADDON SETTINGS in the game and on the addon's row in the launcher:
+
+```text
+Heavier Damage Realism        1 layer dropped (vehicle.handling game/redbull_2026: invalid damage_scale)
+Progressive Career            hook career.calendar.add_activity unavailable (old_addon overwrites it)
+F1 2016 GP/TT Addon           as of your last session: round 12 left out (no track provides Hockenheim)
+```
+
+The only popups are guards that stop a load (see [Guards](/std/dependencies#guards)).
+
 ## Editing a layer from a launcher page
 
-A launcher page edits the addon's own data and nothing else, with the 1.x host calls: `get_state` and `set_state` for the per-profile state, the `build` reply to put it in the game, and `game_dir` to show the last session's grid. This is Tails' page, written against the launcher plugin template:
+A launcher page edits the addon's own data and nothing else, with these host calls: `get_state` and `set_state` for the per-profile state, the `build` reply to put it in the game, and `game_dir` to show the last session's grid. This is Tails' page, written against the launcher plugin template:
 
 ```rust
 // launcher/src/main.rs
@@ -174,7 +220,7 @@ plugin    {"id":7,"result":{"ops":[{"op":"file.put","source":{"root":"cache","pa
 - **The grid the page shows** comes from the last `effective.json` the core wrote. Before the game has run once, there's none, and the page shows only its own edits. Nothing depends on it.
 - **The edit reaches the game on the next Play:** the build writes the file, and the DLL applies it at the next game start.
 
-See [Host calls](/reference/addons/launcher-api/host-calls) and [The build reply](/reference/addons/launcher-api/build-reply) for the 1.x calls.
+See [Host calls](/reference/addons/launcher-api/host-calls) and [The build reply](/reference/addons/launcher-api/build-reply) for each call.
 
 ## The conflicts view
 
@@ -203,6 +249,12 @@ The core writes `registry/conflicts.json` at each session load. The launcher sho
       "point": "career.calendar.add_activity",
       "holder": "old_addon",
       "subscribers": ["swofty.progressive"]
+    },
+    {
+      "kind": "handler_faulted",
+      "point": "session.lap",
+      "phase": "after",
+      "addon": "someone.lapticker"
     }
   ]
 }
@@ -212,7 +264,7 @@ Reordering addons resolves field conflicts the same way it resolves file conflic
 
 ## Send Logs
 
-The bundle adds the core's `registry/effective.json` and `registry/conflicts.json`, written at each session load and on a crash. `effective.json` holds each registry's effective records, with the origin of every field that a layer changed:
+The bundle adds the core's `registry/effective.json`, `registry/conflicts.json` and `registry/catalog.json`. `effective.json` is written at each session load and on a crash. It holds each registry's effective records, with the origin of every field that a layer changed:
 
 ```json
 {
@@ -227,3 +279,19 @@ The bundle adds the core's `registry/effective.json` and `registry/conflicts.jso
 ```
 
 The triage bot can then say "the grid is from tails.whatif-history's layer" instead of guessing.
+
+## Developer mode
+
+The developer tools are in the public launcher, behind a **Developer mode** toggle in its settings. With it on, the CLI has a `swofty dev` family:
+
+```text
+swofty dev new <id>        a new addon from the template
+swofty dev link <folder>   install an addon by reference: every build copies from the folder
+swofty dev run             build, start the game and stream the addon's log lines
+swofty dev logs            follow loader.log, filtered by addon
+swofty dev check           check data files, references and the manifest without starting the game
+swofty dev test            run the addon's unit tests against a fake core
+swofty dev pack            pack the addon and write its registry.lock.json
+```
+
+The fake core runs an addon's `SWOFTY_REGISTER` outside the game, so unit tests can check records, layers and origins without a game install.

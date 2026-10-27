@@ -1,24 +1,24 @@
 ---
 title: Dependencies and guards
-description: Dependencies on addons, registries, services and single records such as tracks; what happens when one is missing; guards that turn the player back with a clear message; and careers that remember what they were made with, in standard library 2.0.
+description: Dependencies on addons, registries, services and single records such as tracks; addons that break or conflict with others; renamed addons; what happens when something is missing; guards that turn the player back with a clear message; and careers that remember what they were made with.
 ---
 
 # Dependencies and guards
 
-Content depends on other content. A 2016 season races at Sochi, which a track addon provides. A career made with R&D Tyres has Tyres upgrades in its save. 2.0 checks every dependency four times:
+Content depends on other content. A 2016 season races at Sochi, which a track addon provides. A career made with R&D Tyres has Tyres upgrades in its save. This page covers how your addon says what it needs, and what the player sees when something is missing.
 
-```text
-at install      the Addon Browser offers what's needed and recommended
-before Play     the launcher names what's missing, what's skipped, and which careers won't load
-in game         a guard cancels the start, the load or the box press, with a popup that names the fix
-after load      a career that loaded without its addons is stopped before it can save over its progress
-```
+Every dependency is checked four times:
 
-**Optional at start, required once used.** A calendar round on a missing track can be skipped when a career starts. Once the career has raced at that track, the career needs it.
+1. **At install,** the Addon Browser offers what's needed and recommended.
+2. **Before Play,** the launcher names what's missing, what's skipped, and which careers won't load.
+3. **In game,** a guard cancels the start, the load or the box press, with a popup that names the fix.
+4. **After load,** a career that loaded without its addons is stopped before it can save over its progress.
+
+**Optional when the calendar is built, required once it's in it.** A calendar round on a missing track is dropped when the season's calendar is built. Once a track is in a career's built calendar, the career needs it.
 
 ## Declaring what you need
 
-`requires` in `registry.json` is an array, like the 1.x one in `swofty.json`. Each entry names an addon, a registry, a service, a hook point or one record:
+`requires` in `registry.json` is an array, like the `requires` in `swofty.json`. Each entry names an addon, a registry, a service, a hook point or one record:
 
 ```json
 // swofty.classic-seasons-2016/registry.json
@@ -35,7 +35,7 @@ after load      a career that loaded without its addons is stopped before it can
 }
 ```
 
-In code, the same is stated where it's used. The core checks it in game, and the guards stop the player with a popup; the `registry.json` copy only lets the launcher check before the game starts:
+In code, the same is stated where it's used. The core checks it in game, and the guards stop the player with a popup:
 
 ```cpp
 #include <swofty/systems/content.hpp>
@@ -49,14 +49,58 @@ SWOFTY_REGISTER
 }
 ```
 
-- **`requires`:** Play stops while one is missing, the same way it stops for a missing addon today.
+`swofty dev pack` records both references in the addon's `registry.lock.json`, so the launcher and the Addon Browser see them before the game runs (see [The lock file](/std/manifest#the-lock-file)).
+
+- **`requires`:** Play stops while one is missing, with a message naming the fix, the same way it stops for a missing addon.
 - **`recommends`:** optional. It never stops Play. The Addon Browser offers it at install, and the launcher names it before Play when something is skipped because of it.
 - **`for`:** shown to players. Keep it short and concrete.
 - **A `record` entry** means "some enabled addon provides this record". Its `version` is a range on the providing addon's version.
 
+## Addons that break others
+
+`breaks` and `conflicts` in `registry.json` name addon versions that don't work with yours. Either side can declare them:
+
+```json
+// swofty.progressive/registry.json
+{
+  "breaks": [
+    { "id": "swofty.career-editor", "version": "<0.5.0",
+      "why": "its contract overwrite switches off Progressive's contract hook" }
+  ],
+  "conflicts": [
+    { "id": "someone.lineups", "version": "*", "why": "both rewrite the season's line-ups" }
+  ]
+}
+```
+
+- **`breaks`** stops Play while a matching version is installed and on:
+
+```text
+Progressive Career 1.3.0 doesn't work with Career Editor 0.4.2
+  Its contract overwrite switches off Progressive's contract hook.
+  Update Career Editor in the Addon Browser, or turn one of them off.
+```
+
+- **`conflicts`** warns before Play and lets the player go on.
+- **The install solver** treats `breaks` as a constraint: it won't install a version that breaks an installed addon without asking.
+- **`swofty.json`'s `conflicts`** keeps its own meaning (see [requires, conflicts, load_after](/reference/addons/manifest#requires-conflicts-load-after)).
+
+## Renamed addons
+
+An addon can keep its old id as an alias after a rename:
+
+```json
+// mod.sepang/registry.json: Sepang was published as mod.bahrain24
+{ "aliases": [ { "id": "mod.bahrain24" } ] }
+```
+
+- **What follows the alias:** `requires`, `load_after` and every career's dependency record. A career made with `mod.bahrain24` loads with `mod.sepang` on.
+- **Who can claim one:** the Addon Browser accepts an alias only when the old id and the new one have the same Browser author.
+- **Record ids** keep their own owner prefix. A record that moves to a new id is a new record, and careers that used the old one still need it.
+
 ## Tracks have stable identities
 
-A track is a record its addon provides. Every real circuit also has a **venue** id the core owns, so content can ask for "Sochi" without caring which addon brings it:
+A track is a record its addon provides. Every real circuit also has a **venue** id the core owns, so content can ask for "Sochi" without caring which addon brings it. Real people and teams get shared ids the same way, under `person/` and `constructor/`, and driver and team records provide them.
 
 ```text
 track
@@ -85,16 +129,19 @@ SWOFTY_REGISTER
 ```
 
 ```json
-// the same, without code: mod.sochi/registry/tracks.json. A 1.x track addon gets the same record from its track.add op.
+// the same, without code: mod.sochi/registry/tracks.json. A track addon with a track.add build operation gets the same record.
 { "track": { "sochi": { "code": "sochi", "slot": "game/sochi", "name": "Sochi Autodrom", "provides": ["venue/sochi"] } } }
 ```
 
-- **A `venue/…` reference** resolves to the first enabled track that provides it, in load order. An exact id (`mod.sochi/sochi`) pins one addon.
-- **Stat ids are pinned.** Today a new track's stat id depends on which other tracks are on and in what order, so a saved career's round can load a different track. In 2.0 the first id a track gets is kept for the install, in `$DATA/registry/track-ids.json`:
+- **A `venue/…` reference** resolves to the last enabled track in load order that provides it, like every other contest. An exact id (`mod.sochi/sochi`) pins one addon. When two enabled tracks provide one venue, the conflicts view lists both.
+- **A track's venue comes from its record,** never from its code. `mod.bahrain24` uses the `bahrain24` slot and is Sepang.
+- **Stat ids are kept.** The core keeps one stat-id store per install, in the game, at `<game>/swofty/registry/ids.json`. The first id a track, driver, team or vehicle gets stays with it. An id is given to another record only when no career uses it.
+- **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, the guard stops the load and names both records.
 
 ```text
-[tracks] hockenheim: stat id 43 (pinned since 2026-10-27)
-[tracks] okayama: pinned stat id 44 is taken by autopolis; using 45 and re-pinning (careers made with okayama at 44: 0)
+[tracks] hockenheim: stat id 43 (kept since 2026-10-27)
+[guards] career.load: f1_career_progressive/6f3e9a needs track mod.hockenheim/hockenheim at stat id 43;
+         this install has mod.okayama/okayama at 43. Blocked.
 ```
 
 ## When a reference is missing
@@ -134,11 +181,9 @@ In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and 
 ]
 ```
 
-```text
-"venue/sochi"                   required: the record doesn't resolve without it
-"venue/sochi?"                  optional: drop the element (here the calendar round) when nothing provides it
-"venue/sepang|venue/bahrain"   fallback chain: the first one that resolves
-```
+- `"venue/sochi"` is required: the record doesn't resolve without it.
+- `"venue/sochi?"` is optional: the element, here the calendar round, is dropped when nothing provides it.
+- `"venue/sepang|venue/bahrain"` is a fallback chain: the first one that resolves.
 
 Readers get the resolved value, never the modifiers. `career::calendars.status(id)` lists what was dropped or replaced:
 
@@ -147,19 +192,17 @@ Readers get the resolved value, never the modifiers. `career::calendars.status(i
            enabled track provides it; optional); round 16 races at mod.bahrain24/sepang
 ```
 
-The player can change a policy from the launcher's Missing content panel ("Skip round 12", "Race it at Red Bull Ring"). That writes a profile layer, within what the schema allows.
+The player can change a policy from the launcher's Missing content panel ("Skip round 12", "Race it at Red Bull Ring"), within what the schema allows. The choice is saved in the profile, and the core applies it as a profile layer.
 
 ## Guards
 
-A guard stops a front-end action and tells the player why. It generalises `career::block`, which R&D Tyres uses to keep players out of My Team. Guards run at these points:
+A guard stops a front-end action and tells the player why. `career::block`, which R&D Tyres uses to keep players out of My Team, is one kind of guard. Guards run at these points:
 
-```text
-career.start          a new-career route
-career.load           a continue route
-career.content.open   a career tile press
-era.box.open          a GP/TT box press
-route                 any front-end route, by name
-```
+- `career.start`: a new-career route;
+- `career.load`: a continue route;
+- `career.content.open`: a career tile press;
+- `era.box.open`: a GP/TT box press;
+- `route`: any front-end route, by name.
 
 <Split>
 
@@ -220,7 +263,8 @@ SWOFTY_ADDON()
 
 - **`block`** cancels with your own title and body.
 - **`missing`** cancels, and the core writes the popup from every missing item, in the same words everywhere.
-- **The 1.x call keeps working.** `career::block(mode, title, body)` becomes a guard underneath, with the same log lines and popup.
+- **`career::block(mode, title, body)`** is a guard too, with the same log lines and popup.
+- **Guards are the only popups.** Anything else that didn't apply shows as a status line on the addon's tile in ADDON SETTINGS and in the launcher.
 
 The core also runs a **dependency guard** at every point: a career's dependencies on `career.load`, and record requirements on `career.content.open` and `era.box.open`. The popups it writes:
 
@@ -250,38 +294,57 @@ F1 2017 (V10) can't start
          unresolved (swofty.classic-seasons-2017 off)
 ```
 
+### When a box can't apply
+
+A box's rules apply live, through game functions the core binds for each game build. After a game update, or on the EA build, a binding can be missing. Then:
+
+- **A Grand Prix or Time Trial box** shows a guard with **Play anyway**. The box runs with the values the core couldn't change.
+- **A career** stops, with no Play anyway.
+
+```text
+F1 2016 can't apply all of its rules on this game version
+  Track fuel and laps will be the 2026 values. Swofty Launcher will fix this in an update.
+  [Play anyway]  [Back]
+```
+
+### At the season break
+
+Each season of a career uses a box, chosen when the career was created. When the pack that provides the next season's box is missing at the season break:
+
+- **A pack that brings rules or systems** stops the career. The guard shows the missing-addons popup, and the career doesn't load into that season until the pack is back.
+- **A pack that only brings cars and looks** falls back to the stock year. The season plays with the stock cars, and the pack's tile shows a status line. There's no popup.
+
 ## Careers remember what they were made with
 
-Every career gets a dependency record, written when it starts and again at each Team HQ visit after a change. It's saved in the career's own `swofty_registry` container, and mirrored to `<game>/swofty/careers/index.json` for the launcher:
+Every career gets an id and a dependency record when it's created. The record is written again at each Team HQ visit after a change. It's saved in the career's entry in `swofty_registry`, the save container the core keeps outside the game's save heap, and mirrored to `<game>/swofty/careers/index.json` for the launcher:
 
 ```json
 // career.deps "f1_career_progressive/pg-1849223-max_verstappen"
 {
+  "career": "6f3e9a",
+  "profile": "progressive",
   "label": "Progressive Career: Max Verstappen, 2016, season 1",
   "match": { "driver": 4103, "team": 2, "season_index": 0 },
-  "made_with": { "launcher": "2.0.0", "core": "0.3.0", "game_build": 25251167 },
+  "made_with": { "launcher": "1.6.0", "core": "0.3.0", "game_build": 25251167 },
   "addons": [
-    { "id": "swofty.progressive", "version": "2.0.0", "need": "^2.0.0", "why": "career content f1_career_progressive" },
+    { "id": "swofty.progressive", "version": "1.3.0", "need": "^1.3.0", "why": "career content f1_career_progressive" },
     { "id": "mod.sochi",          "version": "1.1.0", "need": "^1.1.0", "why": "calendar round 4: track mod.sochi/sochi" }
   ],
   "records": [
     { "ref": "track:venue/sochi", "resolved": "mod.sochi/sochi", "stat_id": 18, "used": "calendar round 4" }
   ],
   "dropped": [
-    { "ref": "track:venue/hockenheimring", "policy": "optional", "at": "start", "for": "calendar round 12" }
+    { "ref": "track:venue/hockenheimring", "policy": "optional", "season": 2016, "for": "calendar round 12" }
   ]
 }
 ```
 
-- **Which addons go in:** every addon whose records the career uses, plus any addon that says so. A new `saves.careers` field in `swofty.json`, or a code call:
+- **`career` and `profile`:** the career's id and the launcher profile that started it. `match` identifies a career whose id can't be read yet.
+- **Which addons go in:** every addon whose records the career uses, plus any addon that says so, with `saves.careers` in `registry.json` or a code call:
 
 ```json
-// swofty.rnd-tyres-thermal/swofty.json: new field, next to the 1.x ones
-"saves": {
-  "affects": true,
-  "message": "A Driver Career played with Tyres R&D loses its Tyres upgrades if it's saved without the addon.",
-  "careers": "loaded"
-}
+// swofty.rnd-tyres-thermal/registry.json
+{ "saves": { "careers": "loaded" } }
 ```
 
 ```cpp
@@ -291,7 +354,8 @@ swofty::deps::used("swofty.rnd-tyres-thermal", "the Tyres R&D department");    /
 swofty::deps::used_record("track", "mod.hockenheim/hockenheim", "calendar round 12");
 ```
 
-- **`dropped`** remembers what was skipped at the start. Turning Hockenheim on later doesn't make the career need it, and the launcher can say "this career skips Hockenheim".
+- **`saves.affects` and its message** stay in `swofty.json` (see [saves](/reference/addons/manifest#saves)).
+- **`dropped`** lists what each season skipped. A track installed later joins the next season's calendar when that calendar names its venue, and the launcher can say "this career skips Hockenheim in 2016".
 
 ## Before Play
 
@@ -308,9 +372,11 @@ Missing content
   The launcher backs up your saves before this session.
 ```
 
-- **What stops Play:** a missing `requires` entry, as for a missing addon today.
-- **What doesn't:** a reference inside a record. That leaves the record unresolved, which hides its era box or tile, or guards it.
+- **What stops Play:** a missing `requires` entry, or a `breaks` on an installed addon, with a message naming the fix.
+- **What warns:** a `conflicts` entry, and a reference inside a record. An unresolved record hides its era box or tile, or guards it.
+- **Where the launcher gets records:** each enabled addon's `registry.lock.json`, data files and `registry.json`, plus the core's `registry/catalog.json` from the last session for what actually loaded.
 - **Install buttons** appear when the Addon Browser knows a published addon that provides the record.
+- **The vanilla profile** has no core in the game, so no guards run. Before a vanilla session the launcher lists the careers that need addons ("2 careers use addons; loading them in vanilla can lose their progress") and backs up the saves.
 
 ## Turning an addon off
 
@@ -328,12 +394,12 @@ Sochi Autodrom is in 1 career
 Resume Career is checked before the load, from the career index. A career picked from the save-slot list is identified only once it has loaded, until the slot press is reverse-engineered. If it loaded with a required addon missing:
 
 1. The core shows the popup: quit to the menu without saving, turn the addon on, load again.
-2. A **save fence** writes back the bytes this career had at load in place of the new ones, so even a save can't drop progress. This needs the career's position inside its save container to be reverse-engineered, and is planned for 2.1.
+2. A **save fence** writes back the bytes this career had at load in place of the new ones, so even a save can't drop progress. This needs the career's position inside its save container to be reverse-engineered, and is planned for 1.7.
 3. Until then, the launcher's save backup before the session is the safety net. It covers every addon a career in the index depends on, not only `saves.affects` addons.
 
 ## The Addon Browser
 
-The server derives what each addon version **provides** (registry records, tracks with their venues, services) and **needs**. It serves both:
+The server reads what each addon version **provides** (registry records, tracks with their venues) and **needs** from its `registry.lock.json`, its data files and its `registry.json`. It serves both:
 
 ```text
 GET /v1/provides?record=track:venue/sochi       -> [ { "addon": "mod.sochi", "version": "1.1.0", "record": "mod.sochi/sochi" } ]
@@ -342,5 +408,5 @@ GET /v1/addons/<id>/versions/<v>/tree           -> the full dependency tree with
 
 - **At install:** a needed record resolves to an addon. If one addon provides it, it installs like an addon requirement. If several do, the player picks.
 - **When nothing provides it:** "No addon on the Addon Browser provides Hockenheim yet. F1 2016 races without the German Grand Prix."
-- **At publish:** the server suggests dependencies the author forgot.
-- **1.x launchers:** the `requires` the API serves them is unchanged.
+- **At publish:** the server suggests dependencies the author forgot, and checks every alias against the Browser author.
+- **Launchers of 1.5 and earlier** get the same `requires` from the API as before.
