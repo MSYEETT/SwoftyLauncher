@@ -16,7 +16,10 @@
 //      finalise against the line-up from before the batch;
 //   4. the team names of the year through swofty::lang (also on every career load), and the race
 //      weekend and season titles with the year in place of 2026 (titles_logic.hpp, data/titles.json);
-//   5. in a hybrid R&D career, each team's resource points for the season.
+//   5. in a hybrid R&D career, each team's resource points for the season;
+//   6. each driver's real ratings of the year (ratings.hpp, ratings_logic.hpp; option season_ratings):
+//      every AI driver of the year at the season's first apply and a mid-season driver when he
+//      comes in; the player only at the career's creation.
 // In a Real life R&D career every load and Team HQ also works out the in-season development of the
 // year at the season's current round (development_logic.hpp) for progressive_rnd.dll
 // (ProgressiveDevelopmentProgress), while the option season_development is on (the default), and
@@ -70,6 +73,7 @@
 #include "player_logic.hpp"
 #include "titles_logic.hpp"
 #include "progressive.hpp"
+#include "ratings.hpp"
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
 #include "seats.hpp"
@@ -1898,6 +1902,10 @@ void season_hub(const swofty::career::State &state)
         ++g_failures;
         return;
     }
+    std::vector<uint32_t> movers;
+    for (auto &m : p.moves)
+        movers.push_back(m.driver);
+    ratings::season(e, c, index, player, movers);
     if (wrote)
         ++g_applies[tries];
     record_mid();

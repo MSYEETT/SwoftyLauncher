@@ -160,6 +160,9 @@ inline void fold(Career &original, const Career &split)
         original.dev_rounds = split.dev_rounds;
         original.dev_applied = split.dev_applied;
     }
+    original.ratings_season = std::max(original.ratings_season, split.ratings_season);
+    if (!original.player_ratings)
+        original.player_ratings = split.player_ratings;
     if (original.mid_tracks.empty())
         original.mid_tracks = split.mid_tracks;
     if (split.mid_year > original.mid_year) {

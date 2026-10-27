@@ -162,6 +162,15 @@
       "hidden": true
     },
     {
+      "id": "season_ratings",
+      "type": "toggle",
+      "label": "Real driver ratings",
+      "description": "Every season gives each AI driver his real ratings of that year (experience, racecraft, awareness, pace, focus, and the overall they make). Your driver starts a new career with his real ratings of the starting year; after that his ratings are his own.",
+      "default": true,
+      "binds": "native",
+      "hidden": true
+    },
+    {
       "id": "test_calendar",
       "type": "choice",
       "label": "Developer: test calendar",
