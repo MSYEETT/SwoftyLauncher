@@ -54,7 +54,7 @@ A registry whose schema has `"x-snapshot": "career"` is frozen into every new ca
 
 ```text
 new career, data group f1_career_progressive
-  career.starting
+  career.created
     core: snapshot career.season         34 records    41 KB -> 9 KB compressed
     core: snapshot career.driver_ratings 412 records   88 KB -> 17 KB compressed
     core: saved in the career's swofty_registry container

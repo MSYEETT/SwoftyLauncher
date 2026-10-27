@@ -96,7 +96,7 @@ The core adds a game hook point when a second addon needs the same game function
 career.calendar.add_activity     Game_CareerActivities_AddActivity      Progressive (contract events), Career Editor
 career.contract.decide           Career_Decide_ContractNegotiation      Progressive (follow), Career Editor (contracts)
 career.contract.sign             Career_Sign_DriverContract             Progressive, Career Editor
-career.season.process            the season processor 0x140d766b0       Progressive (seasons), Career Editor
+career.season.process            the season change (vtable slot +0x188, L0 today)   Progressive (seasons), Career Editor
 session.fuel.load                the race fuel lookup                   Progressive (seasons before 2026)
 team.logo.resolve                the logo key lookups                   Progressive, Classic Seasons
 ```
