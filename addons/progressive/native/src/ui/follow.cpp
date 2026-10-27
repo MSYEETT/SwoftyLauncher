@@ -19,8 +19,11 @@
 // NCSContractRenewal) is never added to the player's own driver calendar: the
 // Game_CareerActivities_AddActivity wrap signs there instead, so there is no card and no scene, and
 // the season goes on with the contract cached for the season change. When that signing fails the
-// event is added as in the stock game and its scene is skipped as above. A contract event already on
-// his driver calendar (a save from before this, a renegotiation added at the season start) is found at
+// event is added as in the stock game and its scene is skipped as above. A new career's event (no
+// contract yet) is added as in the stock game too: it comes while the career is created, before it
+// has a weekend, and the game's signing reads the weekend source's (+0x270, vtable slot +0xa0)
+// weekend for Career_Build_LineupChanges without a null check. A contract event already on his
+// driver calendar (a new career's, a save from before this, a renegotiation added at the season start) is found at
 // career.loaded (when progressive.dll's store already answers follow) and at every Team HQ: after
 // signing it is removed with Game_CareerActivities_RemoveActivity, the game's own remover, each one
 // logged. The team signed:
@@ -678,6 +681,13 @@ SWOFTY_WRAP(Game_CareerActivities_AddActivity, void, void *calendar, const void 
     }
     if (uint32_t h = humans(); h > 1) {
         swofty::log("[progressive] follow: contract event on day %u: %u human players; the event stays", day, h);
+        return orig(calendar, activity, day);
+    }
+    uintptr_t rec = contract_record(contracts, driver);
+    if (!rec || !rdv<uint8_t>(rec + offsetof(DriverContract, active))) {
+        swofty::log("[progressive] follow: contract event on day %u for driver %u: no contract yet (a new career, no "
+                    "weekend yet); the event stays until the first Team HQ signs and removes it",
+                    day, driver >> 16);
         return orig(calendar, activity, day);
     }
     if (!sign(contracts)) {
