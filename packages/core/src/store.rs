@@ -18,6 +18,33 @@ const LEGACY_ADDONS_DIR: &str = "mods";
 
 static PROFILE_WRITE: Mutex<()> = Mutex::new(());
 
+/// Deletes an addon's folder, waiting out a file that is still briefly in use
+/// once its helper has exited.
+fn delete_addon_dir(
+    dir: &Path,
+    name: &str,
+    mut delete: impl FnMut(&Path) -> std::io::Result<()>,
+) -> Result<()> {
+    const DELAYS_MS: [u64; 5] = [50, 150, 300, 600, 1000];
+    let mut attempt = 0;
+    loop {
+        match delete(dir) {
+            Ok(()) => return Ok(()),
+            Err(e) if crate::is_locked_file_error(&e) && attempt < DELAYS_MS.len() => {
+                std::thread::sleep(std::time::Duration::from_millis(DELAYS_MS[attempt]));
+                attempt += 1;
+            }
+            Err(e) if crate::is_locked_file_error(&e) => {
+                return Err(Error::Other(format!(
+                    "{name}'s files are still in use, so they couldn't be deleted. Close F1 25 and try \
+                     again. If it still fails, restart the launcher first."
+                )));
+            }
+            Err(e) => return Err(Error::Other(format!("Couldn't delete {name}'s files: {e}"))),
+        }
+    }
+}
+
 fn profile_write() -> MutexGuard<'static, ()> {
     PROFILE_WRITE.lock().unwrap_or_else(|e| e.into_inner())
 }
@@ -331,7 +358,7 @@ impl Store {
         let dest = self.addons_dir().join(&m.id);
         self.helpers.forget(&m.id);
         if dest.exists() {
-            std::fs::remove_dir_all(&dest).map_err(io_err(&dest))?;
+            delete_addon_dir(&dest, &m.name, |d| std::fs::remove_dir_all(d))?;
         }
         std::fs::remove_file(self.registry_install_path(&m.id)).ok();
         copy_dir(src, &dest)?;
@@ -365,6 +392,14 @@ impl Store {
     }
 
     pub fn remove_addon(&self, id: &str) -> Result<()> {
+        self.remove_addon_with(id, |d| std::fs::remove_dir_all(d))
+    }
+
+    pub(crate) fn remove_addon_with(
+        &self,
+        id: &str,
+        delete: impl FnMut(&Path) -> std::io::Result<()>,
+    ) -> Result<()> {
         if self.is_builtin(id) {
             return Err(Error::Other(format!("{id} is built in and cannot be removed")));
         }
@@ -378,9 +413,10 @@ impl Store {
             return Err(Error::Other(format!("no addon named {id} is installed")));
         }
         let _write = profile_write();
-        std::fs::remove_dir_all(&dir).map_err(io_err(&dir))?;
-        std::fs::remove_file(self.registry_install_path(id)).ok();
         self.helpers.forget(id);
+        let name = AddonManifest::load(&dir).map_or_else(|_| id.to_owned(), |m| m.name);
+        delete_addon_dir(&dir, &name, delete)?;
+        std::fs::remove_file(self.registry_install_path(id)).ok();
         for name in self.profile_names()? {
             let path = self.profiles_dir().join(format!("{name}.json"));
             if name == profile::VANILLA || !path.is_file() {
@@ -1481,5 +1517,39 @@ mod tests {
         store.delete_profile("grid").unwrap();
         assert!(!store.overlays_dir("grid").exists());
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn waits_out_a_locked_addon_folder_and_names_the_addon() {
+        let dir = Path::new("/data/Users/someone/addons/t.locked");
+        let denied = || std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        let mut tries = 0;
+        delete_addon_dir(dir, "Locked", |_| {
+            tries += 1;
+            if tries < 3 { Err(denied()) } else { Ok(()) }
+        })
+        .unwrap();
+        assert_eq!(tries, 3);
+
+        tries = 0;
+        let e = delete_addon_dir(dir, "Locked", |_| {
+            tries += 1;
+            Err(denied())
+        })
+        .unwrap_err()
+        .to_string();
+        assert_eq!(tries, 6);
+        assert!(e.starts_with("Locked's files are still in use"), "{e}");
+        assert!(!e.contains("someone"), "{e}");
+
+        tries = 0;
+        let e = delete_addon_dir(dir, "Locked", |_| {
+            tries += 1;
+            Err(std::io::Error::other("disk gone"))
+        })
+        .unwrap_err()
+        .to_string();
+        assert_eq!(tries, 1);
+        assert_eq!(e, "Couldn't delete Locked's files: disk gone");
     }
 }
