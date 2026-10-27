@@ -24,6 +24,20 @@ pub enum Error {
     Format(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("{}: {source}", path.display())]
+    IoAt {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// An I/O error on `path`, named in the message.
+pub(crate) fn io_at(path: &std::path::Path) -> impl FnOnce(std::io::Error) -> Error + '_ {
+    move |source| Error::IoAt {
+        path: path.to_path_buf(),
+        source,
+    }
+}

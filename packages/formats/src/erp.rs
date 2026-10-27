@@ -401,7 +401,7 @@ pub struct ErpFile {
 
 impl ErpFile {
     pub fn open(path: &Path) -> Result<Self> {
-        let mut file = std::fs::File::open(path)?;
+        let mut file = std::fs::File::open(path).map_err(crate::io_at(path))?;
         let mut index = vec![0; HEADER_LEN];
         file.read_exact(&mut index)?;
         if &index[..4] != MAGIC {
@@ -421,7 +421,7 @@ impl ErpFile {
     }
 
     pub fn load(&self, res: &Resource) -> Result<Resource> {
-        let mut file = std::fs::File::open(&self.path)?;
+        let mut file = std::fs::File::open(&self.path).map_err(crate::io_at(&self.path))?;
         let mut out = res.clone();
         for f in &mut out.fragments {
             file.seek(SeekFrom::Start(self.data_off + f.offset))?;
@@ -457,8 +457,11 @@ impl ErpFile {
         };
         let head = erp.layout();
         let tmp = dst.with_extension("erp.tmp");
-        let mut src = std::fs::File::open(&self.path)?;
-        let mut out = std::io::BufWriter::with_capacity(1 << 20, std::fs::File::create(&tmp)?);
+        let mut src = std::fs::File::open(&self.path).map_err(crate::io_at(&self.path))?;
+        let mut out = std::io::BufWriter::with_capacity(
+            1 << 20,
+            std::fs::File::create(&tmp).map_err(crate::io_at(&tmp))?,
+        );
         std::io::Write::write_all(&mut out, &head)?;
         let mut buf = vec![0; 1 << 20];
         let frags = erp.resources.iter().flat_map(|r| &r.fragments);
@@ -478,7 +481,10 @@ impl ErpFile {
         }
         std::io::Write::flush(&mut out)?;
         drop(out);
-        std::fs::rename(&tmp, dst)?;
+        if let Err(e) = std::fs::rename(&tmp, dst) {
+            std::fs::remove_file(&tmp).ok();
+            return Err(crate::io_at(dst)(e));
+        }
         Ok(())
     }
 }

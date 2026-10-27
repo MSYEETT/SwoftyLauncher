@@ -61,12 +61,14 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
         return Ok(built);
     }
     let settings = built.overlay.join(SETTINGS_FILE);
-    std::fs::create_dir_all(settings.parent().expect("has parent"))?;
+    let dir = settings.parent().expect("has parent");
+    std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
     let session = match built.settings.take() {
         Some(s) => s,
         None => store.session_settings(profile)?,
     };
-    std::fs::write(&settings, serde_json::to_vec_pretty(&session)?)?;
+    std::fs::write(&settings, serde_json::to_vec_pretty(&session)?)
+        .with_context(|| format!("writing {}", settings.display()))?;
     if !built.plan.loader.is_empty() {
         built.plan.loader.insert(SETTINGS_FILE.into(), settings);
     }
@@ -172,9 +174,10 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
 /// Names the game folder and the fix when Windows refused a write in it.
 fn denied(e: anyhow::Error, game: &Path) -> anyhow::Error {
     let refused = e.chain().any(|c| match c.downcast_ref::<swofty_core::Error>() {
-        Some(swofty_core::Error::Io { path, source }) => {
-            source.kind() == std::io::ErrorKind::PermissionDenied && path.starts_with(game)
-        }
+        Some(
+            swofty_core::Error::Io { path, source }
+            | swofty_core::Error::Formats(swofty_formats::Error::IoAt { path, source }),
+        ) => source.kind() == std::io::ErrorKind::PermissionDenied && path.starts_with(game),
         _ => false,
     });
     if !refused {

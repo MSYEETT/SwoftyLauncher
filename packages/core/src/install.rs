@@ -384,7 +384,7 @@ impl<'a> Installer<'a> {
                     match hashes.sha256_opt(&path)? {
                         None => {}
                         Some(now) if e.state == State::Pending || Some(&now) == e.after.as_ref() => {
-                            with_retry(&path, || std::fs::remove_file(&path))?;
+                            with_retry(&path, || crate::remove_placed(&path))?;
                         }
                         Some(_) => report.push(Drift::LeftInPlace(e.path.clone())),
                     }
@@ -839,8 +839,18 @@ impl<'a> Installer<'a> {
             let path = self.path(&e.path);
             match e.op {
                 Op::ReplaceFile => {
-                    std::fs::copy(sources[e.path.as_str()], &path)
-                        .map_err(|err| crate::quarantine::copy_error(&e.path, &path, err))?;
+                    let src = sources[e.path.as_str()];
+                    match std::fs::copy(src, &path) {
+                        Err(err)
+                            if err.kind() == std::io::ErrorKind::PermissionDenied
+                                && crate::clear_readonly(&path) =>
+                        {
+                            std::fs::copy(src, &path)
+                        }
+                        r => r,
+                    }
+                    .map_err(|err| crate::quarantine::copy_error(&e.path, &path, err))?;
+                    crate::clear_readonly(&path);
                 }
                 Op::CreateDir => std::fs::create_dir(&path).map_err(io_err(&path))?,
                 // Windows refused the file as a threat. The entry stays pending, so
@@ -851,6 +861,7 @@ impl<'a> Installer<'a> {
                     Err(err) if crate::quarantine::is_virus_error(&err) => continue,
                     r => {
                         r.map_err(io_err(&path))?;
+                        crate::clear_readonly(&path);
                     }
                 },
                 Op::RegistryOverride => {

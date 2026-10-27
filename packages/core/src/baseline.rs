@@ -219,7 +219,16 @@ impl Objects {
                 dst.display()
             )));
         }
-        std::fs::rename(&tmp, dst).map_err(io_err(dst))?;
+        let renamed = match std::fs::rename(&tmp, dst) {
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && crate::clear_readonly(dst) => {
+                std::fs::rename(&tmp, dst)
+            }
+            r => r,
+        };
+        if let Err(e) = renamed {
+            std::fs::remove_file(&tmp).ok();
+            return Err(io_err(dst)(e));
+        }
         crate::sync_dir(dst.parent());
         Ok(())
     }

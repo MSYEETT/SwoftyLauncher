@@ -147,6 +147,46 @@ pub(crate) fn is_locked_file_error(e: &std::io::Error) -> bool {
     e.kind() == std::io::ErrorKind::PermissionDenied || e.raw_os_error() == Some(32)
 }
 
+/// Clears a read-only attribute on a file the launcher put in the game
+/// folder, so it can be deleted or replaced: a copy carries the attribute
+/// over from its source, and Windows then refuses both with Access Denied.
+/// True when it was set and is now cleared. Elsewhere a file's own mode
+/// doesn't stop either, so nothing is changed.
+pub(crate) fn clear_readonly(path: &std::path::Path) -> bool {
+    #[cfg(windows)]
+    {
+        let Ok(meta) = std::fs::metadata(path) else {
+            return false;
+        };
+        let mut perms = meta.permissions();
+        if !perms.readonly() {
+            return false;
+        }
+        #[allow(
+            clippy::permissions_set_readonly_false,
+            reason = "Windows only: clears the attribute"
+        )]
+        perms.set_readonly(false);
+        std::fs::set_permissions(path, perms).is_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        false
+    }
+}
+
+/// Delete a file the launcher placed, clearing a read-only attribute that
+/// refuses it.
+pub(crate) fn remove_placed(path: &std::path::Path) -> std::io::Result<()> {
+    match std::fs::remove_file(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && clear_readonly(path) => {
+            std::fs::remove_file(path)
+        }
+        r => r,
+    }
+}
+
 /// Run a filesystem mutation, retrying a locked-file error with growing backoff
 /// before giving up. On a lasting lock the returned error names the likely
 /// locker (an antivirus holding the game folder) and what to do about it, so a
