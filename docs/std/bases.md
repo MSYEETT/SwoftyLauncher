@@ -100,7 +100,7 @@ engine_sound
 ```
 
 - **The core's records** describe the stock game and use `game/`: `game/ferrari_2025`, `game/f1_2026`.
-- **Everyone else can still change your records** through [layers](/std/layers). Owning a key means you provide its base. It doesn't lock the record. To keep history values such as pace and AI tiers out of other addons' selectors, [protect those fields](/std/layers#selectors).
+- **Everyone else can still change your records** through [layers](/std/layers). Owning a key means you provide its base. It doesn't lock the record. To keep history values such as pace and AI tiers out of other addons' selectors, [protect those fields](/std/layers#protected-fields).
 
 ## Bases
 

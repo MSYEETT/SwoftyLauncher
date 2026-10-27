@@ -66,7 +66,7 @@ SWOFTY_ADDON()
 ```text
 [registry] register: mod.esp (esp.dll) 1 engine_sound, 1 layer on vehicle (early stage, 0.4 ms)
 [registry] vehicle swofty.classic-seasons-2017/ferrari: edit by mod.esp changed /engine_sound -> mod.esp/v10_screamer
-[registry] applied at boot: engine_sound 1 (1 bundle redirected to mod.esp/sounds/v10_screamer.bdl), vehicle 1 (3 database records)
+[registry] applied at boot: engine_sound 1 (1 bundle path redirected to mod.esp), vehicle 1 (3 database records)
 ```
 
 ## The handle
