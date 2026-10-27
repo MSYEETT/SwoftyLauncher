@@ -1,11 +1,13 @@
 ---
 title: Services
-description: Versioned function tables one addon publishes for others, replacing GetProcAddress between addons, in standard library 2.0.
+description: Versioned function tables one addon publishes for others to look up by name, in place of GetProcAddress between addons.
 ---
 
 # Services
 
-A **service** is a function table that one addon publishes and others look up by name and version. It's for things that are calls rather than data: "which team did this driver race for in this year", "is this career a Progressive career". Data that other addons should read or override goes in a [registry](/std/registry) instead.
+A **service** is a table of functions that one addon publishes and other addons look up by name and version. Use one for things that are calls rather than data: "which team did this driver race for in this year", "is this career a Progressive career". Data that other addons should read or override goes in a [registry](/std/registry) instead.
+
+For example, Progressive Career publishes `progressive.history`. Tails' "what if" addon looks it up to learn which year the loaded Progressive career is in.
 
 ## Publishing
 
@@ -27,7 +29,7 @@ struct ProgressiveHistory {
 
 <Split>
 
-Progressive publishes its table when it loads. The struct is in a header it ships; the table is plain function pointers.
+Progressive publishes its table when it loads. The struct is in a header it ships, and the table is plain function pointers.
 
 <template #example>
 <Example root="swofty.progressive" code-file="native/src/history.cpp" files="swofty.json, native/CMakeLists.txt, api/progressive_api/history.hpp, native/src/history.hpp">
@@ -60,7 +62,7 @@ SWOFTY_ADDON()
 
 ## Looking it up
 
-A lookup made before the provider has loaded waits, and the callback runs once it's published. DLL load order doesn't matter:
+A lookup made before the provider has loaded waits, and the callback runs once the table is published. DLL load order doesn't matter:
 
 ```cpp
 // another addon
@@ -110,16 +112,17 @@ if (g_history->size >= offsetof(ProgressiveHistory, follow_team) + sizeof(g_hist
 
 ## Replacing GetProcAddress
 
-In 1.x, Progressive's own DLLs reach `progressive.dll` like this, and nothing else can:
+A service takes the place of reaching into another addon's DLL by export name. Progressive's own DLLs use the service, like any other addon. This is the export route it replaces:
 
 ```cpp
+// reaching into progressive.dll by export name
 static int (*fn)() = nullptr;
 HMODULE m = GetModuleHandleW(L"progressive.dll");
 fn = m ? reinterpret_cast<int (*)()>(GetProcAddress(m, "ProgressiveNamesYear")) : nullptr;
 int year = fn ? fn() : 0;
 ```
 
-In 2.0 they use the service, like any other addon would. The `GetProcAddress` exports stay in Progressive for the rest of 2.x, so nothing built against them breaks.
+Progressive keeps its `GetProcAddress` exports in every later release, and code that calls them keeps working (see [Compatibility](/std/compatibility#progressive-career-s-exports)).
 
 ## Declaring
 
@@ -132,4 +135,4 @@ In 2.0 they use the service, like any other addon would. The `GetProcAddress` ex
 }
 ```
 
-With it, the launcher shows a missing or too-old service before the game starts, the same way it names a missing addon requirement. Without it, the consumer's `when` callback never runs, and the core logs the missing service once.
+The core checks this entry in game. Once every addon has loaded, a missing or too-old service is logged with the consumer's name, and the consumer's tile in ADDON SETTINGS and in the launcher shows a status line naming the service. Without the entry, the consumer's `when` callback never runs, and the core logs the missing service once.

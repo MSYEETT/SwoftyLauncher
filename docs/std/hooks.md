@@ -1,17 +1,19 @@
 ---
 title: Hooks
-description: Game hook points, phases, addon hook points and how hooks share game functions with raw mixins, in standard library 2.0.
+description: Game hook points, their phases, hook points the game calls every frame, addon hook points, what happens when a handler faults, and how hook points share game functions with raw mixins.
 ---
 
 # Hooks
 
-A **hook point** is a named place where the core runs every subscribed addon in one ordered chain. Game hook points cover game functions, and the core owns their mixins, so two addons that need the same game function no longer each patch it.
+A **hook point** is a named place in the game where the core runs every subscribed addon in one ordered chain. A **game hook point** covers one game function: the core owns the mixin on that function, and addons subscribe to the point instead of patching the function themselves. Two addons that need the same game function then work side by side.
+
+For example, Progressive Career and Career Editor both need `Game_CareerActivities_AddActivity`. Each subscribes to `career.calendar.add_activity`, and the core runs both handlers, in order, on every call.
 
 ## A hook in full
 
 <Split>
 
-Progressive Career keeps the contract event off a Follow-your-driver player's calendar. In 1.x it wraps `Game_CareerActivities_AddActivity` itself. In 2.0 it subscribes to the core's point.
+Progressive Career keeps the contract event off a Follow-your-driver player's calendar. It subscribes a `replace` handler to the core's `career.calendar.add_activity` point.
 
 The payload type is in the career system's header, `swofty/systems/career.hpp`, in `swofty::career::events`.
 
@@ -105,25 +107,42 @@ A hook point's reference says which thread it runs on: the flow thread for caree
 
 ## Game hook points
 
-The core adds a game hook point when a second addon needs the same game function, with the payload and a verified binding. The first planned points:
+The core adds a game hook point when a second addon needs the same game function, with the payload and a verified binding. The first planned points, with the game function each covers and the addons that need it:
 
 ```text
 career.calendar.add_activity     Game_CareerActivities_AddActivity      Progressive (contract events), Career Editor
 career.contract.decide           Career_Decide_ContractNegotiation      Progressive (follow), Career Editor (contracts)
 career.contract.sign             Career_Sign_DriverContract             Progressive, Career Editor
-career.season.process            the season change (vtable slot +0x188, L0 today)   Progressive (seasons), Career Editor
+career.season.process            the season change (vtable slot +0x188)  Progressive (seasons), Career Editor
 session.fuel.load                the race fuel lookup                   Progressive (seasons before 2026)
 team.logo.resolve                the logo key lookups                   Progressive, Classic Seasons
 ```
 
+`career.season.process` covers a function at L0 in the KB. It needs reverse engineering to L2 before it ships.
+
 The core installs a game hook point's mixin only once an addon subscribes to it. With no subscriber, the game's code is untouched.
+
+## Hook points the game calls every frame
+
+Some game functions run every frame or hundreds of times a second: the logo key for each row of the timing tower, a text lookup, a view-model path, a driver's rating. The catalogue marks these points `hot`:
+
+```text
+team.logo.resolve       driver.ratings.read      lang.lookup      ui.vm.resolve      track.data.get
+```
+
+On a hot point the core builds a table at a content or session moment: when a box is picked, when a career loads, when a session loads. It runs the handler chain once per entry (each team, each driver and stat, each key) and stores the result. The game's calls then read the table. Your handler is written the same way as on any other point. It runs once per entry when the table is built, and it must not depend on anything that changes during the session.
+
+```text
+[hooks] team.logo.resolve (hot): table built at session.load: 11 teams, 2 handlers (swofty.progressive, swofty.classic-seasons-2017), 0.08 ms
+[hooks] driver.ratings.read (hot): table built at career.loaded: 22 drivers x 5 stats, 1 handler (swofty.progressive), 0.31 ms
+```
 
 ## Addon hook points
 
 An addon can define its own point and fire it, so other addons can extend it:
 
 ```cpp
-// api/progressive_api/hooks.hpp: let other addons adjust a season just before Progressive applies it
+// api/progressive_api/hooks.hpp: let other addons adjust a season right before Progressive applies it
 namespace progressive_api {
 struct SeasonApply {
     static constexpr const char *point = "swofty.progressive.season.apply";
@@ -160,6 +179,18 @@ swofty::hooks::before<progressive_api::SeasonApply>([](progressive_api::SeasonAp
 
 The owning addon ships the payload header (`progressive_api/hooks.hpp`) for others to include. `hooks::define` is the declaration: nothing goes in the manifest.
 
+## When a handler faults
+
+The core calls every handler inside a guard that catches access violations and C++ exceptions:
+
+- **An `after` handler that faults** is isolated. The core logs the addon, the point and the phase, detaches that handler for the rest of the session, and lists it in `conflicts.json`. The game carries on.
+- **A `before` or `replace` handler that faults** crashes the game. The crash report's first line names the addon, the point and the phase.
+
+```text
+[hooks] career.calendar.add_activity: after handler from someone.calendar-log faulted
+        (access violation at calendar_log.dll+0x2210); handler detached for this session
+```
+
 ## Living with mixins
 
 A hook point is one entry in the game function's mixin chain, at the core's priority. Raw mixins keep working around it:
@@ -168,13 +199,16 @@ A hook point is one entry in the game function's mixin chain, at the core's prio
 [mixin] Game_CareerActivities_AddActivity: swofty_core.dll(hooks, 100) > old_addon.dll(0)
 ```
 
-- **A 1.x addon's `SWOFTY_WRAP` on the same function** chains below the hook point, as any two wraps chain today.
-- **A 1.x addon's overwrite on the function** conflicts with the hook point's mixin. The 1.x rule applies: the core's set is the one dropped. The hook point reports `unavailable`, its subscribers don't run, and the old addon keeps working:
+- **A `SWOFTY_WRAP` on the same function** chains below the hook point, as any two wraps chain.
+- **A raw overwrite on the same function,** from any addon, conflicts with the hook point's mixin. The core's mixin is the one dropped. The hook point reports `unavailable`, its subscribers don't run, and the addon with the overwrite keeps working. No addon is stopped from overwriting a function that has a hook point.
 
 ```text
 [hooks] career.calendar.add_activity unavailable: old_addon.dll overwrites Game_CareerActivities_AddActivity;
         subscribers swofty.progressive, swofty.career-editor not run (the launcher lists this as a conflict)
 ```
+
+- **A hook point never drops an addon.** The core installs hook-point mixins at the window stage, after the mixin conflict pass, whatever stage the subscriber registered at. The early-stage overlap rule (a mixin that overlaps one installed at the early stage drops the later addon whole) never applies to a hook point's mixin.
+- **A hook point installed while the game runs,** when its first subscriber arrives late, checks for overlap against every mixin installed at that moment, mid-hooks included. On an overlap it refuses itself and reports `unavailable`.
 
 Subscribers can check before relying on a point:
 
