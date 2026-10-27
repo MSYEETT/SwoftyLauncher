@@ -930,14 +930,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         return Ok(built);
     }
-    let (ui_lists, ui_notes) = if ui_maps.is_empty() {
+    let ui_lists = if ui_maps.is_empty() {
         Default::default()
     } else {
-        plan_lists(&ui_maps, &resolve)?
+        plan_lists(&ui_maps, &resolve)?.0
     };
-    built
-        .warnings
-        .extend(ui_notes.into_iter().map(|n| format!("menus: {n}")));
     let mut stock_removals = BTreeMap::new();
     if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
@@ -1164,6 +1161,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     if !ui_maps.is_empty() {
         let ui = build_ui(&ui_maps, &resolve, &store.root.join("cache/menus"))?;
         caches.push(ui.dir.clone());
+        built
+            .warnings
+            .extend(ui.notes.iter().map(|n| format!("menus: {n}")));
         for (code, lists) in &ui.lists {
             built.lines.push(format!(
                 "{code}: menu pictures in {} list(s), minimap and track-select scenes",
