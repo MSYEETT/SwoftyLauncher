@@ -15,7 +15,8 @@ using era::djb2;
 using era::Handle;
 
 constexpr size_t STOCK_BOXES = 2;
-constexpr size_t MAX_ADDED = 8;
+// The launcher's UI build gives the screen this many addon box slots (SLOTS in packages/core/src/ui/car_category.rs).
+constexpr size_t MAX_ADDED = 4;
 constexpr size_t VALUE_NAME_MAX = 128;
 
 constexpr uint32_t BUTTON_1 = djb2("button_1");

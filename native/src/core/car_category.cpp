@@ -25,7 +25,9 @@
 // (Classic Seasons adds cs_f1_2016 and the like, with a scenario of the same name).
 //
 // Build (wrapped): after the stock build, every era box (swofty/era.hpp) whose entrant list is a category
-// value gets a child appended to buttons and filled into core-owned tile storage, which holds four VM
+// value, up to the launcher UI build's slots (buttons.entry_2 to entry_5, shown by the addon_select_N buttons
+// it adds to the template, which raise button_3 to button_6), gets a child appended to buttons and filled
+// into core-owned tile storage, which holds four VM
 // handles for the view model's life. Before the next build those handles are unlinked and released the way
 // the game's tile set clear releases its own (a handle the game already cleared is skipped). The log
 // records the buttons child count before and after and every added box, which with a look at the screen
@@ -317,12 +319,15 @@ void build_entry(void *vm)
     auto *append = reinterpret_cast<Vm_List_AppendChild_t *>(b.append);
     auto *fill = reinterpret_cast<Game_CreateSessionDlcSelectTab_FillTile_t *>(b.fill);
     for (const auto &box : runtime::era_boxes()) {
-        if (tiles_used >= logic::MAX_ADDED)
-            break;
         int value = logic::value_of(values, box.entrant_list);
         if (value < 0) {
             swofty::log("[car-category] box %s from %s skipped: no category value has that game name",
                         box.entrant_list.c_str(), box.owner.c_str());
+            continue;
+        }
+        if (tiles_used >= logic::MAX_ADDED) {
+            swofty::log("[car-category] box %s from %s skipped: the screen has %zu addon box slots", box.entrant_list.c_str(),
+                        box.owner.c_str(), logic::MAX_ADDED);
             continue;
         }
         void **node = append(v + VM_TILE_SET);

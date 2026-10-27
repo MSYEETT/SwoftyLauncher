@@ -1,3 +1,4 @@
+pub mod car_category;
 pub mod career_select;
 pub mod catalog;
 pub mod check;
@@ -49,6 +50,7 @@ pub const ERPS: &[&str] = &[
     "flow_frontend.erp",
     era::ARCHIVES[0],
     era::ARCHIVES[1],
+    car_category::ARCHIVES[1],
 ];
 pub const READS: &[&str] = &["flow_options.erp"];
 
@@ -483,7 +485,12 @@ pub fn build(
     build.lines.extend(setup_lines);
     build.lines.extend(career_lines);
     build.warnings.extend(career_warnings);
-    let eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
+    let mut eras = era_rows(input, writer, out, &mut build.lines, &mut build.warnings)?;
+    for rel in car_category_boxes(input, writer, out, &eras, &mut build.lines, &mut build.warnings)? {
+        if !eras.contains(&rel) {
+            eras.push(rel);
+        }
+    }
     let hubs = hub_tabs(
         settings,
         input,
@@ -497,7 +504,7 @@ pub fn build(
     }
     for rel in ERPS
         .iter()
-        .filter(|r| !era::ARCHIVES.contains(r) || eras.contains(r))
+        .filter(|r| !era::ARCHIVES.contains(r) && !car_category::ARCHIVES.contains(r) || eras.contains(r))
     {
         build.erps.insert(ui_file(rel), out.join(ui_file(rel)));
     }
@@ -781,8 +788,141 @@ fn era_rows(
     Ok(written)
 }
 
+/// Gives the LAN Car Category screen a row of addon boxes. An archive the era picker rows already
+/// rewrote is read from that output. A failure leaves the screen stock and is a warning: the boxes
+/// are an extra on a screen most players never open.
+fn car_category_boxes(
+    input: &dyn Fn(&str) -> PathBuf,
+    writer: &Writer,
+    out: &Path,
+    eras: &[&'static str],
+    lines: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> Result<Vec<&'static str>> {
+    let mut written = Vec::new();
+    for rel in car_category::ARCHIVES {
+        let dst = out.join(ui_file(rel));
+        let src = if eras.contains(&rel) {
+            dst.clone()
+        } else {
+            input(&ui_file(rel))
+        };
+        if let Some(addon) = [car_category::UI, car_category::SCENE]
+            .into_iter()
+            .find_map(|res| writer(&ui_file(rel), res))
+        {
+            lines.push(format!(
+                "ui: {addon} has its own copy of the Car Category screen in {rel}; left as it is"
+            ));
+            continue;
+        }
+        let edit = (|| -> Result<Option<(Vec<u8>, Vec<u8>)>> {
+            let ui = read_frag(&src, car_category::UI, car_category::UI_FRAGMENT)?;
+            let scene = read_frag(&src, car_category::SCENE, 0)?;
+            if car_category::taken(&ui, &scene)? {
+                return Ok(None);
+            }
+            Ok(Some((
+                car_category::build_ui(&ui)?,
+                car_category::build_scene(&scene)?,
+            )))
+        })();
+        let (ui, scene) = match edit {
+            Ok(Some(edit)) => edit,
+            Ok(None) => continue,
+            Err(e) => {
+                warnings.push(format!(
+                    "ui: the Car Category screen in {rel} keeps its two boxes ({e})"
+                ));
+                continue;
+            }
+        };
+        let tmp = dst.with_extension("erp.car-category");
+        write_archive(
+            &src,
+            &tmp,
+            vec![
+                (
+                    car_category::UI,
+                    car_category::UI_FRAGMENT,
+                    Box::new(move |_| Ok(ui)),
+                ),
+                (car_category::SCENE, 0, Box::new(move |_| Ok(scene))),
+            ],
+            Vec::new(),
+        )?;
+        std::fs::rename(&tmp, &dst).map_err(io_err(&dst))?;
+        written.push(rel);
+    }
+    if written.is_empty() {
+        return Ok(written);
+    }
+    let files: Vec<(String, PathBuf, PathBuf)> = written
+        .iter()
+        .map(|rel| (ui_file(rel), input(&ui_file(rel)), out.join(ui_file(rel))))
+        .collect();
+    let pairs: Vec<(&str, &Path, &Path)> = files
+        .iter()
+        .map(|(name, src, dst)| (name.as_str(), src.as_path(), dst.as_path()))
+        .collect();
+    let report = check::archive_files(&pairs)?;
+    if !report.hard.is_empty() {
+        let found: Vec<String> = report.hard.iter().map(ToString::to_string).collect();
+        return Err(Error::Other(format!(
+            "the Car Category addon boxes break the game's UI loader rules: {}",
+            found.join("; ")
+        )));
+    }
+    lines.push(format!(
+        "ui: the Car Category screen gets {} addon box slot(s) in {} archive(s)",
+        car_category::SLOTS,
+        written.len()
+    ));
+    Ok(written)
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    #[ignore = "needs SWOFTY_STOCK_GAME, a stock F1 25 folder"]
+    fn the_car_category_screen_gets_its_addon_boxes_within_the_loader_rules() {
+        let stock = std::path::PathBuf::from(std::env::var_os("SWOFTY_STOCK_GAME").expect("set"));
+        let out = std::env::temp_dir().join(format!("swofty-car-category-{}", std::process::id()));
+        std::fs::remove_dir_all(&out).ok();
+        let input = |rel: &str| stock.join(rel);
+        let (mut lines, mut warnings) = (Vec::new(), Vec::new());
+        let written = car_category_boxes(&input, &|_, _| None, &out, &[], &mut lines, &mut warnings).unwrap();
+        assert_eq!(written, car_category::ARCHIVES, "{warnings:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        for rel in car_category::ARCHIVES {
+            let dst = out.join(ui_file(rel));
+            let ui = read_frag(&dst, car_category::UI, car_category::UI_FRAGMENT).unwrap();
+            let scene = read_frag(&dst, car_category::SCENE, 0).unwrap();
+            assert!(car_category::taken(&ui, &scene).unwrap(), "{rel}");
+            for k in 0..car_category::SLOTS {
+                let text = String::from_utf8_lossy(&ui).into_owned();
+                for want in [
+                    car_category::slot(k),
+                    car_category::entry(k),
+                    car_category::command(k),
+                ] {
+                    assert!(text.contains(&want), "{rel}: {want}");
+                }
+            }
+        }
+        let again = car_category_boxes(
+            &|rel: &str| out.join(rel),
+            &|_, _| None,
+            &out,
+            &[],
+            &mut Vec::new(),
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert!(again.is_empty(), "boxes are added once");
+        std::fs::remove_dir_all(&out).ok();
+    }
 
     #[test]
     #[ignore = "needs SWOFTY_STOCK_FLOW_FRONTEND, a stock flow_frontend.erp"]
