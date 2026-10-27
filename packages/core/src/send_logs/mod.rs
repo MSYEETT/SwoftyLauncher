@@ -32,6 +32,8 @@ pub const KEPT: usize = 10;
 pub const LAUNCH_LOGS: [&str; 2] = ["state/launcher-run.log", "state/wrapper-run.log"];
 pub const NET_TRACE: &str = "swofty/net-trace.log";
 pub const NET_TRACE_CAP: u64 = 16 << 20;
+/// How many saved fingerprint comparisons a bundle carries, newest first.
+const PRINTS_SENT: usize = 3;
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
@@ -392,6 +394,13 @@ impl Bundle {
                 .starts_with("multiplayer")
                 .then_some(crate::multiplayer::diag::scrub as fn(&str) -> String);
             c.file(format!("state/{name}"), &log, redact);
+        }
+        for print in crate::multiplayer::diag::newest_prints(&store.root, PRINTS_SENT) {
+            c.file(
+                format!("{}/{}", crate::multiplayer::diag::PRINTS_DIR, file_name(&print)),
+                &print,
+                Some(crate::multiplayer::diag::scrub as fn(&str) -> String),
+            );
         }
         let not_stock = store.root.join("state/not-stock.json");
         if not_stock.is_file() {

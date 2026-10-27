@@ -1575,6 +1575,13 @@ fn sends_the_room_logs_trace_and_state_without_secrets() {
         r#"{"pid":42,"self":2,"base":41000,"game_port":21414}"#,
     );
     put(&game.join(NET_TRACE), "# swofty net trace\nbind s=1 port=21414\n");
+    put(
+        &store
+            .root
+            .join(crate::multiplayer::diag::PRINTS_DIR)
+            .join("ABCD-20261026-101010.json"),
+        r#"{"room":"ABCD","host":{"note":"turn-credential-9f8e7d"}}"#,
+    );
     let mut r = report(&game);
     r.room = Some(serde_json::json!({
         "phase": {"phase": "in_lobby"},
@@ -1592,6 +1599,7 @@ fn sends_the_room_logs_trace_and_state_without_secrets() {
         "game/netplay.json",
         "game/net-trace.log",
         "multiplayer/session.json",
+        "state/multiplayer-prints/ABCD-20261026-101010.json",
     ] {
         assert!(got.contains(want), "no {want} in {got:?}");
     }

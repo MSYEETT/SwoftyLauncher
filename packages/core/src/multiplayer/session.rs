@@ -166,7 +166,11 @@ impl Local {
     }
 }
 
-/// The fingerprint as JSON with each addon's `category` added, outside the digest.
+/// The largest blob a session sends; the server takes up to 64 KB.
+pub const BLOB_LIMIT: usize = 60 << 10;
+
+/// The fingerprint as JSON with each addon's `category` added, outside the digest, kept under
+/// [`BLOB_LIMIT`] by [`trim_blob`].
 pub fn blob(fingerprint: &Fingerprint, categories: &BTreeMap<String, String>) -> Value {
     let mut doc = serde_json::to_value(fingerprint).expect("serialisable");
     if let Some(addons) = doc.get_mut("addons").and_then(Value::as_array_mut) {
@@ -181,7 +185,50 @@ pub fn blob(fingerprint: &Fingerprint, categories: &BTreeMap<String, String>) ->
             }
         }
     }
+    let dropped = trim_blob(&mut doc, BLOB_LIMIT);
+    if !dropped.is_empty() {
+        diag::line(format!(
+            "fingerprint: per-file hashes left out for {} to keep it under {} KB",
+            dropped.join(", "),
+            BLOB_LIMIT >> 10
+        ));
+    }
     doc
+}
+
+/// Drops the per-file hashes of the addons that read the most files, one addon at a time,
+/// until `doc` serialises to at most `limit` bytes; part hashes stay. Returns the ids it
+/// dropped them from.
+pub fn trim_blob(doc: &mut Value, limit: usize) -> Vec<String> {
+    let size = |d: &Value| serde_json::to_vec(d).map_or(0, |v| v.len());
+    let reads = |a: &Value| {
+        a.pointer("/detail/reads")
+            .and_then(Value::as_array)
+            .map_or(0, Vec::len)
+    };
+    let mut dropped = Vec::new();
+    while size(doc) > limit {
+        let Some(addons) = doc.get_mut("addons").and_then(Value::as_array_mut) else {
+            break;
+        };
+        let Some(i) = (0..addons.len())
+            .filter(|&i| reads(&addons[i]) > 0)
+            .max_by_key(|&i| (reads(&addons[i]), std::cmp::Reverse(i)))
+        else {
+            break;
+        };
+        if let Some(detail) = addons[i].get_mut("detail").and_then(Value::as_object_mut) {
+            detail.remove("reads");
+        }
+        dropped.push(
+            addons[i]
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("?")
+                .to_owned(),
+        );
+    }
+    dropped
 }
 
 /// Everything a session needs.
@@ -634,6 +681,7 @@ struct Worker {
     failures: u32,
     logged: std::cell::RefCell<Option<SessionState>>,
     print_note: String,
+    prints_saved: String,
     next_stats: Instant,
     game_port: Option<u16>,
 }
@@ -680,6 +728,7 @@ impl Worker {
             failures: 0,
             logged: std::cell::RefCell::new(None),
             print_note: String::new(),
+            prints_saved: String::new(),
             next_stats: now + STATS_EVERY,
             game_port: None,
         }
@@ -1139,9 +1188,9 @@ impl Worker {
             self.note_print(host_digest.as_deref(), true);
             return;
         }
-        let host_print = self
-            .prints
-            .get(&lobby.host)
+        let host_blob = self.prints.get(&lobby.host).cloned();
+        let host_print = host_blob
+            .as_ref()
             .and_then(|blob| serde_json::from_value::<Fingerprint>(blob.clone()).ok());
         let compared = host_print.is_some();
         self.mismatches = match host_print {
@@ -1151,6 +1200,54 @@ impl Worker {
             None => Vec::new(),
         };
         self.note_print(host_digest.as_deref(), compared);
+        if let Some(blob) = host_blob
+            && !self.mismatches.is_empty()
+        {
+            self.save_comparison(&blob, host_digest.as_deref());
+        }
+    }
+
+    /// Keeps both sides' fingerprints and what differs in `state/multiplayer-prints`, once per
+    /// pair of digests, and logs each named difference.
+    fn save_comparison(&mut self, host_blob: &Value, host_digest: Option<&str>) {
+        let key = format!("{} {}", self.setup.local.digest(), host_digest.unwrap_or("?"));
+        if key == self.prints_saved {
+            return;
+        }
+        self.prints_saved = key;
+        for m in &self.mismatches {
+            let id = serde_json::to_value(&m.kind)
+                .ok()
+                .and_then(|v| Some(v.get("id")?.as_str()?.to_owned()))
+                .unwrap_or_default();
+            for d in &m.differences {
+                diag::line(format!("fingerprint: {id}: {d}"));
+            }
+        }
+        let local_paths: BTreeMap<&str, &Vec<String>> = self
+            .setup
+            .local
+            .fingerprint
+            .addons
+            .iter()
+            .filter_map(|a| Some((a.id.as_str(), &a.detail.as_ref()?.paths)))
+            .collect();
+        let room = self.code.clone().unwrap_or_else(|| "room".into());
+        let name = format!("{room}-{}", diag::file_stamp());
+        diag::save_prints(
+            &name,
+            &json!({
+                "room": room,
+                "local": self.setup.local.blob,
+                "local_paths": local_paths,
+                "host": host_blob,
+                "mismatches": self.mismatches,
+            }),
+        );
+        diag::line(format!(
+            "fingerprint: both fingerprints saved as {}/{name}.json",
+            diag::PRINTS_DIR
+        ));
     }
 
     fn note_print(&mut self, host: Option<&str>, compared: bool) {
@@ -1778,8 +1875,17 @@ fn mismatch_list(mismatches: &[Mismatch]) -> String {
             let v = serde_json::to_value(&m.kind).unwrap_or_default();
             let kind = v.get("kind").and_then(Value::as_str).unwrap_or("?");
             let fix = if m.fixable { "" } else { " (not fixable)" };
+            let source = |side: &str| {
+                v.get(side)
+                    .and_then(Value::as_object)
+                    .and_then(|o| o.keys().next().cloned())
+            };
+            let sources = match (source("local"), source("host")) {
+                (Some(l), Some(h)) if kind == "source_differs" => format!(" (yours {l}, host's {h})"),
+                _ => String::new(),
+            };
             match v.get("id").and_then(Value::as_str) {
-                Some(id) => format!("{kind} {id}{fix}"),
+                Some(id) => format!("{kind} {id}{sources}{fix}"),
                 None => format!("{kind}{fix}"),
             }
         })
@@ -2093,6 +2199,7 @@ mod tests {
             registry: None,
             inputs: None,
             order: Some(0),
+            detail: None,
         };
         let mut addons = vec![addon("okayama")];
         addons.extend(extra.iter().map(|id| addon(id)));
@@ -2687,6 +2794,25 @@ mod tests {
             stats_line(&stats),
             "bridge stats: member 2 in 4p/400B out 3p/300B; drops bad_tag=5; large 1; foreign_from none"
         );
+    }
+
+    #[test]
+    fn a_big_blob_drops_per_file_hashes_from_the_biggest_addons_first() {
+        let mut doc = json!({ "addons": [
+            { "id": "small", "detail": { "parts": { "Database": "aaaa" }, "read_list": "x", "read_count": 2, "reads": ["1", "2"] } },
+            { "id": "big", "detail": { "parts": { "Database": "bbbb" }, "read_list": "y", "read_count": 3000, "reads": vec!["0123456789ab"; 3000] } },
+        ]});
+        let full = serde_json::to_vec(&doc).unwrap().len();
+        assert!(trim_blob(&mut doc, full).is_empty());
+        assert_eq!(trim_blob(&mut doc, 10_000), ["big"]);
+        assert!(doc.pointer("/addons/1/detail/reads").is_none());
+        assert_eq!(
+            doc.pointer("/addons/1/detail/parts/Database"),
+            Some(&json!("bbbb"))
+        );
+        assert!(doc.pointer("/addons/0/detail/reads").is_some());
+        assert_eq!(trim_blob(&mut doc, 10), ["small"]);
+        assert!(trim_blob(&mut doc, 10).is_empty());
     }
 
     #[test]
