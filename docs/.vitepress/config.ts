@@ -379,6 +379,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Design overview", link: "/design/", icon: "file" },
               { text: "Addons and mods design", link: "/design/addons-and-mods", icon: "file" },
               { text: "Native libraries", link: "/design/native-libraries", icon: "file" },
+              { text: "Standard library 2.0", link: "/design/std-2", icon: "file" },
             ],
           },
         ],
