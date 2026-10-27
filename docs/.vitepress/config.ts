@@ -445,6 +445,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Standard library 2.0: rollout", link: "/design/std-2/rollout", icon: "file" },
               { text: "Standard library 2.0: implementation plan", link: "/design/std-2/implementation", icon: "file" },
               { text: "Standard library 2.0: coverage", link: "/design/std-2/coverage", icon: "file" },
+              { text: "Standard library 2.0: open decisions", link: "/design/std-2/decisions", icon: "file" },
             ],
           },
         ],
