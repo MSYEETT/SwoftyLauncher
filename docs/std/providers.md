@@ -5,7 +5,7 @@ description: Static and dynamic providers fill a registry's base in standard lib
 
 # Providers
 
-A **provider** fills the base of a registry's records. A record has exactly one base. Every other addon changes it through a [layer](./layers).
+A **provider** fills the base of a registry's records. A record has exactly one base. Every other addon changes it through a [layer](/std/layers).
 
 There are two kinds, and an addon can use both for one registry.
 
@@ -86,7 +86,7 @@ void on_ratings_model_reloaded()
 }
 ```
 
-The cached value is dropped, the next read calls the provider again, and [watchers](./reading#watching) are told.
+The cached value is dropped, the next read calls the provider again, and [watchers](/std/reading#watching) are told.
 
 ## Static and dynamic together
 
@@ -111,7 +111,7 @@ Only one provider should answer an id. When two do, the later one in load order 
            someone.fork wins (later in load order). This is a conflict; the launcher lists it.
 ```
 
-To change another addon's records, use a [layer](./layers), not a second provider.
+To change another addon's records, use a [layer](/std/layers), not a second provider.
 
 ## Threads and timing
 

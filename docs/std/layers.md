@@ -5,7 +5,7 @@ description: Patches, precedence, validation and conflicts - how addons override
 
 # Layers
 
-A **layer** is one addon's change to one record, at one [scope](./scopes). Layers are how an addon overrides data it doesn't own: it never edits the provider's files, it puts its change on top.
+A **layer** is one addon's change to one record, at one [scope](/std/scopes). Layers are how an addon overrides data it doesn't own: it never edits the provider's files, it puts its change on top.
 
 ## Patches
 
@@ -112,7 +112,7 @@ void undo(int year)
 }
 ```
 
-From a launcher page, as a profile layer, see [The launcher side](./launcher#editing-a-layer-from-a-launcher-page).
+From a launcher page, as a profile layer, see [The launcher side](/std/launcher#editing-a-layer-from-a-launcher-page).
 
 An addon has at most one layer per record per scope. Writing again replaces that addon's layer, it doesn't stack on it.
 

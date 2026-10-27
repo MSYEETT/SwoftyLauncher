@@ -34,7 +34,7 @@ Apply changes in load order, and report any missing requirements or conflicts be
 
 You'll find the plans for mods, the Launcher API, the Asset API and the built-in Team Simplified addon in [Addons and mods](/design/addons-and-mods).
 
-The plan for the next major version of the native standard library, with registries, providers, layers and hooks that addons share, is in [Standard library 2.0](/design/std-2/).
+The plan for the next major version of the native standard library, with registries, providers, layers and hooks that addons share, is in [Standard library 2.0](/std/).
 
 ## Profiles and saves
 

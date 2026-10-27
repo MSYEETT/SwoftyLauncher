@@ -63,7 +63,7 @@ Now the livery and the handling are separate fields. When R&D Tyres layers `vehi
 
 ## Recognisers
 
-Each recogniser lives next to the [applier](./build) it inverts, in `packages/core/src/std/`. A recogniser may only claim part of a mod if the applier rebuilds exactly that part, byte for byte. Anything else stays raw.
+Each recogniser lives next to the [applier](/std/build) it inverts, in `packages/core/src/std/`. A recogniser may only claim part of a mod if the applier rebuilds exactly that part, byte for byte. Anything else stays raw.
 
 ```rust
 // packages/core/src/std/vehicle.rs

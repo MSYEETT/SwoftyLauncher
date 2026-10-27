@@ -186,7 +186,7 @@ inline Result origin(std::string_view registry, std::string_view id, std::string
 ```
 
 - An addon built against the 2.0 headers loads on a 1.x core and sees every 2.0 library as unavailable, through `SwoftyCoreRegistry` and `SwoftyCoreHooks`.
-- An addon built against 1.x headers loads on a 2.0 core unchanged (see [Compatibility](./compatibility)).
+- An addon built against 1.x headers loads on a 2.0 core unchanged (see [Compatibility](/std/compatibility)).
 - `SWOFTY_API_VERSION` goes up by one whenever `SwoftyApi` gains a field. A table's own `version` goes up whenever that table gains a field.
 
 ## Making a change
@@ -197,7 +197,7 @@ Every change to a core registry, hook point, operation or table goes through the
 2. **Add examples:** at least one valid record or call, and one that must fail.
 3. **Bump the version:** minor or major by the rules above. A major change adds its adapter and migration.
 4. **Implement and test it in the core.**
-5. **Write the docs page section,** with a full example (see [Rollout and docs](./rollout#the-docs)).
+5. **Write the docs page section,** with a full example (see [Rollout and docs](/design/std-2/rollout#the-docs)).
 6. **Add a line to `CHANGES.md`,** which the release notes quote.
 
 CI enforces the mechanical parts:
@@ -206,7 +206,7 @@ CI enforces the mechanical parts:
 - `tools/std/schemacheck.py` compares each new schema with the last released one and fails when the change is major but the version only went up a minor;
 - every example is validated against its schema;
 - every snapshot fixture in `packages/sdk/std/fixtures/` (saved careers from older versions) has to load and migrate;
-- the [compatibility suite](./compatibility#the-release-gate) runs on every release.
+- the [compatibility suite](/std/compatibility#the-release-gate) runs on every release.
 
 ## Saves across launcher versions
 

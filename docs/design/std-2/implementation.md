@@ -85,7 +85,7 @@ Validation must agree with W2 on the shared corpus.
 - every DLL reads effective `career.season` and `career.driver_ratings` instead of `years.json`;
 - the `progressive.history` service, the `progressive.season.apply` point, and the old exports kept.
 
-**W8. Example addon** (`templates/std/whatif`): the launcher page from [The launcher side](./launcher), a static example layer, and its manifest. The docs include its code.
+**W8. Example addon** (`templates/std/whatif`): the launcher page from [The launcher side](/std/launcher), a static example layer, and its manifest. The docs include its code.
 
 **W12. Build-time resolution and appliers** (Rust, `packages/core/src/std/`): resolving build-time registries (base, `extends` chains, layers, load order), and the core's appliers for `era.box`, `content.package`, `vehicle` and `engine_sound`. They turn records into `file.put`, database and ERP operations, which run before every addon's own operations. It shares the resolver with W6, and must agree with W3 on the shared corpus.
 
@@ -97,7 +97,7 @@ Validation must agree with W2 on the shared corpus.
 
 **W10. Schema tooling and CI:** `tools/std/schemacheck.py` (minor or major, immutable released files), example validation, the fixture-save job, and wiring the compat gate into the release workflow.
 
-**W11. Public docs:** the pages in [the docs plan](./rollout#the-docs), written once the APIs stop moving, by section, with code included from `templates/std/`.
+**W11. Public docs:** the pages in [the docs plan](/design/std-2/rollout#the-docs), written once the APIs stop moving, by section, with code included from `templates/std/`.
 
 ## The rounds
 
@@ -155,7 +155,7 @@ Each failure becomes a fix brief, sent back to the agent that owns the code, and
 Every agent gets a brief in this shape:
 
 ```text
-Goal         W3: the registry core, as specified in docs/design/std-2/{registry,providers,reading,layers}.md
+Goal         W3: the registry core, as specified in docs/std/{registry,providers,reading,layers}.md
 Contracts    packages/sdk/include/swofty_api.h (SwoftyRegistry), packages/sdk/include/swofty/registry.hpp,
              packages/sdk/std/tests/ (the shared corpus). Do not change them; ask the lead.
 You own      native/src/core/registry/**, native/test/registry/**

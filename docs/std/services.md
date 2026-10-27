@@ -5,7 +5,7 @@ description: Versioned function tables one addon publishes for others, replacing
 
 # Services
 
-A **service** is a function table that one addon publishes and others look up by name and version. It's for things that are calls rather than data: "which team did this driver race for in this year", "is this career a Progressive career". Data that other addons should read or override goes in a [registry](./registry) instead.
+A **service** is a function table that one addon publishes and others look up by name and version. It's for things that are calls rather than data: "which team did this driver race for in this year", "is this career a Progressive career". Data that other addons should read or override goes in a [registry](/std/registry) instead.
 
 ## Publishing
 
@@ -68,7 +68,7 @@ void on_team_hq()
 
 ## Versions
 
-A service table follows the [versioning](./versioning) rules:
+A service table follows the [versioning](/std/versioning) rules:
 
 - **Minor:** append a function at the end and raise `version`. Old consumers never read past `size`.
 - **Major:** a new name (`progressive.history2`) published next to the old one. The old one keeps being published.

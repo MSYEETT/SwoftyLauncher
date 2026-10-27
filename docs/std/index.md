@@ -11,7 +11,7 @@ In 2.0 the standard library is built around one idea: **the registry**. A regist
 
 - **Each addon registers its own keys.** A GP/TT season, a car, an engine sound, a career season: each one is a record under the id of the addon that brings it.
 - **Records are bases others build on.** Another addon can extend a base in place (an engine sound for the 2017 Ferrari, everywhere) or make a variant of it with its own key (an "F1 2017 (V10)" GP/TT entry).
-- **The standard library only ever grows.** 2.0 adds abilities and takes none away. Everything 1.x could do still works, and nothing is ever removed in a later version either (see [Versioning](./versioning)).
+- **The standard library only ever grows.** 2.0 adds abilities and takes none away. Everything 1.x could do still works, and nothing is ever removed in a later version either (see [Versioning](/std/versioning)).
 
 ## The registry in one example
 
@@ -105,62 +105,62 @@ An engine sound pack adds its sound under its own key, and points the 2017 Ferra
 { "engine_sound": "mod.esp/v10_screamer" }
 ```
 
-When the profile builds, the launcher resolves the records and writes the bundle and its database rows into the game ([Build time and run time](./build)).
+When the profile builds, the launcher resolves the records and writes the bundle and its database rows into the game ([Build time and run time](/std/build)).
 
 ## The map
 
 The registry and its subfeatures come first. Then the parts that connect addons to each other and to the game.
 
-- **[The registry](./registry)**: named, shared collections of records.
-  - **[Keys, bases and variants](./bases)**: every addon registers its own keys; bases others extend in place or build variants of.
+- **[The registry](/std/registry)**: named, shared collections of records.
+  - **[Keys, bases and variants](/std/bases)**: every addon registers its own keys; bases others extend in place or build variants of.
   - **Records**: an id and a JSON value.
   - **Schemas**: the shape a registry's records must have (`x-key` arrays, snapshot settings).
   - **Typed records**: C++ structs for the core's registries, and `swofty::json` for everything else.
-- **[Providers](./providers)**: who fills a registry's base.
+- **[Providers](/std/providers)**: who fills a registry's base.
   - **Static providers**: JSON files in the addon. The launcher reads them too.
   - **Dynamic providers**: a callback the core calls on a read, cached until `invalidate`.
-- **[Reading](./reading)**: getting data out.
+- **[Reading](/std/reading)**: getting data out.
   - **Effective values**: base plus every layer.
   - **Origins**: which addon set a field.
   - **Listing**: every record id, or the ids under a prefix.
   - **Watching**: a callback when a record's effective value changes.
-- **[Layers](./layers)**: how addons override each other.
+- **[Layers](/std/layers)**: how addons override each other.
   - **Patches**: JSON Merge Patch, with keyed arrays.
   - **Precedence**: load order, the same rule as files and mixins.
   - **Validation**: a patched record that breaks its schema drops that layer.
   - **Conflicts**: clashes are logged and shown in the launcher, never silent.
   - **Selectors**: one layer for every matching record, including ones added later.
   - **Option-bound layers**: a layer that applies while one of the addon's options has a value.
-- **[Scopes and snapshots](./scopes)**: how long a change lasts.
+- **[Scopes and snapshots](/std/scopes)**: how long a change lasts.
   - **Global, profile and career scopes.**
   - **Career snapshots**: the effective values frozen into each career.
-- **[Content registries](./content)**: GP/TT season packages, era boxes, cars, engine sounds, liveries, helmets, tracks and identities.
-- **[Systems catalogue](./systems)**: every game system's registries, hook points, operations and readiness, and the limits the core enforces for all of them.
-- **[Your own systems](./custom-systems)**: an addon's own registries, scope, projection, scoped hooks and service; a six-compound tyre system others extend.
-- **[Dependencies and guards](./dependencies)**: needing addons, registries and single records like tracks; what happens when they're missing; guards; careers that remember what they were made with.
-- **[Events](./events)**: the lifecycle from boot to the chequered flag, with the context of everything, scoped and overridable by content owners.
-- **[Build time and run time](./build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
-- **[Versioning](./versioning)**: how registries, hook payloads and tables change over time, only ever growing.
+- **[Content registries](/std/content)**: GP/TT season packages, era boxes, cars, engine sounds, liveries, helmets, tracks and identities.
+- **[Systems catalogue](/std/systems/)**: every game system's registries, hook points, operations and readiness, and the limits the core enforces for all of them.
+- **[Your own systems](/std/systems/custom)**: an addon's own registries, scope, projection, scoped hooks and service; a six-compound tyre system others extend.
+- **[Dependencies and guards](/std/dependencies)**: needing addons, registries and single records like tracks; what happens when they're missing; guards; careers that remember what they were made with.
+- **[Events](/std/events)**: the lifecycle from boot to the chequered flag, with the context of everything, scoped and overridable by content owners.
+- **[Build time and run time](/std/build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
+- **[Versioning](/std/versioning)**: how registries, hook payloads and tables change over time, only ever growing.
   - **Schema versions**: minor adds; a major adds a new version next to the old one.
   - **The tolerant reader rule**: ignore what you don't know.
   - **Every major forever**: adapters between versions.
   - **Status**: experimental, stable, superseded.
   - **ABI and table versions**, and **how a change is made**.
-- **[Hooks](./hooks)**: one ordered chain per game function.
+- **[Hooks](/std/hooks)**: one ordered chain per game function.
   - **Game hook points**, owned by the core.
   - **Phases**: `before`, `replace`, `after`.
   - **Addon hook points**: an addon's own extension points.
   - **Living with mixins**: raw mixins chain around hook points.
-- **[Services](./services)**: one addon calling another, versioned, without `GetProcAddress`.
-- **[Operations](./operations)**: the core's verbs that apply data to the game.
-- **[The launcher side](./launcher)**: registries in the build, launcher pages that edit layers, the conflicts view and Send Logs.
-- **[Manifest](./manifest)**: how an addon declares all of the above.
-- **[The Simplified importer](./importer)**: imported mods recognised as records others stack on; everything else kept exactly as it builds today.
-- **[Coverage](./coverage)**: every Addon Browser addon and the common imported mods, today and in 2.0.
-- **[Compatibility](./compatibility)**: why every 1.x addon keeps working, and how the release proves it.
-- **[The C ABI](./abi)**: the tables under the C++ wrappers.
-- **[Rollout and docs](./rollout)**: the releases, and how the public docs are written.
-- **[Implementation plan](./implementation)**: how parallel agents build 2.0.0 in rounds.
+- **[Services](/std/services)**: one addon calling another, versioned, without `GetProcAddress`.
+- **[Operations](/std/operations)**: the core's verbs that apply data to the game.
+- **[The launcher side](/std/launcher)**: registries in the build, launcher pages that edit layers, the conflicts view and Send Logs.
+- **[Manifest](/std/manifest)**: how an addon declares all of the above.
+- **[The Simplified importer](/std/importer)**: imported mods recognised as records others stack on; everything else kept exactly as it builds today.
+- **[Coverage](/design/std-2/coverage)**: every Addon Browser addon and the common imported mods, today and in 2.0.
+- **[Compatibility](/std/compatibility)**: why every 1.x addon keeps working, and how the release proves it.
+- **[The C ABI](/std/abi)**: the tables under the C++ wrappers.
+- **[Rollout and docs](/design/std-2/rollout)**: the releases, and how the public docs are written.
+- **[Implementation plan](/design/std-2/implementation)**: how parallel agents build 2.0.0 in rounds.
 
 ## Where 1.x is today
 
@@ -171,4 +171,4 @@ The registry and its subfeatures come first. Then the parts that connect addons 
 - **Duplicate hooks:** Progressive Career and Career Editor each reverse-engineer and wrap the same contract, seat, rating and logo code.
 - **Separate rules per library:** career contents, era boxes, Team HQ tabs, the career wizard, characters and strings each register, scope and resolve conflicts in their own way.
 
-In 2.0 those libraries become registries and hook points underneath, while their 1.x calls keep working (see [Compatibility](./compatibility)).
+In 2.0 those libraries become registries and hook points underneath, while their 1.x calls keep working (see [Compatibility](/std/compatibility)).

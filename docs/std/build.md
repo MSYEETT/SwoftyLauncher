@@ -50,11 +50,11 @@ launcher  {"id":7,"method":"build","params":{"profile":"default","registries":{"
 plugin    {"id":7,"result":{"ops":[{"op":"file.put","source":"generated/presets.json","target":"swofty/addons/tails.whatif-history/presets.json"}]}}
 ```
 
-**Order:** a record is applied at the load-order position of the addon that provides it, and a layer at the position of the addon that wrote it, interleaved with every addon's own operations. A profile of 1.x addons has no records, so its build is byte-identical to 1.x (see [Compatibility](./compatibility)). An imported mod's recognised records apply through its own raw operations, at its own position (see [The Simplified importer](./importer)).
+**Order:** a record is applied at the load-order position of the addon that provides it, and a layer at the position of the addon that wrote it, interleaved with every addon's own operations. A profile of 1.x addons has no records, so its build is byte-identical to 1.x (see [Compatibility](/std/compatibility)). An imported mod's recognised records apply through its own raw operations, at its own position (see [The Simplified importer](/std/importer)).
 
 ## Run time: the core reads records
 
-Runtime registries are read in game, through the [reading](./reading) calls. Their providers can be dynamic, and they can have [career snapshots](./scopes#career-snapshots). An [operation](./operations) or an addon's own code applies them.
+Runtime registries are read in game, through the [reading](/std/reading) calls. Their providers can be dynamic, and they can have [career snapshots](/std/scopes#career-snapshots). An [operation](/std/operations) or an addon's own code applies them.
 
 ## Both
 

@@ -9,7 +9,7 @@ The registry covers the game's content, not just careers. A season build for Gra
 
 ## A GP/TT season, start to finish
 
-Classic Seasons 2017 today ships its season as build operations: car packages, `file.put` ops for `cs17_*.bdl`, and database rows for the entrant list, audio and teams. In 2.0 it describes the season as records, and the launcher turns them into those same operations at build (see [Build time and run time](./build)).
+Classic Seasons 2017 today ships its season as build operations: car packages, `file.put` ops for `cs17_*.bdl`, and database rows for the entrant list, audio and teams. In 2.0 it describes the season as records, and the launcher turns them into those same operations at build (see [Build time and run time](/std/build)).
 
 ```json
 // swofty.classic-seasons-2017/registry/content.json
@@ -91,7 +91,7 @@ An engine sound pack brings its own sound under its own key, then points the 201
 { "engine_sound": "mod.esp/v10_screamer" }
 ```
 
-Or it can add a separate "F1 2017 (V10)" entry and leave the real one alone, as a [variant](./bases#build-a-variant-with-extends) of the package with its own box. Either way, Classic Seasons doesn't know the pack exists, and the pack doesn't copy any of Classic Seasons' files.
+Or it can add a separate "F1 2017 (V10)" entry and leave the real one alone, as a [variant](/std/bases#build-a-variant-with-extends) of the package with its own box. Either way, Classic Seasons doesn't know the pack exists, and the pack doesn't copy any of Classic Seasons' files.
 
 ## Another addon adds a livery to one car
 
@@ -128,7 +128,7 @@ career.season      a career season's line-up and changes (see Registries)
 career.driver_ratings  a driver's ratings at the start of a season
 ```
 
-The 1.x libraries become some of these: era boxes become `era.box`, and career contents become `career.content` (see [Compatibility](./compatibility)).
+The 1.x libraries become some of these: era boxes become `era.box`, and career contents become `career.content` (see [Compatibility](/std/compatibility)).
 
 ## What the player sees
 
@@ -141,4 +141,4 @@ F1 2017                          Classic Seasons 2017
 F1 2017 (V10)                    mod.esp, on Classic Seasons 2017
 ```
 
-That comes straight from the effective records and their [origins](./reading#origins).
+That comes straight from the effective records and their [origins](/std/reading#origins).

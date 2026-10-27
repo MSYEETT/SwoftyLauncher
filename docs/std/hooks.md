@@ -140,7 +140,7 @@ swofty::hooks::before<progressive_api::SeasonApply>([](progressive_api::SeasonAp
 });
 ```
 
-The owning addon ships the payload header (`progressive_api/hooks.hpp`) for others to include, and declares the point in its manifest (see [Manifest](./manifest)).
+The owning addon ships the payload header (`progressive_api/hooks.hpp`) for others to include, and declares the point in its manifest (see [Manifest](/std/manifest)).
 
 ## Living with mixins
 

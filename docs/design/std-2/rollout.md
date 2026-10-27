@@ -54,7 +54,7 @@ Each release goes through the usual flow: a prep commit on main, the main CI, th
 
 ### After 2.2
 
-A new registry, hook point or operation ships as experimental first. It becomes stable once two addons use it (see [Status](./versioning#status)).
+A new registry, hook point or operation ships as experimental first. It becomes stable once two addons use it (see [Status](/std/versioning#status)).
 
 ## The docs
 
@@ -102,5 +102,5 @@ Standard library
 
 - The 1.x library pages (`/reference/std/*`) stay. Each gets a short note at the top linking to its 2.0 registry page, and a line saying the 1.x calls keep working.
 - `/reference/addons/manifest` gains the new fields, each linking to its page.
-- `/reference/addons/launcher-api` gains the five registry host calls, with the Rust example from [The launcher side](./launcher).
+- `/reference/addons/launcher-api` gains the five registry host calls, with the Rust example from [The launcher side](/std/launcher).
 - Every release note gets a "Standard library" section, quoted from each registry's `CHANGES.md`.

@@ -7,7 +7,7 @@ description: Every addon on the Addon Browser and the common imported mods, what
 
 Every addon on the Addon Browser was checked, plus Custom Grid Size and about 110 imported mods from 37 player bundles. Each card says what the addon does today, what it becomes in 2.0, and which conflict that ends.
 
-Nothing here changes for the player until an addon adopts 2.0: every card's "today" keeps working (see [Compatibility](./compatibility)).
+Nothing here changes for the player until an addon adopts 2.0: every card's "today" keeps working (see [Compatibility](/std/compatibility)).
 
 ## Seasons
 
@@ -169,7 +169,7 @@ everything else
            stays raw and builds exactly as today
 ```
 
-See [The Simplified importer](./importer) for how each is recognised.
+See [The Simplified importer](/std/importer) for how each is recognised.
 
 ## Bindings an addon brings
 
@@ -184,10 +184,10 @@ The core checks each pattern against the running exe at load, the same way it ch
 
 ## What the coverage added to the design
 
-- `vehicle.handling` with field-level layers ([Systems catalogue](./systems#cars)).
-- [Selector layers](./layers#selectors) and [option-bound layers](./layers#option-bound-layers).
-- [Copies as variants](./bases#copies-are-variants).
-- A specified `track` record with slots, venues and pinned ids ([Dependencies](./dependencies#tracks-have-stable-identities)).
+- `vehicle.handling` with field-level layers ([Systems catalogue](/std/systems/cars)).
+- [Selector layers](/std/layers#selectors) and [option-bound layers](/std/layers#option-bound-layers).
+- [Copies as variants](/std/bases#copies-are-variants).
+- A specified `track` record with slots, venues and pinned ids ([Dependencies](/std/dependencies#tracks-have-stable-identities)).
 - `ui.screen`, `ui.texture_slice` and `shader.look`, so whole-resource UI and shader replacements end.
 - Session and driving hook points: `session.player.control`, `session.pit_lane.control`, `session.car.contact`, `car.parts.register`.
 - Live career operations for Career Editor.

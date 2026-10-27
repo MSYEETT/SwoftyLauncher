@@ -62,7 +62,7 @@ A record id is a string, unique within its registry. The schema's `x-id` says ho
 "x-id": "{data_group}/{year}/{driver}"   // career.driver_ratings
 ```
 
-Use `/` to build ids out of parts. Then a prefix lists a group: `f1_career_progressive/` lists every Progressive season (see [Listing](./reading#listing)).
+Use `/` to build ids out of parts. Then a prefix lists a group: `f1_career_progressive/` lists every Progressive season (see [Listing](/std/reading#listing)).
 
 ## Schemas
 
@@ -85,7 +85,7 @@ A schema is a [JSON Schema](https://json-schema.org/draft/2020-12) using the com
 }
 ```
 
-- **`x-key`** turns an array into a keyed list. A [layer](./layers) can then change one element by naming its key, without restating the whole array. A key can be several fields: `"x-key": ["round", "slot", "seat"]`.
+- **`x-key`** turns an array into a keyed list. A [layer](/std/layers) can then change one element by naming its key, without restating the whole array. A key can be several fields: `"x-key": ["round", "slot", "seat"]`.
 - **`x-ref`** marks a string that must be the id of a record in another registry, or a game database label: `"x-ref": "db:drivers"`, `"x-ref": "career.team_identity"`. Validation checks it exists.
 
 ## Typed records
@@ -150,12 +150,12 @@ struct Season {
 } // namespace swofty::career
 ```
 
-`swofty::registry::get<Season>(id)` reads the effective value and converts it. A field this header doesn't know lands in `extra`, so code built against 1.0 can read a 1.1 record and write it back without losing anything (see [the tolerant reader rule](./versioning#the-tolerant-reader-rule)).
+`swofty::registry::get<Season>(id)` reads the effective value and converts it. A field this header doesn't know lands in `extra`, so code built against 1.0 can read a 1.1 record and write it back without losing anything (see [the tolerant reader rule](/std/versioning#the-tolerant-reader-rule)).
 
 ## Rules
 
 - **Registry names** are dotted and lowercase. The core uses `career.`, `team.`, `driver.`, `session.`, `lang.`, `era.`, `hub.` and `addon.`. An addon's registry starts with its own id.
 - **Values** are JSON objects of at most 1 MB.
-- **Record ids start with a name the provider owns**: its addon id, or a name it registered, such as its career content's data group (see [Keys, bases and variants](./bases)).
-- **A record has one base** from one [provider](./providers), or it [extends](./bases#build-a-variant-with-extends) another record. Every change on top of it is a [layer](./layers).
+- **Record ids start with a name the provider owns**: its addon id, or a name it registered, such as its career content's data group (see [Keys, bases and variants](/std/bases)).
+- **A record has one base** from one [provider](/std/providers), or it [extends](/std/bases#build-a-variant-with-extends) another record. Every change on top of it is a [layer](/std/layers).
 - **Every write is validated** against the schema before it becomes visible.

@@ -58,12 +58,12 @@ Two addons setting the same key used to be "last call wins" with no trace. In 2.
 - **Events:** `subscribe` attaches an `after` handler to the event's hook point.
 - **Settings:** options become `addon.option` records, which the launcher and ADDON SETTINGS already edit.
 - **Storage:** unchanged. An addon's own files stay private.
-- **Mixins:** unchanged. They chain with hook points (see [Living with mixins](./hooks#living-with-mixins)).
+- **Mixins:** unchanged. They chain with hook points (see [Living with mixins](/std/hooks#living-with-mixins)).
 
 ## Hook points can't drop a 1.x addon
 
 - The core installs a game hook point's mixin only when a 2.0 addon subscribes to it. With no subscriber, the game function is patched exactly as in 1.x.
-- When it is installed and collides with a 1.x addon's overwrite, the 1.x rule applies: the core's set is dropped and the 1.x addon keeps running. Only the 2.0 subscribers lose the point, and they're told (see [Hooks](./hooks#living-with-mixins)).
+- When it is installed and collides with a 1.x addon's overwrite, the 1.x rule applies: the core's set is dropped and the 1.x addon keeps running. Only the 2.0 subscribers lose the point, and they're told (see [Hooks](/std/hooks#living-with-mixins)).
 
 ## Progressive Career's exports
 

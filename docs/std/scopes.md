@@ -5,7 +5,7 @@ description: Global, profile and career scopes, and the career snapshot that fre
 
 # Scopes and snapshots
 
-Every [layer](./layers) has a **scope** that says how long it lasts and what it applies to.
+Every [layer](/std/layers) has a **scope** that says how long it lasts and what it applies to.
 
 ```cpp
 enum class Scope {
@@ -71,7 +71,7 @@ While a career is loaded:
 
 - `get` returns **snapshot ⊕ career layers** for snapshot registries. Global and profile layers written after the career started don't reach it.
 - Registries without `x-snapshot` keep reading live: base plus every layer.
-- [Watchers](./reading#watching) fire once for every snapshot record when the career loads, and again when it unloads.
+- [Watchers](/std/reading#watching) fire once for every snapshot record when the career loads, and again when it unloads.
 
 The snapshot lives in a core-owned save container, `swofty_registry`, inside the profile save, next to the containers career contents keep. An addon that isn't installed when the save is written doesn't lose its records: the save splice keeps containers it doesn't recognise.
 
@@ -93,7 +93,7 @@ The budget is in bytes after compression, per career. When a registry's snapshot
 
 A snapshot keeps the schema version it was written with. On load:
 
-- **Same major, older or newer minor:** read as is. Fields the reader doesn't know are kept (see [the tolerant reader rule](./versioning#the-tolerant-reader-rule)).
+- **Same major, older or newer minor:** read as is. Fields the reader doesn't know are kept (see [the tolerant reader rule](/std/versioning#the-tolerant-reader-rule)).
 - **Older major:** the registry owner's migrate function converts it. Without one, the career keeps reading the old values through the version adapter and the core logs that it did.
 
 ```cpp

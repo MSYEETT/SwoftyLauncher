@@ -82,7 +82,7 @@ The whole system applies only inside 1990, so Grand Prix and every other mode st
 { "systems": [ { "id": "swofty.f1-1990.tyres", "scope": { "setup_mode": "swofty.f1-1990/f1_1990" } } ] }
 ```
 
-Every record of the system inherits that scope unless it sets its own. A scope is one value the core understands everywhere: on records, on layers, on hook subscriptions and on [events](./events). It can name:
+Every record of the system inherits that scope unless it sets its own. A scope is one value the core understands everywhere: on records, on layers, on hook subscriptions and on [events](/std/events). It can name:
 
 ```cpp
 swofty::where{ .data_group = "f1_career_1990" }               // one career's data
@@ -282,7 +282,7 @@ The platform pieces systems need, in order of priority:
   - **UI extension points:** texture-array slices, icon glyphs, scoped screens and scoped strings;
   - **capacity checks before Play:** row counts, grid size, ids;
   - **services;**
-  - **dependencies** (see [Dependencies and guards](./dependencies)).
+  - **dependencies** (see [Dependencies and guards](/std/dependencies)).
 - **Later:**
   - **option references in records** (`"sets": "{{option:race_sets}}"`);
   - **a core career id;**

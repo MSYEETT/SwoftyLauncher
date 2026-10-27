@@ -25,7 +25,7 @@ engine_sound
 
 - **The owner's name comes first.** An id is `<owned name>/<key>`. An addon owns its addon id, plus every name it registers as its own: the data group of its career content (`f1_career_progressive`), its entrant lists (`cs_f1_2017`). The launcher refuses a record whose id starts with a name another addon owns, so two addons never fight over a name.
 - **The core's records** describe the stock game and use `game/` instead: `game/ferrari_2025`, `game/f1_2026`.
-- **Everyone else can still change your records**, through [layers](./layers). Owning a key means you provide its base, not that you lock it.
+- **Everyone else can still change your records**, through [layers](/std/layers). Owning a key means you provide its base, not that you lock it.
 
 ```cpp
 // Classic Seasons 2017 registers its own keys
@@ -60,7 +60,7 @@ Another addon can build on a base in two ways.
 
 ### Extend it in place, with a layer
 
-A [layer](./layers) changes the base itself. Every user of the base sees the change: the 2017 GP/TT box, Progressive Career's 2017 season, anything else that reads it.
+A [layer](/std/layers) changes the base itself. Every user of the base sees the change: the 2017 GP/TT box, Progressive Career's 2017 season, anything else that reads it.
 
 ```json
 // mod.esp: give the 2017 Ferrari the V10 sound, everywhere the 2017 package is used

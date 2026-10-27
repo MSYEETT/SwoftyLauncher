@@ -5,7 +5,7 @@ description: Effective values, origins, listing and watching registry records in
 
 # Reading
 
-Every read returns the **effective value**: the base from the [provider](./providers) with every [layer](./layers) applied in load order. Inside a career, it returns that career's [snapshot](./scopes#career-snapshots).
+Every read returns the **effective value**: the base from the [provider](/std/providers) with every [layer](/std/layers) applied in load order. Inside a career, it returns that career's [snapshot](/std/scopes#career-snapshots).
 
 ## Effective values
 

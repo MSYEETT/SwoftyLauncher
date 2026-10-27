@@ -98,4 +98,4 @@ SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
   - providers run on the reading thread;
   - watchers and `when` callbacks run on the flow thread;
   - game hook points run on the thread the game calls the function on.
-- **Growth:** fields are only appended. A table's `version` names the last layout the core fills (see [Versioning](./versioning#abi-and-table-versions)).
+- **Growth:** fields are only appended. A table's `version` names the last layout the core fills (see [Versioning](/std/versioning#abi-and-table-versions)).
