@@ -9,13 +9,21 @@ A **hook point** is a named place where the core runs every subscribed addon in 
 
 ## A hook in full
 
-Progressive Career keeps the contract event off a Follow-your-driver player's calendar. In 1.x it wraps `Game_CareerActivities_AddActivity` itself. In 2.0 it subscribes to the core's point:
+<Split>
+
+Progressive Career keeps the contract event off a Follow-your-driver player's calendar. In 1.x it wraps `Game_CareerActivities_AddActivity` itself. In 2.0 it subscribes to the core's point.
+
+The payload type is in the career system's header, `swofty/systems/career.hpp`, in `swofty::career::events`.
+
+<template #example>
+<Example root="swofty.progressive" code-file="native/src/follow.cpp" files="swofty.json, native/CMakeLists.txt, native/src/progressive.hpp">
+<template #code>
 
 ```cpp
 #include <swofty/hooks.hpp>
-#include <swofty/career/hooks.hpp>
+#include <swofty/systems/career.hpp>
 
-using swofty::career::AddActivity;
+using swofty::career::events::AddActivity;
 
 SWOFTY_ON_LOAD
 {
@@ -30,13 +38,20 @@ SWOFTY_ON_LOAD
         return progressive::sign_instead(a);  // signed: the event is never added
     });
 }
+
+SWOFTY_ADDON()
 ```
+
+</template>
+</Example>
+</template>
+</Split>
 
 The payload is a plain struct with a size and a version. The core fills it from the game function's arguments:
 
 ```cpp
-// swofty/career/hooks.hpp
-namespace swofty::career {
+// swofty/systems/career.hpp (excerpt)
+namespace swofty::career::events {
 
 struct AddActivity {
     static constexpr const char *point = "career.calendar.add_activity";
@@ -53,7 +68,7 @@ struct AddActivity {
     bool player;             // the calendar belongs to the human player
 };
 
-} // namespace swofty::career
+} // namespace swofty::career::events
 ```
 
 ## Phases
@@ -140,7 +155,7 @@ swofty::hooks::before<progressive_api::SeasonApply>([](progressive_api::SeasonAp
 });
 ```
 
-The owning addon ships the payload header (`progressive_api/hooks.hpp`) for others to include, and declares the point in its manifest (see [Manifest](/std/manifest)).
+The owning addon ships the payload header (`progressive_api/hooks.hpp`) for others to include. `hooks::define` is the declaration: nothing goes in the manifest.
 
 ## Living with mixins
 
