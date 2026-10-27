@@ -443,7 +443,11 @@ void run_job()
     std::string err;
     switch (d) {
     case drive::Do::fire_local_mp:
+        // The screen builds a new view model on each visit, often at the old one's address. Until the
+        // new tile list is populated the old pointer still reads as live, and a route fired from it
+        // lands outside the new screen, which drops the game back to online mode.
         local_mp_opened = false;
+        local_mp_vm.self = nullptr;
         if (!fire_route(home_vm.live(), "local_multiplayer"))
             err = "no home view model to fire local_multiplayer from (Vm_Fire_Route or the home tile list not seen)";
         break;
