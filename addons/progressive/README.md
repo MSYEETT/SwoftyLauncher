@@ -24,6 +24,7 @@ In Team HQ, the **Progressive Settings** tab changes R&D for the loaded career a
 - Standings start each season in the previous real season's final order.
 - The Resume Career card shows the career's year.
 - Race weekend and season titles (the starting grid, session intros, results, loading screens) show the career's year.
+- 2016 to 2025 race on the 2025 fuel: the race and qualifying fuel loads and the fuel burn per lap of every track are the game's 2025 numbers, which suit those seasons' 2025 power units. From 2026 on, the game's 2026 numbers apply.
 
 ## Layout
 

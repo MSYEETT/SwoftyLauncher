@@ -275,6 +275,9 @@
         "dll": "native/progressive_resume.dll"
       },
       {
+        "dll": "native/progressive_fuel.dll"
+      },
+      {
         "dll": "native/progressive.dll",
         "files": [
           "data/"
