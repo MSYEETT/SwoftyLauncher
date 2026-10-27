@@ -284,7 +284,7 @@ The platform pieces systems need, in order of priority:
   - **services;**
   - **dependencies** (see [Dependencies and guards](/std/dependencies)).
 - **Later:**
-  - **option references in records** (`"sets": "{{option:race_sets}}"`);
+  - **option references in records** (<span v-pre>`"sets": "{{option:race_sets}}"`</span>);
   - **a core career id;**
   - **extending game enums.**
 
