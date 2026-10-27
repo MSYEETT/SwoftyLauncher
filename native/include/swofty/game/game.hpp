@@ -105,6 +105,15 @@ static_assert(offsetof(SecretMeeting, reason) == 0x14);
 static_assert(offsetof(SecretMeeting, team) == 0x20);
 static_assert(sizeof(SecretMeeting) == 0x24);
 
+struct TrackDataRecord {
+    uint8_t _pad_0x0[0x1];
+    uint8_t index; // L2 experimental
+    uint8_t _pad_0x2[0xce];
+    char *name; // L2 experimental
+};
+static_assert(offsetof(TrackDataRecord, index) == 0x1);
+static_assert(offsetof(TrackDataRecord, name) == 0xd0);
+
 struct TrackDataSet {
     uint8_t _pad_0x0[0x8];
     void *tracks_begin; // L2 experimental

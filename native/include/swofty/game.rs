@@ -78,11 +78,6 @@ pub struct RnDDepartmentConfig {
 }
 
 #[repr(C)]
-pub struct TrackDataRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct UiLayoutStep {
     _opaque: [u8; 0],
 }
@@ -1555,6 +1550,16 @@ const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, ready_b) == 0xb42a)
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, random_override) == 0xb42d);
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, busy) == 0xb432);
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, override_active) == 0xb436);
+
+#[repr(C)]
+pub struct TrackDataRecord {
+    _pad_0x0: [u8; 0x1],
+    pub index: u8,
+    _pad_0x2: [u8; 0xce],
+    pub name: *mut c_char,
+}
+const _: () = assert!(core::mem::offset_of!(TrackDataRecord, index) == 0x1);
+const _: () = assert!(core::mem::offset_of!(TrackDataRecord, name) == 0xd0);
 
 #[repr(C)]
 pub struct TrackDataSet {
