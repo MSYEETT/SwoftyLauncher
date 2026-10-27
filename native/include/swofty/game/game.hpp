@@ -105,6 +105,51 @@ static_assert(offsetof(SecretMeeting, reason) == 0x14);
 static_assert(offsetof(SecretMeeting, team) == 0x20);
 static_assert(sizeof(SecretMeeting) == 0x24);
 
+struct TrackDataSet {
+    uint8_t _pad_0x0[0x8];
+    void *tracks_begin; // L2 experimental
+    void *tracks_end; // L2 experimental
+    uint8_t _pad_0x18[0x8];
+    uint32_t mode_mask; // L2 experimental
+    uint32_t season_mask; // L2 experimental
+    uint32_t format_mask; // L2 experimental
+};
+static_assert(offsetof(TrackDataSet, tracks_begin) == 0x8);
+static_assert(offsetof(TrackDataSet, tracks_end) == 0x10);
+static_assert(offsetof(TrackDataSet, mode_mask) == 0x20);
+static_assert(offsetof(TrackDataSet, season_mask) == 0x24);
+static_assert(offsetof(TrackDataSet, format_mask) == 0x28);
+
+struct TrackDataSystem {
+    uint8_t _pad_0x0[0x68];
+    TrackDataSet *sets_begin; // L2 experimental
+    TrackDataSet *sets_end; // L2 experimental
+};
+static_assert(offsetof(TrackDataSystem, sets_begin) == 0x68);
+static_assert(offsetof(TrackDataSystem, sets_end) == 0x70);
+
+struct TrackDataTrack {
+    TrackDataRecord *record; // L2 experimental
+    uint8_t _pad_0x8[0xe8];
+    float fuel_burn_per_lap; // L2 experimental
+    uint8_t _pad_0xf4[0xc];
+    uint8_t race_fuel[156]; // L2 experimental
+    uint8_t _pad_0x19c[0x4];
+    uint64_t race_fuel_count; // L2 experimental
+    uint8_t _pad_0x1a8[0xc];
+    float qualifying_one_shot; // L2 experimental
+    uint8_t _pad_0x1b8[0x4];
+    float qualifying_short; // L2 experimental
+    float qualifying_full; // L2 experimental
+};
+static_assert(offsetof(TrackDataTrack, record) == 0x0);
+static_assert(offsetof(TrackDataTrack, fuel_burn_per_lap) == 0xf0);
+static_assert(offsetof(TrackDataTrack, race_fuel) == 0x100);
+static_assert(offsetof(TrackDataTrack, race_fuel_count) == 0x1a0);
+static_assert(offsetof(TrackDataTrack, qualifying_one_shot) == 0x1b4);
+static_assert(offsetof(TrackDataTrack, qualifying_short) == 0x1bc);
+static_assert(offsetof(TrackDataTrack, qualifying_full) == 0x1c0);
+
 using Game_CareerActivities_AddActivity_t = void(void *calendar, const void *activity, uint32_t day);
 inline constexpr fn<"Game_CareerActivities_AddActivity", Game_CareerActivities_AddActivity_t> Game_CareerActivities_AddActivity{}; // L2 experimental
 using Game_CareerActivities_RemoveActivity_t = void(void *calendar, const void *activity, uint16_t day);

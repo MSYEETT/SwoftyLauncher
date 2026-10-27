@@ -83,21 +83,6 @@ pub struct TrackDataRecord {
 }
 
 #[repr(C)]
-pub struct TrackDataSet {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TrackDataSystem {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct TrackDataTrack {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct UiLayoutStep {
     _opaque: [u8; 0],
 }
@@ -1570,6 +1555,54 @@ const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, ready_b) == 0xb42a)
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, random_override) == 0xb42d);
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, busy) == 0xb432);
 const _: () = assert!(core::mem::offset_of!(TimeOfDaySystem, override_active) == 0xb436);
+
+#[repr(C)]
+pub struct TrackDataSet {
+    _pad_0x0: [u8; 0x8],
+    pub tracks_begin: *mut c_void,
+    pub tracks_end: *mut c_void,
+    _pad_0x18: [u8; 0x8],
+    pub mode_mask: u32,
+    pub season_mask: u32,
+    pub format_mask: u32,
+}
+const _: () = assert!(core::mem::offset_of!(TrackDataSet, tracks_begin) == 0x8);
+const _: () = assert!(core::mem::offset_of!(TrackDataSet, tracks_end) == 0x10);
+const _: () = assert!(core::mem::offset_of!(TrackDataSet, mode_mask) == 0x20);
+const _: () = assert!(core::mem::offset_of!(TrackDataSet, season_mask) == 0x24);
+const _: () = assert!(core::mem::offset_of!(TrackDataSet, format_mask) == 0x28);
+
+#[repr(C)]
+pub struct TrackDataSystem {
+    _pad_0x0: [u8; 0x68],
+    pub sets_begin: *mut TrackDataSet,
+    pub sets_end: *mut TrackDataSet,
+}
+const _: () = assert!(core::mem::offset_of!(TrackDataSystem, sets_begin) == 0x68);
+const _: () = assert!(core::mem::offset_of!(TrackDataSystem, sets_end) == 0x70);
+
+#[repr(C)]
+pub struct TrackDataTrack {
+    pub record: *mut TrackDataRecord,
+    _pad_0x8: [u8; 0xe8],
+    pub fuel_burn_per_lap: f32,
+    _pad_0xf4: [u8; 0xc],
+    pub race_fuel: [u8; 156],
+    _pad_0x19c: [u8; 0x4],
+    pub race_fuel_count: u64,
+    _pad_0x1a8: [u8; 0xc],
+    pub qualifying_one_shot: f32,
+    _pad_0x1b8: [u8; 0x4],
+    pub qualifying_short: f32,
+    pub qualifying_full: f32,
+}
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, record) == 0x0);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, fuel_burn_per_lap) == 0xf0);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, race_fuel) == 0x100);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, race_fuel_count) == 0x1a0);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, qualifying_one_shot) == 0x1b4);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, qualifying_short) == 0x1bc);
+const _: () = assert!(core::mem::offset_of!(TrackDataTrack, qualifying_full) == 0x1c0);
 
 #[repr(C)]
 pub struct UpgradeInstance {
