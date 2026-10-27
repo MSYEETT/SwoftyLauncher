@@ -1,11 +1,11 @@
 ---
-title: "Standard library 2.0: open decisions"
-description: The product decisions the 2.0 design can't settle by itself, each with options and a recommendation, and the engineering calls already made from the design review.
+title: "Standard library 1.6: decisions"
+description: The product decisions from the 1.6 design reviews, the options each one weighed and the choice made, and the engineering calls settled alongside them.
 ---
 
-# Open decisions
+# Decisions
 
-Six reviews stress-tested the design from different seats: players, career authors, year pack authors, small mods and the importer, game limits, and the platform as a whole. They found about 40 open questions. Most were engineering calls, listed at the end. These eleven change what players or authors experience.
+Six reviews stress-tested the design from different seats: players, career authors, year pack authors, small mods and the importer, game limits, and the platform as a whole. They found about 40 open questions. Most were engineering calls, listed at the end. These eleven change what players or authors experience. Each lists the options weighed and the one chosen. The pages describe the chosen option.
 
 ## 1. What the launcher knows before the game runs
 
@@ -18,14 +18,14 @@ Code addons register in the game. Before the first session, the launcher can't l
 - **(a)** The launcher knows only `swofty.json`. Those features read the report the core writes after each session (`registry/catalog.json`) and say "as of your last session".
 - **(b)** As (a), plus each addon ships a `registry.lock.json` made when it's packed. `swofty dev pack` runs the addon's `SWOFTY_REGISTER` against a recorder and writes down what it registers: ids, labels, what it provides. The Browser and the launcher read it. Nothing is applied from it. The game still applies everything live.
 
-**Recommendation: (b).** It's part of the addon, like the manifest, not a cache of the player's game.
+**Chosen: (b).** It's part of the addon, like the manifest, not a cache of the player's game.
 
 ## 2. When a career freezes its history
 
 - **(a)** Everything at career creation.
 - **(b)** Each season's line-ups, ratings and rules when that season starts. Which box each season uses is still chosen at creation. Drivers and tracks installed mid-career join at the next season.
 
-**Recommendation: (b).** A fix to Progressive's 2019 line-up reaches a 2016 career when it gets to 2019, and a what-if edit reaches the next season of a running career. The snapshot is about a tenth of the size, which matters in a 3 MB save heap. A career owner can still choose (a), and the career's hub can offer a "freeze content" toggle.
+**Chosen: (b).** A fix to Progressive's 2019 line-up reaches a 2016 career when it gets to 2019, and a what-if edit reaches the next season of a running career. The snapshot is about a tenth of the size, which matters in a 3 MB save heap. A career owner can still choose (a), and the career's hub can offer a "freeze content" toggle.
 
 ## 3. After the last year a career covers
 
@@ -35,7 +35,7 @@ Progressive past 2026, or Classic Career past its last pack.
 - **(b)** Keep the last year's cars and looks, and hand the line-up to the game's market, with retirements extended.
 - **(c)** End the career.
 
-**Recommendation: (b)** by default, with (a) and (c) as options for the career's owner.
+**Chosen: (b)** by default, with (a) and (c) as options for the career's owner.
 
 ## 4. Real calendars
 
@@ -51,7 +51,7 @@ For a Grand Prix or Time Trial box's track list:
 - **(b)** The season's real calendar first, then every other fitting track under "More tracks".
 - **(c)** Only the calendar.
 
-**Recommendation: (c) for careers, defaulting to real calendars; (b) for boxes.**
+**Chosen: (c) for careers, defaulting to real calendars; (b) for boxes.**
 
 ## 5. Two packs for the same year in one career
 
@@ -61,7 +61,7 @@ Two 2016 packs are installed, and a Progressive career reaches 2016.
 - **(b)** The career setup page shows a choice for each year that has more than one, defaulting to the career addon's preferred pack. The choice is frozen at creation.
 - **(c)** Only the pack the career addon names.
 
-**Recommendation: (b).**
+**Chosen: (b).**
 
 ## 6. Generic AI and physics mods against a year's tuned values
 
@@ -71,7 +71,7 @@ A selector layers every matching record, so a generic AI mod overwrites Classic 
 - **(b)** A year pack marks its history fields as protected. Another addon's selector skips them unless the player turns on "also change year packs" for that addon.
 - **(c)** Year packs always win.
 
-**Recommendation: (b).**
+**Chosen: (b).**
 
 ## 7. How far an imported mod reaches by default
 
@@ -80,7 +80,7 @@ A selector layers every matching record, so a generic AI mod overwrites Classic 
 - **Applies to** moves an import onto another car rather than adding one.
 - **Two full liveries on one car** mix asset by asset.
 
-**Recommendation:**
+**Chosen:**
 
 - Car ports and season packs ask once, "Everywhere or Grand Prix and Time Trial only", defaulting to Grand Prix and Time Trial. Single liveries, helmets and sounds stay everywhere.
 - Year packs can pin a stock file, `stock("...")`, which serves the original whatever an import replaced.
@@ -95,11 +95,11 @@ All launcher profiles share one game save and one addon storage folder, so a wha
 - **(b)** Give each profile its own addon storage. Saves stay shared, and each career gets an id so the launcher knows which profile started it.
 - **(c)** Swap the game's save files per profile at Play.
 
-**Recommendation: (b).** (c) fights Steam Cloud.
+**Chosen: (b).** (c) fights Steam Cloud.
 
 ## 9. When something is missing or broken
 
-Proposed defaults:
+Chosen defaults:
 
 - An unmet `requires`, or a `breaks` on an installed addon, stops Play with a message naming the fix. `conflicts` only warns.
 - If a pack for a career's next season is missing at the season break, the load stops when the pack brings rules or systems. When it only brings cars and looks, the season falls back to the stock year.
@@ -107,17 +107,17 @@ Proposed defaults:
 - The vanilla profile warns before Play when a career needs addons, and backs up saves.
 - Players learn that something didn't apply from a status line on the addon's tile in ADDON SETTINGS and in the launcher. The only popups are guards that stop a load.
 
-**Question:** should the career fallback in the second point tell the player once, with a popup, or only on the status line?
+The career fallback in the second point shows on the status line only, with no popup.
 
 ## 10. Database room
 
-The game's database has room for about 92,000 more records, shared by 1.x edits and 2.0 records. Classic Seasons years plus community tracks is the mix that crashed before the 1.5.11 fix. Applied live, the last registrations past the room would be refused, and a year or a track would silently disappear.
+The game's database has room for about 92,000 more records, shared by build operations from older addons and registry records. Classic Seasons years plus community tracks is the mix that crashed before the 1.5.11 fix. Applied live, the last registrations past the room would be refused, and a year or a track would silently disappear.
 
 - **(a)** Refuse past the room, with a status line.
-- **(b)** The core reports how full the database is after a boot, and the next launch moves 1.x edits to the 1.5.11 file route, padded so the game grows its own table: one restart. The launcher still never learns what 2.0 addons register.
-- **(c)** Make the in-game fix (sizing the game's table before it loads) a 2.0.0 release blocker.
+- **(b)** The core reports how full the database is after a boot, and the next launch moves older addons' database edits to the 1.5.11 file route, padded so the game grows its own table: one restart. The launcher still never applies what registry addons register.
+- **(c)** Make the in-game fix (sizing the game's table before it loads) a 1.6.0 release blocker.
 
-**Recommendation: (c), with (b) shipped as the safety net.**
+**Chosen: (c), with (b) shipped as the safety net.**
 
 ## 11. Developer tools and experimental APIs
 
@@ -127,9 +127,9 @@ Where the developer tools live (`swofty dev new`, `link`, `run`, `logs`, `check`
 - **(b)** A separate SDK download.
 - **(c)** The repository only.
 
-**Recommendation: (a).** One loader for development and play.
+**Chosen: (a).** One loader for development and play.
 
-Experimental APIs in addons published to the Addon Browser: **recommend allowing them, with an "experimental API" badge.** Any experimental shape a published addon uses is kept, with an adapter, at the next release. The release check runs those addons and tells their authors.
+Experimental APIs in addons published to the Addon Browser: **allowed, with an "experimental API" badge.** Any experimental shape a published addon uses is kept, with an adapter, at the next release. The release check runs those addons and tells their authors.
 
 ## Settled in the design
 
@@ -151,8 +151,8 @@ These were decided from the reviews and are going into the pages:
   - A selector runs once per record, so `*=` doesn't compound on variants.
 - **Loading:**
   - `SWOFTY_REGISTER` runs early, and `SWOFTY_ON_LOAD` stays at the stage the manifest asks for.
-  - A mixin overlap at the early stage never drops a 1.x addon.
-  - 1.x edits and 2.0 records have separate database budgets, so one 2.0 addon over its room can't drop 1.x edits.
+  - A mixin overlap at the early stage never drops an older addon.
+  - Older addons' database edits and registry records have separate budgets, so one registry addon over its room can't drop an older addon's edits.
 - **Imports:**
   - Imports and live layers are ordered by load order, in the game.
   - A new version of an installed mod is recognised by its lineage, and the player chooses "Update" or "Install side by side".
@@ -161,7 +161,7 @@ These were decided from the reviews and are going into the pages:
 - **Failures and naming:**
   - A faulting `after` handler is isolated and logged. A faulting `before` or `replace` handler crashes the game with the addon named.
   - An addon can keep its old id as an alias after a rename, when the Browser author is the same.
-- **Unchanged from 1.x:**
-  - Raw overwrites on catalogued hook points follow the 1.x rule for every addon: nothing is restricted.
-  - Grid size stays one boot setting per install for 2.0.0, and each box is clamped to it.
+- **Unchanged from 1.5:**
+  - Raw overwrites on catalogued hook points follow the 1.5 rule for every addon: nothing is restricted.
+  - Grid size stays one boot setting per install for 1.6.0, and each box is clamped to it.
   - Hook points the game calls every frame use tables built at content or session moments.

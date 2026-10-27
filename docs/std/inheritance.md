@@ -14,7 +14,7 @@ Every system reads its data through the same five levels. Each level starts with
 1. **The stock game** supplies the original records under `game/`: car models for each model year, teams, drivers, tracks, tyres and rules. A record is one item of data, such as a car or a driver.
 2. **Every year** shares one set of data, called the **base** in code. It holds the stock records, everything addons and imports add, and the changes they make to stock records.
 3. **A box** is one of the year tiles a player picks in Grand Prix or Time Trial, or one season of a career. In code it's a **content package**. It inherits the base and can set its own values.
-4. **A career** uses the box chosen for each of its seasons, plus changes scoped to that career. Its season choices, ratings and rules are frozen when the career is created.
+4. **A career** uses the box chosen for each of its seasons, plus changes scoped to that career. It picks each season's box when it's created, and freezes each season's line-ups, ratings and rules when that season starts.
 5. **A session** can make temporary changes. They're undone when the session ends.
 
 A **layer** changes values on a record that already exists. A **variant** is a separate record that inherits another record's values and overrides some of them. A year pack, for example, makes its 2017 car as a variant of a stock car, then gives it a different livery and engine sound.
@@ -47,12 +47,14 @@ Layer a base record when you want the change everywhere that record is inherited
 
 Use a **selector** when you want to change every record that matches a condition. A selector layers each matching record itself, so it reaches a year pack's own cars as well as stock cars, and its change competes on each record by load order.
 
+A year pack can mark fields as **protected**: history values such as its cars' pace and AI tiers. A selector skips protected fields, unless the player turns on **Also change year packs** for that addon. A layer that names the year's record directly still competes by load order.
+
 ```cpp
 // Change the base car. Years that set their own livery keep it.
 cars::vehicles.layer(cars::vehicles["game/redbull_2025"], [](cars::Vehicle &v) { v.livery = mine; });
 
 // Change every F1 car's AI, including the cars year packs own.
-// This replaces a box's own value, unless a later layer on that record changes it again.
+// Fields a year pack protects are skipped unless the player allows it for this addon.
 auto f1 = where<ai::VehicleConfig>([](const ai::VehicleConfig &c) {
     return c.cls == ai::Class::f1 || c.cls == ai::Class::f1_26;
 });
@@ -61,7 +63,7 @@ ai::vehicle_configs.layer(f1, [](ai::VehicleConfig &c) { c.racecraft.overtake_ag
 
 - Cosmetic and content changes, such as liveries, helmets, sounds, logos and tracks, layer the base. Years that set their own keep them.
 - Behaviour and tuning changes, such as AI, damage, physics fixes and difficulty, use a selector. They reach every year.
-- The importer layers the base by default. Its **Applies to** setting moves an import onto a box's own record instead.
+- The importer layers the base by default. Car ports and season packs ask once whether they go everywhere or only into Grand Prix and Time Trial, and default to Grand Prix and Time Trial. **Applies to** adds a box's own record as another target and keeps the base one.
 
 ## Cars
 
@@ -87,7 +89,7 @@ A team logo update reaches every year that inherits the logo, and a year with it
 
 Stock drivers are base records. Changes to their heads, looks and helmets reach every year that inherits those values. A year pack can set its own helmets, numbers and suits: Classic Seasons sets Vettel's 2017 helmet.
 
-Career ratings come from `career.driver_ratings` for each season and are frozen when the career is created. New drivers from Driver Manager join the base, so they're free agents in every box and on every career's driver market.
+Career ratings come from `career.driver_ratings` for each season and are frozen when that season starts. New drivers from Driver Manager join the base, so they're free agents in every box and on every career's driver market.
 
 ## Helmets and suits
 
@@ -101,13 +103,15 @@ An engine sound on a base car follows that car wherever its sound is inherited. 
 
 A year pack's own sound on its own car wins. Cars with their own 2016–2018 period sounds keep them.
 
+Some year packs point their cars at the stock sound files, such as Classic Seasons 2024's cars. An imported mod that overwrites those files would reach them, so a year pack can pin a stock file with `stock("...")`. A pinned file is served from the game's original, whatever an import replaced.
+
 ## Tracks
 
 The base track list holds every stock and added track. An added track starts from a copy of the track it names as its base: the Hockenheim example above starts from Austria.
 
-A box decides which tracks it offers and in what order. By default it offers every track in the base. It can also set its own layout, lap count, fuel, tyres, names and dates for each track, applied when the player picks the box.
+A box offers every track in the base that fits it: enough garages for its teams, room for its grid, AI data for its cars, and Time Trial support where the box has Time Trial. It shows the season's real calendar first, then every other fitting track under **More tracks**. It can also set its own layout, lap count, fuel, tyres, names and dates for each track, applied when the player picks the box.
 
-A career's calendar picks tracks by venue. Once a track has been raced, the career depends on it. Track data for one session, such as fuel and lap count, applies when the session loads.
+A career's calendar picks tracks by venue. A history career can race each season's real calendar, rebuilt at the season break, with venues that aren't installed left out. Once a track has been raced, the career depends on it. Track data for one session, such as fuel and lap count, applies when the session loads.
 
 ## Tyres
 
@@ -135,7 +139,7 @@ Each track has a base climate. A box can set its own climate for a track in its 
 
 ## AI
 
-The base holds each car's AI config. A selector reaches every matching car, including the cars year packs own: the aggression example above changes every F1 car.
+The base holds each car's AI config. A selector reaches every matching car, including the cars year packs own: the aggression example above changes every F1 car, except fields a year pack protects.
 
 A year can also pick an AI track pack for each car: which folder of baked AI data it uses, by pace.
 
@@ -143,7 +147,7 @@ A year can also pick an AI track pack for each car: which folder of baked AI dat
 
 The base holds the stock career modes and data groups. New career modes are variants of a stock mode, so they inherit changes to it.
 
-Each box supplies its career season: the line-up, the swaps and the ratings. A historical season brings its own drivers and ratings. Everything scoped to a career is frozen into it when it's created.
+Each box supplies its career season: the line-up, the swaps and the ratings. A historical season brings its own drivers and ratings. A career freezes each season's data when that season starts.
 
 ## Menu text and screens
 
@@ -159,15 +163,15 @@ Graphics exist only in the base. Looks and rendering passes stack in load order,
 
 What decides it is the record each change targets:
 
-- **Two imports change the same base record.** The later one in load order wins each field they both set. Raw parts are decided per resource.
+- **Two imports change the same base record.** The later one in load order wins each field they both set. Raw parts are decided per resource. Two full liveries on one car are the exception: the later one replaces the earlier one whole, and partial liveries stack on top.
 - **An import changes a base record and a year pack sets its own value.** The import changes the base. The year pack keeps its own value in its box.
-- **An import is retargeted to a year's own record with Applies to.** It competes with the year pack on that record, by load order.
+- **An import also targets a year's own record with Applies to.** It competes with the year pack on that record, by load order, and still changes the base.
 - **Two year packs provide the same year.** Each makes its own box under its own key. Both appear, and the player picks one.
 - **A year pack layers another year pack's box.** They compete on that record, by load order.
-- **A selector changes a field a box also sets.** The selector wins, because it layers the box's record directly. A later layer on that record can still change it again.
+- **A selector changes a field a box also sets.** The selector wins, because it layers the box's record directly, unless the box protects that field. A protected field is skipped unless the player turns on Also change year packs for that addon.
 - **A career layer and any other change.** The career layer wins inside that career.
 
-A Red Bull livery imported onto the base can't replace the 2017 box's own livery. Retargeting the import to the 2017 car makes the two compete by load order.
+A Red Bull livery imported onto the base can't replace the 2017 box's own livery. Adding the 2017 car as a target makes the two compete by load order there.
 
 The core logs every one of these with both addons and the field. It writes them to `registry/conflicts.json` when a session loads, and the launcher's conflicts view shows the last one.
 
@@ -183,11 +187,12 @@ Removing an addon changes what loads. What happens depends on what it supplied a
 
 ## What a career keeps
 
-When a career is created, it copies:
+When a career is created, it records which box each season uses. When each season starts, it copies that season's:
 
-- its seasons and ratings: `career.season` and `career.driver_ratings`;
-- each season's tyre and championship rules;
-- which box each season uses.
+- line-up and ratings: `career.season` and `career.driver_ratings`;
+- tyre and championship rules.
+
+A fix to a year's data reaches every career that hasn't reached that year yet. Drivers and tracks installed mid-career join at the next season. A career's owner can freeze every season at creation instead, and the career's hub can offer a **Freeze content** toggle.
 
 It doesn't copy content. Cars, liveries, tracks and sounds are read live from the boxes, so a better livery or a fixed track reaches a running career, and the career keeps its frozen ratings and rules. The content a career depends on is protected by its dependency record: see [Dependencies and guards](/std/dependencies).
 

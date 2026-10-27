@@ -253,6 +253,19 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             ],
           },
           {
+            text: "Guides",
+            items: [
+              { text: "All guides", link: "/make/", icon: "file" },
+              { text: "A what-if history editor", link: "/make/what-if", icon: "file" },
+              { text: "An engine sound pack", link: "/make/engine-sounds", icon: "file" },
+              { text: "A livery", link: "/make/livery", icon: "file" },
+              { text: "A track", link: "/make/track", icon: "file" },
+              { text: "A year pack", link: "/make/year-pack", icon: "file" },
+              { text: "A career mode", link: "/make/career", icon: "file" },
+              { text: "Your own system", link: "/make/own-system", icon: "file" },
+            ],
+          },
+          {
             text: "The registry",
             items: [
               { text: "The registry in one example", link: "/std/", icon: "file" },
@@ -394,7 +407,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
             items: [
               { text: "Command line (swofty)", link: "/reference/cli", icon: "file" },
               { text: "The C ABI", link: "/std/abi", icon: "file" },
-              { text: "Compatibility with 1.x", link: "/std/compatibility", icon: "file" },
+              { text: "Compatibility with older addons", link: "/std/compatibility", icon: "file" },
               {
                 text: "Build operations",
                 link: "/reference/data/",
@@ -405,7 +418,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Game database edits", link: "/reference/data/database", icon: "file" },
                   { text: "ERP operations", link: "/reference/ops/erp", icon: "file" },
                   { text: "Textures and models", link: "/reference/data/textures", icon: "file" },
-                  { text: "Liveries (1.x)", link: "/reference/data/livery", icon: "file" },
+                  { text: "Liveries (build operations)", link: "/reference/data/livery", icon: "file" },
                   { text: "In-game text", link: "/reference/data/text", icon: "file" },
                   { text: "A track with its own name", link: "/reference/data/track-names", icon: "file" },
                   { text: "File operations", link: "/reference/ops/files", icon: "file" },
@@ -442,10 +455,10 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Design overview", link: "/design/", icon: "file" },
               { text: "Addons and mods design", link: "/design/addons-and-mods", icon: "file" },
               { text: "Native libraries", link: "/design/native-libraries", icon: "file" },
-              { text: "Standard library 2.0: rollout", link: "/design/std-2/rollout", icon: "file" },
-              { text: "Standard library 2.0: implementation plan", link: "/design/std-2/implementation", icon: "file" },
-              { text: "Standard library 2.0: coverage", link: "/design/std-2/coverage", icon: "file" },
-              { text: "Standard library 2.0: open decisions", link: "/design/std-2/decisions", icon: "file" },
+              { text: "Standard library 1.6: rollout", link: "/design/std-2/rollout", icon: "file" },
+              { text: "Standard library 1.6: implementation plan", link: "/design/std-2/implementation", icon: "file" },
+              { text: "Standard library 1.6: coverage", link: "/design/std-2/coverage", icon: "file" },
+              { text: "Standard library 1.6: decisions", link: "/design/std-2/decisions", icon: "file" },
             ],
           },
         ],
