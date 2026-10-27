@@ -3,6 +3,8 @@
 //! lines of its loader.log, the crash report the core wrote, and the files in
 //! the game folder. The launcher shows the cause and its fix when one of the
 //! rules here matches, and Send Logs and the support Discord when none does.
+//! An addon whose changes don't apply to an F1 25 older than the newest
+//! update is recognised from the build's error, for the launch's failure.
 
 use std::collections::BTreeMap;
 use std::io::Read;
@@ -19,6 +21,10 @@ const NEAR_FRAMES: usize = 8;
 /// The files a step names before it says how many more there are.
 const NAMED_FILES: usize = 6;
 
+/// The newest F1 25 update the launcher knows, as `F1_25.exe`'s file
+/// version: Steam build 25251167, and the EA app's copy of the same update.
+pub const LATEST_GAME_VERSION: &str = "1.0.141.7865";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnosis {
     /// A stable name for the rule that matched, for logs and Send Logs.
@@ -26,6 +32,77 @@ pub struct Diagnosis {
     pub title: String,
     pub what: String,
     pub steps: Vec<String>,
+}
+
+impl Diagnosis {
+    /// What happened, then its steps, as one paragraph.
+    pub fn text(&self) -> String {
+        std::iter::once(&self.what)
+            .chain(&self.steps)
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+/// A game version's four numbers, as in `1.0.141.7865`.
+fn version_numbers(version: &str) -> Option<[u32; 4]> {
+    let mut parts = version.trim().split('.');
+    let mut numbers = [0; 4];
+    for n in &mut numbers {
+        let part = parts.next()?;
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        *n = part.parse().ok()?;
+    }
+    parts.next().is_none().then_some(numbers)
+}
+
+/// Whether game version `version` is older than `than`, number by number.
+/// None when either isn't a version.
+pub fn older_game(version: &str, than: &str) -> Option<bool> {
+    Some(version_numbers(version)? < version_numbers(than)?)
+}
+
+/// The addon whose changes failed to apply, from a build error such as
+/// `applying swofty.classic-seasons: eaid://…: no entry [Name=…]`, on its
+/// own or after what was being done when it failed.
+fn failed_addon(error: &str) -> Option<&str> {
+    let rest = error
+        .strip_prefix("applying ")
+        .or_else(|| error.split_once(": applying ").map(|(_, rest)| rest))?;
+    let id = rest.split([':', ' ', '\n']).next()?;
+    let valid = !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'));
+    valid.then_some(id)
+}
+
+/// An addon whose changes failed to apply to an F1 25 older than
+/// [`LATEST_GAME_VERSION`]: it needs that update. None when `error` isn't an
+/// addon's changes failing, or when `version`, the game's own, is unknown or
+/// not older.
+pub fn outdated_game(
+    error: &str,
+    version: Option<&str>,
+    names: &BTreeMap<String, String>,
+) -> Option<Diagnosis> {
+    let version = version?.trim();
+    if older_game(version, LATEST_GAME_VERSION) != Some(true) {
+        return None;
+    }
+    let id = failed_addon(error)?;
+    let name = names.get(id).map_or(id, String::as_str);
+    Some(Diagnosis {
+        id: "outdated_game",
+        title: format!("{name} needs the latest F1 25"),
+        what: format!(
+            "{name} needs F1 25 {LATEST_GAME_VERSION}, the latest update. Your F1 25 is {version}."
+        ),
+        steps: vec!["Update F1 25 in Steam or the EA app, then press Play again.".to_owned()],
+    })
 }
 
 /// What a crashed session left behind, as the rules read it.
@@ -882,6 +959,83 @@ mod tests {
                     session.file_name().unwrap().to_string_lossy()
                 );
             }
+        }
+    }
+
+    const APPLY_FAILED: &str = "applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+                                overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry \
+                                [Name=vanamersfoort_26]";
+
+    fn classic_seasons() -> BTreeMap<String, String> {
+        BTreeMap::from([("swofty.classic-seasons".to_owned(), "Classic Seasons".to_owned())])
+    }
+
+    #[test]
+    fn game_versions_compare_by_number() {
+        assert_eq!(older_game("1.0.138.5601", LATEST_GAME_VERSION), Some(true));
+        assert_eq!(older_game("1.0.136.6820", "1.0.141.7865"), Some(true));
+        assert_eq!(older_game("1.0.141.7865", LATEST_GAME_VERSION), Some(false));
+        assert_eq!(older_game("1.0.142.1", LATEST_GAME_VERSION), Some(false));
+        assert_eq!(older_game("1.0.141.10000", "1.0.141.7865"), Some(false));
+        assert_eq!(older_game("1.0.99.9999", "1.0.141.7865"), Some(true));
+        assert_eq!(older_game(" 1.0.137.2811 ", LATEST_GAME_VERSION), Some(true));
+        for unknown in [
+            "",
+            "1.0.138",
+            "1.0.138.5601.2",
+            "1.0.x.5601",
+            "25251167",
+            "1..138.5601",
+            "1.0.+8.5601",
+        ] {
+            assert_eq!(older_game(unknown, LATEST_GAME_VERSION), None, "{unknown}");
+        }
+    }
+
+    #[test]
+    fn an_addon_that_does_not_apply_to_an_old_game_names_the_update() {
+        let d = outdated_game(APPLY_FAILED, Some("1.0.136.6820"), &classic_seasons()).unwrap();
+        assert_eq!(d.id, "outdated_game");
+        assert_eq!(d.title, "Classic Seasons needs the latest F1 25");
+        assert_eq!(
+            d.text(),
+            "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. Update F1 \
+             25 in Steam or the EA app, then press Play again."
+        );
+        let wrapped = format!("the wrapper exited (exit code: 1) before the game started: {APPLY_FAILED}");
+        let d = outdated_game(&wrapped, Some("1.0.138.5601"), &BTreeMap::new()).unwrap();
+        assert!(
+            d.what
+                .starts_with("swofty.classic-seasons needs F1 25 1.0.141.7865"),
+            "{}",
+            d.what
+        );
+        let item = APPLY_FAILED.replace("classic-seasons:", "classic-seasons (2018):");
+        let d = outdated_game(&item, Some("1.0.137.2811"), &classic_seasons()).unwrap();
+        assert!(d.what.starts_with("Classic Seasons needs"), "{}", d.what);
+    }
+
+    #[test]
+    fn other_games_and_other_errors_keep_their_own_message() {
+        let names = classic_seasons();
+        assert_eq!(
+            outdated_game(APPLY_FAILED, Some(LATEST_GAME_VERSION), &names),
+            None
+        );
+        assert_eq!(outdated_game(APPLY_FAILED, Some("1.0.142.1"), &names), None);
+        assert_eq!(outdated_game(APPLY_FAILED, None, &names), None);
+        assert_eq!(outdated_game(APPLY_FAILED, Some("unknown"), &names), None);
+        for other in [
+            "version.dll already exists in the game folder; run swofty restore",
+            "building profile default: reading x: missing",
+            "downloading the offline play extension: offline play 0.3.11: the download was blocked",
+            "applying : no entry",
+        ] {
+            assert_eq!(
+                outdated_game(other, Some("1.0.136.6820"), &names),
+                None,
+                "{other}"
+            );
         }
     }
 
