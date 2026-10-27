@@ -392,6 +392,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "Scopes and snapshots", link: "/design/std-2/scopes" },
                   { text: "Content registries", link: "/design/std-2/content" },
                   { text: "Build time and run time", link: "/design/std-2/build" },
+                  { text: "Systems catalogue", link: "/design/std-2/systems" },
                   { text: "Versioning", link: "/design/std-2/versioning" },
                   { text: "Hooks", link: "/design/std-2/hooks" },
                   { text: "Services", link: "/design/std-2/services" },

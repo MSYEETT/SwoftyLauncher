@@ -129,10 +129,13 @@ The registry and its subfeatures come first. Then the parts that connect addons 
   - **Precedence**: load order, the same rule as files and mixins.
   - **Validation**: a patched record that breaks its schema drops that layer.
   - **Conflicts**: clashes are logged and shown in the launcher, never silent.
+  - **Selectors**: one layer for every matching record, including ones added later.
+  - **Option-bound layers**: a layer that applies while one of the addon's options has a value.
 - **[Scopes and snapshots](./scopes)**: how long a change lasts.
   - **Global, profile and career scopes.**
   - **Career snapshots**: the effective values frozen into each career.
 - **[Content registries](./content)**: GP/TT season packages, era boxes, cars, engine sounds, liveries, helmets, tracks and identities.
+- **[Systems catalogue](./systems)**: every game system's registries, hook points, operations and readiness, and the limits the core enforces for all of them.
 - **[Build time and run time](./build)**: which registries the launcher builds into the game, which the core reads in game, and the appliers between records and game files.
 - **[Versioning](./versioning)**: how registries, hook payloads and tables change over time, only ever growing.
   - **Schema versions**: minor adds; a major adds a new version next to the old one.

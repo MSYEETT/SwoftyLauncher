@@ -116,6 +116,61 @@ From a launcher page, as a profile layer, see [The launcher side](./launcher#edi
 
 An addon has at most one layer per record per scope. Writing again replaces that addon's layer, it doesn't stack on it.
 
+## Selectors
+
+A layer can target every record that matches a selector, instead of one id. It applies to matching records from every provider, including ones added by addons the layer's author has never heard of, and ones added after it was written.
+
+```json
+// kizi.ai-tweaks: more aggressive AI in every F1 car, stock or added
+{
+  "overrides": [
+    { "registry": "ai.vehicle_config", "select": { "where": { "class": "f1" } }, "file": "layers/aggressive.json" }
+  ]
+}
+```
+
+```json
+// layers/aggressive.json: one patch, applied to each match
+{ "racecraft": { "overtake_aggression": 0.85, "defend_aggression": 0.8 } }
+```
+
+```text
+[registry] ai.vehicle_config: kizi.ai-tweaks selector class=f1 matched 612 records
+           (599 game/, 80 swofty.classic-seasons-*, 13 f1990), patch applied to each
+```
+
+A selector matches on the record's effective base, before any layers:
+
+```json
+{ "where": { "class": "f1" } }                              // a field equals a value
+{ "where": { "class": ["f1", "f1_26"] } }                   // a field is one of several values
+{ "where": { "season": { "min": 2016, "max": 2019 } } }     // a numeric range
+{ "ids": "swofty.classic-seasons-2017/*" }                  // ids under a prefix
+{ "ids": "*", "except": ["game/safety_car"] }               // everything but some ids
+```
+
+Within one addon, its selector layers apply first, then its layers on single ids. So an addon can set a default for every car and then a different value for one.
+
+## Option-bound layers
+
+A layer can apply only while one of the addon's own options has a given value. When the player changes the option in ADDON SETTINGS or the launcher, the layer turns on or off. At build time that happens on the next build; at run time it happens at once.
+
+```json
+// william09leo.heavier-damage-realism: one layer per damage level, instead of 16 pre-built copies of every car
+{
+  "options": [
+    { "id": "damage", "type": "choice", "values": ["realistic", "heavy", "brutal"], "default": "realistic" }
+  ],
+  "overrides": [
+    { "registry": "vehicle.handling", "select": { "where": { "class": "f1" } }, "file": "layers/damage_realistic.json", "when": { "option": "damage", "is": "realistic" } },
+    { "registry": "vehicle.handling", "select": { "where": { "class": "f1" } }, "file": "layers/damage_heavy.json",     "when": { "option": "damage", "is": "heavy" } },
+    { "registry": "vehicle.handling", "select": { "where": { "class": "f1" } }, "file": "layers/damage_brutal.json",    "when": { "option": "damage", "is": "brutal" } }
+  ]
+}
+```
+
+`when` takes the same forms as an option's value: `is` for one value, `in` for several, and `on`/`off` for a toggle.
+
 ## Precedence
 
 The base comes first. Then each addon's layers, in **load order**, the same order that decides which file wins and how mixins chain. Within one addon, its `global` layer comes before its `profile` layer.

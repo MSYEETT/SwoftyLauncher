@@ -98,6 +98,33 @@ A **variant** is a new record, under your own key, that starts from a base and c
 
 The variant's value is a patch on the base, applied with the same rules as a layer. So the variant above is the 2017 package with three sounds changed and its own title. Every team it doesn't mention, and every other field, comes from the base.
 
+## Copies are variants
+
+In 1.x an addon that needs its own version of a stock row copies it: Progressive copies the 2026 Driver Career's game mode and data group, and Classic Seasons copies entrant lists. A copy misses every later change to the original. When Simulate Sessions changes the stock game mode, Progressive's copy doesn't get it.
+
+In 2.0 the copy is a variant of the stock record, so changes to the original flow into it:
+
+```json
+// swofty.progressive: its career mode, a variant of the stock 2026 Driver Career
+{
+  "career.mode": {
+    "swofty.progressive/progressive": {
+      "extends": "game/f1_career_2026",
+      "data_group": "f1_career_progressive",
+      "save_container": "driver_career_progressive",
+      "title": "lng_progressive_title"
+    }
+  }
+}
+```
+
+```text
+[registry] career.mode swofty.progressive/progressive: extends game/f1_career_2026
+           + layer from kizi.simulate-sessions on game/f1_career_2026 (/sessions/simulate) flows in
+```
+
+The applier writes the variant as its own rows with its own stat ids, the same rows the copy makes today, plus every change on the base.
+
 ## How a variant resolves
 
 ```text
