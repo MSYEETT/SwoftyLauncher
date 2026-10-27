@@ -1978,6 +1978,12 @@ pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
+pub type Vm_Resolve_RegistryNode_t = unsafe extern "C" fn(
+    registry: *mut c_void,
+    path: *const c_char,
+    base: *const c_void,
+    create: *mut c_void,
+) -> *mut c_void;
 pub type Vm_Set_Bool_t = unsafe extern "C" fn(
     registry: *mut c_void,
     parent: *mut c_void,
@@ -2530,6 +2536,11 @@ pub mod bindings {
     };
     pub const Vm_GetOrCreate_ListChild: Binding = Binding {
         id: "Vm_GetOrCreate_ListChild",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Vm_Resolve_RegistryNode: Binding = Binding {
+        id: "Vm_Resolve_RegistryNode",
         kind: "func",
         status: Status::Experimental,
     };
