@@ -1630,3 +1630,13 @@ fn leaves_out_room_files_that_are_not_there() {
         assert!(!got.contains(absent), "{absent} in {got:?}");
     }
 }
+
+#[test]
+fn memory_names_the_page_file_when_windows_gives_the_commit_limit() {
+    let gb = 1024 * 1024 * 1024;
+    assert_eq!(
+        memory_text(16 * gb, Some(35 * gb)),
+        ", 16 GB memory, 19 GB page file (35 GB commit limit)"
+    );
+    assert_eq!(memory_text(32 * gb, None), ", 32 GB memory");
+}
