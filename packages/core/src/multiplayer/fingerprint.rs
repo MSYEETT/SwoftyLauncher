@@ -10,17 +10,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::Result;
+use crate::asset::Source as OpSource;
 use crate::baseline::{Hashes, Identity, hex, sha256_bytes};
 use crate::builtin::{CORE_DB, CORE_DLL, CORE_ID, CORE_MANIFEST, loader_dir, loader_files};
 use crate::catalog::{self, Addon};
 use crate::manifest::{AddonManifest, Kind, Multiplayer};
 use crate::profile::Profile;
 use crate::store::Store;
+use crate::{Result, read_json, write_json_shared};
 
 pub const VERSION: u32 = 1;
 /// Digests of the addon files [`fingerprint`] hashed, kept apart from the launch-time ones.
 pub const HASHES_FILE: &str = "state/fingerprint-hashes.json";
+/// What the last build of each profile made the game load, addon by addon; see [`Output`].
+pub const OUTPUTS_FILE: &str = "state/fingerprint-outputs.json";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fingerprint {
@@ -50,8 +53,9 @@ pub struct AddonPrint {
     /// a fix installs; the digest and the comparison leave it out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registry: Option<String>,
-    /// For an addon with a build hook, a SHA-256 of what the hook reads: its addon data and its
-    /// state in the profile.
+    /// For a built-in addon, what its part of the profile's last build made the game load, as
+    /// [`Source::Built`] has it; until the profile is built, for an addon with a build hook, a
+    /// SHA-256 of what the hook reads: its addon data and its state in the profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inputs: Option<String>,
     /// Its place in the load order among the gameplay addons that change game data, where
@@ -72,6 +76,10 @@ pub enum Source {
     /// Built into the launcher: its version and manifest, and for the core its database
     /// operations and DLL.
     Builtin(String),
+    /// What its part of the profile's last build made the game load: the [`Output`] it made,
+    /// with every file that output reads hashed by content. Taken in place of `Content` and
+    /// `Edits` once the profile has been built.
+    Built(String),
 }
 
 impl Fingerprint {
@@ -148,6 +156,9 @@ pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> R
     let installed = store.addons()?;
     let load = crate::resolver::resolve(profile, &installed)?.order;
     let mut hashes = Hashes::open(store.root.join(HASHES_FILE));
+    let mut outputs: BTreeMap<String, BTreeMap<String, Output>> =
+        read_json(&store.root.join(OUTPUTS_FILE)).unwrap_or_default();
+    let built = outputs.remove(&profile.name).unwrap_or_default();
     let mut addons = Vec::new();
     let mut options = BTreeMap::new();
     let mut place = 0;
@@ -159,15 +170,28 @@ pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> R
             place += 1;
             place - 1
         });
+        let output = built
+            .get(&m.id)
+            .map(|o| o.digest(store, &mut hashes))
+            .transpose()?;
+        let builtin = store.is_builtin(&m.id);
+        let (source, inputs) = match output {
+            Some(o) if builtin => (source(store, m, &mut hashes)?, Some(o)),
+            Some(o) => (Source::Built(o), None),
+            None => (
+                source(store, m, &mut hashes)?,
+                hook_inputs(store, m, profile, &mut hashes)?,
+            ),
+        };
         addons.push(AddonPrint {
             id: m.id.clone(),
             name: m.name.clone(),
             version: m.version.clone(),
-            source: source(store, m, &mut hashes)?,
+            source,
             registry: (!crate::dbedit::package::is_package(store, &m.id))
                 .then(|| catalog::installed_from(store, m))
                 .flatten(),
-            inputs: hook_inputs(store, m, profile, &mut hashes)?,
+            inputs,
             order,
         });
         let values: BTreeMap<String, Value> = m
@@ -222,6 +246,88 @@ fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Sourc
         return Ok(Source::Edits(sha256_bytes(&text)));
     }
     content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
+}
+
+/// What one addon's part of a build made the game load: a SHA-256 of the operations, fields,
+/// screens and plugin list it produced, and the files those read. A fingerprint hashes the
+/// files by content, so an addon prints the same however it was installed, and files the
+/// build never reads, such as logs, import reports and import history, don't count.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Output {
+    pub made: String,
+    pub reads: Vec<Read>,
+}
+
+/// A file or folder an [`Output`] reads, as the operation names it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Read {
+    pub addon: String,
+    pub source: OpSource,
+}
+
+impl Output {
+    fn digest(&self, store: &Store, hashes: &mut Hashes) -> Result<String> {
+        let mut h = Sha256::new();
+        h.update(&self.made);
+        for r in &self.reads {
+            let (root, rel) = (r.source.root, &r.source.path);
+            h.update(format!("\n{}\0{root:?}\0{rel}", r.addon));
+            let path = r
+                .source
+                .resolve(&crate::build::source_dir(store, &r.addon, root))?;
+            if path.is_dir() {
+                for (rel, file) in loader_files(&path)? {
+                    if !rel.split('/').any(|c| c.starts_with('.')) {
+                        h.update(format!("\0{rel}\0{}", hashes.sha256(&file)?));
+                    }
+                }
+            } else if path.is_file() {
+                h.update(format!("\0{}", hashes.sha256(&path)?));
+            } else {
+                h.update("\0missing");
+            }
+        }
+        Ok(hex(&h.finalize()))
+    }
+}
+
+/// Collects an addon's [`Output`] as the build makes it.
+#[derive(Default)]
+pub struct OutputBuilder {
+    made: Sha256,
+    reads: BTreeMap<(String, String), OpSource>,
+}
+
+impl OutputBuilder {
+    pub fn made(&mut self, what: &str, value: &impl Serialize) {
+        self.made.update(format!("{what}\0"));
+        self.made.update(serde_json::to_vec(value).expect("serialisable"));
+        self.made.update(b"\n");
+    }
+
+    pub fn reads(&mut self, addon: &str, source: &OpSource) {
+        let key = format!("{:?}/{}", source.root, source.path);
+        self.reads.insert((addon.to_owned(), key), source.clone());
+    }
+
+    pub fn finish(self) -> Output {
+        Output {
+            made: hex(&self.made.finalize()),
+            reads: self
+                .reads
+                .into_iter()
+                .map(|((addon, _), source)| Read { addon, source })
+                .collect(),
+        }
+    }
+}
+
+/// Keeps what the build of `profile` made the game load, in place of its previous build's.
+pub fn record_outputs(store: &Store, profile: &str, outputs: BTreeMap<String, Output>) -> Result<()> {
+    let path = store.root.join(OUTPUTS_FILE);
+    let mut all: BTreeMap<String, BTreeMap<String, Output>> = read_json(&path).unwrap_or_default();
+    all.insert(profile.to_owned(), outputs);
+    write_json_shared(&path, &all)
 }
 
 /// SHA-256 over each file under `dir` as `path\0sha256\n`, paths relative with `/`, in order.

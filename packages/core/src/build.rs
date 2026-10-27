@@ -24,6 +24,7 @@ use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, PassValue, PostFx, Strength, relative_inside};
 use crate::map::{TrackPackage, Unusable};
+use crate::multiplayer::fingerprint::{self, OutputBuilder};
 use crate::owned;
 use crate::placed::Placed;
 use crate::planner::{
@@ -647,8 +648,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
     }
     let mut head_puts = crate::heads::Puts::default();
+    let mut outputs = BTreeMap::new();
     for id in &resolved.order {
         let m = &addons[id];
+        let mut out = OutputBuilder::default();
         hasher.update(format!("{id}@{};", m.version));
         let dir = store.addons_dir().join(id);
         let origin = Origin {
@@ -661,6 +664,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             match package_ops(store, id) {
                 Ok((file, picks)) => {
                     hasher.update(serde_json::to_vec(&file).expect("serialisable"));
+                    out.made("picks", &picks);
                     files.push((FileKind::Database, file));
                     driver_picks.push((name.clone(), picks));
                 }
@@ -695,12 +699,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         let roots = |root: Root| source_dir(store, id, root);
         for (kind, file) in files {
+            out.made(&format!("{kind:?}"), &file);
             for op in &file.ops {
+                op.sources().into_iter().for_each(|src| out.reads(id, src));
                 head_puts.op(id, op, &roots);
             }
             planner.push_file(&origin, kind, file);
         }
         for op in declared {
+            out.made("declared", &op);
+            op.sources().into_iter().for_each(|src| out.reads(id, src));
             head_puts.op(id, &op, &roots);
             planner.push(Op {
                 op,
@@ -737,8 +745,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
                 ops.retain(|o| !matches!(o.op, AssetOp::Erp(_)));
             }
+            out.made("fields", &batch.fields);
             planner.add_fields(id, batch.fields);
             for op in ops {
+                out.made("hook", &op);
+                op.op
+                    .sources()
+                    .into_iter()
+                    .for_each(|src| out.reads(&op.origin.addon, src));
                 head_puts.op(&op.origin.addon, &op.op, &|root| {
                     source_dir(store, &op.origin.addon, root)
                 });
@@ -746,6 +760,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
         for s in m.operations.screens.iter().filter(|s| s.page.is_none()) {
+            out.reads(id, &Source::addon(s.file.clone()));
             let path = dir.join(&s.file);
             let data = std::fs::read(&path).map_err(io_err(&path))?;
             if swofty_formats::pkg::is_pkg(&data) {
@@ -779,6 +794,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 "{id}: {pending} UI operation file(s) skipped; that stage is not built yet"
             ));
         }
+        if !store.is_builtin(id) {
+            for n in &m.operations.native {
+                out.made("native", n);
+                for rel in std::iter::once(&n.dll).chain(&n.files) {
+                    out.reads(id, &Source::addon(rel.trim_end_matches('/')));
+                }
+            }
+        }
+        outputs.insert(id.clone(), out.finish());
     }
     if head_puts.pending() {
         let path = original(&store.root, game, GVDB);
@@ -889,6 +913,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         saved.restore(&mut built)?;
         built.report.order = p.enabled().map(str::to_owned).collect();
         crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
+        if !checking {
+            fingerprint::record_outputs(store, profile, outputs).ok();
+        }
         return Ok(built);
     }
     let (ui_lists, ui_notes) = if ui_maps.is_empty() {
@@ -1536,6 +1563,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         crate::write_json(&built.overlay.join(SAVED_FILE), &saved)?;
     }
     crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
+    if !checking {
+        fingerprint::record_outputs(store, profile, outputs).ok();
+    }
     Ok(built)
 }
 
@@ -2251,6 +2281,86 @@ mod tests {
         );
         assert!(store.addon_data_dir("t.hook").is_dir());
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn fingerprints_count_what_the_build_made_not_the_rest_of_the_folders() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let hook = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.hook", "name": "Hook", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" },
+                 "options": [{ "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 30, "step": 2, "default": 22, "binds": "db" }] }"#,
+        )
+        .unwrap();
+        let prints = |name: &str, zip: &str, texture: &str| {
+            let root = std::env::temp_dir().join(format!("swofty-build-print-{name}-{}", std::process::id()));
+            std::fs::remove_dir_all(&root).ok();
+            let dir = root.join("game");
+            std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+            std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+            std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+            let game = Game {
+                identity: Identity::detect(&dir, Some(1)).unwrap(),
+                dir,
+                user_reg: None,
+            };
+            let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+                addon: Arc::new(Hook(hook.clone())),
+                locked: false,
+                default_on: true,
+            }]);
+            let src = root.join("src");
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "mod.track", "name": "Track", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }},
+                         "operations": {{ "assets": ["ops.json"], "files": [{{ "source": "a.dds", "target": "x/a.dds" }}] }},
+                         "origin": {{ "tool": "teamsimplified.mods", "tool_version": "0.11.6", "file": "{zip}", "sha256": "ab" }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(src.join("ops.json"), r#"{ "schema_version": 1, "ops": [] }"#).unwrap();
+            std::fs::write(src.join("a.dds"), texture).unwrap();
+            std::fs::write(
+                src.join("import-report.txt"),
+                format!("{zip} -> mod.track (Track)"),
+            )
+            .unwrap();
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled("mod.track", true))
+                .unwrap();
+            let history = store.addon_data_dir("t.hook");
+            std::fs::create_dir_all(&history).unwrap();
+            std::fs::write(
+                history.join("importer.json"),
+                format!(r#"{{ "mods": {{ "{name}": {{ "made": {{ "id": "mod.{name}" }} }} }} }}"#),
+            )
+            .unwrap();
+            let print = || {
+                let p = store.profile("default").unwrap();
+                fingerprint::fingerprint(&store, &p, &game.identity).unwrap()
+            };
+            let before = print();
+            build(&store, "default", &game).unwrap();
+            let after = print();
+            std::fs::remove_dir_all(&root).ok();
+            (before, after)
+        };
+        let (a, b) = (
+            prints("a", "track.zip", "dds"),
+            prints("b", "track(1).zip", "dds"),
+        );
+        assert_ne!(a.0.digest, b.0.digest);
+        assert_eq!(a.1.digest, b.1.digest, "{:#?}\n{:#?}", a.1.addons, b.1.addons);
+        let track = a.1.addons.iter().find(|x| x.id == "mod.track").unwrap();
+        assert!(matches!(track.source, fingerprint::Source::Built(_)), "{track:?}");
+        let (_, other) = prints("c", "track.zip", "another texture");
+        assert_ne!(other.digest, a.1.digest);
     }
 
     struct Rows(AddonManifest);
