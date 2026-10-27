@@ -330,12 +330,28 @@ impl Store {
         }
         let dest = self.addons_dir().join(&m.id);
         self.helpers.forget(&m.id);
+        let staging = self.addons_dir().join(format!(".installing-{}", m.id));
+        if staging.exists() {
+            std::fs::remove_dir_all(&staging).map_err(io_err(&staging))?;
+        }
+        let moved = self.in_scratch(src) && std::fs::rename(src, &staging).is_ok();
+        if !moved && let Err(e) = copy_dir(src, &staging) {
+            std::fs::remove_dir_all(&staging).ok();
+            return Err(e);
+        }
         if dest.exists() {
             std::fs::remove_dir_all(&dest).map_err(io_err(&dest))?;
         }
         std::fs::remove_file(self.registry_install_path(&m.id)).ok();
-        copy_dir(src, &dest)?;
+        std::fs::rename(&staging, &dest).map_err(io_err(&dest))?;
         Ok(m)
+    }
+
+    fn in_scratch(&self, path: &Path) -> bool {
+        path.strip_prefix(self.addons_dir())
+            .ok()
+            .and_then(|rest| rest.components().next())
+            .is_some_and(|c| c.as_os_str().to_string_lossy().starts_with(".importing-"))
     }
 
     fn scratch_dir(&self) -> PathBuf {
@@ -993,6 +1009,52 @@ mod tests {
             .finish()
             .unwrap();
         assert!(store.install_addon(&bare).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_install_keeps_the_previous_version() {
+        let root = tmp("failed-install");
+        let store = Store::new(&root);
+        let good = root.join("good");
+        std::fs::create_dir_all(good.join("track")).unwrap();
+        std::fs::write(good.join(MANIFEST_FILE), manifest_json("a.sochi")).unwrap();
+        std::fs::write(good.join("track/sochi.erp"), b"v1").unwrap();
+        store.install_addon(&good).unwrap();
+        let broken = root.join("broken");
+        std::fs::create_dir_all(broken.join("track")).unwrap();
+        std::fs::write(
+            broken.join(MANIFEST_FILE),
+            manifest_json("a.sochi").replace("1.0.0", "1.1.0"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(root.join("nowhere"), broken.join("track/sochi.erp")).unwrap();
+        assert!(store.install_addon(&broken).is_err());
+        let dest = store.addons_dir().join("a.sochi");
+        assert_eq!(std::fs::read(dest.join("track/sochi.erp")).unwrap(), b"v1");
+        assert_eq!(store.addons().unwrap()["a.sochi"].version.to_string(), "1.0.0");
+        let left = std::fs::read_dir(store.addons_dir())
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with(".installing"))
+            .count();
+        assert_eq!(left, 0);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_first_install_leaves_nothing_listed() {
+        let root = tmp("failed-first-install");
+        let store = Store::new(&root);
+        let broken = root.join("broken");
+        std::fs::create_dir_all(broken.join("track")).unwrap();
+        std::fs::write(broken.join(MANIFEST_FILE), manifest_json("a.sochi")).unwrap();
+        std::os::unix::fs::symlink(root.join("nowhere"), broken.join("track/sochi.erp")).unwrap();
+        assert!(store.install_addon(&broken).is_err());
+        assert!(!store.addons().unwrap().contains_key("a.sochi"));
+        assert!(!store.addons_dir().join("a.sochi").exists());
         std::fs::remove_dir_all(&root).ok();
     }
 
