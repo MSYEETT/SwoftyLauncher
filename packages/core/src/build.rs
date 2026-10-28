@@ -28,7 +28,7 @@ use crate::multiplayer::fingerprint::{self, OutputBuilder};
 use crate::owned;
 use crate::placed::Placed;
 use crate::planner::{
-    Conflict, Features, Kind, Planner, Route, Target, load_features, stock_removals_line,
+    Conflict, Features, Kind, Planner, Route, Target, kept_lists_line, load_features, stock_removals_line,
     track_removals_line, waiting_lines,
 };
 use crate::profile::Profile;
@@ -597,6 +597,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         pairs: Vec::new(),
         order: p.enabled().map(str::to_owned).collect(),
         stock_removals: BTreeMap::new(),
+        kept_lists: BTreeMap::new(),
     };
     if p.is_vanilla() {
         built.plan = Plan::vanilla();
@@ -994,6 +995,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         plan_lists(&ui_maps, &resolve)?.0
     };
     let mut stock_removals = BTreeMap::new();
+    let mut kept_lists = BTreeMap::new();
     if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
@@ -1031,6 +1033,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         };
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let mut db_report = crate::ops::DbReport::default();
+        planner.keep_entrant_lists(crate::entrant_lists::StockLists::new(&shipped_db));
         let added = planner.apply_db_report(&mut db, &stock, &tracked, &mut db_report)?;
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
@@ -1073,6 +1076,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for (id, n) in planner.take_track_removals() {
             let name = addons.get(&id).map_or(id.as_str(), |m| m.name.as_str());
             built.warnings.push(track_removals_line(name, n));
+        }
+        kept_lists = planner.take_kept_lists();
+        for (id, lists) in &kept_lists {
+            let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
+            built.warnings.push(kept_lists_line(name, lists));
         }
         let mut copies = planner.take_copies();
         for c in &mut copies {
@@ -1585,6 +1593,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     built.report = Report {
         order: built.report.order.clone(),
         stock_removals,
+        kept_lists,
         ..report
     };
     built.conflicts = planned.conflicts;
@@ -3500,6 +3509,121 @@ mod tests {
         assert!(out.get("stock.key_4").is_none());
         assert!(out.get("stock.key_3").is_some());
         assert!(db_edits(&stock, &out).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn keeps_the_entrant_lists_an_addon_renames_or_removes() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-keeplists-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let lists = "entrants.entrant_lists";
+        let whitelist = "content_sets.content_set_0.available_entrant_lists_0.entrant_lists";
+        let mut records = vec![
+            Record::new(&format!("{lists}._entrant_list_instancecount_"), 0, "3"),
+            Record::new("content_sets._content_set_instancecount_", 0, "1"),
+            Record::new(
+                "content_sets.content_set_0._available_entrant_lists_instancecount_",
+                0,
+                "1",
+            ),
+            Record::new(whitelist, 13, "f1_2026,f2_2026,f2_2025"),
+        ];
+        for (i, (name, id)) in [("f1_2026", "67"), ("f2_2026", "104"), ("f2_2025", "95")]
+            .into_iter()
+            .enumerate()
+        {
+            records.push(Record::new(
+                &format!("{lists}.entrant_list_{i}._metadata_"),
+                4,
+                name,
+            ));
+            records.push(Record::new(&format!("{lists}.entrant_list_{i}.stat_id"), 0, id));
+            records.push(Record::new(
+                &format!("{lists}.entrant_list_{i}.display_name"),
+                4,
+                format!("lng_{name}"),
+            ));
+        }
+        let stock = Gvdb { records };
+        std::fs::write(dir.join(GVDB), stock.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let src = root.join("src").join("t.old");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("swofty.json"),
+            r#"{ "schema_version": 1, "id": "t.old", "name": "Old Team Pack", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "operations": { "assets": ["ops.json"] } }"#,
+        )
+        .unwrap();
+        let put = |key: &str, value: &str| {
+            format!(
+                r#"{{"op":"db.put-record","key":"{key}","type":0,"value":"{}"}}"#,
+                hex(value.as_bytes())
+            )
+        };
+        let ops = [
+            put(&format!("{lists}._entrant_list_instancecount_"), "2"),
+            put(&format!("{lists}.entrant_list_1._metadata_"), "f2_2025"),
+            put(&format!("{lists}.entrant_list_1.stat_id"), "95"),
+            put(whitelist, "f1_2026,f2_2025"),
+        ]
+        .join(",");
+        std::fs::write(
+            src.join("ops.json"),
+            format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+        )
+        .unwrap();
+        store.install_addon(&src).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled("t.old", true))
+            .unwrap();
+
+        let built = build(&store, "default", &game).unwrap();
+        let line = "Old Team Pack: kept the entrant list(s) f2_2026 that it renames or removes; \
+                    the game crashes when a list it looks up by name is missing";
+        assert!(built.warnings.iter().any(|w| w == line), "{:?}", built.warnings);
+        assert_eq!(
+            built.report.kept_lists,
+            BTreeMap::from([("t.old".to_owned(), vec!["f2_2026".to_owned()])])
+        );
+        let out = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(
+            out.get_text(&format!("{lists}._entrant_list_instancecount_"))
+                .as_deref(),
+            Some("4")
+        );
+        assert_eq!(
+            out.get_text(&format!("{lists}.entrant_list_1._metadata_"))
+                .as_deref(),
+            Some("f2_2025")
+        );
+        for (field, value) in [
+            ("_metadata_", "f2_2026"),
+            ("stat_id", "104"),
+            ("display_name", "lng_f2_2026"),
+        ] {
+            assert_eq!(
+                out.get_text(&format!("{lists}.entrant_list_3.{field}"))
+                    .as_deref(),
+                Some(value)
+            );
+        }
+        assert_eq!(
+            out.get_text(whitelist).as_deref(),
+            Some("f1_2026,f2_2025,f2_2026")
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
