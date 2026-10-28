@@ -11,7 +11,8 @@
 // file's sections and their fields after its keys, in snake_case (FrontCoeffLiftMultiplier ->
 // front_coeff_lift_multiplier); a key this header doesn't name is kept in the part's `extra`. cars::live
 // is the cars on track; the core that drives it ships later, and until then live::available() is false
-// and live::cars() is empty.
+// and live::cars() is empty. A live::Car is a trivially copyable handle (the car's index and the game's
+// car), so event payloads carry it as is.
 
 namespace swofty::cars {
 
@@ -23,7 +24,7 @@ enum class Component { front_wing, gearbox, engine };
 SWOFTY_ENUM(Component, front_wing, gearbox, engine)
 enum class Fault { open_drs, closed_drs, front_wing };
 SWOFTY_ENUM(Fault, open_drs, closed_drs, front_wing)
-enum class Department { chassis, aero, powertrain, durability, tyres };
+enum class Department : int32_t { chassis, aero, powertrain, durability, tyres };
 SWOFTY_ENUM(Department, chassis, aero, powertrain, durability, tyres)
 
 struct Package {
@@ -283,8 +284,9 @@ struct Shadow {
 class Car {
 public:
     Car() = default;
-    explicit Car(uint32_t index) : index_(index) {}
+    explicit Car(uint32_t index, void *handle = nullptr) : index_(index), handle_(handle) {}
     uint32_t index() const { return index_; }
+    void *handle() const { return handle_; }
     Ref<Vehicle> vehicle() const { return {}; }
     Ref<teams::Identity> team() const { return {}; }
     Ref<drivers::Identity> driver() const { return {}; }
@@ -303,6 +305,7 @@ private:
         return all[index_];
     }
     uint32_t index_ = 0;
+    void *handle_ = nullptr;
 };
 
 inline bool available() { return false; }
@@ -318,11 +321,13 @@ struct UpgradesFit {
     static constexpr const char *point = "car.upgrades.fit";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;
-    Ref<Vehicle> vehicle;
+    int32_t car;
+    const char *vehicle_id;
     Department department;
     float driver_stat;
     float rating;
+
+    Ref<Vehicle> vehicle() const { return swofty::detail::payload_ref<Vehicle>(vehicle_id); }
 };
 
 struct VtfRead {
@@ -330,10 +335,14 @@ struct VtfRead {
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
     live::Car car;
-    std::string_view section;
-    std::string_view field;
-    std::string_view upgrade;
+    const char *section_str;
+    const char *field_str;
+    const char *upgrade_str;
     float value;
+
+    std::string_view section() const { return swofty::detail::payload_str(section_str); }
+    std::string_view field() const { return swofty::detail::payload_str(field_str); }
+    std::string_view upgrade() const { return swofty::detail::payload_str(upgrade_str); }
 };
 
 struct Built {
@@ -355,10 +364,18 @@ struct PartsRegister {
     static constexpr const char *point = "car.parts.register";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;
-    Ref<Vehicle> vehicle;
+    int32_t car;
+    const char *vehicle_id;
     void *front_wing;
-    std::function<Result(const Part &)> add;
+    int32_t (*add_fn)(void *user, const char *node, float detach_at, bool debris);
+    void *user;
+
+    Ref<Vehicle> vehicle() const { return swofty::detail::payload_ref<Vehicle>(vehicle_id); }
+    Result add(const Part &part) const
+    {
+        return add_fn ? swofty::detail::result(add_fn(user, part.node.c_str(), part.detach_at, part.debris))
+                      : Result::unavailable;
+    }
 };
 
 }

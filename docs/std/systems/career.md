@@ -228,8 +228,8 @@ struct SeasonStart {                           // a season begins: the first, th
     static constexpr const char *point = "career.season.start";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int year;
-    int season_index;
+    int32_t year;
+    int32_t season_index;
 };
 
 struct AddActivity {                           // Game_CareerActivities_AddActivity (cancel)

@@ -39,3 +39,4 @@ re/trace_plugin/build/
 *.wep
 *.swoftymod
 templates/addon/native/build/
+re/db/*.tmp

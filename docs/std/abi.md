@@ -263,6 +263,7 @@ An edit crosses the ABI as JSON:
 ## Rules
 
 - **Copies:** the core copies every string and JSON text it's given. Values come back in the caller's buffer. When the buffer is too small, the call returns `SWOFTY_TOO_SMALL` with the size needed, and the C++ wrapper retries.
+- **Payloads:** an event or hook point's payload struct holds C types only: fixed-width integers, `float`, `bool`, enums with a fixed underlying type, plain pointers, `const char *` record ids and text (NUL-terminated, valid for the handler call), and C function pointers with a `void *user`. The C++ forms are member functions: `e.vehicle()` returns a `Ref<Vehicle>` from `vehicle_id`, `e.section()` a `std::string_view`, `p.add(part)` calls `add_fn`. A `cars::live::Car` is a trivially copyable handle, `{ uint32_t index; void *handle; }`. An addon built with any compiler reads the same layout.
 - **Results:** the shared result codes plus `SWOFTY_TOO_SMALL`. A refusal leaves its reason in `last_error` for the calling thread.
 - **Timing:**
   - the registry calls (`declare`, `add`, `variant`, `provide`, `provide_fn`, `layer`, `layer_fn`, `layer_select`) are accepted from `SwoftyAddonRegister` on, and at any time after it while the game runs. A change made after the game read that data takes effect at the next moment it reads it, and the core logs when ("applies from the next session load", "applies from the next game start");
