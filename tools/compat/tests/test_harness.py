@@ -266,6 +266,19 @@ class Preparing(unittest.TestCase):
             self.assertTrue((t / "game" / "F1_25.exe").is_file())
             self.assertFalse((t / "game" / "data" / "big.bin").is_symlink())
 
+    def test_the_exported_session_settings_become_swofty_settings_json(self):
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            data = plan_tree(t / "out" / "a" / "s0000", "h1")
+            sp = harness.settings_path(data, None, "h1")
+            sp.parent.mkdir(parents=True)
+            sp.write_text('{"plugins": ["x"]}')
+            _, plan = harness.load_plan(t / "out", "a", 0, "h1")
+            exe = t / "F1_25.exe"
+            exe.write_bytes(b"MZ")
+            harness.prepare_game(plan, [], t / "game", exe, settings=sp)
+            self.assertEqual(json.loads((t / "game" / "swofty" / "settings.json").read_text()), {"plugins": ["x"]})
+
     def test_big_non_loader_files_are_skipped_and_missing_ones_listed(self):
         with tempfile.TemporaryDirectory() as t:
             t = Path(t)
@@ -328,7 +341,11 @@ class Slimming(unittest.TestCase):
             plan = json.loads(plan_path.read_text())
             plan = json.loads(json.dumps(plan).replace(str(data), str(t / "work" / "data")))
             plan_path.write_text(json.dumps(plan))
+            sp = harness.settings_path(data, None, "h1")
+            sp.parent.mkdir(parents=True)
+            sp.write_text("{}")
             harness.slim_data(data, "h1", mapping, cap=10)
+            self.assertTrue(sp.is_file())
             self.assertTrue((data / "addons" / "x" / "native" / "x.dll").is_file())
             self.assertTrue(plan_path.is_file())
             self.assertFalse((data / "big.bin").exists())

@@ -18,6 +18,7 @@ DEFAULT_CAP = 1 << 20
 PROFILE = "compat"
 CATEGORIES = ("dll", "drop", "chain", "conflict", "unresolved", "register", "start", "run")
 CORE_DLL = "swofty_core.dll"
+CORE_DLLS = (CORE_DLL, "swofty_gamelog.dll")
 
 STAMP = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(?:\.\d+)? \[\s*\d+\] ?")
 POINTER = re.compile(r"\b0x[0-9a-fA-F]{9,}\b|\b[0-9A-F]{16}\b")
@@ -26,7 +27,8 @@ LOADED = re.compile(r"^addon (\S+): loaded at \S+, (.*)$")
 ALSO = re.compile(r"^addon (\S+): (also in|settings\.json lists|listed twice|loaded at \S+ but exports no|too many|exports SwoftyCoreAttach but did not)(.*)$")
 DROPPED = re.compile(r"^\[core\] addon (\S+) dropped: (.*)$")
 INSTALLED = re.compile(r"^\[core\] (\w+) (\S+) at (?:0x)?\S+ \(base\+0x[0-9a-f]+\) installed: (.*)$")
-OWNER = re.compile(r"^(\S+?)\((-?\d+)(, overwrite)?\)$")
+OWNER = re.compile(r"^(.+?)\((-?\d+)(, overwrite)?\)$")
+DLL_NAME = re.compile(r"[\w.-]+\.dll")
 CONFLICT = re.compile(r"^\[core\] (conflict|warning): ")
 NEEDS = re.compile(r"^\[core\] addon (\S+) (needs .*|waits: .*)$")
 REGISTERED = re.compile(r"^\[core\] addon (\S+): registered (\d+) mixin\(s\)")
@@ -80,8 +82,11 @@ def parse_log(text, roots=()):
             owners = []
             for part in m.group(3).split(" > "):
                 o = OWNER.match(part.strip())
-                owners.append({"addon": o.group(1), "priority": int(o.group(2)), "overwrite": bool(o.group(3))}
-                              if o else {"addon": part.strip(), "priority": None, "overwrite": False})
+                name = o.group(1) if o else part.strip()
+                if name.startswith(CORE_DLLS):
+                    name = CORE_DLL
+                owners.append({"addon": name, "priority": int(o.group(2)), "overwrite": bool(o.group(3))}
+                              if o else {"addon": name, "priority": None, "overwrite": False})
             out["chains"][f"{m.group(1)} {m.group(2)}"] = owners
             current = None
             continue
@@ -106,6 +111,10 @@ def parse_log(text, roots=()):
             continue
         if current:
             out["start"][current].append(line)
+            continue
+        known = [d for d in DLL_NAME.findall(line) if d in out["start"]]
+        if known:
+            out["start"][known[0]].append(line)
     return out
 
 
@@ -181,10 +190,14 @@ def compare_logs(a, b, allow=()):
         if ua != ub:
             diffs.append(_diff("unresolved", f"{addon}: bindings it needs that do not resolve", ua, ub, addon))
     for addon in sorted(set(a["registered"]) | set(b["registered"])):
+        if addon in CORE_DLLS:
+            continue
         if a["registered"].get(addon) != b["registered"].get(addon):
             diffs.append(_diff("register", f"{addon}: mixins registered", a["registered"].get(addon),
                                b["registered"].get(addon), addon))
     for dll in sorted(set(a["start"]) | set(b["start"])):
+        if dll in CORE_DLLS:
+            continue
         sa, sb = a["start"].get(dll, []), b["start"].get(dll, [])
         if sa != sb:
             diffs.append(_diff("start", f"{dll}: start lines", [l for l in sa if l not in sb] or sa,
@@ -295,13 +308,17 @@ def side_mapping(out, side, index):
     return [(work, kept)]
 
 
+def settings_path(data, plan, buildhash):
+    return Path(data) / "cache" / "overlay" / PROFILE / buildhash / "swofty" / "settings.json"
+
+
 def load_plan(out, side, index, buildhash):
     data = Path(out) / side / f"s{index:04d}" / "data"
     path = data / "cache" / "overlay" / PROFILE / buildhash / "plan.json"
     return data, json.loads(path.read_text())
 
 
-def prepare_game(plan, mapping, dest, exe, max_copy=DEFAULT_CAP):
+def prepare_game(plan, mapping, dest, exe, max_copy=DEFAULT_CAP, settings=None):
     dest = Path(dest)
     if dest.exists():
         shutil.rmtree(dest)
@@ -325,6 +342,9 @@ def prepare_game(plan, mapping, dest, exe, max_copy=DEFAULT_CAP):
             shutil.copyfile(src, target)
             copied += 1
     shutil.copyfile(exe, dest / "F1_25.exe")
+    if settings and Path(settings).is_file():
+        (dest / "swofty").mkdir(exist_ok=True)
+        shutil.copyfile(settings, dest / "swofty" / "settings.json")
     return {"copied": copied, "skipped": skipped, "missing": missing}
 
 
@@ -443,7 +463,7 @@ def slim_data(data, buildhash, mapping=(), cap=DEFAULT_CAP):
     data = Path(data)
     plan_path = data / "cache" / "overlay" / PROFILE / buildhash / "plan.json"
     plan = json.loads(plan_path.read_text())
-    keep = {plan_path}
+    keep = {plan_path, settings_path(data, None, buildhash)}
     for kind in ("replace", "add", "loader"):
         for src in (plan.get(kind) or {}).values():
             if isinstance(src, str):

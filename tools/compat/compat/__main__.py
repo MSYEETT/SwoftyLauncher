@@ -315,6 +315,8 @@ def cmd_harness(args):
     if not args.no_synth:
         ids = harness.synth_ids(out / "sides" / s / "loader" / "swofty" / "addons" / "core" / "bindings.json"
                                 for s in ("a", "b"))
+    if args.recompare:
+        return _harness_recompare(args, out, rep, work)
     exe = harness.build_fake_exe(repo, args.fake_exe or work / "fake" / "F1_25.exe", ids)
     prefix = work / "prefix"
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(2))
@@ -339,7 +341,7 @@ def cmd_harness(args):
                 continue
             try:
                 hashes = r["buildhash"]
-                plans = {s: harness.load_plan(out, s, index, hashes[s]) for s in ("a", "b")}
+                plans = {s: harness.load_plan(out, s, index, hashes[s]) + (hashes[s],) for s in ("a", "b")}
             except (KeyError, OSError, ValueError) as e:
                 result["error"] = f"no kept build for this set ({type(e).__name__}: {e}); run with --keep"
                 continue
@@ -374,14 +376,45 @@ def cmd_harness(args):
     return final["exit"]
 
 
+def _harness_recompare(args, out, rep, work):
+    allow = set(args.allow or [])
+    results = []
+    for index, r in enumerate(rep["results"]):
+        result = {"set": r["set"], "addons": r.get("addons", []), "notes": []}
+        results.append(result)
+        base = work / f"s{index:04d}"
+        logs = {}
+        for side in ("a", "b"):
+            try:
+                logs[side] = (base / side / "loader.log").read_text(errors="replace")
+            except OSError:
+                break
+        if len(logs) < 2:
+            result["skipped"] = "no saved loader.log for this set"
+            continue
+        parsed = {s: harness.parse_log(t, [str(base / s / "game")]) for s, t in logs.items()}
+        result["comparison"] = harness.compare_logs(parsed["a"], parsed["b"], allow)
+        result["chains"] = {s: len(parsed[s]["chains"]) for s in parsed}
+        result["dlls"] = {s: len(parsed[s]["dlls"]) for s in parsed}
+    meta = {"a": dict(rep["meta"].get("a", {})), "b": dict(rep["meta"].get("b", {})), "allow": sorted(allow),
+            "notes": ["Wine harness, synthetic level, compared again from the saved loader.log files", f"input: {out}"]}
+    final = report.build(meta, results)
+    harness.write_json(work / "report.json", final)
+    text = report.summary(final)
+    (work / "summary.txt").write_text(text)
+    print(text, end="")
+    print(f"report: {work / 'report.json'}")
+    return final["exit"]
+
+
 def _harness_pair(args, work, exe, prefix, index, plans, allow, notes):
     base = work / f"s{index:04d}"
     parsed = {}
     for side in ("a", "b"):
-        data, plan = plans[side]
+        data, plan, _ = plans[side]
         mapping = harness.side_mapping(Path(args.run).resolve(), side, index)
         game = base / side / "game"
-        info = harness.prepare_game(plan, mapping, game, exe, args.max_copy_mb << 20)
+        info = harness.prepare_game(plan, mapping, game, exe, args.max_copy_mb << 20, harness.settings_path(data, plans[side][1], plans[side][2]))
         if not args.no_synth:
             info["synth"] = harness.synth_bindings(game)
         if info["missing"]:
@@ -487,6 +520,8 @@ def parser():
     h.add_argument("--hold", type=int, default=540, help="seconds to hold the lock before releasing it (default %(default)s)")
     h.add_argument("--timeout", type=int, default=300, help="seconds per synthetic game (default %(default)s)")
     h.add_argument("--max-copy-mb", type=int, default=harness.DEFAULT_CAP >> 20, help="game files larger than this are not copied")
+    h.add_argument("--recompare", action="store_true",
+                   help="compare the loader.log files saved by an earlier harness run again; start nothing")
     h.add_argument("--no-synth", action="store_true",
                    help="leave the game's bindings alone (then the real addresses do not resolve in the synthetic game)")
     h.add_argument("--keep-games", action="store_true", help="keep the scratch game folders")
