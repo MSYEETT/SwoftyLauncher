@@ -597,6 +597,7 @@ impl Shell {
         let mut config = self.store.config();
         config.console = self.console.is_some();
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         cx.notify();
@@ -662,6 +663,7 @@ impl Shell {
         if let Some(found) = probe.install {
             let changed = !self.detected || self.install != found.active || self.copies != found.all;
             self.install = found.active;
+            crate::app_log::set_game(self.install.as_ref().map(|i| i.dir.as_path()));
             self.copies = found.all;
             self.missing_copies = found.missing;
             self.detected = true;
@@ -953,6 +955,7 @@ impl Shell {
         let mut config = self.store.config();
         config.launch.start_store = on;
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.start_store = config.launch.start_store;
@@ -964,11 +967,13 @@ impl Shell {
         let mut config = self.store.config();
         swofty_core::copies::set_active(&mut config, &dir);
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
             return;
         }
         if let Some(copy) = self.copies.iter().find(|c| c.dir == dir) {
             self.install = Some(copy.clone());
+            crate::app_log::set_game(Some(&copy.dir));
         }
         self.attribute();
         self.notice = None;
@@ -980,6 +985,7 @@ impl Shell {
         let mut config = self.store.config();
         config.set_launch_mode(&self.library.profile.name, mode);
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.vr_profiles = config.vr_profiles;
@@ -1002,6 +1008,7 @@ impl Shell {
                 .show_cancel(true)
                 .on_ok(move |_, window, cx| {
                     if let Err(e) = swofty_core::offline::record_accept(&store.root) {
+                        crate::app_log::action("accept offline play").failed(&e);
                         window.push_notification(Notification::error(e.to_string()), cx);
                         return false;
                     }
@@ -1030,7 +1037,10 @@ impl Shell {
                 match result {
                     Ok(text) => window
                         .push_notification(Notification::success(text).title("Game folder restored"), cx),
-                    Err(e) => window.push_notification(Notification::error(e).title("Restore failed"), cx),
+                    Err(e) => {
+                        crate::app_log::action("restore the game folder").failed(&e);
+                        window.push_notification(Notification::error(e).title("Restore failed"), cx)
+                    }
                 }
                 cx.notify();
             })
@@ -1063,7 +1073,10 @@ impl Shell {
                             })
                             .ok();
                         }
-                        Err(e) => window.push_notification(Notification::error(e.to_string()), cx),
+                        Err(e) => {
+                            crate::app_log::action("cancel the build").failed(&e);
+                            window.push_notification(Notification::error(e.to_string()), cx)
+                        }
                     }
                     true
                 })
@@ -1085,6 +1098,7 @@ impl Shell {
                 .on_ok(move |_, window, cx| {
                     swofty_core::session::request_stop(&data);
                     if let Err(e) = stop_game_in(&dir) {
+                        crate::app_log::action("stop f1 25").failed(&e);
                         window.push_notification(Notification::error(e.to_string()), cx);
                     }
                     true
@@ -1172,6 +1186,7 @@ impl Shell {
                                 .ok();
                         }
                         Err(e) => {
+                            crate::app_log::action("remove addon").addon(&id).failed(&e);
                             window.push_notification(Notification::error(e.to_string()), cx);
                         }
                     }
@@ -1187,6 +1202,7 @@ impl Shell {
         f: impl FnOnce(&mut swofty_core::profile::Profile) -> swofty_core::Result<()>,
     ) {
         if let Err(e) = self.store.update_profile(&self.library.profile.name, f) {
+            crate::app_log::action("change the profile").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.reload(cx);
@@ -1194,6 +1210,7 @@ impl Shell {
 
     pub(crate) fn switch_profile(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
         if let Err(e) = self.store.set_active_profile(name) {
+            crate::app_log::action("switch profile").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.reload(cx);
@@ -1273,8 +1290,13 @@ impl Shell {
                             .detach();
                     })
             });
-            let (input, shell, store, action) =
-                (input.clone(), shell.clone(), store.clone(), prompt.action.clone());
+            let (input, shell, store, action, title) = (
+                input.clone(),
+                shell.clone(),
+                store.clone(),
+                prompt.action.clone(),
+                prompt.title,
+            );
             alert
                 .width(px(560.))
                 .title(prompt.title)
@@ -1302,6 +1324,9 @@ impl Shell {
                             true
                         }
                         Err(e) => {
+                            crate::app_log::action(title)
+                                .file(std::path::Path::new(&value))
+                                .failed(&e);
                             window.push_notification(Notification::error(e), cx);
                             false
                         }

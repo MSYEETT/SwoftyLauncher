@@ -821,7 +821,10 @@ impl Shell {
                             let store = &store;
                             store.install_addons(path).into_iter().map(move |r| match r {
                                 Ok(m) => Ok((swofty_core::tracks::left_out_lines(store, &m), m)),
-                                Err(e) => Err(format!("{name}: {e}")),
+                                Err(e) => {
+                                    crate::app_log::action("install addon").file(path).failed(&e);
+                                    Err(format!("{name}: {e}"))
+                                }
                             })
                         })
                         .collect::<Vec<_>>()
@@ -1007,6 +1010,7 @@ impl Shell {
             f.set_place(&id, place.as_ref(), default.as_ref());
             if f != self.library.folders {
                 if let Err(e) = self.store.save_folders(&f) {
+                    crate::app_log::action("save folders").failed(&e);
                     window.push_notification(Notification::error(e.to_string()), cx);
                     return;
                 }
@@ -1037,7 +1041,10 @@ impl Shell {
         f.set_collapsed(key, !f.is_collapsed(key));
         match self.store.save_folders(&f) {
             Ok(()) => self.library.folders = f,
-            Err(e) => window.push_notification(Notification::error(e.to_string()), cx),
+            Err(e) => {
+                crate::app_log::action("save folders").failed(&e);
+                window.push_notification(Notification::error(e.to_string()), cx)
+            }
         }
         cx.notify();
     }
@@ -1094,6 +1101,7 @@ impl Shell {
         let mut f = self.library.folders.clone();
         f.remove(id);
         if let Err(e) = self.store.save_folders(&f) {
+            crate::app_log::action("save folders").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
             return;
         }
@@ -1196,8 +1204,11 @@ impl Shell {
                             s.addons.report = Some(report);
                         }
                     }
-                    Err(e) => window
-                        .push_notification(Notification::error(e).title("Could not check conflicts"), cx),
+                    Err(e) => {
+                        crate::app_log::action("check conflicts").failed(&e);
+                        window
+                            .push_notification(Notification::error(e).title("Could not check conflicts"), cx)
+                    }
                 }
                 cx.notify();
             })
@@ -1382,7 +1393,10 @@ impl Shell {
                 before.name
             )),
             Ok(None) => Notification::success(format!("Restored the profile save from {name}.")),
-            Err(e) => Notification::error(format!("The save was not restored: {e}")),
+            Err(e) => {
+                crate::app_log::action("restore a save").failed(&e);
+                Notification::error(format!("The save was not restored: {e}"))
+            }
         };
         window.push_notification(note, cx);
         cx.notify();

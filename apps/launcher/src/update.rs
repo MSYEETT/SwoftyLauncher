@@ -293,6 +293,7 @@ impl Shell {
             let ran = task.await;
             this.update_in(cx, |s, window, cx| {
                 if let Some(e) = s.finish_updates(ran, cx) {
+                    crate::app_log::action("update").failed(&e);
                     window.push_notification(Notification::error(e).title("Update failed"), cx);
                 }
             })
