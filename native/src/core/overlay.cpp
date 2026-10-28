@@ -559,6 +559,21 @@ std::string runtime::file_route_prefix()
     return swofty_prefix(p, why) ? p : std::string();
 }
 
+bool runtime::file_route_target(const std::string &game_path, std::string &target)
+{
+    std::string rel = runtime::lower(game_path);
+    uint64_t h = runtime::fnv64(rel);
+    bool found = false;
+    AcquireSRWLockShared(&redirect_lock);
+    for (auto &e : routes)
+        if (e.first == h && e.second->rel == rel) {
+            target = e.second->target;
+            found = true;
+        }
+    ReleaseSRWLockShared(&redirect_lock);
+    return found;
+}
+
 bool runtime::file_route(const std::string &game_path, const std::string *target, const std::string &source, std::string &why)
 {
     std::string rel = runtime::lower(game_path);

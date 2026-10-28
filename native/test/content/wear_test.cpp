@@ -214,6 +214,7 @@ static const char *RECORDS = R"j({
                    "audio_name": "salo", "seasons_completed": 7, "garage_slot": 1, "stat_id": "auto",
                    "pools": ["f1_2026_driver_pool"], "date_of_birth.year": 1966 },
     "nolook": { "donor": "game/jarno_opmeer", "names": { "first": "a", "last": "b", "full": "c", "code": "NOL" }, "look": null },
+    "adopted": { "names": { "first": "a", "last": "b", "full": "c", "code": "ADO" }, "look": null },
     "salo_twin": { "extends": "mod.f2012/mika_salo", "number": 18 }
   },
   "content.package": { "f2012": {
@@ -262,8 +263,8 @@ static void apply_tests(const std::string &regs)
     check(x.records["helmet"] == 2 && x.records["suit"] == 2 && x.records["gloves"] == 2, "every item record applies");
     check(x.records["driver.head"] == 2 && x.records["driver.look"] == 1 && x.records["driver.person"] == 1,
           "heads, the look and the person apply");
-    check(x.refused["driver.identity"] == 1 && x.records["driver.identity"] == 2,
-          "the identity without a look is refused, the others apply");
+    check(x.refused["driver.identity"] == 1 && x.records["driver.identity"] == 3,
+          "the identity without a look is refused, the others apply, and one without a donor names an existing row without a refusal");
     check(x.records["driver.stats"] == 1 && x.records["wearable.season_set"] == 2, "the stats and both season sets apply");
 
     auto &e = x.engine;

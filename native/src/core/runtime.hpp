@@ -217,6 +217,7 @@ int lang_add(const json::Value &entry);
 int file_add(const json::Value &entry);
 std::string file_route_prefix();
 bool file_route(const std::string &game_path, const std::string *target, const std::string &source, std::string &why);
+bool file_route_target(const std::string &game_path, std::string &target);
 
 struct Robin {
     uint8_t *s;
