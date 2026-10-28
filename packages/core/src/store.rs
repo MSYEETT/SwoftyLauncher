@@ -355,6 +355,7 @@ impl Store {
         if let Some(why) = crate::resolver::launcher_refusal(&m, launcher) {
             return Err(Error::Other(why));
         }
+        crate::busy::refuse_change(&self.root, &m.id, &m.name)?;
         let dest = self.addons_dir().join(&m.id);
         self.helpers.forget(&m.id);
         let staging = self.addons_dir().join(format!(".installing-{}", m.id));
@@ -428,9 +429,10 @@ impl Store {
         if !dir.exists() {
             return Err(Error::Other(format!("no addon named {id} is installed")));
         }
+        let name = AddonManifest::load(&dir).map_or_else(|_| id.to_owned(), |m| m.name);
+        crate::busy::refuse_change(&self.root, id, &name)?;
         let _write = profile_write();
         self.helpers.forget(id);
-        let name = AddonManifest::load(&dir).map_or_else(|_| id.to_owned(), |m| m.name);
         delete_addon_dir(&dir, &name, delete)?;
         std::fs::remove_file(self.registry_install_path(id)).ok();
         for name in self.profile_names()? {
@@ -911,6 +913,34 @@ mod tests {
         store.save_profile(&p).unwrap();
         let plan = crate::resolver::resolve(&store.profile(DEFAULT_PROFILE).unwrap(), &addons).unwrap();
         assert_eq!(plan.order, [CORE_ID, m.id.as_str()]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn an_addon_in_a_running_build_is_not_replaced_or_removed() {
+        let root = tmp("busy-addon");
+        let store = Store::new(&root);
+        let src = root.join("src");
+        for id in ["t.used", "t.other"] {
+            put_addon(&store, id, &manifest_json(id));
+            std::fs::create_dir_all(src.join(id)).unwrap();
+            std::fs::write(src.join(id).join(MANIFEST_FILE), manifest_json(id)).unwrap();
+        }
+        let busy = crate::busy::Busy {
+            pid: std::process::id().wrapping_add(1),
+            ..crate::busy::Busy::new("default", vec!["t.used".into()])
+        };
+        busy.write(&root).unwrap();
+        let lock = crate::recovery::SessionLock::try_acquire(&root).unwrap().unwrap();
+        let err = store.install_addon(&src.join("t.used")).unwrap_err().to_string();
+        assert!(err.contains("is in the build that is running"), "{err}");
+        let err = store.remove_addon("t.used").unwrap_err().to_string();
+        assert!(err.contains("is in the build that is running"), "{err}");
+        assert!(store.addons_dir().join("t.used").join(MANIFEST_FILE).is_file());
+        store.install_addon(&src.join("t.other")).unwrap();
+        drop(lock);
+        store.install_addon(&src.join("t.used")).unwrap();
+        store.remove_addon("t.used").unwrap();
         std::fs::remove_dir_all(&root).ok();
     }
 
