@@ -261,7 +261,7 @@ career::SeasonTeam slot = { .slot = 7, .team = teams::identities["constructor/to
 
 <Split>
 
-Each logo record holds one image per context. The core builds the texture arrays from every logo record, slice by slice. Classic Seasons, car ports and season packs each change their own teams' slices, and all of them apply.
+Each logo record holds one image per context. A context takes a single image of any size: the core scales it to the slice size of every array that context feeds (the team select context feeds two arrays of different sizes). The core builds the texture arrays from every logo record, slice by slice. Classic Seasons, car ports and season packs each change their own teams' slices, and all of them apply.
 
 Progressive changes logos per season through `team.logo.resolve`. The game formats logos every frame on the HUD and in menus. The hook point runs when content becomes active or a session loads, once per team and context. The core builds a table from the results, and the game reads the table each frame.
 
@@ -319,6 +319,7 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 | hud | `osd.timing_tower.team_badges_hud` (1 archive) | grown array, key `timing_tower_texture_path` |
 | broadcast | `osd.timing_tower.team_badges_broadcast`, `teams.badges_broadcast` (8 archives), `broadcast_ui_generic.grid_team_logos` | grown array, key `timing_tower_texture_path` for the timing tower |
 
+- **Applied in game:** a `team.identity` record built its row from a donor with side rows, and five logo slices were built into 33 archives and routed. A team shows in team select through a content package that lists it; a team in no package has no tile. Career with a new team (`career::apply_teams`) has not been run in game.
 - **Logo timing:** the redirect has to be installed before the game first opens a changed archive. The file route logs `the game opened this path before` when it was not; that case is not yet handled with a fallback to the donor's badge. The `eaid://` texture route (`TeamRecord.show_custom_badge_in_UI` with an added `ui_package/art/textures/<name>` resource) fits the HUD and broadcast pills only and is not run in game.
 - **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names and colours are written into the loaded team record once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting.
 - **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
