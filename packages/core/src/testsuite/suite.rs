@@ -106,9 +106,8 @@ impl Kind {
     /// Why a test in this environment can't run yet.
     pub fn needs(self) -> Option<&'static str> {
         match self {
-            Kind::None | Kind::Boot | Kind::Benchmark | Kind::Route => None,
+            Kind::None | Kind::Boot | Kind::Benchmark | Kind::Route | Kind::Career => None,
             Kind::GrandPrix | Kind::TimeTrial => Some(NEEDS_SESSION_SETUP),
-            Kind::Career => Some("needs the save sandbox"),
         }
     }
 }
@@ -196,9 +195,10 @@ impl Test {
     }
 
     /// The test talks to the in-game test agent: a step or check the CLI
-    /// can't do from the logs, a test function or a route environment.
+    /// can't do from the logs, a test function, a route environment or a
+    /// career, which the agent continues.
     pub fn needs_agent(&self) -> bool {
-        self.env.kind == Kind::Route
+        matches!(self.env.kind, Kind::Route | Kind::Career)
             || self.function.is_some()
             || self.steps.iter().any(|s| s.host.is_none())
             || self.checks.iter().any(|c| matches!(c, Check::Agent { .. }))
@@ -662,6 +662,15 @@ fn env(at: &At, v: &Value) -> Result<Env, Error> {
             }
         }
         params.insert(key.to_owned(), v.clone());
+    }
+    if kind == Kind::Career
+        && let Some(a) = params.get("at").and_then(Value::as_str)
+        && !super::career::AT.contains(&a)
+    {
+        return Err(at.at("at").err(format!(
+            "unknown place \"{a}\" (expected one of: {})",
+            super::career::AT.join(", ")
+        )));
     }
     if kind == Kind::Benchmark {
         if let Some(w) = params.get("weather").and_then(Value::as_str)
