@@ -33,10 +33,17 @@ checked by the lead); the stock 2025 Ferrari has 18 upgrade blocks.
 - **Live knobs.** F1Aero `lift_scale` +0x19a4 and `drag_scale` +0x19a0 (plain, 1.0, applied every step), fuel mode
   (`Car_FuelEcu_SetMode_Thunk`), fuel mass (FuelTank +0x100), ERS mode (+0x1a68), tyre `UpgradeWearFactor`, the
   setup targets written by `Car_Setup_ApplyTuning`.
+- **Aero outputs.** F1Aero +0x19f0 / +0x19ec are the front / rear body lift coefficients (`front_lift_coeff` /
+  `rear_lift_coeff`: 0.72 / 0.96 parked, 0.79 / 1.11 at speed), not forces. +0x19e8 `total_drag` is the drag force
+  in N (-2402 at speed). Seen live in T115 (#runtime).
+- **Runtime (2026-10-28).** In a Grand Prix every car is built once at load (21 incl. the safety car), the whole
+  grid is reset twice during loading, the player's car is reset again whenever its controller changes, and every car
+  is destroyed at session end. `is_ai` means "AI-controlled right now". See #runtime.
 - **AI.** No difficulty-keyed grip, power or drag multiplier exists. AI-only physics is data: BrakeECU ASC*AI,
   `BrakeMigrationTorqueAI`, tyre *AI downslope and slip limits, an AI tyre-wear multiplier (CarTyreState +0x84),
   and slower substep/tyre-contact rates (`Vehicle.FineUpdateRateAI`, `TyreContactSubStepCycleAI`).
-- **Open (L3).** T112–T125 (see #tests).
+- **Open (L3).** T112–T125 (see #tests); the 2026-10-28 run passed T113, T118–T120, T122 and T124, answered part of
+  T112, T115, T117, T121 and T125, and deferred T116 and T123 (#runtime).
 
 ## The objects {#objects}
 
@@ -139,6 +146,7 @@ Class name: the live car is `Car` (`Game_Place_Vehicle` 0x14473d810 logs `Car::t
 
 - `g_Sess_VehicleTable` (0x146ce86e0) holds CarLive pointers. The writer is `Car_Chassis_Build` in `.xtls` (0x144629637..0x14462965x), so the session note "no writer in .xtls" is out of date. `Car_Physics_PreAdvance` branches on count < 0x20 and pads its per-car stack arrays to 32 entries (memsets 0x14464182c..0x144641864); 0x1c and 0x11 are SIMD path thresholds, not bounds.
 - `vehicle_id` (CarLive+0xe8) is a dense slot (create order; swap-with-last on destroy). The entrants lane's `EntrantRecord+0x82` (init 0xff; the tyre-allocation note calls it the vehicle index) is the likely participant → vehicle_id link (T121).
+- Runtime (2026-10-28 Grand Prix, T121): ids 0..20 in create order; id 20 is the safety car (1734 kg, no ERS, 20 systems, handling version 1), so a 20-car race has 21 CarLive objects. `is_ai` (+0x124) read 1 for every car, the player's included, because the game had taken the idle player's car over: it means "AI-controlled right now". The player's car is most likely id 19: the only one with controller-change resets and its own setup (brake pressure 0.97, 10 kg fuel in the first ApplyTuning). The participant mapping is still open.
 - `CarVehicleManager` (Sess_Veh_UpdateWheelMap's object) lists per-vehicle objects at `+0x110..+0x118`; item `+0x20` = CarPhysicsRecord. `Car_Reset_VehicleSystems` uses another manager: entity list `[+0x28..+0x30]` by id, and `Car_Physics_ResettleVehicles_Body` reads physics records at `[mgr+0xb0 + id*8]` bounded by `[mgr+0x180]`, which leaves room for exactly 26 records if the array is inline (grid campaign: check).
 - Upgrade component → CarLive: the career vehicle-upgrade component (`site_Career_ApplyUpgradeBlockEntry` 0x14fa63050, comp+0x28 = map<u8 type, map<u8, {progress, mass, bhp}>>, comp+0x21 flag) reaches the car as `[[comp+0x18]+0x58]`: comp+0x18 is the vehicle's CarPhysicsRecord, and the body tail-jumps to `Car_Upgrades_ApplyToVehicle(CarLive+0x4a0, block, flag, perc)` (0x14fa6316a..0x14fa6317b).
 - CarLive → CarPerfVehicle / VehicleIdentity / AI config: no pointer found in CarLive in this round. The per-vehicle object in the manager list (≥0x9cb0 bytes, tyre component fields at +0x9bc0/+0x9c68) is the candidate for CarPerfVehicle (attr array +0xd10, stride 0xc40).
@@ -413,10 +421,15 @@ drag_scale +0x19a0 and lift_scale +0x19a4 to 1.0; flag 0x200 resets DRS state.
   [wheel+0x140]+0x15e4) - clamp01(wheel+0x248 - wheel+0x168) (plane = AeroReferencePlaneHeight sys+0x78), averages per
   axle (rear = SuspensionSystem +0x70/+0x78, front +0x80/+0x88), then extrapolates by AeroReferenceOffsetRear/FrontZ
   over the axle z gap and clamps.
-- rear body downforce +0x19ec (store 0x1446dda91) = (BrakeDuctRearCoeffLift x mean(RL,RR wheel+0x130) +
-  RadiatorOpeningRearCoeffLift + cl-map/curve terms) x RearCoeffLiftMultiplier x lift_scale.
-- front body downforce +0x19f0 (store 0x1446ddda4) = same with the Front keys x (1 - FrontCoLByWingDamageMult x
-  front_wing_damage(+0x199c)): the damage term is a factor, not a subtraction. **The older inbox note had +0x19ec as front: it is rear.**
+- rear body lift coefficient +0x19ec `rear_lift_coeff` (store 0x1446dda91) = (BrakeDuctRearCoeffLift x
+  mean(RL,RR wheel+0x130) + RadiatorOpeningRearCoeffLift + cl-map/curve terms) x RearCoeffLiftMultiplier x lift_scale.
+- front body lift coefficient +0x19f0 `front_lift_coeff` (store 0x1446ddda4) = same with the Front keys x (1 -
+  FrontCoLByWingDamageMult x front_wing_damage(+0x199c)): the damage term is a factor, not a subtraction. **The older
+  inbox note had +0x19ec as front: it is rear.**
+- These two are coefficients, not forces (T115, 2026-10-28): the player car read 0.72 / 0.96 (front / rear) parked
+  and 0.79 / 1.11 at speed, front share about 0.43; the other cars 0.56..0.82 / 0.88..1.13. They were named
+  front_downforce / rear_downforce before the run. The store sites themselves were not traced (the values come from
+  gdb snapshots), so `site_Car_AeroStore*` stay L2.
 - slipstream: lift x (k + (1-k) x CoreAero+0x30) with k = m_aeroSlipStreamAirDensityScaleLift.
 - total lift +0x19e4 (store 0x1446ddf0d) = body front + rear + front wing term x (1-front_wing_damage) x
   ((m_aero_wing_front_force-1) x wing_open + 1) + rear wing term x (1-rear_wing_damage(+0x1998)) x
@@ -424,7 +437,9 @@ drag_scale +0x19a0 and lift_scale +0x19a4 to 1.0; flag 0x200 resets DRS state.
 - total drag +0x19e8 (store 0x1446de114) = (lerp(+0x1960, +0x1964, ratio) + BrakeDuct*CoeffDrag x wheel+0x130 +
   RadiatorOpeningCoeffDrag) x drag_scale x (1 + front_wing_damage x BodyCoDByWingDamageMult) + wing drag terms
   (rear one blended by m_aero_wing_rear_drag, which radUpgradeDRS multiplies by 0.9). No reader of +0x19e8 was found
-  (the +0x19e8 reads at 0x142948f81/0x14296dbe2 are another object).
+  (the +0x19e8 reads at 0x142948f81/0x14296dbe2 are another object). It is the drag force in N, not a coefficient:
+  about 0 parked and -2402 at speed for the player car (T115); total lift +0x19e4 read about 0 parked and -7720 at
+  speed.
 - getters 0x1446ca5f0 (total downforce, x1.5 factors) and siblings 0x1446caa40/0x1446cab60/0x1446cacc0 (balance).
 
 ### Chassis {#chassis}
@@ -434,7 +449,9 @@ CarHandlingVersionName, TyrePhysicsGroup (strings), sqrt(Mass) derived **inside 
 OnReset (`Car_Tuning_SetChassisZCom`, chassis vtable +0x18): flag 0x2000 sets live COM z +0x158 =
 lerp(F1Tuning COM-Z range, slider) ("Setting chassis z-com"); flag 0x200 pushes COM (COMY, +0x158) into the body
 (0x144676a80), mass +0x150 = sqrt_mass^2, inv mass +0x154, MOI +0x160..+0x168. The rigid body uses these, so a raw
-Mass/COM/MOI edit needs OnReset(0x200) (or direct writes of +0x150..+0x168).
+Mass/COM/MOI edit needs OnReset(0x200) (or direct writes of +0x150..+0x168). At runtime +0x150 also carries the fuel:
+it read VTF Mass + FuelTank.fuel_mass (816.21 = 803 + 13.217 on the grid, 815.76 = 803 + 12.766 later; T118), so
+something adds the fuel after OnReset (writer not mapped yet).
 
 ### CoreAero {#coreaero}
 
@@ -845,27 +862,81 @@ found yet.
 
 ## Runtime tests {#tests}
 
-Filed by the 2026-10-28 lanes, all draft (run in game by the lead):
+Filed by the 2026-10-28 lanes; the lead ran them in one Grand Prix session on 2026-10-28 (results in #runtime and in
+each test file):
 
-- T112: does `Car_Upgrades_ApplyToVehicle` replay each block once per car build, and with what perc for a career car.
-- T113: when `Car_Setup_ApplyTuning` runs, for which cars, and which slider block it reads.
-- T114: setup slider +0x44 / +0x48 are brake pressure / bias.
-- T115: the F1Aero front and rear downforce stores (+0x19f0 front, +0x19ec rear).
-- T116: F1Aero +0x19a8 is the DRS wing-open fraction.
-- T117: CarTyreState +0x88 is the tyre wear UDP reports.
-- T118: live Chassis mass after R&D weight reduction.
-- T119: when a CarLive is built and torn down (session load, restart, flashback, garage).
-- T120: which actions take the VTF reset path.
-- T121: `vehicle_id` vs participant index, and its stability.
-- T122: Engine rotation_rate and throttle at the drive-torque site.
-- T123: who calls `Car_FuelEcu_SetMode_Thunk` for the MFD fuel mix.
-- T124: fuel mass burn per step.
-- T125: `ers_mode` follows the MFD ERS mode.
+- T112 (partial): does `Car_Upgrades_ApplyToVehicle` replay each block once per car build, and with what perc for a career car.
+- T113 (pass): when `Car_Setup_ApplyTuning` runs, for which cars, and which slider block it reads.
+- T114 (not exercised, no setup change): setup slider +0x44 / +0x48 are brake pressure / bias.
+- T115 (partial): the F1Aero front and rear body lift stores (+0x19f0 front, +0x19ec rear; coefficients, not forces).
+- T116 (deferred): F1Aero +0x19a8 is the DRS wing-open fraction.
+- T117 (partial): CarTyreState +0x88 is the tyre wear UDP reports.
+- T118 (pass): live Chassis mass after R&D weight reduction.
+- T119 (pass): when a CarLive is built and torn down (session load, restart, flashback, garage).
+- T120 (pass): which actions take the VTF reset path.
+- T121 (partial): `vehicle_id` vs participant index, and its stability.
+- T122 (pass): Engine rotation_rate and throttle at the drive-torque site.
+- T123 (deferred, no driver): who calls `Car_FuelEcu_SetMode_Thunk` for the MFD fuel mix.
+- T124 (pass): fuel mass burn per step.
+- T125 (partial): `ers_mode` follows the MFD ERS mode.
+- T126 (answered): which Bink audio track ids the recap video opens in English (#runtime).
 
 Still open statically: who sets the CarLive +0x130 damage bits, what reads `performance_tier` in physics, how the AI
 difficulty slider is applied, the TC/ABS toggle reads, the Turbo pressure update, ERS harvest, the diff torque code,
 where career PU wear is loaded into the Engine wear fields, the Steering consumers, the spring/damper/ride-height
 consumers, the tyre temperature model, the full VCMPD runtime layout and compound switching.
+
+## Runtime (2026-10-28) {#runtime}
+
+One session on the Steam build (d873a1c8), run by car-lead: profile `cartrace` with only the trace plugin (11 hooks,
+all installed, none rejected; the plugin's first real-game run), a new Grand Prix (F1 2025, Ferrari/Leclerc,
+Australia, race only; the game took the idle player's car over and the AI drove it), the podium, back to the menus,
+then the start of Braking Point 3 (the recap video). Two gdb snapshots of every car (on the grid, about 40 s into the
+race) and a Bink trace ran beside it. Evidence: `re/traces/T112..T126/2026-10-28-gp/` (each has a RUN.md).
+
+Lifecycle of the cars:
+
+- **Built once, at load.** 21 CarLive objects for a 20-car race: ids 0..20 in create order, each registered
+  (`site_Car_RegisterVehicleId`) right before its build (`site_Car_LiveCarBuilt`). Ids 0..19 have 23 systems and
+  handling version 8. Id 20 is the safety car: 1734 kg, no ERS, 20 systems, handling version 1. Nothing rebuilt a car
+  during the race (T119, T121).
+- **Two all-vehicle resets during loading.** About 4.3 s after the build, the all-vehicles reset 0x14f824410
+  (`Car_Systems_Reset_Thunk` called at 0x14f824536) re-read the VTF into the 20 race cars (not the safety car) twice,
+  half a second apart (outer callers 0x1436ab400, then 0x142d5b70e). After each one every race car got the tier block
+  `medium` (perc 1.0) through `Car_Upgrades_ApplyToVehicle` and a `Car_Setup_ApplyTuning` (return 0x142f44bf5) (T120,
+  T112, T113).
+- **Per-vehicle reset on a controller change.** `Car_Reset_VehicleSystems` ran for id 19 three times, at load (just
+  before the all-vehicle resets), around the race start and around the finish, always from the controller-change body
+  0x1519eb350 (return 0x1519eb3e9). That matches the game handing the idle player's car to the AI and back, so id 19
+  is most likely the player's car. Each reset replayed `medium` and ApplyTuning (return 0x142f44f83) (T120).
+- **Upgrades after a reset.** The applied-upgrade vector (CarLive +0x4c0..+0x4c8) was empty before every replay, and
+  `site_Car_UpgradeSectionApplyCall` never fired, so `medium` changed no section in this session. No `radUpgrade`
+  blocks in a Grand Prix: the career part of T112 needs a career session.
+- **Setup.** Besides the reset paths, `Car_Setup_ApplyTuning` ran once for each race car at the first setup apply
+  (return 0x140c0ab84) and 5 more times for id 19 (return 0x140c0a63a) around the race start, finish and menus,
+  alternating the slider block (setup+0x158 = 0, then 1). Two setups show up: the AI one (brake pressure 1.0, diff
+  on-throttle 0.456) and id 19's own (pressure 0.97, diff 0.189, 10 kg fuel in the first apply) (T113).
+- **Torn down at session end.** 21 `site_Car_VehicleTableRemove` hits, the count going 20 down to 0 (the last car
+  leaves first) (T119).
+- **Not exercised:** session restart, flashback, return to garage, reset-to-track (`Car_Physics_ResettleVehicles_Body`
+  stays L1), DRS, a setup change, the MFD fuel and ERS modes. The only `Car_FuelEcu_SetMode_Thunk` calls were on the
+  safety car through the pose path (mode 2, then 1).
+
+Live values read from the snapshots: Chassis +0x150 mass includes the fuel (803 + 13.217 = 816.21 kg) (T118); fuel
+mass falls during the race (13.217 to 12.766 kg for car 0) and fuel flow is non-zero on throttle (T124); engine
+418.9 rad/s idling, up to about 11600 rpm, throttle 0..1, gear index live (T122); ERS mode 1 or 2 on AI cars, 4 MJ full
+store (T125); F1Aero +0x19f0 / +0x19ec are lift coefficients and +0x19e8 the drag force (T115, #f1aero); tyre wear
++0x88 rises during the race (T117). `is_ai` (+0x124) read 1 for every car, the player's included: it means
+"AI-controlled right now", not "AI entrant".
+
+Bink audio tracks (T126, the Korean patch question): `videos/2025_recap/F125_cinematic_recap.bk2` reports 30 track
+ids, index → id 0 → 10, 1..8 → 11..18, 9..17 → 20..28, 18..29 → 40..51. The game reads ids from several callers; the
+pair 0x143f8b46c then 0x143f8b54c walks indexes 0..18 only. With the game in English it opened index 9 (id 20), index
+0 (id 10) and index 18 (id 40) (final opens from 0x143f8b5d2). Reading: id 10 is the always-on bed and id 40 the
+English voice track, so the other languages sit in ids 11..28; what id 20 carries is not known. The language → id
+table is in the selector around 0x143f8b46c..0x143f8b5d2 (decompile it for the Japanese and Korean ids). A core hook
+on BinkOpenTrack can swap the requested index for the one holding id 40. The UI wipe videos have one track (index 0,
+id 0).
 
 ## Live physics / telemetry vehicle {#live}
 
