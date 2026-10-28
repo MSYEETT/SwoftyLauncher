@@ -84,7 +84,8 @@ struct PitTimes {
 SWOFTY_RECORD(PitTimes, team, from)
 SWOFTY_RECORD_REGISTRY(PitTimes, "team.pit_times")
 
-inline Registry<Constructor> constructors{"team.constructor", {.applies = Applies::boot}};
+inline Registry<Constructor> constructors{"team.constructor",
+                                          {.applies = Applies::boot, .shared = {.provider_registry = "team.identity"}}};
 inline Registry<Identity> identities{"team.identity", {.applies = Applies::boot}};
 inline Registry<Logo> logos{"team.logo", {.applies = Applies::read}};
 inline Registry<PitTimes> pit_times{"team.pit_times", {.applies = Applies::boot}};

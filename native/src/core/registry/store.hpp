@@ -95,7 +95,7 @@ struct Record {
     Status status = Status::no_record;
     Value value;
     std::map<std::string, std::string> origins;
-    std::string owner;
+    std::string owner, why;
 };
 
 // Career snapshots (W4, native/src/core/snapshots/). While a career is loaded (Context::career set),

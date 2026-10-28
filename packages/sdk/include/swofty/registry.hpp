@@ -182,10 +182,17 @@ private:
     std::vector<events::Selector> filters_;
 };
 
+struct SharedIds {
+    const char *provider_registry = nullptr;
+    const char *provides = "/provides";
+    const char *resolved = "/team";
+};
+
 struct RegistryOptions {
     Applies applies = Applies::read;
     bool snapshot = false;
     std::size_t snapshot_budget = 65536;
+    SharedIds shared{};
 };
 
 inline std::string last_error()
@@ -438,6 +445,10 @@ public:
             head += std::string(",\"x-snapshot\":") + (opts_.snapshot ? "true" : "false");
             if (opts_.snapshot)
                 head += ",\"x-snapshot-budget\":" + std::to_string(opts_.snapshot_budget);
+            if (opts_.shared.provider_registry)
+                head += ",\"x-shared\":{\"provider_registry\":" + events::detail::quote(opts_.shared.provider_registry) +
+                        ",\"provides\":" + events::detail::quote(opts_.shared.provides) +
+                        ",\"resolved\":" + events::detail::quote(opts_.shared.resolved) + "}";
             return head + "," + body.substr(1);
         } else
             return {};
