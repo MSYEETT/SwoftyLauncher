@@ -131,7 +131,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/mercedes",
    "audio_switch": "f1_m_Mercedes",
-   "audio_from": "f1_m_mercedes"
+   "audio_from": "f1_m_mercedes",
+   "livery": "swofty.classic-seasons-2019/mercedes"
   },
   "ferrari": {
    "label": "cs19_ferrari",
@@ -145,7 +146,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/ferrari",
    "audio_switch": "f1_m_Ferrari",
-   "audio_from": "f1_m_ferrari"
+   "audio_from": "f1_m_ferrari",
+   "livery": "swofty.classic-seasons-2019/ferrari"
   },
   "redbull": {
    "label": "cs19_redbull",
@@ -159,7 +161,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/honda",
    "audio_switch": "f1_m_Red_bull",
-   "audio_from": "f1_m_red_bull"
+   "audio_from": "f1_m_red_bull",
+   "livery": "swofty.classic-seasons-2019/redbull"
   },
   "mclaren": {
    "label": "cs19_mclaren",
@@ -173,7 +176,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/renault",
    "audio_switch": "f1_m_Mclaren",
-   "audio_from": "f1_m_mclaren"
+   "audio_from": "f1_m_mclaren",
+   "livery": "swofty.classic-seasons-2019/mclaren"
   },
   "lotus": {
    "label": "cs19_lotus",
@@ -187,7 +191,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/renault",
    "audio_switch": "f1_m_Alpine",
-   "audio_from": "f1_m_alpine"
+   "audio_from": "f1_m_alpine",
+   "livery": "swofty.classic-seasons-2019/lotus"
   },
   "toro_rosso": {
    "label": "cs19_toro_rosso",
@@ -201,7 +206,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/honda",
    "audio_switch": "f1_m_Rb",
-   "audio_from": "f1_m_rb"
+   "audio_from": "f1_m_rb",
+   "livery": "swofty.classic-seasons-2019/toro_rosso"
   },
   "force_india": {
    "label": "cs19_force_india",
@@ -215,7 +221,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/mercedes",
    "audio_switch": "f1_m_Aston_martin",
-   "audio_from": "f1_m_aston_martin"
+   "audio_from": "f1_m_aston_martin",
+   "livery": "swofty.classic-seasons-2019/force_india"
   },
   "sauber": {
    "label": "cs19_sauber",
@@ -229,7 +236,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/ferrari",
    "audio_switch": "f1_m_Sauber",
-   "audio_from": "f1_m_sauber"
+   "audio_from": "f1_m_sauber",
+   "livery": "swofty.classic-seasons-2019/sauber"
   },
   "haas": {
    "label": "cs19_haas",
@@ -243,7 +251,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/ferrari",
    "audio_switch": "f1_m_Haas",
-   "audio_from": "f1_m_haas"
+   "audio_from": "f1_m_haas",
+   "livery": "swofty.classic-seasons-2019/haas"
   },
   "williams": {
    "label": "cs19_williams",
@@ -257,7 +266,50 @@
    },
    "engine_sound": "swofty.classic-seasons-2019/mercedes",
    "audio_switch": "f1_m_Williams",
-   "audio_from": "f1_m_williams"
+   "audio_from": "f1_m_williams",
+   "livery": "swofty.classic-seasons-2019/williams"
+  }
+ },
+ "livery": {
+  "mercedes": {
+   "vehicle": "swofty.classic-seasons-2019/mercedes",
+   "archive": "cars/teams/mercedes/wep/mercedes.erp"
+  },
+  "ferrari": {
+   "vehicle": "swofty.classic-seasons-2019/ferrari",
+   "archive": "cars/teams/ferrari/wep/ferrari.erp"
+  },
+  "redbull": {
+   "vehicle": "swofty.classic-seasons-2019/redbull",
+   "archive": "cars/teams/redbull/wep/redbull.erp"
+  },
+  "mclaren": {
+   "vehicle": "swofty.classic-seasons-2019/mclaren",
+   "archive": "cars/teams/mclaren/wep/mclaren.erp"
+  },
+  "lotus": {
+   "vehicle": "swofty.classic-seasons-2019/lotus",
+   "archive": "cars/teams/lotus/wep/lotus.erp"
+  },
+  "toro_rosso": {
+   "vehicle": "swofty.classic-seasons-2019/toro_rosso",
+   "archive": "cars/teams/toro_rosso/wep/toro_rosso.erp"
+  },
+  "force_india": {
+   "vehicle": "swofty.classic-seasons-2019/force_india",
+   "archive": "cars/teams/force_india/wep/force_india.erp"
+  },
+  "sauber": {
+   "vehicle": "swofty.classic-seasons-2019/sauber",
+   "archive": "cars/teams/sauber/wep/sauber.erp"
+  },
+  "haas": {
+   "vehicle": "swofty.classic-seasons-2019/haas",
+   "archive": "cars/teams/haas/wep/haas.erp"
+  },
+  "williams": {
+   "vehicle": "swofty.classic-seasons-2019/williams",
+   "archive": "cars/teams/williams/wep/williams.erp"
   }
  },
  "content.package": {

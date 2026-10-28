@@ -40,6 +40,20 @@ struct Redirect {
     std::string path, file, addon, id;
 };
 
+struct Group {
+    std::string group, tmpl, erp, file, addon, id;
+    std::vector<std::string> common;
+};
+
+struct Folder {
+    std::string game_dir, file, addon, id;
+};
+
+struct Owned {
+    std::string label, id;
+    bool owned = true;
+};
+
 struct Box {
     std::string id, entrant_list, title, image;
     int order = 0;
@@ -52,6 +66,9 @@ struct Plan {
     Value fields = Value::object();
     std::vector<Redirect> redirects;
     std::vector<Box> boxes;
+    std::vector<Group> groups;
+    std::vector<Folder> folders;
+    std::vector<Owned> owned;
     std::vector<std::string> lines;
     std::size_t keys = 0;
     std::size_t refused = 0;

@@ -330,6 +330,29 @@ def vehicle_record(own, donor, row, car):
     return record
 
 
+def livery_split(own, records, doc):
+    ops = doc["ops"]
+    puts = {o["target"]: o for o in ops if o["op"] == "file.put"}
+    groups = {o["erps"][-1]: o for o in ops if o["op"] == "group.register"}
+    moved = set()
+    for key, vehicle in records["vehicle"].items():
+        package = records["vehicle.package"].get(vehicle.get("package", "").split("/")[-1])
+        if not package:
+            continue
+        path = package["resource_path"].replace("[FILENAME]", vehicle.get("ai", {}).get("asset_filename", key))
+        target = f"2025_asset_groups/{path}.erp"
+        group = groups.get(target)
+        if target not in puts or not group:
+            continue
+        if group["erps"] != [f"2025_asset_groups/{path.split('/')[0]}/teams/common.erp", target]:
+            continue
+        records["livery"][key] = {"vehicle": f"{own}/{key}", "archive": puts[target]["source"]}
+        vehicle["livery"] = f"{own}/{key}"
+        moved.update({id(puts[target]), id(group)})
+    cars = [o for o in ops if id(o) not in moved]
+    return {"schema_version": 1, "ops": cars}, {"schema_version": 1, "ops": [o for o in ops if id(o) in moved]}
+
+
 def driver_ref(driver):
     return f"swofty.classic-seasons/{driver}" if driver in DATA["new_drivers"] else f"game/{driver}"
 
@@ -433,7 +456,7 @@ def build():
         standings = f"cs_f1_teams_{year}"
         ops, text, covered = [], [], []
         own = f"swofty.classic-seasons-{year}"
-        records = {"engine_sound": {}, "vehicle.package": {}, "vehicle": {}, "content.package": {}, "era.box": {}}
+        records = {"engine_sound": {}, "vehicle.package": {}, "vehicle": {}, "livery": {}, "content.package": {}, "era.box": {}}
         seasons.append((year, ops, text, covered, records))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
         for m in sounds(year):
@@ -601,20 +624,26 @@ def build():
           f"unique ids")
     for year, ops, text, covered, records in seasons:
         folder = year_dir(year)
-        assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else []) + \
-            (["assets/sounds.json"] if sounds(year) else [])
+        cars = built(year)
+        kept = [folder / "assets" / n for n in ("cars.json", "liveries.json") if (folder / "assets" / n).exists()]
+        doc = asset_ops(year) if cars else {"schema_version": 1, "ops": [o for f in kept for o in json.loads(f.read_text())["ops"]]}
+        split = livery_split(f"swofty.classic-seasons-{year}", records, doc) if cars or kept else None
+        cars = cars or bool(kept)
+        assets = ["assets/cars.json"] + (["assets/liveries.json"] if split and split[1]["ops"] else []) + \
+            (["assets/suits.json"] if suits(year) else []) + (["assets/sounds.json"] if sounds(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
         season_fields = {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS, **(ITEM_FIELDS if suits(year) else {}),
                          **({AUDIO_BUNDLES: AUDIO_BUNDLE_FIELDS} if sounds(year) else {})}
         write_json(folder / "db" / "season.json", {"schema_version": 1, "fields": season_fields, "ops": ops})
         write_json(folder / "db" / "records.json", {"schema_version": 1, "fields": season_fields, "ops": covered})
         write_json(folder / "registry" / "content.json", {k: v for k, v in records.items() if v})
-        write_json(folder / "registry.json", {"replaced_operations": ["db/records.json"]})
+        replaced = ["db/records.json"] + (["assets/liveries.json"] if split and split[1]["ops"] else [])
+        write_json(folder / "registry.json", {"replaced_operations": replaced})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\nsounds/\n")
-        cars = built(year)
         if cars:
-            write_json(folder / "assets" / "cars.json", asset_ops(year))
+            write_json(folder / "assets" / "cars.json", split[0])
+            write_json(folder / "assets" / "liveries.json", split[1])
         if suits(year):
             write_json(folder / "assets" / "suits.json", suit_asset_ops(year))
         elif (folder / "assets" / "suits.json").exists():

@@ -11,7 +11,9 @@
 
 #include <swofty/mixin.hpp>
 
+#include <algorithm>
 #include <ctime>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -135,7 +137,7 @@ void define_pools(Database &d, std::vector<std::string> &lines, std::map<std::st
             return std::nullopt;
         return r->text;
     };
-    for (auto &scan : scan_pools(text)) {
+    for (auto &scan : scan_all_pools(text)) {
         ids::Pool pool;
         if (scan.lo <= scan.hi)
             pool.ranges.push_back({scan.lo, scan.hi});
@@ -247,6 +249,97 @@ void redirect_bundles(Store &st, Expansion &x, Report &report)
         report.summary = summary;
 }
 
+uint32_t djb2(const std::string &s)
+{
+    uint32_t h = 5381;
+    for (unsigned char c : s)
+        h = h * 33 + c;
+    return h;
+}
+
+bool in_game_folder(const std::string &rel)
+{
+    std::string p = rel;
+    std::replace(p.begin(), p.end(), '/', '\\');
+    uint64_t size = 0;
+    return runtime::file_size(runtime::game_root() + L"\\" + runtime::wide(p), &size);
+}
+
+void count_outcome(const files::Outcome &o, Report &report, std::set<std::string> &paths)
+{
+    if (o.kind == files::Kind::routed || o.kind == files::Kind::shadowed)
+        paths.insert(o.path);
+    else if (o.refused()) {
+        report.refused++;
+        report.lines.push_back(o.line);
+    }
+    if (!o.conflict.empty())
+        report.lines.push_back(o.conflict);
+}
+
+void apply_liveries(Expansion &x, Report &report)
+{
+    std::set<std::string> paths;
+    for (auto &g : x.groups) {
+        std::string addon = g.addon;
+        count_outcome(files::redirect(g.erp, addon, g.file, "livery", g.id, "boot"), report, paths);
+        if (g.erp.find("_lx") == std::string::npos && in_game_folder(g.erp))
+            continue;
+        ::json::Value e;
+        e.type = ::json::Value::Obj;
+        auto str = [](const std::string &t) {
+            ::json::Value v;
+            v.type = ::json::Value::Str;
+            v.s = t;
+            return v;
+        };
+        ::json::Value list;
+        list.type = ::json::Value::Arr;
+        for (auto &c : g.common)
+            list.a.push_back(str(c));
+        list.a.push_back(str(g.erp));
+        ::json::Value deps;
+        deps.type = ::json::Value::Arr;
+        e.o.push_back({"group", str(g.group)});
+        e.o.push_back({"erps", std::move(list)});
+        e.o.push_back({"deps", std::move(deps)});
+        if (!g.tmpl.empty())
+            e.o.push_back({"template", str(g.tmpl)});
+        int rc = runtime::group_add(e);
+        report.lines.push_back("livery " + g.id + ": asset group " + g.group + (rc == SWOFTY_ASSET_OK ? " registered" : " not registered"));
+        if (rc != SWOFTY_ASSET_OK)
+            report.refused++;
+    }
+    for (auto &f : x.folders) {
+        std::filesystem::path dir(runtime::under_swofty("addons/" + f.addon + "/" + f.file));
+        std::error_code ec;
+        std::size_t n = 0;
+        for (std::filesystem::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+            if (!it->is_regular_file(ec))
+                continue;
+            std::string rel = std::filesystem::relative(it->path(), dir).generic_string();
+            count_outcome(files::redirect(f.game_dir + rel, f.addon, f.file + rel, "livery", f.id, "boot"), report, paths);
+            n++;
+        }
+        if (!n)
+            report.lines.push_back("livery " + f.id + ": " + f.file + " holds no files; no texture redirected");
+    }
+    for (auto &o : x.owned)
+        if (o.owned)
+            runtime::own_item(djb2("eSELivery" + o.label), addon_of(o.id), o.label);
+    std::map<std::string, int> routed;
+    for (auto &p : paths) {
+        std::string w = files::winner(p);
+        if (!w.empty())
+            routed[w]++;
+    }
+    std::string summary;
+    for (auto &[addon, n] : routed)
+        summary += (summary.empty() ? "" : ", ") + std::to_string(n) + " livery file" + (n == 1 ? "" : "s") + " redirected to " + addon;
+    if (!summary.empty())
+        report.summary = report.summary.empty() ? summary : report.summary + "; " + summary;
+}
+
 void release_database()
 {
     State &s = state();
@@ -313,6 +406,8 @@ public:
             report.lines.push_back(l);
         if (std::string_view(registry_) == "engine_sound")
             redirect_bundles(st, x, report);
+        if (std::string_view(registry_) == "livery")
+            apply_liveries(x, report);
         if (staged) {
             std::string records = std::to_string(staged) + " database record" + (staged == 1 ? "" : "s");
             report.summary = report.summary.empty() ? records : report.summary + "; " + records;

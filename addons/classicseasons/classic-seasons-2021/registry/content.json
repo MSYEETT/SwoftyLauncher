@@ -113,7 +113,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/mercedes",
    "audio_switch": "f1_M_Mercedes",
-   "audio_from": "f1_m_mercedes"
+   "audio_from": "f1_m_mercedes",
+   "livery": "swofty.classic-seasons-2021/mercedes"
   },
   "redbull": {
    "label": "cs21_redbull",
@@ -127,7 +128,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/honda",
    "audio_switch": "f1_M_Red_bull",
-   "audio_from": "f1_m_red_bull"
+   "audio_from": "f1_m_red_bull",
+   "livery": "swofty.classic-seasons-2021/redbull"
   },
   "ferrari": {
    "label": "cs21_ferrari",
@@ -141,7 +143,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/ferrari",
    "audio_switch": "f1_M_Ferrari",
-   "audio_from": "f1_m_ferrari"
+   "audio_from": "f1_m_ferrari",
+   "livery": "swofty.classic-seasons-2021/ferrari"
   },
   "mclaren": {
    "label": "cs21_mclaren",
@@ -155,7 +158,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/mercedes",
    "audio_switch": "f1_M_Mclaren",
-   "audio_from": "f1_m_mclaren"
+   "audio_from": "f1_m_mclaren",
+   "livery": "swofty.classic-seasons-2021/mclaren"
   },
   "lotus": {
    "label": "cs21_lotus",
@@ -169,7 +173,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/renault",
    "audio_switch": "f1_M_Alpine",
-   "audio_from": "f1_m_alpine"
+   "audio_from": "f1_m_alpine",
+   "livery": "swofty.classic-seasons-2021/lotus"
   },
   "toro_rosso": {
    "label": "cs21_toro_rosso",
@@ -183,7 +188,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/honda",
    "audio_switch": "f1_M_Rb",
-   "audio_from": "f1_m_rb"
+   "audio_from": "f1_m_rb",
+   "livery": "swofty.classic-seasons-2021/toro_rosso"
   },
   "force_india": {
    "label": "cs21_force_india",
@@ -194,7 +200,8 @@
    "package": "swofty.classic-seasons-2021/cs_2021",
    "engine_sound": "swofty.classic-seasons-2021/mercedes",
    "audio_switch": "f1_M_Aston_martin",
-   "audio_from": "f1_m_aston_martin"
+   "audio_from": "f1_m_aston_martin",
+   "livery": "swofty.classic-seasons-2021/force_india"
   },
   "williams": {
    "label": "cs21_williams",
@@ -208,7 +215,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/mercedes",
    "audio_switch": "f1_M_Williams",
-   "audio_from": "f1_m_williams"
+   "audio_from": "f1_m_williams",
+   "livery": "swofty.classic-seasons-2021/williams"
   },
   "sauber": {
    "label": "cs21_sauber",
@@ -219,7 +227,8 @@
    "package": "swofty.classic-seasons-2021/cs_2021",
    "engine_sound": "swofty.classic-seasons-2021/ferrari",
    "audio_switch": "f1_M_Sauber",
-   "audio_from": "f1_m_sauber"
+   "audio_from": "f1_m_sauber",
+   "livery": "swofty.classic-seasons-2021/sauber"
   },
   "haas": {
    "label": "cs21_haas",
@@ -233,7 +242,50 @@
    },
    "engine_sound": "swofty.classic-seasons-2021/ferrari",
    "audio_switch": "f1_M_Haas",
-   "audio_from": "f1_m_haas"
+   "audio_from": "f1_m_haas",
+   "livery": "swofty.classic-seasons-2021/haas"
+  }
+ },
+ "livery": {
+  "mercedes": {
+   "vehicle": "swofty.classic-seasons-2021/mercedes",
+   "archive": "cars/teams/mercedes/wep/mercedes.erp"
+  },
+  "redbull": {
+   "vehicle": "swofty.classic-seasons-2021/redbull",
+   "archive": "cars/teams/redbull/wep/redbull.erp"
+  },
+  "ferrari": {
+   "vehicle": "swofty.classic-seasons-2021/ferrari",
+   "archive": "cars/teams/ferrari/wep/ferrari.erp"
+  },
+  "mclaren": {
+   "vehicle": "swofty.classic-seasons-2021/mclaren",
+   "archive": "cars/teams/mclaren/wep/mclaren.erp"
+  },
+  "lotus": {
+   "vehicle": "swofty.classic-seasons-2021/lotus",
+   "archive": "cars/teams/lotus/wep/lotus.erp"
+  },
+  "toro_rosso": {
+   "vehicle": "swofty.classic-seasons-2021/toro_rosso",
+   "archive": "cars/teams/toro_rosso/wep/toro_rosso.erp"
+  },
+  "force_india": {
+   "vehicle": "swofty.classic-seasons-2021/force_india",
+   "archive": "cars/teams/force_india/wep/force_india.erp"
+  },
+  "williams": {
+   "vehicle": "swofty.classic-seasons-2021/williams",
+   "archive": "cars/teams/williams/wep/williams.erp"
+  },
+  "sauber": {
+   "vehicle": "swofty.classic-seasons-2021/sauber",
+   "archive": "cars/teams/sauber/wep/sauber.erp"
+  },
+  "haas": {
+   "vehicle": "swofty.classic-seasons-2021/haas",
+   "archive": "cars/teams/haas/wep/haas.erp"
   }
  },
  "content.package": {

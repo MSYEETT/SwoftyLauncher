@@ -122,7 +122,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/mercedes",
    "audio_switch": "f1_M_mercedes",
-   "audio_from": "f1_m_mercedes"
+   "audio_from": "f1_m_mercedes",
+   "livery": "swofty.classic-seasons-2017/mercedes"
   },
   "redbull": {
    "label": "cs17_redbull",
@@ -136,7 +137,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/renault",
    "audio_switch": "f1_M_red_bull",
-   "audio_from": "f1_m_red_bull"
+   "audio_from": "f1_m_red_bull",
+   "livery": "swofty.classic-seasons-2017/redbull"
   },
   "ferrari": {
    "label": "cs17_ferrari",
@@ -150,7 +152,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/ferrari",
    "audio_switch": "f1_M_ferrari",
-   "audio_from": "f1_m_ferrari"
+   "audio_from": "f1_m_ferrari",
+   "livery": "swofty.classic-seasons-2017/ferrari"
   },
   "williams": {
    "label": "cs17_williams",
@@ -161,7 +164,8 @@
    "package": "swofty.classic-seasons-2017/cs_2017",
    "engine_sound": "swofty.classic-seasons-2017/mercedes",
    "audio_switch": "f1_M_williams",
-   "audio_from": "f1_m_williams"
+   "audio_from": "f1_m_williams",
+   "livery": "swofty.classic-seasons-2017/williams"
   },
   "force_india": {
    "label": "cs17_force_india",
@@ -175,7 +179,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/mercedes",
    "audio_switch": "f1_M_aston_martin",
-   "audio_from": "f1_m_aston_martin"
+   "audio_from": "f1_m_aston_martin",
+   "livery": "swofty.classic-seasons-2017/force_india"
   },
   "lotus": {
    "label": "cs17_lotus",
@@ -189,7 +194,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/renault",
    "audio_switch": "f1_M_alpine",
-   "audio_from": "f1_m_alpine"
+   "audio_from": "f1_m_alpine",
+   "livery": "swofty.classic-seasons-2017/lotus"
   },
   "toro_rosso": {
    "label": "cs17_toro_rosso",
@@ -203,7 +209,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/renault",
    "audio_switch": "f1_M_rb",
-   "audio_from": "f1_m_rb"
+   "audio_from": "f1_m_rb",
+   "livery": "swofty.classic-seasons-2017/toro_rosso"
   },
   "sauber": {
    "label": "cs17_sauber",
@@ -217,7 +224,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/ferrari",
    "audio_switch": "f1_M_sauber",
-   "audio_from": "f1_m_sauber"
+   "audio_from": "f1_m_sauber",
+   "livery": "swofty.classic-seasons-2017/sauber"
   },
   "mclaren": {
    "label": "cs17_mclaren",
@@ -231,7 +239,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/honda",
    "audio_switch": "f1_M_mclaren",
-   "audio_from": "f1_m_mclaren"
+   "audio_from": "f1_m_mclaren",
+   "livery": "swofty.classic-seasons-2017/mclaren"
   },
   "haas": {
    "label": "cs17_haas",
@@ -245,7 +254,50 @@
    },
    "engine_sound": "swofty.classic-seasons-2017/ferrari",
    "audio_switch": "f1_M_haas",
-   "audio_from": "f1_m_haas"
+   "audio_from": "f1_m_haas",
+   "livery": "swofty.classic-seasons-2017/haas"
+  }
+ },
+ "livery": {
+  "mercedes": {
+   "vehicle": "swofty.classic-seasons-2017/mercedes",
+   "archive": "cars/teams/mercedes/wep/mercedes.erp"
+  },
+  "redbull": {
+   "vehicle": "swofty.classic-seasons-2017/redbull",
+   "archive": "cars/teams/redbull/wep/redbull.erp"
+  },
+  "ferrari": {
+   "vehicle": "swofty.classic-seasons-2017/ferrari",
+   "archive": "cars/teams/ferrari/wep/ferrari.erp"
+  },
+  "williams": {
+   "vehicle": "swofty.classic-seasons-2017/williams",
+   "archive": "cars/teams/williams/wep/williams.erp"
+  },
+  "force_india": {
+   "vehicle": "swofty.classic-seasons-2017/force_india",
+   "archive": "cars/teams/force_india/wep/force_india.erp"
+  },
+  "lotus": {
+   "vehicle": "swofty.classic-seasons-2017/lotus",
+   "archive": "cars/teams/lotus/wep/lotus.erp"
+  },
+  "toro_rosso": {
+   "vehicle": "swofty.classic-seasons-2017/toro_rosso",
+   "archive": "cars/teams/toro_rosso/wep/toro_rosso.erp"
+  },
+  "sauber": {
+   "vehicle": "swofty.classic-seasons-2017/sauber",
+   "archive": "cars/teams/sauber/wep/sauber.erp"
+  },
+  "mclaren": {
+   "vehicle": "swofty.classic-seasons-2017/mclaren",
+   "archive": "cars/teams/mclaren/wep/mclaren.erp"
+  },
+  "haas": {
+   "vehicle": "swofty.classic-seasons-2017/haas",
+   "archive": "cars/teams/haas/wep/haas.erp"
   }
  },
  "content.package": {

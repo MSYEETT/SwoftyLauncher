@@ -122,7 +122,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/mercedes",
    "audio_switch": "F1_m_Mercedes",
-   "audio_from": "f1_m_mercedes"
+   "audio_from": "f1_m_mercedes",
+   "livery": "swofty.classic-seasons-2020/mercedes"
   },
   "redbull": {
    "label": "cs20_redbull",
@@ -136,7 +137,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/honda",
    "audio_switch": "F1_m_Red_bull",
-   "audio_from": "f1_m_red_bull"
+   "audio_from": "f1_m_red_bull",
+   "livery": "swofty.classic-seasons-2020/redbull"
   },
   "mclaren": {
    "label": "cs20_mclaren",
@@ -150,7 +152,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/renault",
    "audio_switch": "F1_m_Mclaren",
-   "audio_from": "f1_m_mclaren"
+   "audio_from": "f1_m_mclaren",
+   "livery": "swofty.classic-seasons-2020/mclaren"
   },
   "force_india": {
    "label": "cs20_force_india",
@@ -164,7 +167,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/mercedes",
    "audio_switch": "F1_m_Aston_martin",
-   "audio_from": "f1_m_aston_martin"
+   "audio_from": "f1_m_aston_martin",
+   "livery": "swofty.classic-seasons-2020/force_india"
   },
   "lotus": {
    "label": "cs20_lotus",
@@ -178,7 +182,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/renault",
    "audio_switch": "F1_m_Alpine",
-   "audio_from": "f1_m_alpine"
+   "audio_from": "f1_m_alpine",
+   "livery": "swofty.classic-seasons-2020/lotus"
   },
   "ferrari": {
    "label": "cs20_ferrari",
@@ -192,7 +197,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/ferrari",
    "audio_switch": "F1_m_Ferrari",
-   "audio_from": "f1_m_ferrari"
+   "audio_from": "f1_m_ferrari",
+   "livery": "swofty.classic-seasons-2020/ferrari"
   },
   "toro_rosso": {
    "label": "cs20_toro_rosso",
@@ -206,7 +212,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/honda",
    "audio_switch": "F1_m_Rb",
-   "audio_from": "f1_m_rb"
+   "audio_from": "f1_m_rb",
+   "livery": "swofty.classic-seasons-2020/toro_rosso"
   },
   "sauber": {
    "label": "cs20_sauber",
@@ -217,7 +224,8 @@
    "package": "swofty.classic-seasons-2020/cs_2020",
    "engine_sound": "swofty.classic-seasons-2020/ferrari",
    "audio_switch": "F1_m_Sauber",
-   "audio_from": "f1_m_sauber"
+   "audio_from": "f1_m_sauber",
+   "livery": "swofty.classic-seasons-2020/sauber"
   },
   "haas": {
    "label": "cs20_haas",
@@ -231,7 +239,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/ferrari",
    "audio_switch": "F1_m_Haas",
-   "audio_from": "f1_m_haas"
+   "audio_from": "f1_m_haas",
+   "livery": "swofty.classic-seasons-2020/haas"
   },
   "williams": {
    "label": "cs20_williams",
@@ -245,7 +254,50 @@
    },
    "engine_sound": "swofty.classic-seasons-2020/mercedes",
    "audio_switch": "F1_m_Williams",
-   "audio_from": "f1_m_williams"
+   "audio_from": "f1_m_williams",
+   "livery": "swofty.classic-seasons-2020/williams"
+  }
+ },
+ "livery": {
+  "mercedes": {
+   "vehicle": "swofty.classic-seasons-2020/mercedes",
+   "archive": "cars/teams/mercedes/wep/mercedes.erp"
+  },
+  "redbull": {
+   "vehicle": "swofty.classic-seasons-2020/redbull",
+   "archive": "cars/teams/redbull/wep/redbull.erp"
+  },
+  "mclaren": {
+   "vehicle": "swofty.classic-seasons-2020/mclaren",
+   "archive": "cars/teams/mclaren/wep/mclaren.erp"
+  },
+  "force_india": {
+   "vehicle": "swofty.classic-seasons-2020/force_india",
+   "archive": "cars/teams/force_india/wep/force_india.erp"
+  },
+  "lotus": {
+   "vehicle": "swofty.classic-seasons-2020/lotus",
+   "archive": "cars/teams/lotus/wep/lotus.erp"
+  },
+  "ferrari": {
+   "vehicle": "swofty.classic-seasons-2020/ferrari",
+   "archive": "cars/teams/ferrari/wep/ferrari.erp"
+  },
+  "toro_rosso": {
+   "vehicle": "swofty.classic-seasons-2020/toro_rosso",
+   "archive": "cars/teams/toro_rosso/wep/toro_rosso.erp"
+  },
+  "sauber": {
+   "vehicle": "swofty.classic-seasons-2020/sauber",
+   "archive": "cars/teams/sauber/wep/sauber.erp"
+  },
+  "haas": {
+   "vehicle": "swofty.classic-seasons-2020/haas",
+   "archive": "cars/teams/haas/wep/haas.erp"
+  },
+  "williams": {
+   "vehicle": "swofty.classic-seasons-2020/williams",
+   "archive": "cars/teams/williams/wep/williams.erp"
   }
  },
  "content.package": {

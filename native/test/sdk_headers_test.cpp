@@ -17,6 +17,7 @@
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
+#include <swofty/systems/liveries.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
@@ -466,11 +467,33 @@ static void schemas()
     CHECK(wearables::season_sets.schema().find("\"x-ref\":\"suit\"") != std::string::npos);
     CHECK(wearables::helmets.schema().find("\"x-applies\":\"boot\"") != std::string::npos);
     CHECK(wearables::season_sets.at_major() == "wearable.season_set@1" && drivers::heads.at_major() == "driver.head@1");
+    std::string l = liveries::liveries.schema();
+    CHECK(l.find("\"x-registry\":\"livery\"") != std::string::npos && l.find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(l.find("\"x-ref\":\"vehicle\"") != std::string::npos && l.find("\"enum\":[\"owned\",\"game\"]") != std::string::npos);
+    CHECK(liveries::liveries.at_major() == "livery@1");
+}
+
+static void liveries_records()
+{
+    auto car = cars::vehicles["game/redbull_2025"];
+    auto look = liveries::liveries.add("repaint", {.vehicle = car, .textures = file("livery/")});
+    CHECK(look.empty());
+    cars::vehicles.layer(car, [=](cars::Vehicle &v) { v.livery = look; });
+    liveries::Livery special{.vehicle = cars::vehicles["game/toro_rosso_2026"],
+                             .archive = file("archives/toro_rosso_alphatauri.erp"),
+                             .special = true,
+                             .picker_name = "lng_rm_livery_alphatauri",
+                             .unlock = liveries::Unlock::owned};
+    std::string j = to_json(special);
+    CHECK(j.find("\"special\":true") != std::string::npos && j.find("\"unlock\":\"owned\"") != std::string::npos);
+    liveries::Livery back;
+    CHECK(from_json(j, back) && back.special && back.suffix == "auto" && back.picker_name == "lng_rm_livery_alphatauri");
 }
 
 int main()
 {
     unavailable_without_core();
+    liveries_records();
     payload_accessors();
     round_trip();
     schemas();

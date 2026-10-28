@@ -1,5 +1,6 @@
 #pragma once
 
+#include "liveries.hpp"
 #include "lower.hpp"
 #include "rows.hpp"
 
@@ -17,7 +18,7 @@
 
 namespace swofty_core::apply::content {
 
-inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound", "vehicle.package", "vehicle", "content.package"};
+inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package"};
 
 inline Lookup store_lookup(registry::Store &st, std::map<std::string, Value> &keep)
 {
@@ -106,6 +107,14 @@ inline Lookup own_lookup(registry::Store &st, std::map<std::string, Value> &keep
     };
 }
 
+inline std::vector<PoolScan> scan_all_pools(const std::function<std::optional<std::string>(const std::string &)> &text)
+{
+    auto out = scan_pools(text);
+    for (auto &s : scan_livery_pools(text))
+        out.push_back(std::move(s));
+    return out;
+}
+
 struct Pin {
     std::string registry, id;
     int64_t stat_id;
@@ -118,7 +127,7 @@ inline std::vector<Pin> pins(registry::Store &st)
     std::vector<Pin> out;
     std::map<std::string, Value> keep;
     Lookup lookup = own_lookup(st, keep);
-    for (const char *reg : {"vehicle.package", "vehicle", "content.package"})
+    for (const char *reg : {"vehicle.package", "vehicle", "livery", "content.package"})
         for (auto &id : in_load_order(st, reg)) {
             const Value *rec = lookup(reg, id);
             if (!rec)
@@ -143,8 +152,23 @@ struct Expansion {
     std::map<std::string, std::vector<std::string>> lines;
     std::map<std::string, int> records, refused;
     std::vector<Redirect> redirects;
+    std::vector<Group> groups;
+    std::vector<Folder> folders;
+    std::vector<Owned> owned;
     std::set<std::string> owners;
 };
+
+// The vehicles that wear each livery: every vehicle record, stock or an addon's, whose effective livery names it.
+inline std::map<std::string, std::vector<std::string>> wearers(registry::Store &st)
+{
+    std::map<std::string, std::vector<std::string>> out;
+    for (auto &vid : st.list("vehicle", "")) {
+        registry::Record r = st.get("vehicle", vid);
+        if (r.status == registry::Status::ok && r.value["livery"].is_string())
+            out[std::string(r.value["livery"].as_string())].push_back(vid);
+    }
+    return out;
+}
 
 inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const std::set<std::string> &skip = {})
 {
@@ -156,6 +180,12 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             return std::nullopt;
         return Stock{r->tag, r->text};
     };
+    Read read = [&x](const std::string &path) -> std::optional<std::string> {
+        auto p = x.engine.resolve(path);
+        return p ? x.engine.text(*p) : std::nullopt;
+    };
+    auto worn = wearers(st);
+    int slot = 0;
     for (const char *reg : ROW_REGISTRIES) {
         auto &lines = x.lines[reg];
         for (auto &id : in_load_order(st, reg)) {
@@ -173,6 +203,8 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_vehicle_package(id, *rec, plan, stat);
             else if (r == "vehicle")
                 lower_vehicle(id, *rec, lookup, source, plan, stat);
+            else if (r == "livery")
+                lower_livery(id, *rec, worn[id], lookup, read, plan, stat, &slot);
             else
                 lower_package(id, *rec, lookup, plan, stat);
             x.engine.add_fields(plan.fields);
@@ -181,7 +213,8 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             std::string why;
             for (std::size_t i = 0; i < plan.ops.size() && why.empty(); i++)
                 why = x.engine.apply(plan.ops[i]);
-            if (!why.empty() || (plan.refused && plan.ops.size() == 0)) {
+            bool nothing = plan.ops.size() == 0 && plan.groups.empty() && plan.folders.empty();
+            if (!why.empty() || (plan.refused && nothing)) {
                 x.engine.rollback(mark);
                 x.refused[reg]++;
                 lines.push_back(std::string(reg) + " " + id + ": not applied: " +
@@ -197,6 +230,11 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lines.push_back(l);
             for (auto &rd : plan.redirects)
                 x.redirects.push_back(rd);
+            x.groups.insert(x.groups.end(), plan.groups.begin(), plan.groups.end());
+            x.folders.insert(x.folders.end(), plan.folders.begin(), plan.folders.end());
+            x.owned.insert(x.owned.end(), plan.owned.begin(), plan.owned.end());
+            if (plan.refused && r == "livery")
+                x.refused[reg] += int(plan.refused);
         }
     }
     for (auto &l : x.engine.lines)
