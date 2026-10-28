@@ -2574,7 +2574,7 @@ mod tests {
             "attached\n"
         );
         let notice = swofty_core::recovery::Notice::read(&m.store.root).unwrap();
-        assert!(notice.lines[0].ends_with("(5 change(s) for profile MODDED) that a session left open"));
+        assert!(notice.lines[0].ends_with("(6 change(s) for profile MODDED) that a session left open"));
     }
 
     #[test]
