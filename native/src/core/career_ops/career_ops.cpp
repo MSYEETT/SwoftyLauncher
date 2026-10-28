@@ -1362,6 +1362,8 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
                 rep.refusals.insert(rep.refusals.end(), closing.refusals.begin(), closing.refusals.end());
                 rep.refused = rep.refusals.size();
                 for (auto &a : tp.actions) {
+                    if (a.kind == ct::Kind::open && ct::dresser())
+                        ct::dresser()(group.c_str(), a.slot, a.row.c_str(), a.row.c_str());
                     if (a.kind != ct::Kind::dressed)
                         continue;
                     if (ct::dresser() && ct::dresser()(group.c_str(), a.slot, a.row.c_str(), a.team.c_str()))

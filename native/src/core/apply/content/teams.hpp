@@ -3,8 +3,10 @@
 #include "liveries.hpp"
 #include "lower.hpp"
 
+#include <cstdio>
 #include <cstring>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <set>
 
@@ -103,19 +105,14 @@ inline TeamRefs team_refs(const std::vector<std::pair<std::string, const Value *
             r.constructor_team[t] = id;
     for (auto &[id, rec] : constructors) {
         std::string token = key_of(id);
-        auto it = r.constructor_team.find(token);
-        if (it != r.constructor_team.end()) {
-            r.lines.push_back("team.constructor constructor/" + token + ": provided by " + it->second);
-            r.constructors++;
-        } else if ((*rec)["team"].is_string()) {
-            std::string team(static_cast<const Value &>(*rec)["team"].as_string());
-            r.constructor_team[token] = team;
-            r.lines.push_back("team.constructor constructor/" + token + ": provided by " + team);
-            r.constructors++;
-        } else {
-            r.lines.push_back("team.constructor " + id + ": no enabled team is this constructor");
-            r.constructors_refused++;
-        }
+        if (!(*rec)["team"].is_string())
+            continue;
+        std::string team(static_cast<const Value &>(*rec)["team"].as_string());
+        r.constructor_team[token] = team;
+        if (team.rfind("game/", 0) == 0)
+            continue;
+        r.lines.push_back("team.constructor constructor/" + token + ": provided by " + team);
+        r.constructors++;
     }
     for (auto &[id, rec] : pit_times) {
         std::string label = team_label((*rec)["team"], r);
@@ -123,6 +120,88 @@ inline TeamRefs team_refs(const std::vector<std::pair<std::string, const Value *
             r.pit_record[label] = id;
     }
     return r;
+}
+
+struct ConstructorSeed {
+    const char *key, *name, *country, *label;
+};
+
+inline constexpr ConstructorSeed CONSTRUCTOR_SEEDS[] = {
+    {"mercedes", "Mercedes", "germany", "mercedes"},
+    {"ferrari", "Ferrari", "italy", "ferrari"},
+    {"red_bull", "Red Bull Racing", "austria", "redbull"},
+    {"mclaren", "McLaren", "great_britain", "mclaren"},
+    {"aston_martin", "Aston Martin", "great_britain", "astonmartin"},
+    {"alpine", "Alpine", "france", "alpine"},
+    {"williams", "Williams", "great_britain", "williams"},
+    {"haas", "Haas", "united_states", "haas"},
+    {"toro_rosso", "Scuderia Toro Rosso", "italy", "tororosso"},
+    {"alpha_tauri", "AlphaTauri", "italy", "alphatauri"},
+    {"racing_bulls", "Racing Bulls", "italy", "racingbulls"},
+    {"sauber", "Sauber", "switzerland", "sauber"},
+    {"alfa_romeo", "Alfa Romeo", "switzerland", "alfaromeo"},
+    {"kick_sauber", "Kick Sauber", "switzerland", "kicksauber"},
+    {"renault", "Renault", "france", "renault"},
+    {"lotus", "Lotus", "great_britain", "lotus"},
+    {"force_india", "Force India", "india", "forceindia"},
+    {"racing_point", "Racing Point", "great_britain", "racingpoint"},
+    {"manor", "Manor", "great_britain", "manor"},
+    {"marussia", "Marussia", "russia", "marussia"},
+    {"caterham", "Caterham", "malaysia", "caterham"},
+    {"hrt", "HRT", "spain", "hrt"},
+    {"virgin", "Virgin", "great_britain", "virgin"},
+    {"toyota", "Toyota", "japan", "toyota"},
+    {"honda", "Honda", "japan", "honda"},
+    {"bmw_sauber", "BMW Sauber", "germany", "bmwsauber"},
+    {"brawn", "Brawn", "great_britain", "brawn"},
+    {"jordan", "Jordan", "ireland", "jordan"},
+    {"minardi", "Minardi", "italy", "minardi"},
+    {"tyrrell", "Tyrrell", "great_britain", "tyrrell"},
+    {"benetton", "Benetton", "italy", "benetton"},
+    {"arrows", "Arrows", "great_britain", "arrows"},
+};
+
+inline std::string constructor_label(const std::string &label)
+{
+    std::string out;
+    for (char c : label)
+        if (c != '_')
+            out += char(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+    std::size_t n = out.size();
+    while (n && out[n - 1] >= '0' && out[n - 1] <= '9')
+        n--;
+    if (n < out.size() && out.size() - n == 4)
+        out.resize(n);
+    return out;
+}
+
+inline int label_year(const std::string &label)
+{
+    std::size_t n = label.size();
+    if (n < 5 || label[n - 5] != '_')
+        return 0;
+    int y = 0;
+    for (std::size_t i = n - 4; i < n; i++) {
+        if (label[i] < '0' || label[i] > '9')
+            return 0;
+        y = y * 10 + (label[i] - '0');
+    }
+    return y;
+}
+
+inline std::string colour_text(const std::string &signed_text)
+{
+    char *end = nullptr;
+    long long n = std::strtoll(signed_text.c_str(), &end, 10);
+    if (!end || end == signed_text.c_str() || *end)
+        return {};
+    uint32_t v = uint32_t(int32_t(n));
+    char buf[16];
+    if ((v >> 24) == 0xff)
+        std::snprintf(buf, sizeof buf, "#%06X", v & 0xffffff);
+    else
+        std::snprintf(buf, sizeof buf, "#%08X", v);
+    return buf;
 }
 
 inline std::string team_at(const std::string &label)
@@ -134,6 +213,77 @@ inline int64_t rows_of(const Read &read, const std::string &path)
 {
     auto n = read(path);
     return n ? std::strtoll(n->c_str(), nullptr, 10) : 0;
+}
+
+struct StockTeam {
+    std::string label;
+    Value record;
+};
+
+inline std::vector<StockTeam> stock_teams(const Read &read)
+{
+    std::vector<StockTeam> out;
+    int64_t rows = rows_of(read, std::string(TEAMS) + "._team_instancecount_");
+    std::map<std::string, std::pair<int, std::size_t>> latest;
+    for (int64_t i = 0; i < rows; i++) {
+        std::string at = std::string(TEAMS) + ".team_" + std::to_string(i);
+        auto label = read(at + "._metadata_");
+        if (!label || label->empty())
+            continue;
+        auto field = [&](const char *f) { return read(at + "." + f); };
+        Value rec = Value::object();
+        if (auto sid = field("stat_id"); sid && !sid->empty()) {
+            long long n = std::strtoll(sid->c_str(), nullptr, 10);
+            if (n >= 0)
+                rec["stat_id"] = Value(int64_t(n));
+        }
+        Value names = Value::object();
+        auto literal = [&](const char *key, const char *f) {
+            if (auto v = field(f); v && !v->empty())
+                names[key] = Value::object({{"literal", Value(*v)}});
+        };
+        literal("title", "display_name");
+        literal("short_name", "display_name_short");
+        literal("super_short", "display_name_super_short");
+        if (auto c = field("display_name_code"); c && !c->empty() && c->size() <= 4) {
+            bool fine = true;
+            for (char ch : *c)
+                fine = fine && ((ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9'));
+            if (fine)
+                names["code"] = Value(*c);
+        }
+        rec["names"] = std::move(names);
+        Value colours = Value::object();
+        for (auto [key, f] : {std::pair{"menu", "ui_team_colour"}, {"primary", "primary_colour"},
+                              {"secondary", "secondary_colour"}, {"tertiary", "tertiary_colour"}})
+            if (auto v = field(f))
+                if (std::string t = colour_text(*v); !t.empty())
+                    colours[key] = Value(t);
+        rec["colours"] = std::move(colours);
+        auto livery = field("livery_name");
+        rec["livery_name"] = Value(livery && !livery->empty() ? *livery : *label);
+        if (auto v = field("nationality"); v && !v->empty())
+            rec["nationality"] = Value(*v);
+        if (auto v = field("audio_id"); v && !v->empty())
+            rec["audio_id"] = Value(*v);
+        if (auto v = field("prestige"); v && !v->empty())
+            rec["prestige"] = Value(int64_t(std::strtoll(v->c_str(), nullptr, 10)));
+        std::string norm = constructor_label(*label);
+        for (auto &seed : CONSTRUCTOR_SEEDS)
+            if (norm == seed.label) {
+                auto it = latest.find(norm);
+                int year = label_year(*label);
+                if (it == latest.end() || year >= it->second.first)
+                    latest[norm] = {year, out.size()};
+                break;
+            }
+        out.push_back({*label, std::move(rec)});
+    }
+    for (auto &[norm, at] : latest)
+        for (auto &seed : CONSTRUCTOR_SEEDS)
+            if (norm == seed.label)
+                out[at.second].record["provides"] = Value::array({Value(std::string("constructor/") + seed.key)});
+    return out;
 }
 
 struct SideRow {
@@ -452,6 +602,7 @@ struct Live {
     std::function<uint8_t *(uint16_t stat)> record;
     std::function<void(const std::string &line)> log;
     std::vector<Pending> pending;
+    std::map<uint16_t, std::string> wears;
     std::map<std::string, std::string> logo_override;
     std::vector<LogoImage> manifest;
 };
@@ -462,8 +613,15 @@ inline Live &live()
     return l;
 }
 
+inline std::recursive_mutex &live_mutex()
+{
+    static std::recursive_mutex m;
+    return m;
+}
+
 inline bool dress_slot(const char *group, int slot, const char *row, const char *team)
 {
+    std::lock_guard g(live_mutex());
     Live &l = live();
     auto say = [&l](const std::string &line) {
         if (l.log)
@@ -475,16 +633,24 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
         say(where + ": the team applier is not set up");
         return false;
     }
+    int64_t stat = l.stat_of(row);
+    bool own = std::string(row) == team;
+    if (stat < 0 || stat > 0xffff) {
+        if (!own)
+            say(where + ": the slot row has no stat id from the install's store");
+        return own;
+    }
+    if (own && !l.wears.count(uint16_t(stat)))
+        return true;
     const Value *rec = l.identity(team);
     if (!rec) {
         say(where + ": " + team + " is not a team.identity record");
         return false;
     }
-    int64_t stat = l.stat_of(row);
-    if (stat < 0 || stat > 0xffff) {
-        say(where + ": the slot row has no stat id from the install's store");
-        return false;
-    }
+    if (own)
+        l.wears.erase(uint16_t(stat));
+    else
+        l.wears[uint16_t(stat)] = team;
     uint8_t *record = l.record ? l.record(uint16_t(stat)) : nullptr;
     if (!record) {
         l.pending.push_back({group ? group : "", row, team, slot});
@@ -493,6 +659,22 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
     }
     write_dress(record, dress_of(*rec));
     say(where + ": names and colours written to the loaded record of stat id " + std::to_string(stat));
+    return true;
+}
+
+inline bool redress(uint16_t stat, uint8_t *record)
+{
+    std::lock_guard g(live_mutex());
+    Live &l = live();
+    auto it = l.wears.find(stat);
+    if (it == l.wears.end() || !l.identity || !record)
+        return false;
+    const Value *rec = l.identity(it->second);
+    if (!rec)
+        return false;
+    write_dress(record, dress_of(*rec));
+    if (l.log)
+        l.log("redress stat id " + std::to_string(stat) + ": the loader stored its record again; dressed as " + it->second);
     return true;
 }
 
