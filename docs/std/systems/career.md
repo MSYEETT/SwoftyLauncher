@@ -499,13 +499,34 @@ events::on<career::events::AddActivity>().in(kProgressive)
 ## Operations
 
 ```cpp
-career::set_seat(7, 1, drivers::identities["game/pierre_gasly"]);
+career::set_slots("f1_career_progressive", { 476, 477, 478, 484, 480, 481, 479, 482, 485, 483, 486 });
+career::apply_lineup(*career::seasons.get(career::seasons["swofty.progressive/2017"]), &report);
 career::set_driver_ratings(drivers::identities["game/lando_norris"], { .experience = 70, .racecraft = 88, .awareness = 85, .pace = 90 });
-career::set_car_number(drivers::identities["game/lando_norris"], 1);
 career::swap_drivers(drivers::identities["game/alex_albon"], drivers::identities["game/logan_sargeant"]);
 ```
 
-A swap follows the game's own sequence: move confirmed and the entrant write, contract state 3, the line-up changes, then three moves-finalised posts. Any other order crashes the career. Every operation runs on the flow thread.
+`apply_lineup`, `set_driver_ratings` and `swap_drivers` are in the core from 1.6.0, in Driver Career. `set_seat`, `set_car_number` and `apply_dropped_scores` return `unavailable`.
+
+- **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
+- **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied.
+- **What it refuses:** a driver not in the drivers table, a driver without a single career row, a driver named on two seats (the second), the player (never moved) and the player's seat (never given away). The refused seats keep their drivers.
+
+A batch of seat changes follows the game's own sequence, in this order:
+
+1. for each driver who leaves the grid, his contract set to state 3;
+2. for each driver who moves or leaves, `MessageDriverMoveConfirmed`, then his entrant write;
+3. every row read back against the plan, and every write undone on a mismatch;
+4. each seated driver without a contract for his team signs one: state 4 or 5, then `MessageDriverContractChanged`;
+5. a number for each seated row without one;
+6. the line-up changes against the line-up from before the batch, then the three moves-finalised posts (upgrades, recognition, plain).
+
+Any other order crashes the career. Every operation runs on the flow thread.
+
+```text
+[career-ops] apply_lineup 2017 (season, f1_career_progressive): 1 seat(s) set, 21 unchanged, 0 refused; 2 row(s) written,
+             1 contract(s) signed, 0 number(s) drawn, finalise posted (2 line-up change(s)): move fernando_alonso(7)
+             mclaren_26(484) seat 1 -> mercedes_26(476) seat 1; release lewis_hamilton(5) released
+```
 
 ## Readiness and limits
 
