@@ -729,7 +729,7 @@ mod mailbox {
             },
         )
         .unwrap();
-        let dir = data.join("test-runs/20261028-1402-1");
+        let dir = data.join("test-runs").join("20261028-1402-1");
         assert_eq!(run.root, dir);
         assert_eq!(run.agent(), dir.join("agent"));
         assert!(!run.sandboxed());
