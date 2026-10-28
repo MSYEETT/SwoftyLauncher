@@ -138,6 +138,8 @@ std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> track_acclim_mixins();
 void track_acclim_commit();
+std::vector<CoreMixins> leaderboard_guard_mixins();
+void leaderboard_guard_commit();
 void hud_setup();
 void focus_setup();
 void hud_fatal();
