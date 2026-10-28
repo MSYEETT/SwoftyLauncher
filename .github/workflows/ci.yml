@@ -384,6 +384,8 @@ jobs:
         run: native/test/run_registry_test.sh
       - name: Career operations planner and SDK calls host test
         run: native/test/run_career_ops_test.sh
+      - name: Live apply paths (scheduler, put-back, context, budgets, sizing, stat ids, reports)
+        run: native/test/run_apply_test.sh
       - name: Progressive registration test
         env:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache

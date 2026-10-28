@@ -3,6 +3,7 @@
 #include <safetyhook.hpp>
 #include <swofty/mixin.hpp>
 
+#include "apply/moments.hpp"
 #include "events_dispatch.hpp"
 #include "perf.hpp"
 
@@ -89,6 +90,7 @@ void session_enter_mid(safetyhook::Context &)
     static const uint32_t probe = perf::probe("core", "session enter");
     perf::mark("session", "enter");
     perf::Scope p(probe);
+    swofty_core::apply::moments::session_load("Game_GameModule_OnSessionEnter");
     disp.fire(SWOFTY_EVENT_SESSION_START, 0, 0, nullptr, now_seconds());
     swofty_core::hooks::bridge_legacy(SWOFTY_EVENT_SESSION_START, 0, 0, nullptr);
 }
