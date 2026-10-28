@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <mutex>
@@ -80,6 +83,7 @@ struct Layer {
     json::Value patch;
     json::Value in = json::Value::array();
     uint32_t handle = 0;
+    json::Value result;
 };
 
 struct Record {
@@ -142,6 +146,8 @@ public:
     {
         if (engine_ && engine_->begin_addon)
             engine_->begin_addon(addon_.c_str());
+        for (const auto &[name, schema] : declared())
+            redeclare(name, schema);
         int r = entry ? entry(&api_) : swofty::detail::run_register(&api_);
         if (engine_ && engine_->end_register)
             engine_->end_register();
@@ -149,10 +155,69 @@ public:
         return r;
     }
 
+    template <class T> bool stock(const Registry<T> &reg, std::string_view key, const T &value)
+    {
+        std::string name(reg.name()), schema = reg.schema(), v;
+        if constexpr (std::is_same_v<T, json::Value>)
+            v = json::dump(value);
+        else
+            v = to_json(value);
+        if (!schema.empty()) {
+            redeclare(name, schema);
+            bool known = false;
+            for (const auto &d : declared())
+                known = known || d.first == name;
+            if (!known)
+                declared().emplace_back(name, schema);
+        }
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        stock_.push_back(Record{"stock", name, std::string(key), "game/" + std::string(key), {}, parse({v.data(), v.size()})});
+        if (!engine() || !engine()->add)
+            return true;
+        if (engine_->begin_addon)
+            engine_->begin_addon("game");
+        char id[256] = {};
+        int r = engine()->add(name.c_str(), std::string(key).c_str(), SwoftyText{v.data(), v.size()}, id, sizeof id);
+        if (engine_->begin_addon)
+            engine_->begin_addon(addon_.c_str());
+        return r == SWOFTY_ASSET_OK;
+    }
+
     const std::vector<Record> &records() const { return records_; }
     const std::vector<Layer> &all_layers() const { return layers_; }
     const std::vector<std::string> &unexpected() const { return unexpected_; }
     const std::vector<std::string> &log() const { return log_; }
+    const json::Value &refused() const { return refused_; }
+
+    std::string current_call() const
+    {
+        return in_call_.load() ? std::string(call_.data(), strnlen(call_.data(), call_.size())) : std::string();
+    }
+
+    void run_layer_edits()
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        for (auto &l : layers_) {
+            if (!l.edit) {
+                l.result = l.patch;
+                continue;
+            }
+            json::Value base = json::Value::object();
+            if (!l.id.empty())
+                if (auto v = this->base(l.registry, l.id))
+                    base = *v;
+            enter("layer edit on " + l.registry + " " + (l.id.empty() ? "(selector " + l.prefix + ")" : l.id));
+            std::string in = json::dump(base), out;
+            int r = call_edit(l.edit, l.user, in, out);
+            leave();
+            if (r != SWOFTY_ASSET_OK)
+                continue;
+            json::Error err;
+            json::Value v = json::parse(out, &err);
+            if (err.ok())
+                l.result = std::move(v);
+        }
+    }
 
     std::vector<std::string> ids(std::string_view registry, std::string_view prefix = {}) const
     {
@@ -166,6 +231,9 @@ public:
     std::optional<json::Value> base(std::string_view registry, std::string_view id) const
     {
         for (auto it = records_.rbegin(); it != records_.rend(); ++it)
+            if (it->registry == registry && it->id == id && !it->value.is_null())
+                return it->value;
+        for (auto it = stock_.rbegin(); it != stock_.rend(); ++it)
             if (it->registry == registry && it->id == id && !it->value.is_null())
                 return it->value;
         return std::nullopt;
@@ -300,6 +368,8 @@ public:
                 e["patch"] = l.patch;
             if (l.in.size())
                 e["in"] = l.in;
+            if (!l.result.is_null())
+                e["result"] = l.result;
             layers.push_back(std::move(e));
         }
         out["layers"] = std::move(layers);
@@ -321,6 +391,8 @@ public:
         for (const auto &u : unexpected_)
             un.push_back(u);
         out["unexpected"] = std::move(un);
+        out["refused"] = refused_;
+        out["engine"] = engine_ != nullptr;
         return out;
     }
 
@@ -331,6 +403,49 @@ private:
     {
         static Core *c = nullptr;
         return c;
+    }
+
+    static std::vector<std::pair<std::string, std::string>> &declared()
+    {
+        static std::vector<std::pair<std::string, std::string>> d;
+        return d;
+    }
+
+    void redeclare(const std::string &name, const std::string &schema)
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        for (const auto &r : registries_)
+            if (r.first == name)
+                return;
+        SwoftyText t{schema.data(), schema.size()};
+        registries_.emplace_back(name, parse(t));
+        if (engine() && engine()->declare)
+            engine()->declare(name.c_str(), t);
+    }
+
+    void enter(const std::string &what)
+    {
+        std::snprintf(call_.data(), call_.size(), "%s", what.c_str());
+        in_call_ = true;
+    }
+
+    void leave() { in_call_ = false; }
+
+    std::string engine_error() const
+    {
+        char buf[512] = {};
+        if (engine() && engine()->last_error)
+            engine()->last_error(buf, sizeof buf);
+        return std::string(buf, strnlen(buf, sizeof buf));
+    }
+
+    bool accepted(int r, const char *call, const std::string &registry, const std::string &what)
+    {
+        if (r == SWOFTY_ASSET_OK)
+            return true;
+        refused_.push_back(json::Value::object(
+            {{"call", call}, {"registry", registry}, {"id", what}, {"result", r}, {"error", engine_error()}}));
+        return false;
     }
 
     static std::string str(const char *s) { return s ? std::string(s) : std::string(); }
@@ -426,6 +541,11 @@ private:
             }
         if (!seen)
             c->registries_.emplace_back(name, parse(schema));
+        bool known = false;
+        for (const auto &d : declared())
+            known = known || d.first == name;
+        if (!known)
+            declared().emplace_back(name, str(schema));
         return SWOFTY_FAKE_FORWARD(declare, registry, schema);
     }
 
@@ -458,16 +578,20 @@ private:
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
-        c->records_.push_back(Record{"provide", str(registry), {}, str(id), {}, parse(value)});
-        return SWOFTY_FAKE_FORWARD(provide, registry, id, value);
+        int r = SWOFTY_FAKE_FORWARD(provide, registry, id, value);
+        if (c->accepted(r, "provide", str(registry), str(id)))
+            c->records_.push_back(Record{"provide", str(registry), {}, str(id), {}, parse(value)});
+        return r;
     }
 
     static int r_provide_fn(const char *registry, SwoftyProvideFn fn, SwoftyListFn list, void *user)
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
-        c->providers_.push_back(json::Value::object({{"registry", str(registry)}, {"list", list != nullptr}}));
-        return SWOFTY_FAKE_FORWARD(provide_fn, registry, fn, list, user);
+        int r = SWOFTY_FAKE_FORWARD(provide_fn, registry, fn, list, user);
+        if (c->accepted(r, "provide_fn", str(registry), ""))
+            c->providers_.push_back(json::Value::object({{"registry", str(registry)}, {"list", list != nullptr}}));
+        return r;
     }
 
     static int r_invalidate(const char *registry, const char *id)
@@ -487,8 +611,10 @@ private:
         l.id = str(id);
         l.patch = parse(patch);
         l.scope = scope;
-        c->layers_.push_back(std::move(l));
-        return SWOFTY_FAKE_FORWARD(layer, registry, id, patch, scope);
+        int r = SWOFTY_FAKE_FORWARD(layer, registry, id, patch, scope);
+        if (c->accepted(r, "layer", l.registry, l.id))
+            c->layers_.push_back(std::move(l));
+        return r;
     }
 
     static int r_clear_layer(const char *registry, const char *id, uint32_t scope)
@@ -596,9 +722,16 @@ private:
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
         std::string rid = c->own_id(key);
+        if (c->engine() && c->engine()->add) {
+            char got[256] = {};
+            int r = c->engine()->add(registry, key, value, got, sizeof got);
+            if (!c->accepted(r, "add", str(registry), rid))
+                return r;
+            rid = std::string(got, strnlen(got, sizeof got));
+            c->records_.push_back(Record{"add", str(registry), str(key), rid, {}, parse(value)});
+            return put_id(rid, id, cap);
+        }
         c->records_.push_back(Record{"add", str(registry), str(key), rid, {}, parse(value)});
-        if (c->engine() && c->engine()->add)
-            return c->engine()->add(registry, key, value, id, cap);
         return put_id(rid, id, cap);
     }
 
@@ -608,10 +741,20 @@ private:
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
         std::string rid = c->own_id(key), reg = str(registry), base = str(base_id);
+        if (c->engine() && c->engine()->variant) {
+            char got[256] = {};
+            int r = c->engine()->variant(registry, key, base_id, edit, user, got, sizeof got);
+            if (!c->accepted(r, "variant", reg, rid))
+                return r;
+            rid = std::string(got, strnlen(got, sizeof got));
+        }
         json::Value value = nullptr;
         if (edit) {
             std::string in = json::dump(c->lookup_base(reg, base)), out;
-            if (call_edit(edit, user, in, out) == SWOFTY_ASSET_OK) {
+            c->enter("variant edit of " + reg + " " + rid);
+            int er = call_edit(edit, user, in, out);
+            c->leave();
+            if (er == SWOFTY_ASSET_OK) {
                 json::Error err;
                 value = json::parse(out, &err);
                 if (!err.ok())
@@ -619,8 +762,6 @@ private:
             }
         }
         c->records_.push_back(Record{"variant", reg, str(key), rid, base, std::move(value)});
-        if (c->engine() && c->engine()->variant)
-            return c->engine()->variant(registry, key, base_id, edit, user, id, cap);
         return put_id(rid, id, cap);
     }
 
@@ -630,11 +771,16 @@ private:
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
         std::string rid = c->own_id(key), reg = str(registry), base = str(base_id);
+        if (c->engine() && c->engine()->variant_patch) {
+            char got[256] = {};
+            int r = c->engine()->variant_patch(registry, key, base_id, patch, got, sizeof got);
+            if (!c->accepted(r, "variant", reg, rid))
+                return r;
+            rid = std::string(got, strnlen(got, sizeof got));
+        }
         json::Value value = c->lookup_base(reg, base);
         json::merge_patch(value, parse(patch));
         c->records_.push_back(Record{"variant", reg, str(key), rid, base, std::move(value)});
-        if (c->engine() && c->engine()->variant_patch)
-            return c->engine()->variant_patch(registry, key, base_id, patch, id, cap);
         return put_id(rid, id, cap);
     }
 
@@ -648,8 +794,10 @@ private:
         l.edit = edit;
         l.user = user;
         l.scope = scope;
-        c->layers_.push_back(std::move(l));
-        return SWOFTY_FAKE_FORWARD(layer_fn, registry, id, edit, user, scope);
+        int r = SWOFTY_FAKE_FORWARD(layer_fn, registry, id, edit, user, scope);
+        if (c->accepted(r, "layer", l.registry, l.id))
+            c->layers_.push_back(std::move(l));
+        return r;
     }
 
     static int r_layer_select(const char *registry, SwoftyMatchFn match, const char *prefix, const char *const *except,
@@ -666,8 +814,10 @@ private:
         l.edit = edit;
         l.user = user;
         l.scope = scope;
-        c->layers_.push_back(std::move(l));
-        return SWOFTY_FAKE_FORWARD(layer_select, registry, match, prefix, except, except_count, edit, user, scope);
+        int r = SWOFTY_FAKE_FORWARD(layer_select, registry, match, prefix, except, except_count, edit, user, scope);
+        if (c->accepted(r, "layer", l.registry, l.prefix))
+            c->layers_.push_back(std::move(l));
+        return r;
     }
 
     static int r_option(const char *id, uint32_t type, SwoftySettingValue *out)
@@ -683,12 +833,12 @@ private:
         if (!v || !out)
             return SWOFTY_ASSET_INVALID;
         out->type = type;
-        if (v->is_bool())
-            out->toggle = v->as_bool() ? 1 : 0;
-        else if (v->is_number())
-            out->slider = v->as_double();
-        else if (v->is_string()) {
-            c->choices_.push_back(std::string(v->as_string()));
+        if (type == SWOFTY_SETTING_TOGGLE)
+            out->toggle = v->is_bool() ? v->as_bool() : v->as_double() != 0 || v->as_string() == "true";
+        else if (type == SWOFTY_SETTING_SLIDER)
+            out->slider = v->is_number() ? v->as_double() : std::atof(std::string(v->as_string()).c_str());
+        else {
+            c->choices_.push_back(v->is_string() ? std::string(v->as_string()) : json::dump(*v));
             out->choice = c->choices_.back().c_str();
         }
         return SWOFTY_ASSET_OK;
@@ -723,7 +873,8 @@ private:
         else
             h = static_cast<uint32_t>(c->layers_.size() + 1);
         l.handle = h;
-        c->layers_.push_back(std::move(l));
+        if (c->accepted(r, "layer", l.registry, l.id.empty() ? l.prefix : l.id))
+            c->layers_.push_back(std::move(l));
         if (handle)
             *handle = h;
         return r;
@@ -806,19 +957,23 @@ private:
             *token = ++tokens_;
     }
 
-    static int h_attach(const char *point, uint32_t phase, int32_t priority, SwoftyHookFn, void *, uint32_t *token)
+    static int h_attach(const char *point, uint32_t phase, int32_t priority, SwoftyHookFn fn, void *, uint32_t *token)
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
+        if (!fn || !point || !*point || phase > SWOFTY_PHASE_AFTER)
+            return c->refuse_hook("attach", point, "no handler, point or phase");
         c->subscribe(point, phase, priority, json::Value::array(), token);
         return SWOFTY_ASSET_OK;
     }
 
-    static int h_attach_in(const char *point, uint32_t phase, int32_t priority, SwoftyText selectors, SwoftyHookFn,
+    static int h_attach_in(const char *point, uint32_t phase, int32_t priority, SwoftyText selectors, SwoftyHookFn fn,
                            void *, uint32_t *token)
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
+        if (!fn || !point || !*point || phase > SWOFTY_PHASE_AFTER)
+            return c->refuse_hook("attach", point, "no handler, point or phase");
         c->subscribe(point, phase, priority, parse(selectors), token);
         return SWOFTY_ASSET_OK;
     }
@@ -829,14 +984,32 @@ private:
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
+        if (!c->own_point(point))
+            return c->refuse_hook("define", point, "an addon defines points under its own id");
         c->points_.push_back(json::Value::object({{"point", str(point)}, {"payload_version", version}}));
         return SWOFTY_ASSET_OK;
+    }
+
+    bool own_point(const char *point) const
+    {
+        std::string p = str(point);
+        return p.size() > addon_.size() + 1 && p.compare(0, addon_.size(), addon_) == 0 && p[addon_.size()] == '.';
+    }
+
+    int refuse_hook(const char *call, const char *point, const char *why)
+    {
+        refused_.push_back(json::Value::object({{"call", call}, {"point", str(point)}, {"error", why}}));
+        return SWOFTY_ASSET_INVALID;
     }
 
     static int h_define_in(const char *point, uint32_t version, uint32_t kind, SwoftyText scope)
     {
         Core *c = current();
         SWOFTY_FAKE_LOCK(c);
+        if (kind > SWOFTY_POINT_CANCEL)
+            return c->refuse_hook("define", point, "no such kind");
+        if (!c->own_point(point))
+            return c->refuse_hook("define", point, "an addon defines points under its own id");
         json::Value e =
             json::Value::object({{"point", str(point)}, {"payload_version", version}, {"kind", kind_name(kind)}});
         json::Value s = parse(scope);
@@ -1034,6 +1207,7 @@ private:
     uint32_t tokens_ = 0;
     std::vector<std::pair<std::string, json::Value>> registries_;
     std::vector<Record> records_;
+    std::vector<Record> stock_;
     std::vector<Layer> layers_;
     json::Value providers_ = json::Value::array();
     json::Value calls_ = json::Value::array();
@@ -1048,6 +1222,9 @@ private:
     std::deque<std::string> choices_;
     std::vector<std::string> log_;
     std::vector<std::string> unexpected_;
+    json::Value refused_ = json::Value::array();
+    std::array<char, 256> call_{};
+    std::atomic<bool> in_call_{false};
 };
 
 }

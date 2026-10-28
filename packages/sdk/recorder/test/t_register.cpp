@@ -47,6 +47,7 @@ SWOFTY_REGISTER
                                           .engine_sound = v10,
                                           .livery = cars::vehicles.name().empty() ? Ref<liveries::Livery>() : Ref<liveries::Livery>("mod.liveries/red").optional(),
                                       });
+    sounds::engine_sounds.add("Not A Key/x", {.bundle = file("sounds/refused.bdl")});
     career::modes.variant("v10_career", career::modes["game/f1_career_2026"], [](career::ModeRecord &m) {
         m.data_group = "f1_career_v10";
         m.title = Text("lng_v10_title");

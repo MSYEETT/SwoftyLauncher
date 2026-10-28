@@ -27,12 +27,17 @@ pub fn exports(image: &[u8]) -> Option<Vec<String>> {
     }
     let table = opt + opt_size;
     let offset = |rva: u32| -> Option<usize> {
-        (0..sections).find_map(|i| {
+        (0..sections.min(96)).find_map(|i| {
             let s = table + i * 40;
-            let size = u32_at(image, s + 8)?.max(u32_at(image, s + 16)?);
-            let va = u32_at(image, s + 12)?;
-            let raw = u32_at(image, s + 20)?;
-            (rva >= va && rva < va + size).then(|| (raw + (rva - va)) as usize)
+            let size = u64::from(u32_at(image, s + 8)?.max(u32_at(image, s + 16)?));
+            let (va, raw, rva) = (
+                u64::from(u32_at(image, s + 12)?),
+                u64::from(u32_at(image, s + 20)?),
+                u64::from(rva),
+            );
+            (rva >= va && rva < va + size)
+                .then(|| usize::try_from(raw + (rva - va)).ok())
+                .flatten()
         })
     };
     let dir = offset(export_rva)?;

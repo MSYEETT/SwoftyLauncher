@@ -99,9 +99,24 @@ impl Lock {
                 }
             }
             for l in rec["layers"].as_array().into_iter().flatten() {
-                if let (Some(reg), Some(id)) = (l["registry"].as_str(), l["id"].as_str()) {
+                let Some(reg) = l["registry"].as_str() else {
+                    continue;
+                };
+                if let Some(id) = l["id"].as_str() {
                     refs.push((reg.to_owned(), id.to_owned(), Policy::Optional));
                 }
+                let schema = &schemas[reg];
+                let mut found = Vec::new();
+                walk(schema, schema, &l["result"], &mut found, 0);
+                walk(schema, schema, &l["patch"], &mut found, 0);
+                refs.extend(found.into_iter().map(|(r, raw)| {
+                    let policy = if raw.contains('?') {
+                        Policy::Optional
+                    } else {
+                        Policy::Required
+                    };
+                    (r, raw, policy)
+                }));
             }
         }
         for (registry, raw, policy) in refs {
@@ -219,7 +234,8 @@ mod tests {
                 json!({ "op": "add", "registry": "career.season", "key": y.to_string(),
                         "id": format!("swofty.progressive/{y}"),
                         "value": { "year": y, "data_group": "f1_career_progressive",
-                                   "box": if y == 2016 { json!("venue/sochi?") } else { json!(null) } } })
+                                   "box": if y == 2016 { json!("venue/sochi?") } else { json!(null) },
+                                   "car": if y == 2016 { json!("swofty.classic-seasons-2016/ferrari|mod.f1-2016/ferrari") } else { json!(null) } } })
             })
             .collect();
         let mut records = vec![json!({
@@ -236,7 +252,8 @@ mod tests {
                 "career.mode": { "x-registry": "career.mode", "properties": { "title": { "type": "string" } } },
                 "career.season": {
                     "x-registry": "career.season",
-                    "properties": { "box": { "$ref": "#/$defs/track" }, "year": { "type": "integer" } },
+                    "properties": { "box": { "$ref": "#/$defs/track" }, "year": { "type": "integer" },
+                                    "car": { "type": ["string", "null"], "x-ref": "vehicle" } },
                     "$defs": { "track": { "type": ["string", "null"], "x-ref": "track" } }
                 }
             },
@@ -261,7 +278,10 @@ mod tests {
             "career.season": seasons
           },
           "providers": [ "career.driver_ratings" ],
-          "needs": [ { "record": "track:venue/sochi", "policy": "optional" } ]
+          "needs": [
+            { "record": "track:venue/sochi", "policy": "optional" },
+            { "record": "vehicle:swofty.classic-seasons-2016/ferrari", "or": [ "vehicle:mod.f1-2016/ferrari" ], "policy": "required" }
+          ]
         });
         assert_eq!(doc, expected);
         let text = lock.to_json();
@@ -291,7 +311,9 @@ mod tests {
                 { "registry": "vehicle", "id": "mod.esp/c", "value": { "donor": "mod.x/a|game/b" } }
             ],
             "layers": [ { "registry": "vehicle", "id": "swofty.classic-seasons-2017/ferrari", "scope": "global" },
-                        { "registry": "vehicle", "select": { "prefix": "game/" } } ]
+                        { "registry": "vehicle", "select": { "prefix": "game/" },
+                          "result": { "engine_sound": "mod.v12/sound", "donor": null } },
+                        { "registry": "vehicle", "id": "game/x", "patch": { "engine_sound": "mod.v8/sound?" } } ]
         });
         let lock = Lock::from_recordings(&[rec], "x");
         assert_eq!(
@@ -306,6 +328,8 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&lock.needs).unwrap(),
             json!([
+                { "record": "engine_sound:mod.v12/sound", "policy": "required" },
+                { "record": "engine_sound:mod.v8/sound", "policy": "optional" },
                 { "record": "livery:mod.l/red", "policy": "required" },
                 { "record": "vehicle:mod.x/a", "or": ["vehicle:mod.y/b"], "policy": "optional" },
                 { "record": "vehicle:swofty.classic-seasons-2017/ferrari", "policy": "optional" }
