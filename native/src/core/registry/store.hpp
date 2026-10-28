@@ -96,6 +96,18 @@ struct Record {
     std::string owner;
 };
 
+// Career snapshots (W4, native/src/core/snapshots/). While a career is loaded (Context::career set),
+// the store asks the snapshot source for a record's frozen value before it computes it. A found value
+// replaces base and every global and profile layer; the career's own layers still apply on top. A
+// value frozen with another major is converted through the registry's migrate, else its adapter's
+// up; when neither exists the record reads live. The source must not call into the store.
+struct Frozen {
+    bool found = false;
+    Value value;
+    int major = 0;
+};
+using SnapshotSource = std::function<Frozen(const std::string &registry, const std::string &id, const Context &ctx)>;
+
 class Store {
 public:
     Store();
@@ -161,6 +173,13 @@ public:
 
     Value effective_report();
     Value conflicts_report();
+
+    // W4 career snapshots: the read hook (set again after the frozen set changes, so cached values
+    // are recomputed), the value a freeze stores (base and global and profile layers for ctx, with no
+    // snapshot and no career layers), and a registry's declaration.
+    void set_snapshot_source(SnapshotSource fn);
+    Record get_live(const std::string &registry, const std::string &id, const Context &ctx);
+    std::optional<Def> def(const std::string &registry) const;
 
     struct Impl;
 
