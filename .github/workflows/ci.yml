@@ -362,6 +362,14 @@ jobs:
         run: |
           zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/calendar_rules_test.cpp addons/career-editor/native/src/calendar_rules.cpp -o calendar_rules_test
           ./calendar_rules_test
+      - name: Any Team Transfers unit test and build
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          AT_TEST_DIR: ${{ runner.temp }}/any-team-test
+        run: |
+          addons/any-team-transfers/native/test/run.sh
+          addons/any-team-transfers/native/build.sh
 
       - name: Wine and Xvfb
         timeout-minutes: 10
