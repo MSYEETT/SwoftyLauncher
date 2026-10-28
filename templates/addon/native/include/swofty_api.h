@@ -682,6 +682,30 @@ typedef struct SwoftyServices {
     int (*when)(const char *name, uint32_t min_version, size_t min_size, SwoftyServiceFn fn, void *user);
 } SwoftyServices;
 
+/* Career operations (standard library 1.6), from the core export SwoftyCoreCareerOps; not a SwoftyApi
+   field. Table version 1. Every call runs on the game's flow thread (an events, hook or on_frame callback;
+   SWOFTY_ASSET_LATE from any other thread), reports SWOFTY_ASSET_UNAVAILABLE and logs the binding when one
+   it needs does not resolve on the running build, and writes one [career-ops] log line.
+   driver_stat: a driver reference ("game/<label>", "person/<label>") to the stat id of the drivers table row
+   with that label. set_slots: a data group's career team slots, slot N (1-based) racing as team stat
+   team_stats[N-1]; apply_lineup reads it for a season record. apply_lineup takes a JSON request, either
+   {"season": <a career.season record>} (the core plans the seats) or {"lineup": {...}} (the seats, releases,
+   numbers, cars and looks in stat ids, run as given), and writes a JSON report to out (SWOFTY_TOO_SMALL:
+   *len holds the size needed). set_driver_ratings: one driver's base values of count statistics by game
+   stat id (experience 0, racecraft 1, awareness 3, pace 4, focus 5). swap_drivers: two seated drivers
+   exchange seats. Stat ids are the upper 16 bits of the game's keys. */
+#define SWOFTY_CAREER_OPS_VERSION 1
+
+typedef struct SwoftyCareerOps {
+    uint32_t version;
+    int (*available)(void);
+    int (*driver_stat)(const char *driver_ref, uint32_t *out);
+    int (*set_slots)(const char *data_group, const uint32_t *team_stats, size_t count);
+    int (*apply_lineup)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
+    int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
+} SwoftyCareerOps;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -721,6 +745,7 @@ typedef int (*SwoftyAddonRegisterFn)(const SwoftyApi *api);
 typedef const SwoftyRegistry *(*SwoftyCoreRegistryFn)(void);
 typedef const SwoftyHooks *(*SwoftyCoreHooksFn)(void);
 typedef const SwoftyServices *(*SwoftyCoreServicesFn)(void);
+typedef const SwoftyCareerOps *(*SwoftyCoreCareerOpsFn)(void);
 
 #define SWOFTY_STAGE_WINDOW 1
 
@@ -736,6 +761,7 @@ typedef const SwoftyServices *(*SwoftyCoreServicesFn)(void);
 SWOFTY_EXPORT const SwoftyRegistry *SwoftyCoreRegistry(void);
 SWOFTY_EXPORT const SwoftyHooks *SwoftyCoreHooks(void);
 SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
+SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
 
 #ifdef __cplusplus
 }

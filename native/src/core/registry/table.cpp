@@ -421,12 +421,23 @@ int c_variant_patch(const char *registry, const char *key, const char *base, Swo
     return r;
 }
 
-int c_stat_id(const char *, const char *, int64_t *out)
+StatIdSource &stat_id_source()
+{
+    static StatIdSource fn;
+    return fn;
+}
+
+int c_stat_id(const char *registry, const char *id, int64_t *out)
 {
     if (out)
         *out = -1;
-    set_last_error("stat_id: the stat-id store is not part of this core yet");
-    return SWOFTY_ASSET_UNAVAILABLE;
+    if (!registry || !id || !out)
+        return SWOFTY_ASSET_INVALID;
+    if (!stat_id_source()) {
+        set_last_error("stat_id: the stat-id store is not part of this core yet");
+        return SWOFTY_ASSET_UNAVAILABLE;
+    }
+    return stat_id_source()(registry, id, out);
 }
 
 const SwoftyRegistry TABLE = {
@@ -672,14 +683,22 @@ IndexResult load_index(const std::string &swofty_dir)
     return out;
 }
 
-int write_reports(const std::string &registry_dir)
+void set_stat_id_source(StatIdSource fn)
+{
+    stat_id_source() = std::move(fn);
+}
+
+int write_reports(const std::string &registry_dir, const std::function<void(Value &, Value &)> &extend)
 {
     std::string base = registry_dir;
     if (!base.empty() && base.back() != '/' && base.back() != '\\')
         base += '/';
     int r = SWOFTY_ASSET_OK;
-    for (auto &[file, doc] : {std::pair<std::string, Value>{"effective.json", store().effective_report()},
-                              std::pair<std::string, Value>{"conflicts.json", store().conflicts_report()}}) {
+    Value effective = store().effective_report(), conflicts = store().conflicts_report();
+    if (extend)
+        extend(effective, conflicts);
+    for (auto &[file, doc] : {std::pair<std::string, Value>{"effective.json", std::move(effective)},
+                              std::pair<std::string, Value>{"conflicts.json", std::move(conflicts)}}) {
         std::error_code ec;
         std::filesystem::create_directories(upath(base), ec);
         std::filesystem::path tmp = upath(base + file + ".tmp"), dest = upath(base + file);

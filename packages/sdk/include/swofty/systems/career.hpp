@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <map>
 #include <optional>
@@ -13,8 +14,9 @@
 // Career: modes, contents, seasons and their boxes, calendars, ratings, the market, contracts, R&D,
 // facilities, economy, sponsors, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
-// mode, so the career.mode record struct is ModeRecord. The operations ship in a later core and return
-// unavailable until then.
+// mode, so the career.mode record struct is ModeRecord. apply_lineup, set_driver_ratings and swap_drivers call
+// the core's career operations (SwoftyCoreCareerOps) and return unavailable on a core without them; set_seat,
+// set_car_number and apply_dropped_scores return unavailable.
 
 namespace swofty::career {
 
@@ -286,16 +288,127 @@ struct ApplyReport {
     std::vector<std::string> refusals;
 };
 
-inline Result apply_lineup(const Season &, ApplyReport *report = nullptr)
+namespace detail {
+
+inline std::atomic<const SwoftyCareerOps *> &ops_override()
+{
+    static std::atomic<const SwoftyCareerOps *> t{nullptr};
+    return t;
+}
+
+inline void set_ops_table(const SwoftyCareerOps *t) { ops_override() = t; }
+
+inline const SwoftyCareerOps *ops_table()
+{
+    if (auto t = ops_override().load())
+        return t->version >= 1 ? t : nullptr;
+#if defined(_WIN32)
+    static std::atomic<const SwoftyCareerOps *> found{nullptr};
+    if (auto t = found.load())
+        return t;
+    HMODULE core = GetModuleHandleW(L"swofty_core.dll");
+    auto get = core ? reinterpret_cast<SwoftyCoreCareerOpsFn>(GetProcAddress(core, "SwoftyCoreCareerOps")) : nullptr;
+    const SwoftyCareerOps *t = get ? get() : nullptr;
+    if (t && t->version < 1)
+        t = nullptr;
+    found = t;
+    return t;
+#else
+    return nullptr;
+#endif
+}
+
+inline const SwoftyCareerOps *live_ops()
+{
+    auto t = ops_table();
+    return t && t->available && t->available() ? t : nullptr;
+}
+
+inline Result ops_result(int r)
+{
+    return r == SWOFTY_ASSET_OK ? Result::ok
+           : r == SWOFTY_ASSET_LATE ? Result::late
+           : r == SWOFTY_ASSET_UNAVAILABLE ? Result::unavailable
+                                           : Result::invalid;
+}
+
+inline bool stat_of(const SwoftyCareerOps *t, const Ref<drivers::Identity> &d, uint32_t &out)
+{
+    std::string id(d.id());
+    return !id.empty() && t->driver_stat(id.c_str(), &out) == SWOFTY_ASSET_OK;
+}
+
+}
+
+// The core's career operations (swofty_api.h SwoftyCareerOps, the core export SwoftyCoreCareerOps). On a core
+// without them every call returns unavailable.
+inline const SwoftyCareerOps *ops() { return detail::live_ops(); }
+
+// A data group's career team slots: slot N (1-based) races as team stat team_stats[N-1]. apply_lineup reads
+// the table of the season's data group.
+inline Result set_slots(std::string_view data_group, const std::vector<uint32_t> &team_stats)
+{
+    auto t = detail::live_ops();
+    if (!t)
+        return Result::unavailable;
+    return detail::ops_result(t->set_slots(std::string(data_group).c_str(), team_stats.data(), team_stats.size()));
+}
+
+inline Result apply_lineup(const Season &season, ApplyReport *report = nullptr)
 {
     if (report)
         *report = {};
-    return Result::unavailable;
+    auto t = detail::live_ops();
+    if (!t)
+        return Result::unavailable;
+    std::string request = "{\"season\":" + to_json(season) + "}";
+    std::string out(1024, '\0');
+    size_t len = 0;
+    int r = t->apply_lineup({request.data(), request.size()}, out.data(), out.size(), &len);
+    if (r == SWOFTY_TOO_SMALL) {
+        out.assign(len + 1, '\0');
+        r = t->apply_lineup({request.data(), request.size()}, out.data(), out.size(), &len);
+    }
+    if (report && len < out.size()) {
+        json::Value v = json::parse(std::string_view(out.data(), len));
+        report->changed = static_cast<size_t>(v["changed"].as_int());
+        report->unchanged = static_cast<size_t>(v["unchanged"].as_int());
+        report->refused = static_cast<size_t>(v["refused"].as_int());
+        if (const json::Array *list = v["refusals"].if_array())
+            for (const json::Value &why : *list)
+                report->refusals.emplace_back(why.as_string());
+    }
+    return detail::ops_result(r);
 }
+
 inline Result set_seat(int, int, Ref<drivers::Identity>) { return Result::unavailable; }
-inline Result set_driver_ratings(Ref<drivers::Identity>, const DriverRatings &) { return Result::unavailable; }
+
+inline Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings)
+{
+    auto t = detail::live_ops();
+    if (!t)
+        return Result::unavailable;
+    uint32_t stat = 0;
+    if (!detail::stat_of(t, driver, stat))
+        return Result::invalid;
+    const uint16_t ids[] = {0, 1, 3, 4};
+    const float values[] = {ratings.experience, ratings.racecraft, ratings.awareness, ratings.pace};
+    return detail::ops_result(t->set_driver_ratings(stat, ids, values, 4));
+}
+
 inline Result set_car_number(Ref<drivers::Identity>, int) { return Result::unavailable; }
-inline Result swap_drivers(Ref<drivers::Identity>, Ref<drivers::Identity>) { return Result::unavailable; }
+
+inline Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b)
+{
+    auto t = detail::live_ops();
+    if (!t)
+        return Result::unavailable;
+    uint32_t sa = 0, sb = 0;
+    if (!detail::stat_of(t, a, sa) || !detail::stat_of(t, b, sb))
+        return Result::invalid;
+    return detail::ops_result(t->swap_drivers(sa, sb));
+}
+
 inline Result apply_dropped_scores(const events::StandingsRebuild &, int) { return Result::unavailable; }
 
 }

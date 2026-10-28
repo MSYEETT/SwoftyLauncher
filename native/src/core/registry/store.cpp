@@ -2254,6 +2254,20 @@ std::vector<std::string> Store::tag_members(const std::string &registry, const s
     return e.members(*r, tag);
 }
 
+std::vector<std::string> Store::chain(const std::string &registry, const std::string &id)
+{
+    std::lock_guard g(d->mu);
+    Reg *r = d->reg(registry);
+    if (!r)
+        return {};
+    Engine e(*d, *r, r->eval.dropped);
+    std::vector<std::string> path;
+    if (e.chain_state(*r, id, &path) != 0)
+        return {};
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
 std::vector<std::string> Store::registries() const
 {
     std::lock_guard g(d->mu);
