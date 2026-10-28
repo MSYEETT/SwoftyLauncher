@@ -23,6 +23,11 @@ pub struct Binding {
 }
 
 #[repr(C)]
+pub struct AiController {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct AiHandlingConfig {
     _opaque: [u8; 0],
 }
@@ -183,6 +188,11 @@ pub struct CarWheelProxies {
 }
 
 #[repr(C)]
+pub struct ControllerSet {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct DepartmentData {
     _opaque: [u8; 0],
 }
@@ -213,6 +223,11 @@ pub struct GdbValueSlot {
 }
 
 #[repr(C)]
+pub struct InputRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct NeStr {
     _opaque: [u8; 0],
 }
@@ -224,6 +239,11 @@ pub struct RedFlagSystem {
 
 #[repr(C)]
 pub struct RnDDepartmentConfig {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SpectatorDirector {
     _opaque: [u8; 0],
 }
 
