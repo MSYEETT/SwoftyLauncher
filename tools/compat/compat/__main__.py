@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import traceback
@@ -159,10 +160,15 @@ def _build_both(args, a, b, index, item, seed, out, addons, game):
         )
         _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
         kept = Path(out) / side.name / work.name
-        if args.keep:
+        if args.keep or args.slim:
             shutil.rmtree(kept, ignore_errors=True)
             kept.parent.mkdir(parents=True, exist_ok=True)
             os.replace(work, kept)
+            if args.slim and snaps[side.name].get("buildhash"):
+                mapping = harness.side_mapping(Path(out), side.name, index)
+                harness.slim_data(kept / "data", snaps[side.name]["buildhash"], mapping, args.slim_cap_mb << 20)
+            elif args.slim:
+                shutil.rmtree(kept / "data", ignore_errors=True)
         else:
             shutil.rmtree(work, ignore_errors=True)
     return snaps
@@ -240,7 +246,7 @@ def cmd_run(args):
     _write_json(out / "report.json", rep)
     text = report.summary(rep)
     (out / "summary.txt").write_text(text)
-    if not args.keep:
+    if not (args.keep or args.slim):
         shutil.rmtree(out / "work", ignore_errors=True)
         shutil.rmtree(out / "sides", ignore_errors=True)
     print()
@@ -305,8 +311,13 @@ def cmd_harness(args):
     repo = Path(__file__).resolve().parents[3]
     work = out / "harness"
     work.mkdir(parents=True, exist_ok=True)
-    exe = harness.build_fake_exe(repo, args.fake_exe or work / "fake" / "F1_25.exe")
+    ids = None
+    if not args.no_synth:
+        ids = harness.synth_ids(out / "sides" / s / "loader" / "swofty" / "addons" / "core" / "bindings.json"
+                                for s in ("a", "b"))
+    exe = harness.build_fake_exe(repo, args.fake_exe or work / "fake" / "F1_25.exe", ids)
     prefix = work / "prefix"
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(2))
     lock = harness.Lock(args.lock, args.queue, harness.WHO, args.lock_wait, args.hold)
     allow = set(args.allow or [])
     results, waiting = [], None
@@ -322,6 +333,9 @@ def cmd_harness(args):
                 continue
             if r.get("status") == "diff":
                 result["skipped"] = "the build half found differences in this set"
+                continue
+            if not all((r.get("buildhash") or {}).get(s) for s in ("a", "b")):
+                result["skipped"] = "the build wrote no plan on one side (both builds failed alike?)"
                 continue
             try:
                 hashes = r["buildhash"]
@@ -368,6 +382,8 @@ def _harness_pair(args, work, exe, prefix, index, plans, allow, notes):
         mapping = harness.side_mapping(Path(args.run).resolve(), side, index)
         game = base / side / "game"
         info = harness.prepare_game(plan, mapping, game, exe, args.max_copy_mb << 20)
+        if not args.no_synth:
+            info["synth"] = harness.synth_bindings(game)
         if info["missing"]:
             notes.append(f"{side}: {len(info['missing'])} plan file(s) not found in the kept data dir, e.g. {info['missing'][0]}")
         if info["skipped"]:
@@ -438,6 +454,10 @@ def parser():
     r.add_argument("--retries", type=int, default=2,
                    help="build a set again when the game folder changed during it and the builds differ (default %(default)s)")
     r.add_argument("--keep", action="store_true", help="keep the scratch data dirs")
+    r.add_argument("--slim", action="store_true",
+                   help="like --keep, but each kept data dir keeps only the files its plan.json lists (for `harness`)")
+    r.add_argument("--slim-cap-mb", type=int, default=harness.DEFAULT_CAP >> 20,
+                   help="--slim drops listed game files larger than this, loader files excepted (default %(default)s)")
     r.add_argument("--no-pin", action="store_true", help="do not run the CLIs under taskset and nice")
     r.add_argument("--allow", action="append", choices=compare.CATEGORIES,
                    help="report this category of difference without failing (repeatable)")
@@ -466,7 +486,9 @@ def parser():
     h.add_argument("--lock-wait", type=int, default=3600, help="seconds to wait for the game lock (default %(default)s)")
     h.add_argument("--hold", type=int, default=540, help="seconds to hold the lock before releasing it (default %(default)s)")
     h.add_argument("--timeout", type=int, default=300, help="seconds per synthetic game (default %(default)s)")
-    h.add_argument("--max-copy-mb", type=int, default=512, help="game files larger than this are not copied")
+    h.add_argument("--max-copy-mb", type=int, default=harness.DEFAULT_CAP >> 20, help="game files larger than this are not copied")
+    h.add_argument("--no-synth", action="store_true",
+                   help="leave the game's bindings alone (then the real addresses do not resolve in the synthetic game)")
     h.add_argument("--keep-games", action="store_true", help="keep the scratch game folders")
     h.add_argument("--no-pin", action="store_true")
     h.set_defaults(func=cmd_harness)

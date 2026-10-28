@@ -279,6 +279,63 @@ class Preparing(unittest.TestCase):
             self.assertEqual(info["missing"], ["swofty/gone.json"])
 
 
+class Synthesising(unittest.TestCase):
+    def doc(self):
+        return {"schema": 1, "bindings": [
+            {"id": "F", "kind": "func", "section": ".xtls", "pattern": "41 56", "anchor": 3, "resolve": {"kind": "riprel"},
+             "expect": None, "rva": "0x10", "match": "0x10"},
+            {"id": "S", "kind": "site", "section": ".xtls", "pattern": "41 56", "anchor": 3, "resolve": {"kind": "addr"},
+             "expect": None, "rva": "0x20"},
+            {"id": "D", "kind": "data", "section": ".xtls", "pattern": "41 56", "anchor": 0, "resolve": {"kind": "addr"}}]}
+
+    def test_func_and_site_bindings_point_at_their_own_stub_and_others_are_left_alone(self):
+        with tempfile.TemporaryDirectory() as t:
+            core = Path(t) / "swofty" / "addons" / "core"
+            core.mkdir(parents=True)
+            (core / "bindings.json").write_text(json.dumps(self.doc()))
+            self.assertEqual(harness.synth_bindings(t), 2)
+            f, s, d = json.loads((core / "bindings.json").read_text())["bindings"]
+            self.assertEqual(f["pattern"], "48 B8 " + " ".join(f"{x:02X}" for x in harness.stub_tag("F")))
+            self.assertEqual((f["section"], f["anchor"], f["resolve"], f["expect"]), (".text", 0, {"kind": "addr"}, None))
+            self.assertNotIn("rva", f)
+            self.assertEqual((s["anchor"], s["expect"]), (10, harness.SITE_EXPECT))
+            self.assertEqual(d["pattern"], "41 56")
+
+    def test_the_same_input_gives_the_same_stubs_on_both_sides(self):
+        self.assertEqual(harness.stub_source({"b", "a"}), harness.stub_source({"a", "b"}))
+        self.assertNotEqual(harness.stub_tag("a"), harness.stub_tag("b"))
+
+    def test_ids_are_the_union_of_the_func_and_site_bindings(self):
+        with tempfile.TemporaryDirectory() as t:
+            a, b = Path(t) / "a.json", Path(t) / "b.json"
+            a.write_text(json.dumps(self.doc()))
+            other = self.doc()
+            other["bindings"].append({"id": "N", "kind": "site"})
+            b.write_text(json.dumps(other))
+            self.assertEqual(harness.synth_ids([a, b, Path(t) / "missing"]), {"F", "S", "N"})
+
+
+class Slimming(unittest.TestCase):
+    def test_keeps_the_plan_loader_files_and_small_game_files_only(self):
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            data = plan_tree(t / "out" / "a" / "s0000", "h1")
+            (data / "addons" / "x" / "junk.bin").write_bytes(b"j" * 50)
+            (data / "baseline").mkdir()
+            (data / "baseline" / "o.bin").write_bytes(b"o")
+            mapping = [(str(t / "work" / "data"), str(data))]
+            plan_path = data / "cache" / "overlay" / harness.PROFILE / "h1" / "plan.json"
+            plan = json.loads(plan_path.read_text())
+            plan = json.loads(json.dumps(plan).replace(str(data), str(t / "work" / "data")))
+            plan_path.write_text(json.dumps(plan))
+            harness.slim_data(data, "h1", mapping, cap=10)
+            self.assertTrue((data / "addons" / "x" / "native" / "x.dll").is_file())
+            self.assertTrue(plan_path.is_file())
+            self.assertFalse((data / "big.bin").exists())
+            self.assertFalse((data / "addons" / "x" / "junk.bin").exists())
+            self.assertFalse((data / "baseline").exists())
+
+
 class Running(unittest.TestCase):
     def kept_run(self, root, sets):
         results = []

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -13,6 +14,7 @@ PIN = ["taskset", "-c", "2-7,10,11,14-31", "nice", "-n", "10"]
 DEFAULT_LOCK = "/mnt/work/.f1-game.lock.d"
 DEFAULT_QUEUE = "/mnt/work/.f1-game.queue"
 WHO = "std16-gate2"
+DEFAULT_CAP = 1 << 20
 PROFILE = "compat"
 CATEGORIES = ("dll", "drop", "chain", "conflict", "unresolved", "register", "start", "run")
 CORE_DLL = "swofty_core.dll"
@@ -224,6 +226,13 @@ class Lock:
         self.entry = None
 
     def take(self):
+        try:
+            self._take()
+        except BaseException:
+            self._dequeue()
+            raise
+
+    def _take(self):
         if not self.path.parent.is_dir():
             self.since = self.now()
             return
@@ -266,6 +275,13 @@ class Lock:
         self.since = None
 
 
+CODE = (".dll", ".json", ".tsv", ".txt", ".toml", ".cfg", ".ini")
+
+
+def wanted(kind, rel_or_src, size, cap):
+    return size <= cap or (kind == "loader" and str(rel_or_src).lower().endswith(CODE))
+
+
 def remap(path, mapping):
     for old, new in mapping:
         if path == old or path.startswith(old + "/"):
@@ -285,7 +301,7 @@ def load_plan(out, side, index, buildhash):
     return data, json.loads(path.read_text())
 
 
-def prepare_game(plan, mapping, dest, exe, max_copy=512 << 20):
+def prepare_game(plan, mapping, dest, exe, max_copy=DEFAULT_CAP):
     dest = Path(dest)
     if dest.exists():
         shutil.rmtree(dest)
@@ -302,7 +318,7 @@ def prepare_game(plan, mapping, dest, exe, max_copy=512 << 20):
             except OSError:
                 missing.append(rel)
                 continue
-            if size > max_copy and kind != "loader":
+            if not wanted(kind, rel, size, max_copy):
                 skipped.append(rel)
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -332,7 +348,63 @@ def run_wine(game, prefix, mode, timeout, pin=True):
     return rc, text, stdout
 
 
-def build_fake_exe(repo, dest):
+SYNTH_KINDS = ("func", "site")
+SITE_EXPECT = "B8 01 00 00 00"
+
+
+def stub_tag(binding_id):
+    return hashlib.sha1(binding_id.encode()).digest()[:8]
+
+
+def stub_source(ids):
+    out = ['__asm__(".text\\n");']
+    table = []
+    for i, bid in enumerate(sorted(ids)):
+        tag = ",".join(f"0x{b:02x}" for b in stub_tag(bid))
+        out.append(
+            f'__asm__(".balign 16\\n.globl gate_stub_{i}\\ngate_stub_{i}:\\n.byte 0x48,0xB8,{tag}\\n'
+            f'.byte 0xB8,1,0,0,0,0xC3\\n");'
+        )
+        table.append(f"gate_stub_{i}")
+    out += [f"extern char {n}[];" for n in table]
+    out.append("__attribute__((used)) char *const gate_stubs[] = {%s};" % ", ".join(table or ["0"]))
+    return "\n".join(out) + "\n"
+
+
+def synth_ids(bindings_files):
+    ids = set()
+    for path in bindings_files:
+        try:
+            doc = json.loads(Path(path).read_text())
+        except (OSError, ValueError):
+            continue
+        ids |= {b["id"] for b in doc.get("bindings", []) if b.get("kind") in SYNTH_KINDS}
+    return ids
+
+
+def synth_bindings(game):
+    path = Path(game) / "swofty" / "addons" / "core" / "bindings.json"
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return 0
+    n = 0
+    for b in doc.get("bindings", []):
+        if b.get("kind") not in SYNTH_KINDS:
+            continue
+        b["section"] = ".text"
+        b["pattern"] = " ".join(["48 B8"] + [f"{x:02X}" for x in stub_tag(b["id"])])
+        b["anchor"] = 0 if b["kind"] == "func" else 10
+        b["resolve"] = {"kind": "addr"}
+        b["expect"] = SITE_EXPECT if b["kind"] == "site" else None
+        for k in ("rva", "match", "string_anchor", "unresolvable"):
+            b.pop(k, None)
+        n += 1
+    path.write_text(json.dumps(doc, indent=1))
+    return n
+
+
+def build_fake_exe(repo, dest, ids=None):
     dest = Path(dest)
     if dest.is_file():
         return dest
@@ -340,7 +412,12 @@ def build_fake_exe(repo, dest):
     cache = dest.parent / "zig-cache"
     env = dict(os.environ, ZIG_GLOBAL_CACHE_DIR=str(cache), ZIG_LOCAL_CACHE_DIR=str(cache))
     src = Path(repo) / "native" / "test" / "fake_game.c"
-    cmd = PIN + ["zig", "cc", "-target", "x86_64-windows-gnu", "-O2", "-o", str(dest), str(src), "-lversion", "-luser32"]
+    cmd = PIN + ["zig", "cc", "-target", "x86_64-windows-gnu", "-O2", "-o", str(dest), str(src)]
+    if ids:
+        stubs = dest.parent / "gate_stubs.c"
+        stubs.write_text(stub_source(ids))
+        cmd.append(str(stubs))
+    cmd += ["-lversion", "-luser32"]
     p = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if p.returncode:
         raise RuntimeError(f"building the synthetic F1_25.exe failed:\n{p.stderr[-2000:]}")
@@ -360,3 +437,49 @@ def write_json(path, value):
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
     os.replace(tmp, path)
+
+
+def slim_data(data, buildhash, mapping=(), cap=DEFAULT_CAP):
+    data = Path(data)
+    plan_path = data / "cache" / "overlay" / PROFILE / buildhash / "plan.json"
+    plan = json.loads(plan_path.read_text())
+    keep = {plan_path}
+    for kind in ("replace", "add", "loader"):
+        for src in (plan.get(kind) or {}).values():
+            if isinstance(src, str):
+                src = remap(src, mapping)
+                try:
+                    if wanted(kind, src, os.stat(src).st_size, cap):
+                        keep.add(Path(src))
+                except OSError:
+                    pass
+    freed = 0
+    for root, dirs, files in os.walk(data):
+        for name in files:
+            p = Path(root) / name
+            if p in keep:
+                continue
+            try:
+                freed += p.lstat().st_size if p.lstat().st_nlink == 1 else 0
+                p.unlink()
+            except OSError:
+                pass
+    for root, dirs, files in os.walk(data, topdown=False):
+        if not os.listdir(root) and Path(root) != data:
+            os.rmdir(root)
+    return freed
+
+
+def slim_run(out, cap=DEFAULT_CAP):
+    out = Path(out)
+    rep = json.loads((out / "report.json").read_text())
+    freed = 0
+    for index, r in enumerate(rep["results"]):
+        for side in ("a", "b"):
+            hash_ = (r.get("buildhash") or {}).get(side)
+            data = out / side / f"s{index:04d}" / "data"
+            if hash_ and data.is_dir():
+                freed += slim_data(data, hash_, side_mapping(out, side, index), cap)
+            elif data.is_dir():
+                shutil.rmtree(data, ignore_errors=True)
+    return freed
