@@ -16,7 +16,7 @@ It has two halves:
 
 - **Launch and roll back.** `swofty run --apply --direct` builds a profile into the game folder and puts it back on exit. Session logs, crash reports with symbolised stacks, the data dir's session lock and exact-PID game detection all exist.
 - **A race straight from launch.** The game's own `-benchmark <xml>` mode boots into an all-AI race in about 25 seconds with no menus. The XML sets the track, laps, weather, number of cars, the player's grid slot and, through an undocumented `setup_mode`, the box. The AI drives the player's car.
-- **Opening menus.** The core already fires the game's UI routes on the home view model (the netplay menu driver does it), and the career hook sees every route the UI fires, so routes can be recorded and replayed.
+- **Opening menus.** The core already fires the game's UI routes on the home view model (an existing core menu driver does it), and the career hook sees every route the UI fires, so routes can be recorded and replayed.
 - **Changing careers.** The Career Editor's live API sets money, resource points, R&D, contracts, points and calendar data in a running career.
 - **Reading state.** The car and career structs in the KB, the core's events and log lines, the game's own log channels, `registry/effective.json` and frame capture.
 - **Tracing.** The trace plugin installs hooks from KB signatures and logs registers and fields. It ran in the real game for the first time on 2026-10-28, with all 11 hooks installed.
