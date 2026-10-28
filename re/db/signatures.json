@@ -13531,7 +13531,7 @@
    "target": "0x144657290",
    "kind": "func_start",
    "names": [
-    "Car_TyreDeformation_LoadNodeGraph"
+    "Car_Read_F1TyreDamage"
    ],
    "verified": [
     {
@@ -14755,7 +14755,7 @@
    "target": "0x1446cb880",
    "kind": "func_start",
    "names": [
-    "Car_PadAssist_LoadSteeringSplines"
+    "Car_Read_F1Assists"
    ],
    "verified": [
     {
@@ -74426,6 +74426,436 @@
    ],
    "expect": "48 83 C0 08 4C 39 C0",
    "func_start": "0x1425180d0"
+  },
+  {
+   "id": "car.upgrade_section_apply_call",
+   "section": ".xtls",
+   "pattern": "88 05 ?? ?? ?? ?? 48 8B 01 48 8D 54 24 58",
+   "match": "0x144743355",
+   "anchor": "0x6",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14474335b",
+   "kind": "mid",
+   "expect": "48 8B 01 48 8D 54 24 58",
+   "names": [
+    "site_Car_UpgradeSectionApplyCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.setup_tuning_applied",
+   "section": ".xtls",
+   "pattern": "48 8B 47 08 48 8B 88 80 05 00 00 E8",
+   "match": "0x140c13721",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140c13721",
+   "kind": "mid",
+   "expect": "48 8B 47 08 48 8B 88 80 05 00 00",
+   "names": [
+    "site_Car_SetupTuningApplied"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.live_car_built",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 89 F9 48 81 C1 30 02 00 00",
+   "match": "0x144629964",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144629969",
+   "kind": "mid",
+   "expect": "48 89 F9 48 81 C1 30 02 00 00",
+   "names": [
+    "site_Car_LiveCarBuilt"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.register_vehicle_id",
+   "section": ".xtls",
+   "pattern": "0F B6 05 ?? ?? ?? ?? 88 87 E8 00 00 00",
+   "match": "0x144629637",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14462963e",
+   "kind": "mid",
+   "expect": "88 87 E8 00 00 00",
+   "names": [
+    "site_Car_RegisterVehicleId"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.vehicle_table_remove",
+   "section": ".xtls",
+   "pattern": "74 07 41 88 89 E8 00 00 00 FE C8 88 05",
+   "match": "0x14473d138",
+   "anchor": "0xb",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14473d143",
+   "kind": "mid",
+   "expect": "88 05 93 B5 5A 02",
+   "names": [
+    "site_Car_VehicleTableRemove"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.aero_store_rear_downforce",
+   "section": ".xtls",
+   "pattern": "C5 FA 11 87 EC 19 00 00 C5 FA 59 44 24 30",
+   "match": "0x1446dda91",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446dda91",
+   "kind": "mid",
+   "expect": "C5 FA 11 87 EC 19 00 00",
+   "names": [
+    "site_Car_AeroStoreRearDownforce"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.aero_store_front_downforce",
+   "section": ".xtls",
+   "pattern": "C5 F2 59 CA C5 FA 11 8F F0 19 00 00",
+   "match": "0x1446ddda0",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446ddda4",
+   "kind": "mid",
+   "expect": "C5 FA 11 8F F0 19 00 00",
+   "names": [
+    "site_Car_AeroStoreFrontDownforce"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.aero_store_total_lift",
+   "section": ".xtls",
+   "pattern": "C5 AA 59 C0 C5 FA 11 87 E4 19 00 00",
+   "match": "0x1446ddf09",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446ddf0d",
+   "kind": "mid",
+   "expect": "C5 FA 11 87 E4 19 00 00",
+   "names": [
+    "site_Car_AeroStoreTotalLift"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.aero_store_total_drag",
+   "section": ".xtls",
+   "pattern": "C5 3A 59 C1 C5 7A 11 87 E8 19 00 00",
+   "match": "0x1446de110",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446de114",
+   "kind": "mid",
+   "expect": "C5 7A 11 87 E8 19 00 00",
+   "names": [
+    "site_Car_AeroStoreTotalDrag"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.tyre_update_wear",
+   "section": ".xtls",
+   "pattern": "56 48 83 EC 30 C5 F8 29 74 24 20 48 8B 41 08 80 B8 32 01 00 00 00",
+   "match": "0x1446b79f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446b79f0",
+   "kind": "func_start",
+   "names": [
+    "Car_Tyre_UpdateWear"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.engine_drive_torque",
+   "section": ".xtls",
+   "pattern": "C5 FA 5E C7 C5 3A 59 C8 48 8D 8B D8 05 00 00",
+   "match": "0x1446e279d",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446e27a1",
+   "kind": "mid",
+   "expect": "C5 3A 59 C8 48 8D 8B D8 05 00 00",
+   "names": [
+    "site_Car_EngineDriveTorque"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.ers_gear_modifier_load",
+   "section": ".xtls",
+   "pattern": "4C 01 F2 C5 FA 10 8C 8A 90 18 00 00",
+   "match": "0x1446e286c",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446e286f",
+   "kind": "mid",
+   "expect": "C5 FA 10 8C 8A 90 18 00 00",
+   "names": [
+    "site_Car_ErsGearModifierLoad"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.fuel_flow_store",
+   "section": ".xtls",
+   "pattern": "C5 FA 11 86 08 01 00 00 F6 83 32 01 00 00 04",
+   "match": "0x14468f03c",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14468f03c",
+   "kind": "mid",
+   "expect": "C5 FA 11 86 08 01 00 00",
+   "names": [
+    "site_Car_FuelFlowStore"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.fuel_mass_store",
+   "section": ".xtls",
+   "pattern": "C5 F2 5C C0 C5 FA 11 86 00 01 00 00",
+   "match": "0x14468f059",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14468f05d",
+   "kind": "mid",
+   "expect": "C5 FA 11 86 00 01 00 00",
+   "names": [
+    "site_Car_FuelMassStore"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.fuel_mode_set_call_net",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 01 75 7E B8 8E 00 00 00",
+   "match": "0x14324b7c1",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14324b7c1",
+   "kind": "mid",
+   "expect": "E8 DA 2E 44 01",
+   "names": [
+    "site_Car_FuelModeSetCallNet"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
+  },
+  {
+   "id": "car.fuel_mode_set_call_pose",
+   "section": ".xtls",
+   "pattern": "41 5D 41 5E 41 5F C3 E8 ?? ?? ?? ?? E9",
+   "match": "0x14389bbec",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389bbf3",
+   "kind": "mid",
+   "expect": "E8 A8 2A DF 00",
+   "names": [
+    "site_Car_FuelModeSetCallPose"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
+  },
+  {
+   "id": "car.fuel_mode_set_call_tyre_damage",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 49 8B 8F A8 05 00 00",
+   "match": "0x14470e082",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14470e082",
+   "kind": "mid",
+   "expect": "E8 19 06 F8 FF",
+   "names": [
+    "site_Car_FuelModeSetCallTyreDamage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
   }
  ]
 }
