@@ -259,7 +259,17 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 - **A new team row needs all 30 keys,** `story_info` included, or the game reads garbage.
 - **Side data** is found by team label. The core copies the donor's rows, relabelled, in every data group that holds one: pit times, initial cash, facilities, driver market, recognition, renown and form, primary sponsors and showroom history. Team customisation per season (suit, gloves) belongs to the wearables records, animation team data follows the vehicle, and the team icons and story standings are not copied.
 - **Constructors:** a `team.constructor` record names the team that is that constructor, the last enabled one in load order. A team reference by constructor resolves to that team's row label.
-- **Logos:** the image files of a `team.logo` record are found and checked at boot, and a team with a hud or broadcast image gets its own timing tower badge key. The core does not yet grow the texture arrays, so a new key shows no slice until it does. `set_logo` records the team's logo for the session (career operations table version 5).
+- **Logos:** the image files of a `team.logo` record are found and checked at boot, and a team with a hud or broadcast image gets its own timing tower badge key. The core encodes a PNG to a BC7 slice (`apply/content/bc7.hpp`, byte for byte the output of Classic Seasons' `logos.py`) and grows a stock array by slices and keys (`apply/content/logo_array.hpp`, host test `native/test/content/bc7_test.cpp`). The grown arrays are not yet delivered to the game, so a new key shows no slice. `set_logo` records the team's logo for the session (career operations table version 5).
+- **Logo routes per context:**
+
+| Context | Array | Route |
+| --- | --- | --- |
+| driver_select, hub | `teams.driver_select_team_logos` | grown array: one slice and one key per team label |
+| team_select | `team_logos.driver_career_2024_team_select`, `teams.mp_team_select_logos` | grown array |
+| hud | `osd.timing_tower.team_badges_hud` | grown array, key `timing_tower_texture_path` |
+| broadcast | `osd.timing_tower.team_badges_broadcast`, `teams.badges_broadcast`, `broadcast_ui_generic.grid_team_logos` | grown array, key `timing_tower_texture_path` for the timing tower |
+
+- **Logo delivery:** a grown array changes the size of its image fragments, and the resource overlay refuses a replacement whose fragment sizes differ from the stock entry. Classic Seasons delivers the same arrays as rewritten game files. The `eaid://` texture route (`TeamRecord.show_custom_badge_in_UI` with an added `ui_package/art/textures/<name>` resource) fits the HUD and broadcast pills only and is not run in game.
 - **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names and colours are written into the loaded team record once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting.
 - **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
 - **Colours** are signed ARGB in the database, and the core converts them.
