@@ -3,7 +3,12 @@
 // what it registered as JSON. SwoftyAddonInit is never called. A crash, a C++ exception, a hang or a call
 // outside the registry, hooks and services is reported in the JSON and in the exit code.
 //
-//   swofty_record.exe <addon.dll> <out.json> [--manifest swofty.json] [--timeout seconds]
+//   swofty_record.exe <addon.dll> <out.json> [--manifest swofty.json] [--timeout seconds] [--recording-only]
+//
+// Every registry call goes through the core's registry engine (native/src/core/registry, linked in), so a
+// record the game refuses is listed under "refused" and never as a record; --recording-only records
+// without it. After SWOFTY_REGISTER, each layer edit runs once on its record's value (or {}) so the
+// references and options it reads are recorded.
 //
 // Exit codes: 0 recorded (or no SwoftyAddonRegister), 1 usage, 2 the DLL or the recorder's
 // swofty_core.dll didn't load, 3 crashed, 4 threw, 5 timed out, 6 called something unexpected.
@@ -18,6 +23,8 @@
 #include <vector>
 
 #include <swofty/fake_core.hpp>
+
+extern "C" const SwoftyFakeEngine *swofty_registry_engine(void);
 
 namespace {
 
@@ -65,15 +72,22 @@ bool write_file(const std::wstring &path, const std::string &text)
         Sleep(INFINITE);
     }
     swofty::json::Value out;
-    if (core) {
-        bool locked = false;
+    std::string in_call = core ? core->current_call() : std::string();
+    bool locked = false;
+    if (core)
         for (int i = 0; i < 50 && !(locked = core->mutex().try_lock()); i++)
             Sleep(10);
+    if (locked) {
         out = core->recording();
-        if (locked)
-            core->mutex().unlock();
+        core->mutex().unlock();
     } else
-        out = swofty::json::Value::object({{"recorder", 1}});
+        out = swofty::json::Value::object(
+            {{"recorder", 1}, {"addon", core ? core->addon() : std::string()}, {"records", swofty::json::Value::array()}});
+    if (!in_call.empty()) {
+        if (!detail.is_object())
+            detail = swofty::json::Value::object();
+        detail["in"] = in_call;
+    }
     out["dll"] = dll_name;
     out["status"] = status;
     if (!detail.is_null())
@@ -158,10 +172,13 @@ int main()
     std::vector<std::wstring> pos;
     std::wstring manifest;
     DWORD timeout_ms = 30000;
+    bool recording_only = false;
     for (int i = 1; argv && i < argc; i++) {
         std::wstring a = argv[i];
         if (a == L"--manifest" && i + 1 < argc)
             manifest = argv[++i];
+        else if (a == L"--recording-only")
+            recording_only = true;
         else if (a == L"--timeout" && i + 1 < argc)
             timeout_ms = static_cast<DWORD>(_wtoi(argv[++i])) * 1000;
         else
@@ -202,7 +219,7 @@ int main()
                                             {"code", static_cast<int64_t>(GetLastError())}}),
                2);
 
-    static swofty::fake::Core recorder{addon_id, nullptr};
+    static swofty::fake::Core recorder{addon_id, recording_only ? nullptr : swofty_registry_engine()};
     core = &recorder;
     for (auto &[id, v] : defaults)
         recorder.option(id, v);
@@ -220,6 +237,7 @@ int main()
         finish("no_register", nullptr, 0);
     try {
         recorder.run_register(reg);
+        recorder.run_layer_edits();
     } catch (...) {
         finish("exception", swofty::json::Value::object({{"what", "the addon threw a C++ exception"}}), 4);
     }

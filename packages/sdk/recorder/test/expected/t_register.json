@@ -70,7 +70,25 @@
         {
           "mode": "time_trial"
         }
-      ]
+      ],
+      "result": {
+        "package": null,
+        "label": "",
+        "donor": null,
+        "model": null,
+        "engine_sound": "t.recorder/v10",
+        "livery": null,
+        "handling": null,
+        "power_unit": null,
+        "ai": {
+          "track_pack": null,
+          "asset_filename": "auto"
+        },
+        "performance_class": "f1",
+        "performance_tier": 0,
+        "tyre_wear_scale": 1,
+        "stat_id": "auto"
+      }
     },
     {
       "registry": "vehicle",
@@ -81,7 +99,25 @@
         ]
       },
       "scope": "global",
-      "edit": true
+      "edit": true,
+      "result": {
+        "package": null,
+        "label": "",
+        "donor": null,
+        "model": null,
+        "engine_sound": null,
+        "livery": null,
+        "handling": null,
+        "power_unit": null,
+        "ai": {
+          "track_pack": null,
+          "asset_filename": "auto"
+        },
+        "performance_class": "f1",
+        "performance_tier": 0,
+        "tyre_wear_scale": 1.2,
+        "stat_id": "auto"
+      }
     }
   ],
   "calls": [],
@@ -121,9 +157,24 @@
   },
   "events": [],
   "reads": [],
-  "options": [],
+  "options": [
+    {
+      "id": "wear",
+      "value": "high"
+    }
+  ],
   "log": [],
   "unexpected": [],
+  "refused": [
+    {
+      "call": "add",
+      "registry": "engine_sound",
+      "id": "t.recorder/Not A Key/x",
+      "result": 3,
+      "error": "add: 'Not A Key/x' is not a key"
+    }
+  ],
+  "engine": true,
   "dll": "t_register.dll",
   "status": "ok"
 }

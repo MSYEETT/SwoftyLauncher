@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the recorder and four test addons, runs the recorder on each under Wine (directly on Windows),
+# Builds the recorder and five test addons, runs the recorder on each under Wine (directly on Windows),
 # and compares t_register's recording with expected/t_register.json. Skips when Wine isn't available.
 set -euo pipefail
 SELF=$(readlink -f "$0")
@@ -25,11 +25,13 @@ command -v taskset >/dev/null || PIN=()
 mkdir -p "$OUT"
 export ZIG_GLOBAL_CACHE_DIR=$PWD/../../../../native/build/zig-cache ZIG_LOCAL_CACHE_DIR=$PWD/../../../../native/build/zig-cache
 bash ../build.sh "$OUT/bin" >/dev/null
-for t in t_register t_crash t_unexpected t_plain; do
+pids=()
+for t in t_register t_crash t_unexpected t_plain t_hang_edit; do
     "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Werror -Wno-nullability-completeness \
         -I../../include -shared -s -o "$OUT/$t.dll" "$t.cpp" &
+    pids+=($!)
 done
-wait
+for p in "${pids[@]}"; do wait "$p"; done
 rm -f "$OUT"/*.lib
 if [[ ${#WINE[@]} -gt 0 ]]; then
     export WINEPREFIX="$OUT/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe,winedbg.exe=d"
@@ -56,6 +58,7 @@ expect t_register 0 "$(record t_register)"
 expect t_crash 3 "$(record t_crash)"
 expect t_unexpected 6 "$(record t_unexpected)"
 expect t_plain 0 "$(record t_plain)"
+expect t_hang_edit 5 "$(record t_hang_edit --timeout 3)"
 python3 - "$OUT" expected <<'PY' || status=1
 import json, sys
 out, exp = sys.argv[1], sys.argv[2]
@@ -79,11 +82,15 @@ un = load(f'{out}/t_unexpected.json')
 if un['status'] != 'unexpected' or un['unexpected'] != ['api.scan'] or [r['id'] for r in un['records']] != ['t.recorder/one']:
     print('FAIL recorder: t_unexpected', json.dumps(un, indent=2))
     bad = 1
+hang = load(f'{out}/t_hang_edit.json')
+if hang['status'] != 'timeout' or 'variant edit of career.mode' not in hang['error'].get('in', ''):
+    print('FAIL recorder: t_hang_edit', json.dumps(hang, indent=2))
+    bad = 1
 plain = load(f'{out}/t_plain.json')
 if plain['status'] != 'no_register' or plain['records']:
     print('FAIL recorder: t_plain', json.dumps(plain, indent=2))
     bad = 1
 sys.exit(bad)
 PY
-[[ $status == 0 ]] && echo "recorder test: 4 addons recorded as expected"
+[[ $status == 0 ]] && echo "recorder test: 5 addons recorded as expected"
 exit $status
