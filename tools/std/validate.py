@@ -76,6 +76,86 @@ def validate_record(record, schemas, name, versions, path, result, patch=False):
                    if path else errors)
 
 
+class Loop(Exception):
+    pass
+
+
+class Corpus:
+    def __init__(self, addon=None):
+        self.addon = addon
+        self.records = {}
+        self.docs = []
+
+    def add(self, registry, key, value):
+        if isinstance(value, dict):
+            self.records.setdefault((registry, key), []).append(value)
+
+    def overlay(self, doc, layers):
+        out = Corpus(self.addon)
+        out.records = {k: list(v) for k, v in self.records.items()}
+        if not any(doc is d for d in self.docs):
+            out.add_data(doc, layers)
+        return out
+
+    def add_data(self, doc, layers):
+        if layers or not isinstance(doc, dict):
+            return
+        self.docs.append(doc)
+        for top, records in doc.items():
+            m = S.DATA_KEY.match(top)
+            if m and isinstance(records, dict):
+                for key, value in records.items():
+                    self.add(m.group("name"), key, value)
+
+    def find(self, registry, base_id):
+        namespace, _, key = base_id.partition("/")
+        if self.addon is None and namespace == "game" or self.addon is not None and namespace != self.addon:
+            return None
+        found = self.records.get((registry, key), [])
+        return found[0] if len(found) == 1 else None
+
+    def effective(self, registry, root, record, seen=()):
+        own = {k: v for k, v in record.items() if k not in ("extends", "$protect")}
+        base_id = record.get("extends")
+        if base_id is None:
+            return own
+        if not isinstance(base_id, str):
+            return None
+        if base_id in seen:
+            raise Loop(" -> ".join([*seen, base_id]))
+        base = self.find(registry, base_id)
+        if base is None:
+            return None
+        base_value = self.effective(registry, root, base, (*seen, base_id))
+        if base_value is None:
+            return None
+        return S.merge_patch(root, root, base_value, own)
+
+
+def validate_variant(record, schemas, name, versions, path, result, corpus):
+    base_id = record["extends"]
+    if not (isinstance(base_id, str) and S.RECORD_ID.match(base_id)):
+        result.problems.append((S.pointer(path + ["extends"]), "is the full id of the base record (<namespace>/<key>)"))
+    patch = {k: v for k, v in record.items() if k != "extends"}
+    validate_record(patch, schemas, name, versions, path, result, patch=True)
+    if corpus is None or not isinstance(base_id, str):
+        return
+    for version in versions:
+        root = schemas[name][version]
+        try:
+            merged = corpus.effective(name, root, record, (S.pointer(path),))
+        except Loop as e:
+            result.problems.append((S.pointer(path + ["extends"]), f"extends loops: {e}"))
+            return
+        if merged is None:
+            continue
+        seen = {(w, m) for w, m in result.by_version.get(S.version_name(version), [])}
+        prefix = S.pointer(path) if path else ""
+        extra = [(prefix + w if w != "/" else (prefix or "/"), f"{m} (merged onto {base_id})")
+                 for w, m in S.Validator(root).errors(merged)]
+        result.add(version, [(w, m) for w, m in extra if (w, m.rsplit(" (merged onto ", 1)[0]) not in seen])
+
+
 def validate_select(entries, schemas, name, versions, path, result):
     if not isinstance(entries, list) or not entries:
         result.problems.append((S.pointer(path), "$select is a non-empty list of selector entries"))
@@ -96,7 +176,7 @@ def validate_select(entries, schemas, name, versions, path, result):
         validate_record(entry["patch"], schemas, name, versions, at + ["patch"], result, patch=True)
 
 
-def validate_data(doc, schemas, layers, pin=None, only=None, skip_unknown=False):
+def validate_data(doc, schemas, layers, pin=None, only=None, skip_unknown=False, corpus=None):
     result = Result()
     if not isinstance(doc, dict):
         result.problems.append(("/", "a data file is an object keyed by registry name"))
@@ -132,11 +212,15 @@ def validate_data(doc, schemas, layers, pin=None, only=None, skip_unknown=False)
                     continue
                 validate_record(value, schemas, name, versions, at, result, patch=True)
             else:
-                if "/" in key or not key:
-                    result.problems.append((S.pointer(at), f"{key!r}: a record's key is your own, without a namespace"))
+                if not S.valid_key(key):
+                    result.problems.append((S.pointer(at), f"{key!r} is not a record key (no spaces, '?', '|' or '*', "
+                                            "no leading '/' or '$', no empty part)"))
                     continue
                 record = strip_protect(value, at, result)
-                validate_record(record, schemas, name, versions, at, result)
+                if isinstance(record, dict) and "extends" in record:
+                    validate_variant(record, schemas, name, versions, at, result, corpus)
+                else:
+                    validate_record(record, schemas, name, versions, at, result)
     return result
 
 
@@ -150,24 +234,29 @@ def is_data_file(doc, name):
     return True
 
 
-def check_example(path, name, schemas, expect):
+def check_example(path, name, schemas, expect, corpus=None, doc=None):
     entry = {"file": str(path), "registry": name, "expect": expect, "kind": None, "versions": {}, "problems": []}
-    try:
-        doc = S.load(path)
-    except S.JsonError as e:
-        entry["problems"].append(["/", f"not JSON: {e}"])
-        entry["ok"] = False
-        return entry
+    if doc is None:
+        try:
+            doc = S.load(path)
+        except S.JsonError as e:
+            entry["problems"].append(["/", f"not JSON: {e}"])
+            entry["ok"] = False
+            return entry
     pin = file_pin(path)
     if is_data_file(doc, name):
         entry["kind"] = "layers" if is_layers_name(path) else "records"
-        result = validate_data(doc, schemas, entry["kind"] == "layers", pin=pin, only=name)
+        corpus = (corpus or Corpus()).overlay(doc, entry["kind"] == "layers")
+        result = validate_data(doc, schemas, entry["kind"] == "layers", pin=pin, only=name, corpus=corpus)
     else:
         entry["kind"] = "record"
         result = Result()
         versions = pick_versions(schemas, name, None, pin, "/", result.missing)
         record = strip_protect(doc, [], result)
-        validate_record(record, schemas, name, versions, [], result)
+        if isinstance(record, dict) and "extends" in record:
+            validate_variant(record, schemas, name, versions, [], result, corpus)
+        else:
+            validate_record(record, schemas, name, versions, [], result)
     entry["versions"] = {v: [list(e) for e in errs] for v, errs in result.by_version.items()}
     entry["problems"] += [list(p) for p in result.missing]
     if expect == "valid":
@@ -211,9 +300,19 @@ def load_schemas(root):
 
 def run_examples(root, display):
     schemas = load_schemas(root)
+    found = discover(root)
+    corpus = Corpus()
+    docs = {}
+    for name, f, expect in found:
+        try:
+            docs[f] = S.load(f)
+        except S.JsonError:
+            continue
+        if expect == "valid":
+            corpus.add_data(docs[f], is_layers_name(f))
     entries = []
-    for name, f, expect in discover(root):
-        entry = check_example(f, name, schemas, expect)
+    for name, f, expect in found:
+        entry = check_example(f, name, schemas, expect, corpus, docs.get(f))
         entry["file"] = str(Path(display) / f.relative_to(root))
         entries.append(entry)
     return entries
@@ -251,6 +350,7 @@ def main(argv=None):
     ap.add_argument("--schema", help="validate FILES as records against this one schema file")
     ap.add_argument("--patch", action="store_true", help="with --schema: the files are layers (JSON Merge Patches)")
     ap.add_argument("--data", action="store_true", help="validate FILES as an addon's registry/*.json data files")
+    ap.add_argument("--addon", help="with --data: the addon id, so a variant's base among FILES is merged and checked")
     ap.add_argument("files", nargs="*")
     args = ap.parse_args(argv)
     repo = Path(args.repo)
@@ -272,12 +372,18 @@ def main(argv=None):
 
     if args.data:
         schemas = load_schemas(root)
+        corpus = Corpus(args.addon) if args.addon else None
+        for f in args.files if corpus else ():
+            try:
+                corpus.add_data(S.load(f), is_layers_name(f))
+            except S.JsonError:
+                pass
         failed = 0
         for f in args.files:
             report = []
             try:
                 doc = S.load(f)
-                result = validate_data(doc, schemas, is_layers_name(f), skip_unknown=True)
+                result = validate_data(doc, schemas, is_layers_name(f), skip_unknown=True, corpus=corpus)
                 report += [f"{w}: {m}" for w, m in result.problems + result.missing]
                 report += [f"{v} {w}: {m}" for v, errs in sorted(result.by_version.items()) for w, m in errs]
                 checked = ", ".join(sorted(result.by_version)) or "no SDK registry"

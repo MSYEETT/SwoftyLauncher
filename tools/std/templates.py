@@ -54,7 +54,12 @@ def main(argv=None):
                 print(f"FAIL  {rel}: native/build.sh failed")
                 failed.append(rel)
         files = [str(f) for f in data_files(addon)]
-        if files and V.main(["--repo", str(repo), "--registries", args.registries, "--data", *files]) != 0:
+        try:
+            addon_id = V.S.load(addon / "swofty.json").get("id")
+        except (V.S.JsonError, AttributeError):
+            addon_id = None
+        extra = ["--addon", addon_id] if isinstance(addon_id, str) else []
+        if files and V.main(["--repo", str(repo), "--registries", args.registries, "--data", *extra, *files]) != 0:
             failed.append(rel)
     print(f"templates: {len(found)} addons, {len(failed)} failed")
     return 1 if failed else 0

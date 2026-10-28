@@ -111,6 +111,105 @@ class Subset(unittest.TestCase):
         self.assertTrue(errors(s, {"c": [{"x": 1}, {"x": 2}]}, patch=True))
 
 
+class Merge(unittest.TestCase):
+    SCHEMA = {"type": "object", "properties": {
+        "teams": {"type": "array", "x-key": "slot", "items": {"$ref": "#/$defs/t"}},
+        "seats": {"type": "array"}, "rules": {"type": "object"}},
+        "$defs": {"t": {"type": "object", "required": ["slot"], "properties": {"slot": {"type": "integer"}, "n": {"type": "object"}}}}}
+
+    def merge(self, base, patch):
+        return S.merge_patch(self.SCHEMA, self.SCHEMA, base, patch)
+
+    def test_rfc7396(self):
+        self.assertEqual(self.merge({"a": 1, "b": {"c": 1, "d": 2}}, {"a": None, "b": {"c": 3}, "e": 4}),
+                         {"b": {"c": 3, "d": 2}, "e": 4})
+
+    def test_lists_without_key_are_replaced(self):
+        self.assertEqual(self.merge({"seats": [1, 2]}, {"seats": [3]}), {"seats": [3]})
+
+    def test_keyed_lists_merge_by_key(self):
+        base = {"teams": [{"slot": 1, "n": {"a": 1, "b": 2}}, {"slot": 2, "n": {}}]}
+        patch = {"teams": [{"slot": 1, "n": {"b": None, "c": 3}}, {"slot": 2, "$delete": True}, {"slot": 9, "n": None}]}
+        self.assertEqual(self.merge(base, patch), {"teams": [{"slot": 1, "n": {"a": 1, "c": 3}}, {"slot": 9}]})
+
+    def test_keys_with_slashes(self):
+        for key in ("2017/game/lewis_hamilton", "f1_2017/monaco", "f1_1990/r01", "v10_screamer", "2017"):
+            self.assertTrue(S.valid_key(key), key)
+        for key in ("", "/x", "x/", "a//b", "a b", "a?", "a|b", "*", "$select"):
+            self.assertFalse(S.valid_key(key), key)
+
+
+class Variants(TempRegistries):
+    def data(self, doc, addon=None, files=None):
+        paths = []
+        for name, content in (files or {"seasons.json": doc}).items():
+            f = self.tmp / name
+            f.write_text(json.dumps(content))
+            paths.append(str(f))
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = V.main(["--repo", str(self.tmp), "--registries", "registries", "--data",
+                           *(["--addon", addon] if addon else []), *paths])
+        return code, out.getvalue()
+
+    def base(self):
+        return {"data_group": "g", "year": 2017, "teams": [{"slot": 1, "seats": ["game/a"]}]}
+
+    def test_variant_needs_no_base_fields(self):
+        code, out = self.data({"career.season": {"v": {"extends": "game/f1_2025", "teams": [{"slot": 2}]}}})
+        self.assertEqual(code, 0, out)
+
+    def test_variant_patch_is_still_checked(self):
+        code, out = self.data({"career.season": {"v": {"extends": "game/f1_2025", "year": "x"}}})
+        self.assertEqual(code, 1)
+        self.assertIn("/career.season/v/year", out)
+
+    def test_variant_of_a_base_in_the_same_file(self):
+        doc = {"career.season": {"b": self.base(), "v": {"extends": "mod.a/b", "teams": [{"slot": 2}]}}}
+        code, out = self.data(doc, addon="mod.a")
+        self.assertEqual(code, 1)
+        self.assertIn("/career.season/v/teams/1/seats: is required (merged onto mod.a/b)", out)
+        doc["career.season"]["v"]["teams"][0]["seats"] = []
+        self.assertEqual(self.data(doc, addon="mod.a")[0], 0)
+
+    def test_variant_of_a_base_in_another_file(self):
+        files = {"a.json": {"career.season": {"b": self.base()}},
+                 "b.json": {"career.season": {"v": {"extends": "mod.a/b", "teams": [{"slot": 1, "$delete": True}, {"slot": 2}]}}}}
+        code, out = self.data(None, addon="mod.a", files=files)
+        self.assertEqual(code, 1)
+        self.assertIn("merged onto mod.a/b", out)
+
+    def test_variant_of_another_addon_is_only_a_patch(self):
+        doc = {"career.season": {"b": self.base(), "v": {"extends": "mod.other/b", "teams": [{"slot": 2}]}}}
+        self.assertEqual(self.data(doc, addon="mod.a")[0], 0)
+
+    def test_variant_loop(self):
+        doc = {"career.season": {"a": {"extends": "mod.a/b"}, "b": {"extends": "mod.a/a"}}}
+        code, out = self.data(doc, addon="mod.a")
+        self.assertEqual(code, 1)
+        self.assertIn("extends loops", out)
+
+    def test_variant_of_variant(self):
+        doc = {"career.season": {"b": self.base(), "v1": {"extends": "mod.a/b", "year": 2018},
+                                 "v2": {"extends": "mod.a/v1", "data_group": None}}}
+        code, out = self.data(doc, addon="mod.a")
+        self.assertEqual(code, 1)
+        self.assertIn("/career.season/v2/data_group: null removes a required field", out)
+
+    def test_slash_keys_in_records(self):
+        doc = {"career.season": {"2017/game/lewis_hamilton": self.base(), "2017 x": self.base()}}
+        code, out = self.data(doc)
+        self.assertEqual(code, 1)
+        self.assertNotIn("lewis_hamilton' is not a record key", out)
+        self.assertIn("'2017 x' is not a record key", out)
+
+    def test_example_variant_found_by_key(self):
+        entries = {Path(e["file"]).name: e for e in V.run_examples(self.root, "registries")}
+        self.assertTrue(entries["variants.json"]["ok"])
+        self.assertIn("merged onto swofty.progressive/what_if_2017",
+                      "\n".join(V.describe(entries["variant-merged-missing-seats.json"])))
+
+
 class Examples(TempRegistries):
     def run_examples(self):
         return V.run_examples(self.root, "registries")
@@ -185,7 +284,7 @@ class Examples(TempRegistries):
         with redirect_stdout(out):
             code = V.main(["--repo", str(self.tmp), "--registries", "registries"])
         self.assertEqual(code, 0)
-        self.assertIn("examples: 6 valid, 20 must-fail, 0 wrong", out.getvalue())
+        self.assertIn("examples: 7 valid, 25 must-fail, 0 wrong", out.getvalue())
 
     def test_schema_mode(self):
         out = io.StringIO()
