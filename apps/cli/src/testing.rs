@@ -1826,7 +1826,16 @@ impl Harness<'_> {
             .map(|r| r.iter().filter_map(Value::as_str).map(str::to_owned).collect())
             .unwrap_or_default();
         for r in routes {
-            let reply = a.call("route", json!({ "route": r }), self.times.step, &self.times, run)?;
+            let started = Instant::now();
+            let reply = loop {
+                let reply = a.call("route", json!({ "route": r }), self.times.step, &self.times, run)?;
+                let not_yet =
+                    reply.outcome == Outcome::Unavailable && reply.text().contains("no home view model");
+                if !not_yet || started.elapsed() >= self.times.step * 6 {
+                    break reply;
+                }
+                std::thread::sleep(self.times.poll.max(Duration::from_millis(500)));
+            };
             if reply.outcome != Outcome::Ok {
                 return Err(format!("route {r}: {}", reply.text()));
             }
