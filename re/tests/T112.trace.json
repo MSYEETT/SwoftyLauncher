@@ -3,8 +3,8 @@
  "limits": {"max_events_total": 20000, "max_read": 64},
  "hooks": [
   {
-   "id": "t012.apply_block",
-   "test": "T012",
+   "id": "t112.apply_block",
+   "test": "T112",
    "sig": "car.upgrades_apply_to_vehicle",
    "args": 3,
    "regs": ["xmm3"],
@@ -14,8 +14,8 @@
    "max_events": 4000
   },
   {
-   "id": "t012.section_call",
-   "test": "T012",
+   "id": "t112.section_call",
+   "test": "T112",
    "sig": "car.upgrade_section_apply_call",
    "regs": ["rcx", "xmm6"],
    "fields": ["veh=u8:[[rcx+0x18]+0xe8]", "sys_vt=ptr:[rcx]"],

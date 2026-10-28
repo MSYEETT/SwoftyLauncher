@@ -34,7 +34,7 @@ checked by the lead); the stock 2025 Ferrari has 18 upgrade blocks.
 - **AI.** No difficulty-keyed grip, power or drag multiplier exists. AI-only physics is data: BrakeECU ASC*AI,
   `BrakeMigrationTorqueAI`, tyre *AI downslope and slip limits, an AI tyre-wear multiplier (CarTyreState +0x84),
   and slower substep/tyre-contact rates (`Vehicle.FineUpdateRateAI`, `TyreContactSubStepCycleAI`).
-- **Open (L3).** T012–T025 (see #tests).
+- **Open (L3).** T112–T125 (see #tests).
 
 ## The objects {#objects}
 
@@ -89,11 +89,11 @@ System sizes (factory allocations from `[car+0xd0]`): Engine 0x25b8, GearBox 0x7
    - `car+0x4a8 = [[phys+0x9e8]+0x28]` (the CarVtfAsset), `car+0x9f40 = asset.handling_version`;
    - `Car_Assets_CreateSystemForPerformanceMode(asset, car+0x380)`: per descriptor, find the section node by name in the team VTF. If the car is equal-performance (`car+0x12c != 0`) and the asset has a base asset (`[asset+0x48]+0x28`), the section comes from the base VTF instead (log `Creating/resetting system using base asset for equal performance`). Then `Car_Systems_FindOrCreate` creates the system (factory) the first time and calls its `Read(node)` = `Car_Read_<X>`;
    - every system: `vt+0x30 Init(0)`, then `vt+0x28` for phases 0..6 fills the per-phase `{fn, ctx}` arrays at `car+0x4f8..+0x528` (counts `+0x4dc..+0x4f4`), then `vt+0x18(-1)` (apply setup), then `Car_Build_VtfComponents` caches the 23 pointers. `site_Car_LiveCarBuilt` (0x144629969, sig `car.live_car_built`) is the instruction after that: one hit per car, everything valid.
-3. **Reset (existing car).** `Car_Reset_VehicleSystems(mgr, id | 0xff, arg)` → `Car_Systems_Reset_Thunk(car+0x4a0)` → body 0x1555bdf80: runs CreateSystemForPerformanceMode again (the same system objects re-read every section from the VTF, no realloc), and destroys the applied-upgrade vector at `car+0x4c0..+0x4c8`. Callers are three `.data1` bodies: 0x148d925f0 (thunk 0x1409ed200, a per-vehicle request with the id at +0xa8), 0x1519eb350 (body of `Game_Set_VehicleController_Thunk` 0x14389cc90: changing who controls a car, e.g. player to AI, re-reads its VTF), and `Car_Physics_ResettleVehicles_Body` (0x1519ed8e0: reset, teleport the physics record to a stored pose, write `F1Assists+0x213c`, then one `Car_Physics_AdvanceCar(car, 1e-4)`). Which user actions reach it is T020.
+3. **Reset (existing car).** `Car_Reset_VehicleSystems(mgr, id | 0xff, arg)` → `Car_Systems_Reset_Thunk(car+0x4a0)` → body 0x1555bdf80: runs CreateSystemForPerformanceMode again (the same system objects re-read every section from the VTF, no realloc), and destroys the applied-upgrade vector at `car+0x4c0..+0x4c8`. Callers are three `.data1` bodies: 0x148d925f0 (thunk 0x1409ed200, a per-vehicle request with the id at +0xa8), 0x1519eb350 (body of `Game_Set_VehicleController_Thunk` 0x14389cc90: changing who controls a car, e.g. player to AI, re-reads its VTF), and `Car_Physics_ResettleVehicles_Body` (0x1519ed8e0: reset, teleport the physics record to a stored pose, write `F1Assists+0x213c`, then one `Car_Physics_AdvanceCar(car, 1e-4)`). Which user actions reach it is T120.
 4. **Upgrades.** `Car_Upgrades_ApplyToVehicle(car+0x4a0, block, perc)` (career lane L2) looks up an upgrade block in the VTF document and re-runs the section readers on it. `Game_Read_VtfFloat` on an upgrade node applies its `op` to the value already stored: `mul` v·((x−1)·lerp+1), `add` v+x·lerp, `sub` v−x·lerp, `div` v/((x−1)·lerp+1), no op = overwrite (logs `Direct overwrite while upgrading`), with lerp = `g_Car_UpgradeLerp` (perc0to1). After a reset the base values come back and the upgrades have to be applied again.
 5. **Teardown.** `Car_Destroy_Live` (0x14473cf70) removes the car from the table by **swap-with-last**: the last car takes the freed slot and its `+0xe8` is rewritten (`site_Car_VehicleTableRemove`, sig `car.vehicle_table_remove`).
 
-When it runs: the VTF parse runs once per resource load; the per-car read (create) runs once per car spawn; the reset path re-reads the VTF into live systems (T019/T020 pin which game events cause which).
+When it runs: the VTF parse runs once per resource load; the per-car read (create) runs once per car spawn; the reset path re-reads the VTF into live systems (T119/T120 pin which game events cause which).
 
 ## XOR obfuscation and splines {#obf}
 
@@ -136,7 +136,7 @@ Class name: the live car is `Car` (`Game_Place_Vehicle` 0x14473d810 logs `Car::t
 ## Vehicle table and participants {#vehicles}
 
 - `g_Sess_VehicleTable` (0x146ce86e0) holds CarLive pointers. The writer is `Car_Chassis_Build` in `.xtls` (0x144629637..0x14462965x), so the session note "no writer in .xtls" is out of date. `Car_Physics_PreAdvance` branches on count < 0x20 and zero-fills 28-entry per-car stack arrays (grid campaign: 28 is a per-tick bound to check).
-- `vehicle_id` (CarLive+0xe8) is a dense slot (create order; swap-with-last on destroy). The entrants lane's `EntrantRecord+0x82` (init 0xff; the tyre-allocation note calls it the vehicle index) is the likely participant → vehicle_id link (T021).
+- `vehicle_id` (CarLive+0xe8) is a dense slot (create order; swap-with-last on destroy). The entrants lane's `EntrantRecord+0x82` (init 0xff; the tyre-allocation note calls it the vehicle index) is the likely participant → vehicle_id link (T121).
 - `CarVehicleManager` (Sess_Veh_UpdateWheelMap's object) lists per-vehicle objects at `+0x110..+0x118`; item `+0x20` = CarPhysicsRecord. `Car_Reset_VehicleSystems` uses another manager: entity list `[+0x28..+0x30]` by id, and `Car_Physics_ResettleVehicles_Body` reads physics records at `[mgr+0xb0 + id*8]` bounded by `[mgr+0x180]`, which leaves room for exactly 26 records if the array is inline (grid campaign: check).
 - Upgrade component → CarLive: the career vehicle-upgrade component (`site_Career_ApplyUpgradeBlockEntry` 0x14fa63050, comp+0x28 = map<u8 type, map<u8, {progress, mass, bhp}>>, comp+0x21 flag) reaches the car as `[[comp+0x18]+0x58]`: comp+0x18 is the vehicle's CarPhysicsRecord, and the body tail-jumps to `Car_Upgrades_ApplyToVehicle(CarLive+0x4a0, block, flag, perc)` (0x14fa6316a..0x14fa6317b).
 - CarLive → CarPerfVehicle / VehicleIdentity / AI config: no pointer found in CarLive in this round. The per-vehicle object in the manager list (≥0x9cb0 bytes, tyre component fields at +0x9bc0/+0x9c68) is the candidate for CarPerfVehicle (attr array +0xd10, stride 0xc40).
@@ -148,7 +148,7 @@ Class name: the live car is `Car` (`Game_Place_Vehicle` 0x14473d810 logs `Car::t
 3. **Hook the reader**: wrap a `Car_Read_<X>` (data vt+0x10) and edit after the original; this covers create, reset and upgrades. One reader is shared by every car, so filter on the system's `+8` car.
 4. **Hook the step**: phase callbacks are plain `{fn, ctx}` pairs at `car+0x4f8..+0x528`. They can be swapped per car without patching code (data write; behaviour-hook rules apply). `site_Car_DynamicsSubstep` is the substep.
 
-Needs L3: T019 (create/teardown timing), T020 (which actions reset the systems), T021 (vehicle_id ↔ participant).
+Needs L3: T119 (create/teardown timing), T120 (which actions reset the systems), T121 (vehicle_id ↔ participant).
 
 ## Powertrain {#powertrain}
 
@@ -262,7 +262,7 @@ the step uses inv_total_ratio.
 Four tables of four modes (Lean, Standard, Rich, Max) at +0x28 (burn), +0x68 (power), +0xa8 (revs), +0xe8
 (temperature), stride 0x10. Active mode +0x128 and active scales +0x130 burn, +0x140 power, +0x150 revs, +0x160
 temperature (CarObfFloat). Car_FuelEcu_SetMode_Thunk 0x14468e6a0 (body 0x1553ff3d0) copies a mode in and re-runs the
-Engine derived values and the GearBox table; callers 0x1432495e0, 0x14389a2b0, 0x14470d760 (T023 asks which is the
+Engine derived values and the GearBox table; callers 0x1432495e0, 0x14389a2b0, 0x14470d760 (T123 asks which is the
 MFD). Eight functions at 0x1429xxxxx force mode 1 the same way. 2024/2025: only Lean differs (burn 0.7, power 0.9);
 2026/F2: all 1.0. FuelConsumption = `radUpgradeFuelConsumption`: all four burn scales x0.85 and ERS
 ExhaustPowerCoefficient x1.2.
@@ -318,14 +318,14 @@ consumes them was not read.
 3. **Hook the reader**: wrap Car_Read_<X> / the thunk to post-edit the data object after each read (base and every
    Upgrade block; check g_Car_UpgradeLerpActive).
 4. **Hook the step**: site_Car_EngineDriveTorque (scale xmm0 = power), site_Car_ErsGearModifierLoad (deploy fraction),
-   site_Car_FuelFlowStore (consumption). None has a signature yet; add with re/tools/sitereg.py. All need L3 (T022-T025).
+   site_Car_FuelFlowStore (consumption). None has a signature yet; add with re/tools/sitereg.py. All need L3 (T122-T125).
 
 ### Open (car-b)
 
-- T022 Engine rotation_rate / throttle at site_Car_EngineDriveTorque.
-- T023 who calls Car_FuelEcu_SetMode_Thunk for the player's MFD fuel mix.
-- T024 fuel_mass burn identity at site_Car_FuelMassStore.
-- T025 ers_mode follows the MFD ERS mode.
+- T122 Engine rotation_rate / throttle at site_Car_EngineDriveTorque.
+- T123 who calls Car_FuelEcu_SetMode_Thunk for the player's MFD fuel mix.
+- T124 fuel_mass burn identity at site_Car_FuelMassStore.
+- T125 ers_mode follows the MFD ERS mode.
 - PU wear writers found by a disp32 scan of .xtls (stores to Engine +0x254c/+0x2554): only the Reset, the ERS wear step,
   and three failure paths that force wear near 1: 0x1409b3cb0 (1.0), 0x1446893c0 (0.99, called from Car_Engine_StepInput),
   0x14470d760 (0.999; KB calls it Car_TyreDamage_Update, but it also forces engine wear and calls
@@ -507,13 +507,13 @@ the AI tyre-wear multiplier (CarTyreState+0x84). No AI grip/power/drag multiplie
    component's OnReset (system vtable +0x18) with flag 0x80 / 0x2200 / 0x200, or the derived copies written directly.
    Note OnReset 0x1000 resets lift_scale/drag_scale to 1.0, so a write there must be repeated after resets. No
    other writer of +0x19a0/+0x19a4 was found in .xtls, so these two plain floats are the cleanest per-car
-   downforce/drag knobs (T015 checks the store sites they feed).
+   downforce/drag knobs (T115 checks the store sites they feed).
 3. **Hook a reader**: Car_Read_<X> runs for the base section and every Upgrade block; post-hook it to rescale.
 4. **Hook the step**: MidHooks at site_Car_AeroStoreFront/RearDownforce, TotalLift, TotalDrag; function hooks on
    Car_Tyre_GripScale (return value = per-wheel grip multiplier) and Car_Tyre_UpdateWear.
 
-Needs L3: T015 (downforce stores and front/rear naming), T016 (wing_open_fraction = DRS), T017 (tyre wear field),
-T018 (live chassis mass after R&D).
+Needs L3: T115 (downforce stores and front/rear naming), T116 (wing_open_fraction = DRS), T117 (tyre wear field),
+T118 (live chassis mass after R&D).
 
 ### Cross-lane notes (car-c) {#lanes-c}
 
@@ -731,7 +731,7 @@ agree with this map on the data vtables of F1WingDamage, F1SuspensionDamage, Fue
 the 4-slot data class, the data object at system+0x18, the XOR pair layout, the wing and suspension damage fields, the
 1.5 clamp and the ERS Common field order. His in-game test saw the game write the VTF values back into the wing
 objects, sometimes for one car and sometimes for all 22: that matches the reset path in #vtf (a single-vehicle reset
-request, and the resettle of every car), which T020 pins down.
+request, and the resettle of every car), which T120 pins down.
 
 ### AI {#ai}
 
@@ -811,27 +811,27 @@ setup notes).
    +0x4f8..+0x528 (data writes, per car).
 
 Per car and team: a system's car is at +8, `CarLive.vehicle_id` (+0xe8) indexes `g_Sess_VehicleTable`, and the
-participant link is likely `EntrantRecord+0x82` (T021). No pointer from CarLive to the AI config or VehicleIdentity was
+participant link is likely `EntrantRecord+0x82` (T121). No pointer from CarLive to the AI config or VehicleIdentity was
 found yet.
 
 ## Runtime tests {#tests}
 
 Filed by the 2026-10-28 lanes, all draft (run in game by the lead):
 
-- T012: does `Car_Upgrades_ApplyToVehicle` replay each block once per car build, and with what perc for a career car.
-- T013: when `Car_Setup_ApplyTuning` runs, for which cars, and which slider block it reads.
-- T014: setup slider +0x44 / +0x48 are brake pressure / bias.
-- T015: the F1Aero front and rear downforce stores (+0x19f0 front, +0x19ec rear).
-- T016: F1Aero +0x19a8 is the DRS wing-open fraction.
-- T017: CarTyreState +0x88 is the tyre wear UDP reports.
-- T018: live Chassis mass after R&D weight reduction.
-- T019: when a CarLive is built and torn down (session load, restart, flashback, garage).
-- T020: which actions take the VTF reset path.
-- T021: `vehicle_id` vs participant index, and its stability.
-- T022: Engine rotation_rate and throttle at the drive-torque site.
-- T023: who calls `Car_FuelEcu_SetMode_Thunk` for the MFD fuel mix.
-- T024: fuel mass burn per step.
-- T025: `ers_mode` follows the MFD ERS mode.
+- T112: does `Car_Upgrades_ApplyToVehicle` replay each block once per car build, and with what perc for a career car.
+- T113: when `Car_Setup_ApplyTuning` runs, for which cars, and which slider block it reads.
+- T114: setup slider +0x44 / +0x48 are brake pressure / bias.
+- T115: the F1Aero front and rear downforce stores (+0x19f0 front, +0x19ec rear).
+- T116: F1Aero +0x19a8 is the DRS wing-open fraction.
+- T117: CarTyreState +0x88 is the tyre wear UDP reports.
+- T118: live Chassis mass after R&D weight reduction.
+- T119: when a CarLive is built and torn down (session load, restart, flashback, garage).
+- T120: which actions take the VTF reset path.
+- T121: `vehicle_id` vs participant index, and its stability.
+- T122: Engine rotation_rate and throttle at the drive-torque site.
+- T123: who calls `Car_FuelEcu_SetMode_Thunk` for the MFD fuel mix.
+- T124: fuel mass burn per step.
+- T125: `ers_mode` follows the MFD ERS mode.
 
 Still open statically: who sets the CarLive +0x130 damage bits, what reads `performance_tier` in physics, how the AI
 difficulty slider is applied, the TC/ABS toggle reads, the Turbo pressure update, ERS harvest, the diff torque code,
