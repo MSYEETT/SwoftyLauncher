@@ -1,13 +1,13 @@
 ---
 title: Manifest
-description: swofty.json names the addon; registry.json, next to it, holds what the addon needs, breaks, conflicts with and was once called; registry.lock.json records what the addon registers. Everything an addon registers is code.
+description: swofty.json names the addon; registry.json, next to it, holds what the addon needs, breaks, conflicts with and was once called, and the build operations its records replace; registry.lock.json records what the addon registers. Everything an addon registers is code.
 ---
 
 # Manifest
 
 An addon names itself in `swofty.json`, the manifest every launcher reads. Everything it registers is code. Two optional files sit next to `swofty.json`:
 
-- **`registry.json`** holds what the addon needs and recommends, the addons it breaks or conflicts with, the ids it was published under before, and guards for addons without code. You write it.
+- **`registry.json`** holds what the addon needs and recommends, the addons it breaks or conflicts with, the ids it was published under before, guards for addons without code, and the build operations its records replace. You write it.
 - **`registry.lock.json`** records what the addon's code registers. `swofty dev pack` writes it. You never edit it.
 
 For example, Progressive Career provides ten seasons and a career mode in its DLL. Its `registry.json` says it needs the `career.season` registry, and its lock file lists the ten seasons it provides.
@@ -323,6 +323,35 @@ An addon with code adds guards in code. An addon without code declares them in `
 
 See [Guards](/std/dependencies#guards) for the points, `block`, `require` and the code form.
 
+## Build operations that records replace
+
+An addon that also runs on launcher 1.5 keeps the build operations its records cover, in a file of their own, and names that file in `replaced_operations`. Launcher 1.6 leaves the file out of the build, and the core applies the records instead. Launchers 1.5 and earlier never read `registry.json` and build the file.
+
+Classic Seasons 2017 registers its cars, packages and season in `registry/content.json`. `db/records.json` holds the rows those records make, and `db/season.json` the rest of its database operations:
+
+```json
+// swofty.classic-seasons-2017/swofty.json
+{
+  "operations": {
+    "database": ["db/season.json", "db/records.json"],
+    "assets": ["lang/season.json", "assets/cars.json", "assets/sounds.json"]
+  }
+}
+```
+
+```json
+// registry.json
+{ "replaced_operations": ["db/records.json"] }
+```
+
+```text
+registry: F1 2017 GP/TT Addon: db/records.json is applied by the core from the addon's registry records
+```
+
+- **When a file is left out:** the core in the launcher's loader applies data-file records (its `features.json` lists `registry_rows`), and the addon has data files in `registry/`. Otherwise the launcher builds the file.
+- **The same rows:** the records make the rows the file makes, with the same labels and stat ids. Classic Seasons pins each record's `stat_id` to the id its row has in 0.6.4. Careers saved with 0.6.4 load with the same ids.
+- **Paths** are the ones `swofty.json`'s `operations` lists, compared without a leading `./`.
+
 ## The fields of registry.json
 
 - **`requires`:** an array of what this addon needs, each one of:
@@ -338,6 +367,7 @@ See [Guards](/std/dependencies#guards) for the points, `block`, `require` and th
 - **`aliases`:** `[{ "id" }]`, ids this addon was published under before a rename. The Addon Browser accepts an alias only from the same Browser author. See [Renamed addons](/std/dependencies#renamed-addons).
 - **`saves`:** `{ "careers": "loaded" }` records the addon in every career loaded while it's on.
 - **`guards`:** declarative guards, for addons without code.
+- **`replaced_operations`:** operation files of `swofty.json` (`["db/records.json"]`) that the addon's data files replace. Launcher 1.6 leaves them out of the build when its core applies the records. See [Build operations that records replace](#build-operations-that-records-replace).
 
 ## Addon requirements stay in swofty.json
 

@@ -63,7 +63,7 @@ SWOFTY_ADDON()
 ## What the launcher does
 
 - **Installs** addons, with their data files (`registry/*.json`) and their `registry.lock.json` in their folders.
-- **Builds** each addon's build operations and its launcher plugin's build reply, in load order.
+- **Builds** each addon's build operations and its launcher plugin's build reply, in load order. It leaves out the operation files an addon's `registry.json` names in `replaced_operations`: the core applies those records (see [Build operations that records replace](/std/manifest#build-operations-that-records-replace)).
 - **Checks dependencies** before Play: `swofty.json`'s `requires`, and `registry.json`'s `requires`, `breaks` and `conflicts` (see [Manifest](/std/manifest) and [Dependencies and guards](/std/dependencies)). An unmet `requires` or a `breaks` on an installed addon stops Play with a message naming the fix. A `conflicts` entry warns.
 - **Starts the game.** The core applies every registration, data file and layer in the game, at the moment the game reads that data.
 
