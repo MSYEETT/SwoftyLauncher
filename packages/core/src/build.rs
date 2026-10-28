@@ -1312,6 +1312,27 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 .cloned()
                 .unwrap_or_else(|| resolve(rel))
         };
+        let mut absent: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        erp_ops.retain(|op| {
+            let AssetOp::Erp(e) = &op.op else {
+                return true;
+            };
+            let gone: Vec<&str> = reads(e)
+                .into_iter()
+                .filter(|rel| relative_inside(rel) && !base(rel).is_file())
+                .collect();
+            if gone.is_empty() {
+                return true;
+            }
+            absent
+                .entry(op.origin.addon.clone())
+                .or_default()
+                .extend(gone.into_iter().map(str::to_owned));
+            false
+        });
+        for (id, rels) in &absent {
+            built.warnings.push(missing_archives(&name(id), rels));
+        }
         for (rel, put) in &puts {
             if erp_ops
                 .iter()
@@ -1756,6 +1777,19 @@ fn stage_erps(built: &mut Built, staged: &BTreeMap<String, PathBuf>, rels: Vec<S
         }
     }
     Ok(())
+}
+
+/// The warning for an addon's archive changes a build skips because the
+/// archives they change aren't in the game folder.
+fn missing_archives(name: &str, rels: &BTreeSet<String>) -> String {
+    let first = rels.first().map_or("", String::as_str);
+    let what = match rels.len() {
+        1 => format!("{first} is not a file in F1 25"),
+        n => format!("{n} of the files it changes are not in F1 25, such as {first}"),
+    };
+    format!(
+        "{name}: archive changes skipped; {what}. Turn {name} off if it doesn't work, and tell its author"
+    )
 }
 
 /// An archive a `file.put` replaces whole while ERP ops change it too: its last
@@ -4147,6 +4181,76 @@ mod tests {
                 .collect(),
         }
         .to_bytes()
+    }
+
+    #[test]
+    fn skips_archive_changes_to_files_the_game_does_not_have() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-absent-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::create_dir_all(dir.join("2025_asset_groups")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb::default().to_bytes()).unwrap();
+        let erp = "2025_asset_groups/t.erp";
+        let uri = "eaid://t/a.idf";
+        std::fs::write(dir.join(erp), archive(&[uri], 0)).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let src = root.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("swofty.json"),
+            r#"{ "schema_version": 1, "id": "t.cams", "name": "Cams", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "operations": { "assets": ["ops.json"] } }"#,
+        )
+        .unwrap();
+        let put = |erp: &str| {
+            format!(r#"{{"op":"erp.put-resource","erp":"{erp}","resource":"{uri}","source":"a.erp"}}"#)
+        };
+        std::fs::write(
+            src.join("ops.json"),
+            format!(
+                r#"{{ "schema_version": 1, "ops": [{}, {}] }}"#,
+                put(erp),
+                put("2025_asset_groups/game_package/t.erp")
+            ),
+        )
+        .unwrap();
+        std::fs::write(src.join("a.erp"), archive(&[uri], 7)).unwrap();
+        store.install_addon(&src).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled("t.cams", true))
+            .unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        assert!(
+            built.warnings.contains(
+                &"Cams: archive changes skipped; 2025_asset_groups/game_package/t.erp is not a file in F1 25. \
+                  Turn Cams off if it doesn't work, and tell its author"
+                    .to_owned()
+            ),
+            "{:?}",
+            built.warnings
+        );
+        assert!(built.plan.data.contains_key(erp), "{:?}", built.plan.data);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn missing_archive_warnings_count_the_files() {
+        let rels: BTreeSet<String> = ["b/x.erp", "a/x.erp"].map(str::to_owned).into();
+        assert_eq!(
+            missing_archives("Cams", &rels),
+            "Cams: archive changes skipped; 2 of the files it changes are not in F1 25, such as a/x.erp. \
+             Turn Cams off if it doesn't work, and tell its author"
+        );
     }
 
     #[test]

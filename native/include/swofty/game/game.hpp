@@ -268,6 +268,7 @@ inline constexpr site<"site_Game_CareerWizard_BackRoute"> site_Game_CareerWizard
 inline constexpr call<"site_Game_DriverSelectHeader_BuildTabs"> site_Game_DriverSelectHeader_BuildTabs{}; // L2 experimental
 inline constexpr site<"site_Game_DriverSelect_BackRoute"> site_Game_DriverSelect_BackRoute{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_BadgeFormat"> site_Game_DriverSelect_BadgeFormat{}; // L2 experimental
+inline constexpr site<"site_Game_DriverSelect_NumberResult"> site_Game_DriverSelect_NumberResult{}; // L2 experimental
 inline constexpr call<"site_Game_DriverSelect_TeamLogoFormat"> site_Game_DriverSelect_TeamLogoFormat{}; // L2 experimental
 inline constexpr site<"site_Game_ErsNewLap_NextVehicle"> site_Game_ErsNewLap_NextVehicle{}; // L2 experimental
 inline constexpr site<"site_Game_ErsNewLap_VehicleLookup"> site_Game_ErsNewLap_VehicleLookup{}; // L2 experimental
@@ -275,6 +276,7 @@ inline constexpr site<"site_Game_SaveData_ContainersChildren"> site_Game_SaveDat
 inline constexpr site<"site_Game_SaveData_ContainersCount"> site_Game_SaveData_ContainersCount{}; // L3 stable
 inline constexpr site<"site_Game_SaveData_ContainersDone"> site_Game_SaveData_ContainersDone{}; // L2 experimental
 inline constexpr site<"site_Game_SaveData_UnclaimedChild"> site_Game_SaveData_UnclaimedChild{}; // L3 stable
+inline constexpr site<"site_Game_TeamSelect_NumberResult"> site_Game_TeamSelect_NumberResult{}; // L2 experimental
 inline constexpr call<"site_Game_TeamSelect_TeamLogoFormat"> site_Game_TeamSelect_TeamLogoFormat{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerDLCSelectViewModel", 19> vt_Game_CareerDLCSelectViewModel{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerWizardSettingsSelectViewModel", 19> vt_Game_CareerWizardSettingsSelectViewModel{}; // L2 experimental, CareerWizardSettingsSelectViewModel.

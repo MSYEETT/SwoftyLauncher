@@ -925,9 +925,7 @@ fn play(
     end.write(&dir)?;
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
-    if end.end == swofty_core::session::Ending::Crash {
-        note_known_problem(store, game, &dir);
-    }
+    note_known_problem(store, game, &dir, end.end == swofty_core::session::Ending::Crash);
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
@@ -938,10 +936,17 @@ fn play(
     Ok(code)
 }
 
-/// The known problem a crashed session matches, for the session log and Send
-/// Logs; the launcher shows the same diagnosis to the player.
-fn note_known_problem(store: &Store, game: &Path, dir: &Path) {
+/// The known problem a crashed session, or one that ended stuck, matches, for
+/// the session log and Send Logs; the launcher shows the same diagnosis to the
+/// player.
+fn note_known_problem(store: &Store, game: &Path, dir: &Path, crashed: bool) {
     let record = SessionRecord::read(dir);
+    if !crashed {
+        if let Some(d) = swofty_core::known_problems::stall(&record, Some(game), store) {
+            say("warning", &format!("known problem {}: {}", d.id, d.title));
+        }
+        return;
+    }
     match swofty_core::known_problems::crash(&record, Some(game), store) {
         Some(d) => say("crash", &format!("known problem {}: {}", d.id, d.title)),
         None => say("crash", "no known problem matches this crash"),

@@ -4012,6 +4012,11 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Game_DriverSelect_NumberResult: Binding = Binding {
+        id: "site_Game_DriverSelect_NumberResult",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_DriverSelect_TeamLogoFormat: Binding = Binding {
         id: "site_Game_DriverSelect_TeamLogoFormat",
         kind: "call",
@@ -4046,6 +4051,11 @@ pub mod bindings {
         id: "site_Game_SaveData_UnclaimedChild",
         kind: "site",
         status: Status::Stable,
+    };
+    pub const site_Game_TeamSelect_NumberResult: Binding = Binding {
+        id: "site_Game_TeamSelect_NumberResult",
+        kind: "site",
+        status: Status::Experimental,
     };
     pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
         id: "site_Game_TeamSelect_TeamLogoFormat",
