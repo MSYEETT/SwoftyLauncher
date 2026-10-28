@@ -129,7 +129,7 @@ These rules come on top of the [engine plugin rules](/reference/addons/native-pl
 
 ## Test loop
 
-1. Test in a duplicate of your profile; each profile keeps its own saves. Copy its saves before a run that changes native state.
+1. Test in a duplicate of your profile. Every profile uses the same F1 25 saves: copy them before a run that changes native state.
 2. `swofty build`, and read its warnings.
 3. `swofty run --apply`. It installs the profile, follows the logs, and rolls the game files back when the game exits.
 4. Read `swofty/loader.log`, or `swofty logs` afterwards: each hook installed, each refusal, and your diagnostics.

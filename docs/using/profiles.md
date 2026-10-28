@@ -1,11 +1,11 @@
 ---
 title: Profiles
-description: Create, switch, rename, duplicate and delete profiles, each with its own addons, mods, tracks, settings and saves.
+description: Create, switch, rename, duplicate and delete profiles, each with its own addons, mods, tracks and settings.
 ---
 
 # Profiles
 
-Use a profile to keep a whole setup together: which addons are on, their load order and every addon setting. When you want to swap setups, switch profiles. Each one keeps its own saves.
+Use a profile to keep a whole setup together: which addons are on, their load order and every addon setting. When you want to swap setups, switch profiles. Every profile uses the same F1 25 saves.
 
 To play F1 25 exactly as shipped, choose `vanilla`, the built-in profile with nothing installed. You can't edit it. Every modded profile includes the [built-in addons](/using/addons#built-in-addons), SwoftyMod and the Simplified Importer.
 
