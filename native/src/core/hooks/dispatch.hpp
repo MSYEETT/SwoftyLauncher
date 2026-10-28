@@ -95,7 +95,7 @@ public:
     {
         for (auto &e : catalogue::EVENTS)
             declare(e.id, e.kind, e.version, true, e.hot, e.fired == catalogue::Fired::after_only,
-                    e.fired == catalogue::Fired::no);
+                    e.fired == catalogue::Fired::no || e.fired == catalogue::Fired::game);
     }
 
     void declare(const std::string &name, uint32_t kind, uint32_t version, bool event, bool hot, bool after_only = false,

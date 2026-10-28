@@ -21,6 +21,7 @@
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
 #include <swofty/systems/wearables.hpp>
+#include <swofty/systems/tracks.hpp>
 
 #include "sdk_payloads.h"
 

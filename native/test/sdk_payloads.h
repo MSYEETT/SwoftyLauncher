@@ -32,6 +32,31 @@ typedef struct SwoftyEvAddActivity {
     bool player;
 } SwoftyEvAddActivity;
 
+typedef struct SwoftyEvContractDecide {
+    uint32_t size, payload_version;
+    void *state;
+    uint32_t link;
+} SwoftyEvContractDecide;
+
+typedef struct SwoftyEvContractSign {
+    uint32_t size, payload_version;
+    void *contracts;
+    void *contract;
+    uint32_t driver;
+    uint32_t replaced;
+    uint32_t team;
+    uint8_t type;
+    bool notify;
+} SwoftyEvContractSign;
+
+typedef struct SwoftyEvFuelLoad {
+    uint32_t size, payload_version;
+    const char *track_id;
+    uint32_t session_type;
+    float kg;
+    uint8_t kind;
+} SwoftyEvFuelLoad;
+
 typedef struct SwoftyEvStandingsRebuild {
     uint32_t size, payload_version;
     void *championship;
@@ -141,6 +166,9 @@ typedef struct SwoftyEvCatalogueBuild {
     X(SwoftyEvShell, career, Saving, 8)                                                                        \
     X(SwoftyEvSeasonStart, career, SeasonStart, 16)                                                            \
     X(SwoftyEvAddActivity, career, AddActivity, 40)                                                            \
+    X(SwoftyEvContractDecide, career, ContractDecide, 24)                                                      \
+    X(SwoftyEvContractSign, career, ContractSign, 40)                                                          \
+    X(SwoftyEvFuelLoad, tracks, FuelLoad, 32)                                                                  \
     X(SwoftyEvStandingsRebuild, career, StandingsRebuild, 16)                                                  \
     X(SwoftyEvUpgradesFit, cars, UpgradesFit, 40)                                                              \
     X(SwoftyEvVtfRead, cars, VtfRead, 56)                                                                      \
@@ -167,6 +195,19 @@ typedef struct SwoftyEvCatalogueBuild {
     X(SwoftyEvAddActivity, career, AddActivity, day, 28)                                                       \
     X(SwoftyEvAddActivity, career, AddActivity, type, 32)                                                      \
     X(SwoftyEvAddActivity, career, AddActivity, player, 33)                                                    \
+    X(SwoftyEvContractDecide, career, ContractDecide, state, 8)                                                \
+    X(SwoftyEvContractDecide, career, ContractDecide, link, 16)                                                \
+    X(SwoftyEvContractSign, career, ContractSign, contracts, 8)                                                \
+    X(SwoftyEvContractSign, career, ContractSign, contract, 16)                                                \
+    X(SwoftyEvContractSign, career, ContractSign, driver, 24)                                                  \
+    X(SwoftyEvContractSign, career, ContractSign, replaced, 28)                                                \
+    X(SwoftyEvContractSign, career, ContractSign, team, 32)                                                    \
+    X(SwoftyEvContractSign, career, ContractSign, type, 36)                                                    \
+    X(SwoftyEvContractSign, career, ContractSign, notify, 37)                                                  \
+    X(SwoftyEvFuelLoad, tracks, FuelLoad, track_id, 8)                                                         \
+    X(SwoftyEvFuelLoad, tracks, FuelLoad, session_type, 16)                                                    \
+    X(SwoftyEvFuelLoad, tracks, FuelLoad, kg, 20)                                                              \
+    X(SwoftyEvFuelLoad, tracks, FuelLoad, kind, 24)                                                            \
     X(SwoftyEvStandingsRebuild, career, StandingsRebuild, championship, 8)                                     \
     X(SwoftyEvUpgradesFit, cars, UpgradesFit, size, 0)                                                         \
     X(SwoftyEvUpgradesFit, cars, UpgradesFit, payload_version, 4)                                              \

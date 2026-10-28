@@ -2,6 +2,7 @@
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/tracks.hpp>
 
 #include "core_events.hpp"
 #include "hooks.hpp"
@@ -31,6 +32,9 @@ namespace so = swofty::sounds::events;
 
 static_assert(declared<ce::SeasonStart>(SWOFTY_POINT_NOTIFY));
 static_assert(declared<ce::AddActivity>(SWOFTY_POINT_CANCEL));
+static_assert(declared<ce::ContractDecide>(SWOFTY_POINT_CANCEL));
+static_assert(declared<ce::ContractSign>(SWOFTY_POINT_CANCEL));
+static_assert(declared<swofty::tracks::events::FuelLoad>(SWOFTY_POINT_CANCEL));
 static_assert(declared<ce::StandingsRebuild>(SWOFTY_POINT_MODIFY));
 static_assert(declared<ce::Created>(SWOFTY_POINT_NOTIFY));
 static_assert(declared<ce::Loaded>(SWOFTY_POINT_NOTIFY));

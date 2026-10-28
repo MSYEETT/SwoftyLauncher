@@ -3,12 +3,15 @@
 #include <functional>
 #include <string>
 
+#include <swofty/systems/career.hpp>
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/tracks.hpp>
 
 // Builds the C-layout payloads of the core's car and sound events and fires them through `fire` (the
 // core's hooks::fire, or a test table). Text and record ids point at the caller's strings for the call;
-// what handlers change comes back through the reference arguments.
+// what handlers change comes back through the reference arguments. The game hook points' payloads
+// (game_points.hpp) are filled from the game function's arguments by the builders at the end.
 
 namespace swofty_core::hooks::payloads {
 
@@ -102,6 +105,67 @@ bool bundle_resolve(Fire &&fire, int32_t car, const char *vehicle, const char *s
     bool ok = fire(e);
     engine_sound = e.engine_sound_id ? e.engine_sound_id : "";
     return ok;
+}
+
+// The game hook points: each payload is filled from the game function's arguments before the
+// handlers run; game_points.hpp's probe adds what the core reads from the game (the calendar's
+// driver, the contract's team, the session's track).
+
+inline void add_activity(swofty::career::events::AddActivity &a, void *calendar, const void *activity, uint32_t day)
+{
+    a = {};
+    a.size = sizeof a;
+    a.payload_version = swofty::career::events::AddActivity::version;
+    a.calendar = calendar;
+    a.activity = activity;
+    a.day = day;
+}
+
+inline void contract_decide(swofty::career::events::ContractDecide &d, void *state, const uint32_t *link)
+{
+    d = {};
+    d.size = sizeof d;
+    d.payload_version = swofty::career::events::ContractDecide::version;
+    d.state = state;
+    d.link = link ? *link : 0;
+}
+
+inline void contract_sign(swofty::career::events::ContractSign &s, void *contracts, void *contract, uint64_t driver,
+                          uint32_t replaced, uint8_t notify)
+{
+    s = {};
+    s.size = sizeof s;
+    s.payload_version = swofty::career::events::ContractSign::version;
+    s.contracts = contracts;
+    s.contract = contract;
+    s.driver = uint32_t(driver);
+    s.replaced = replaced;
+    s.notify = notify != 0;
+}
+
+// The game's session types (1-18) by the table Game_CarSetup_SessionFuelLoad reads (0x14568e730):
+// 1-4 practice, 5-14 qualifying and the sprint shootout, 15-17 the races, 18 Time Trial; any other the
+// game treats as a race.
+inline uint8_t fuel_kind(uint32_t session_type)
+{
+    using F = swofty::tracks::events::FuelLoad;
+    if (session_type >= 1 && session_type <= 4)
+        return F::practice;
+    if (session_type >= 5 && session_type <= 14)
+        return F::qualifying;
+    if (session_type == 18)
+        return F::other;
+    return F::race;
+}
+
+inline void fuel_load(swofty::tracks::events::FuelLoad &f, const char *track, uint32_t session_type)
+{
+    f = {};
+    f.size = sizeof f;
+    f.payload_version = swofty::tracks::events::FuelLoad::version;
+    f.track_id = track ? track : "";
+    f.session_type = session_type;
+    f.kind = fuel_kind(session_type);
 }
 
 }

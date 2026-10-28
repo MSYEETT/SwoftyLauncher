@@ -7,13 +7,14 @@
 
 // The core's own events for standard library 1.6.0: every lifecycle moment of docs/std/events.md and
 // every event the 1.6.0 system headers name (career, content, cars, sounds), with its kind, its payload
-// type and version, and whether the core fires it in 1.6.0. A hot event is one that can fire every
+// type and version, and whether the core fires it in 1.6.0 (game: a game hook point, which fires while its
+// detour is installed, from its first subscriber on; game_points.hpp). A hot event is one that can fire every
 // frame or per car read: the core logs only its first fire of a session. legacy is the 1.x name the
 // same moment already fires under (events.cpp's dispatcher), when there is one.
 
 namespace swofty_core::hooks::catalogue {
 
-enum class Fired : uint8_t { no, yes, after_only };
+enum class Fired : uint8_t { no, yes, after_only, game };
 
 struct Event {
     const char *id;
@@ -47,7 +48,7 @@ inline constexpr Event EVENTS[] = {
     {"career.season.start", N, "swofty::career::events::SeasonStart", 1, false, Fired::no, nullptr},
     {"career.time.advance", N, SHELL, 1, true, Fired::no, nullptr},
     {"career.day", N, SHELL, 1, true, Fired::no, nullptr},
-    {"career.calendar.add_activity", C, "swofty::career::events::AddActivity", 1, false, Fired::no, nullptr},
+    {"career.calendar.add_activity", C, "swofty::career::events::AddActivity", 1, false, Fired::game, nullptr},
     {"career.calendar.remove_activity", C, SHELL, 1, false, Fired::no, nullptr},
     {"career.rnd.start", C, SHELL, 1, false, Fired::no, nullptr},
     {"career.rnd.cancel", C, SHELL, 1, false, Fired::no, nullptr},
@@ -55,8 +56,8 @@ inline constexpr Event EVENTS[] = {
     {"career.weekend.start", N, SHELL, 1, false, Fired::no, nullptr},
     {"career.weekend.end", N, SHELL, 1, false, Fired::no, nullptr},
     {"career.contracts.open", N, SHELL, 1, false, Fired::no, nullptr},
-    {"career.contract.decide", C, SHELL, 1, false, Fired::no, nullptr},
-    {"career.contract.sign", C, SHELL, 1, false, Fired::no, nullptr},
+    {"career.contract.decide", C, "swofty::career::events::ContractDecide", 1, false, Fired::game, nullptr},
+    {"career.contract.sign", C, "swofty::career::events::ContractSign", 1, false, Fired::game, nullptr},
     {"career.contract.changed", N, SHELL, 1, false, Fired::no, nullptr},
     {"career.driver.moved", N, SHELL, 1, false, Fired::no, nullptr},
     {"career.season.process", C, SHELL, 1, false, Fired::no, nullptr},
@@ -72,7 +73,7 @@ inline constexpr Event EVENTS[] = {
 
     {"session.load", M, SHELL, 1, false, Fired::no, nullptr},
     {"session.weather.setup", M, SHELL, 1, false, Fired::no, nullptr},
-    {"session.fuel.load", C, SHELL, 1, false, Fired::no, nullptr},
+    {"session.fuel.load", C, "swofty::tracks::events::FuelLoad", 1, false, Fired::game, nullptr},
     {"session.start", N, SHELL, 1, false, Fired::yes, SWOFTY_EVENT_SESSION_START},
     {"session.state.enter", N, SHELL, 1, false, Fired::no, SWOFTY_EVENT_STATE},
     {"session.grid", N, SHELL, 1, false, Fired::no, nullptr},
