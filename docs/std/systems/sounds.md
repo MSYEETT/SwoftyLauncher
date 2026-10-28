@@ -49,10 +49,17 @@ struct BundleResolve {                             // Game_Build_AudioBundleRegi
     static constexpr const char *point = "audio.bundle.resolve";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;                                       // the live car
-    Ref<cars::Vehicle> vehicle;
-    std::string_view switch_name;                  // the car's audio switch
-    Ref<EngineSound> engine_sound;                 // the sound it gets; before handlers may change it
+    int32_t car;                                   // the live car
+    const char *vehicle_id;
+    const char *switch_name_str;                   // the car's audio switch
+    const char *engine_sound_id;                   // the sound it gets
+    int32_t (*set_engine_sound_fn)(void *user, const char *id);
+    void *user;
+
+    Ref<cars::Vehicle> vehicle() const;
+    std::string_view switch_name() const;
+    Ref<EngineSound> engine_sound() const;
+    Result set_engine_sound(const Ref<EngineSound> &sound);   // before handlers: the sound it gets instead
 };
 
 }
@@ -263,8 +270,8 @@ SWOFTY_REGISTER
 ```cpp
 // audio.bundle.resolve: a different bundle for one car, without changing its record
 events::on<sounds::events::BundleResolve>().before([](sounds::events::BundleResolve &b, const events::Context &) {
-    if (b.vehicle.id() == "game/williams_2026")
-        b.engine_sound = sounds::engine_sounds["mod.esp/v10_screamer"];
+    if (b.vehicle().id() == "game/williams_2026")
+        b.set_engine_sound(sounds::engine_sounds["mod.esp/v10_screamer"]);
 });
 ```
 
