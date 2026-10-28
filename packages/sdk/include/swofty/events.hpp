@@ -166,7 +166,7 @@ struct SessionView {
 };
 SWOFTY_RECORD(SessionView, type, session, group, track, weather, laps, setup_mode)
 
-SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, online, story, f1_world)
+SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, story, f1_world)
 SWOFTY_ENUM(SessionType, practice, qualifying, race, sprint, time_trial)
 
 class Context {

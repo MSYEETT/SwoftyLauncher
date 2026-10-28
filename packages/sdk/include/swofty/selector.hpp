@@ -12,7 +12,7 @@
 
 namespace swofty::events {
 
-enum class Mode { grand_prix, time_trial, driver_career, my_team, split_screen, online, story, f1_world };
+enum class Mode { grand_prix, time_trial, driver_career, my_team, split_screen, story, f1_world };
 enum class SessionType { practice, qualifying, race, sprint, time_trial };
 
 class Selector {
@@ -54,7 +54,7 @@ inline Selector one(std::string_view key, const std::string &value)
 inline const char *mode_name(Mode m)
 {
     static const char *const names[] = {"grand_prix", "time_trial", "driver_career", "my_team",
-                                        "split_screen", "online", "story", "f1_world"};
+                                        "split_screen", "story", "f1_world"};
     return names[static_cast<int>(m)];
 }
 

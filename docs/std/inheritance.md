@@ -311,7 +311,7 @@ ai::vehicle_configs.protect(ai::vehicle_configs["mod.season-2008/ferrari"], { "r
 
 ```cpp
 // A career mode of your own: a variant of a stock mode, so it inherits changes to it.
-career::modes.variant("decades", career::modes["game/f1_career_2026"], [](career::Mode &m) {
+career::modes.variant("decades", career::modes["game/f1_career_2026"], [](career::ModeRecord &m) {
     m.data_group = "f1_career_decades";
 });
 

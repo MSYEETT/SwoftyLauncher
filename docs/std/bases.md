@@ -198,7 +198,7 @@ A copy of a stock row made with the manifest's [operations](/std/manifest) keeps
 // swofty.progressive: its career mode, a variant of the stock 2026 Driver Career
 SWOFTY_REGISTER
 {
-    career::modes.variant("progressive", career::modes["game/f1_career_2026"], [](career::Mode &m) {
+    career::modes.variant("progressive", career::modes["game/f1_career_2026"], [](career::ModeRecord &m) {
         m.data_group = "f1_career_progressive";
         m.save_container = "driver_career_progressive";
         m.title = "lng_progressive_title";

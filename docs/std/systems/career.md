@@ -297,7 +297,7 @@ static const events::Selector kProgressive = events::content("swofty.progressive
 
 SWOFTY_REGISTER
 {
-    auto mode = career::modes.variant("progressive", career::modes["game/f1_career_2026"], [](career::Mode &m) {
+    auto mode = career::modes.variant("progressive", career::modes["game/f1_career_2026"], [](career::ModeRecord &m) {
         m.data_group = "f1_career_progressive";
         m.save_container = "driver_career_progressive";
         m.title = "lng_progressive_title";
@@ -403,7 +403,7 @@ A career freezes each season's line-ups, ratings and rules when that season star
 A career's owner can freeze everything at creation instead:
 
 ```cpp
-career::modes.layer(career::modes["swofty.progressive/progressive"], [](career::Mode &m) {
+career::modes.layer(career::modes["swofty.progressive/progressive"], [](career::ModeRecord &m) {
     m.freeze = career::Freeze::at_creation;
 });
 ```

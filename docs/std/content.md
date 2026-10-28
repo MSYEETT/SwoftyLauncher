@@ -442,7 +442,7 @@ career::seasons.add("2017", {
 - **The box for each season is chosen when the career is created.**
 - **Two packs for one year:** when more than one installed box covers a year, the career setup page shows a choice for that year. It defaults to the box the career addon's season names. The choice is frozen at creation.
 - **A career freezes each season's line-ups, ratings and rules when that season starts.** Cars, liveries, tracks and sounds come live from the season's box. Drivers and tracks installed mid-career join at the next season.
-- **A career's owner can freeze everything at creation instead,** with `career::Mode::freeze = career::Freeze::at_creation`. The career's hub can offer the same choice to the player as a **Freeze content** toggle.
+- **A career's owner can freeze everything at creation instead,** with `career::ModeRecord::freeze = career::Freeze::at_creation`. The career's hub can offer the same choice to the player as a **Freeze content** toggle.
 
 See [Career snapshots](/std/scopes#career-snapshots) and [Career](/std/systems/career).
 

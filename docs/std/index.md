@@ -32,7 +32,6 @@ Progressive Career knows who drove for which team in each season. It adds that t
 #include "history.hpp"   // progressive::history(), built from data/years.json
 
 using namespace swofty;
-using namespace swofty::events;
 
 SWOFTY_REGISTER
 {
@@ -42,7 +41,7 @@ SWOFTY_REGISTER
 
 SWOFTY_ON_LOAD
 {
-    on<career::events::SeasonStart>().after([](const career::events::SeasonStart &e, const Context &ctx) {
+    events::on<career::events::SeasonStart>().after([](const career::events::SeasonStart &e, const events::Context &ctx) {
         if (auto s = career::seasons.get(career::seasons["swofty.progressive/" + std::to_string(e.year)]))
             career::apply_lineup(*s);    // the core's verified seat code, not Progressive's own
     });

@@ -28,24 +28,23 @@ Each event's payload lives in its system's header, in `swofty::<system>::events`
 #include <swofty/systems/weather.hpp>
 
 using namespace swofty;
-using namespace swofty::events;
 
-static const Selector k1990 = content("swofty.f1-1990/f1_career_1990");
+static const events::Selector k1990 = events::content("swofty.f1-1990/f1_career_1990");
 
 SWOFTY_ON_LOAD
 {
     // after: observe the moment
-    on<career::events::SeasonStart>().in(k1990).after([](const career::events::SeasonStart &e, const Context &ctx) {
+    events::on<career::events::SeasonStart>().in(k1990).after([](const career::events::SeasonStart &e, const events::Context &ctx) {
         swofty::log("[f1-1990] season %d starts, round %d of %d, player %s", e.year,
                     ctx.career()->round, ctx.career()->rounds, ctx.player()->driver.id().data());
     });
 
     // before: change what the game is about to use
-    on<weather::events::Setup>().in(k1990).when(session_type({ SessionType::race }))
-        .before([](weather::events::Setup &w, const Context &) { w.rain_chance = std::min(w.rain_chance, 30u); });
+    events::on<weather::events::Setup>().in(k1990).when(events::session_type({ events::SessionType::race }))
+        .before([](weather::events::Setup &w, const events::Context &) { w.rain_chance = std::min(w.rain_chance, 30u); });
 
     // replace: stand in for the game; return true when handled
-    on<sessions::events::GroupResult>().in(k1990).replace([](sessions::events::GroupResult &g, const Context &ctx) {
+    events::on<sessions::events::GroupResult>().in(k1990).replace([](sessions::events::GroupResult &g, const events::Context &ctx) {
         return f1990::rank_best_of(g, ctx.session()->group, 1, 2);   // the grid from the better of two qualifying sessions
     });
 }

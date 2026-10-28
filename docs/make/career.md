@@ -45,7 +45,7 @@ static const events::Selector kDecades = events::content("mod.decades/f1_career_
 
 SWOFTY_REGISTER
 {
-    auto mode = career::modes.variant("decades", career::modes["game/f1_career_2026"], [](career::Mode &m) {
+    auto mode = career::modes.variant("decades", career::modes["game/f1_career_2026"], [](career::ModeRecord &m) {
         m.data_group = "f1_career_decades";
         m.save_container = "driver_career_decades";
         m.title = "lng_decades_title";
