@@ -1007,6 +1007,119 @@ pub fn restore_pending(data: &Path) -> Result<bool> {
     Ok(true)
 }
 
+/// What the anti-cheat launcher's slot holds while a session is staged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Slot {
+    /// Offline play's file, as staged.
+    Staged,
+    /// A file EA signed, which an EA app repair or update put there.
+    Replaced,
+    /// No file.
+    Missing,
+    /// A file that is neither offline play's nor EA's.
+    Unknown,
+}
+
+struct Staging {
+    lines: Vec<serde_json::Value>,
+    copy: usize,
+    rename: Option<usize>,
+    slot: PathBuf,
+    parked: PathBuf,
+    slot_state: Slot,
+}
+
+fn staging(journal: &Path) -> Result<Option<Staging>> {
+    let text = match std::fs::read_to_string(journal) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(io_err(journal)(e)),
+    };
+    let mut lines = Vec::new();
+    for line in text.lines().filter(|l| !l.trim().is_empty()) {
+        lines.push(
+            serde_json::from_str::<serde_json::Value>(line)
+                .map_err(|e| Error::Other(format!("{}: {e}", journal.display())))?,
+        );
+    }
+    let field =
+        |l: &serde_json::Value, k: &str| l.get(k).and_then(serde_json::Value::as_str).map(str::to_owned);
+    let Some(copy) = lines.iter().position(|l| {
+        field(l, "op").as_deref() == Some("copy") && field(l, "to").is_some_and(|t| t.ends_with(EAC_EXE))
+    }) else {
+        return Ok(None);
+    };
+    let to = field(&lines[copy], "to").unwrap_or_default();
+    let rename = lines.iter().position(|l| {
+        field(l, "op").as_deref() == Some("rename") && field(l, "from").as_deref() == Some(&to)
+    });
+    let slot = PathBuf::from(&to);
+    let parked = rename
+        .and_then(|i| field(&lines[i], "to"))
+        .map_or_else(|| PathBuf::from(format!("{to}.bak")), PathBuf::from);
+    let slot_state = match sha256_opt(&slot)? {
+        None => Slot::Missing,
+        Some(have) if field(&lines[copy], "sha256").as_ref() == Some(&have) => Slot::Staged,
+        Some(_) if ea_signed(&slot)? == Some(true) => Slot::Replaced,
+        Some(_) => Slot::Unknown,
+    };
+    Ok(Some(Staging {
+        lines,
+        copy,
+        rename,
+        slot,
+        parked,
+        slot_state,
+    }))
+}
+
+/// What the slot holds now, for a session staged under `journal`.
+pub fn slot(journal: &Path) -> Result<Option<Slot>> {
+    Ok(staging(journal)?.map(|s| s.slot_state))
+}
+
+/// Put offline play's file back when an EA app repair took it out of the
+/// slot during a session. EA's file becomes the backup the restore puts
+/// back, and the older backup is set aside. Returns what the slot held.
+pub fn restage(a: &Artifacts, journal: &Path) -> Result<Option<Slot>> {
+    let Some(mut s) = staging(journal)? else {
+        return Ok(None);
+    };
+    match s.slot_state {
+        Slot::Staged | Slot::Unknown => return Ok(Some(s.slot_state)),
+        Slot::Missing => {}
+        Slot::Replaced => {
+            let have = sha256_file(&s.slot)?;
+            if s.parked.exists() && sha256_file(&s.parked)? != have {
+                let dir = s.parked.parent().unwrap_or(Path::new("."));
+                set_aside(dir, &s.parked)?;
+            }
+            with_retry(&s.slot, || std::fs::rename(&s.slot, &s.parked))?;
+            let entry = serde_json::json!({
+                "op": "rename",
+                "from": s.slot.display().to_string(),
+                "to": s.parked.display().to_string(),
+                "source": "",
+                "sha256": have,
+            });
+            match s.rename {
+                Some(i) => s.lines[i]["sha256"] = have.into(),
+                None => {
+                    s.lines.insert(s.copy, entry);
+                    s.copy += 1;
+                }
+            }
+        }
+    }
+    with_retry(&s.slot, || std::fs::copy(&a.stub, &s.slot))?;
+    s.lines[s.copy]["sha256"] = sha256_file(&s.slot)?.into();
+    let text: String = s.lines.iter().map(|l| format!("{l}\n")).collect();
+    let tmp = journal.with_extension("jsonl.tmp");
+    std::fs::write(&tmp, text).map_err(io_err(&tmp))?;
+    with_retry(journal, || std::fs::rename(&tmp, journal))?;
+    Ok(Some(s.slot_state))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1763,6 +1876,19 @@ mod tests {
         pe
     }
 
+    fn stub_artifacts(d: &Path) -> Artifacts {
+        let dir = d.join("extension");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("f1op_stub.exe"), "stub").unwrap();
+        Artifacts {
+            hook: dir.join("f1op_hook.dll"),
+            stub: dir.join("f1op_stub.exe"),
+            prelaunch: dir.join("prelaunch"),
+            probe: dir.join("probe"),
+            dir,
+        }
+    }
+
     fn recovered(game: &Path) -> Vec<Vec<u8>> {
         std::fs::read_dir(game.join("swofty/offline-recovery"))
             .map(|r| r.flatten().map(|e| std::fs::read(e.path()).unwrap()).collect())
@@ -1782,6 +1908,61 @@ mod tests {
             std::fs::write(&file, bytes).unwrap();
             assert_eq!(ea_signed(&file).unwrap(), want);
         }
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn the_ea_apps_repaired_launcher_becomes_the_backup_and_the_stub_goes_back() {
+        let d = temp("restage-replaced");
+        let (journal, launcher, parked, _) = staged(&d);
+        let a = stub_artifacts(&d);
+        let repaired = program(Some("Electronic Arts"), "a newer launcher");
+        std::fs::write(&launcher, &repaired).unwrap();
+
+        assert_eq!(slot(&journal).unwrap(), Some(Slot::Replaced));
+        assert_eq!(restage(&a, &journal).unwrap(), Some(Slot::Replaced));
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "stub");
+        assert_eq!(std::fs::read(&parked).unwrap(), repaired);
+        assert_eq!(recovered(&d.join("game")), vec![b"genuine".to_vec()]);
+        assert_eq!(slot(&journal).unwrap(), Some(Slot::Staged));
+        let text = std::fs::read_to_string(&journal).unwrap();
+        assert!(text.contains(&sha256_file(&parked).unwrap()), "{text}");
+
+        restore(&journal, false).unwrap();
+        assert_eq!(std::fs::read(&launcher).unwrap(), repaired);
+        assert!(!parked.exists());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_stub_the_ea_app_removed_is_put_back_over_the_same_backup() {
+        let d = temp("restage-missing");
+        let (journal, launcher, parked, _) = staged(&d);
+        let a = stub_artifacts(&d);
+        assert_eq!(restage(&a, &journal).unwrap(), Some(Slot::Staged));
+        std::fs::remove_file(&launcher).unwrap();
+
+        assert_eq!(restage(&a, &journal).unwrap(), Some(Slot::Missing));
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "stub");
+        assert_eq!(std::fs::read_to_string(&parked).unwrap(), "genuine");
+        restore(&journal, false).unwrap();
+        assert_eq!(std::fs::read_to_string(&launcher).unwrap(), "genuine");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn a_launcher_that_is_neither_eas_nor_the_stub_is_left_alone() {
+        let d = temp("restage-unknown");
+        let (journal, launcher, parked, _) = staged(&d);
+        let a = stub_artifacts(&d);
+        std::fs::write(&launcher, program(Some("Someone Else"), "x")).unwrap();
+        assert_eq!(restage(&a, &journal).unwrap(), Some(Slot::Unknown));
+        assert_eq!(
+            std::fs::read(&launcher).unwrap(),
+            program(Some("Someone Else"), "x")
+        );
+        assert_eq!(std::fs::read_to_string(&parked).unwrap(), "genuine");
+        assert!(restage(&a, &d.join("none.jsonl")).unwrap().is_none());
         std::fs::remove_dir_all(&d).ok();
     }
 
