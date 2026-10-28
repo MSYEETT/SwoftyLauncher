@@ -269,6 +269,9 @@
         "dll": "native/progressive_logos.dll"
       },
       {
+        "dll": "native/progressive_numbers.dll"
+      },
+      {
         "dll": "native/progressive_teamlogos.dll"
       },
       {

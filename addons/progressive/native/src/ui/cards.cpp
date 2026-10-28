@@ -36,9 +36,9 @@
 // year in Choose Driver's Insights and in Team Select (wizard_ratings.hpp); they are put back
 // wherever the view is taken back.
 //
-// Team logos are progressive_logos.dll's (logos.cpp): it asks ProgressiveCardsStartYear() below
-// whether the view is active and for which year, so a build where the logo sites do not resolve
-// loses only the logos.
+// Team logos are progressive_logos.dll's (logos.cpp) and the drivers' numbers progressive_numbers.dll's
+// (numbers.cpp): they ask ProgressiveCardsStartYear() and ProgressiveCardsNumber() below whether the
+// view is active and what it holds, so a build where their sites do not resolve loses only those.
 //
 // Team choice: in the new-career wizard Team Select (+0xc68 set) lists only the picked driver's
 // team when his line-up row has one, and every team when it has none; its offer build
@@ -582,6 +582,16 @@ extern "C" __declspec(dllexport) int ProgressiveCardsStartYear(void)
 {
     int year = g_year;
     return g_mode && year >= pc::kFirstYear && year <= pc::kLastListYear ? year : 0;
+}
+
+// progressive_numbers.dll: the start season number of a driver (key: id byte | id word << 16) in the
+// active view, -1 when no Progressive wizard is dressed, the view does not hold him or has no number.
+extern "C" __declspec(dllexport) int ProgressiveCardsNumber(uint32_t driver)
+{
+    if (!ProgressiveCardsStartYear())
+        return -1;
+    const EntrantRecord *v = view_row(driver);
+    return v && v->car_number != pc::kNoNumber ? v->car_number : -1;
 }
 
 SWOFTY_ON_LOAD
