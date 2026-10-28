@@ -1,11 +1,11 @@
 ---
 title: Rollout and docs
-description: The releases that ship the proposed 1.6 standard library (1.6.0, 1.7.0 and 1.8.0), what each must prove, and how its hand-written public docs and guides are laid out.
+description: The releases that ship the proposed 1.6 standard library (1.6.0 and 1.6.x), what each must prove, and how its hand-written public docs and guides are laid out.
 ---
 
 # Rollout and docs
 
-The 1.6 standard library ships in three releases. 1.6.0 brings the registry and the first content on it: Progressive Career's seasons and Classic Seasons' years. 1.7.0 moves the older libraries onto the registry and adds the first game hook points. 1.8.0 adds team and driver identities and the core's career operations. `SWOFTY_API_VERSION` is 9 for all three.
+The 1.6 standard library ships in two releases. 1.6.0 brings everything except tracks: the registry, the content registries, the older libraries underneath registries, identities, wearables, the first game hook points and the core's career operations. 1.6.x brings the tracks system. `SWOFTY_API_VERSION` is 9 for both.
 
 ## The releases
 
@@ -65,31 +65,39 @@ Each release goes through the usual flow: a prep commit on main, the main CI, th
 - a profile whose registry records go past the stock room boots with every record applied;
 - the public docs below are written.
 
-### 1.7.0: the older libraries move in, the first game hook points
+### 1.6.0, second half: everything else except tracks
 
 **Ships:**
 
-- career contents, Team HQ tabs, the career wizard, characters, strings and options stored in registries underneath their 1.5 calls: `career::contents`, `hub.tab`, `career::wizards`, `career::characters`, `ui::strings` and `addon.option` (era boxes already are, from 1.6.0);
-- the remaining content registries, applied live: `liveries::liveries`, `wearables::helmets`, and the tracks system (`tracks::tracks`, `tracks::venues`, `tracks::data`, `tracks::per_package`);
-- every track in the base offered in every box where it fits: garages for the box's team count, grid size, AI data for the box's cars, and Time Trial support. A box lists the season's real calendar first, then every other fitting track under "More tracks". The track select list needs a hook on the game's list builder (`ui.track_select.build`), which still needs reverse engineering. Until then, a guard covers a track that doesn't fit;
-- the game hook points `career.calendar.add_activity`, `career.contract.decide`, `career.contract.sign` and `session.fuel.load`.
+- career contents, Team HQ tabs, the career wizard, characters, strings and options stored in registries underneath their 1.5 calls: `career::contents`, `hub.tab`, `career::wizards`, `career::characters`, `ui::strings` and `addon.option` (era boxes already are);
+- the content registries, applied live: `liveries::liveries` and `wearables::helmets`;
+- `teams::identities` and `teams::logos` (names, colours, logos per context), `drivers::identities` (names, numbers, looks) and the wearables that link a driver's suit, helmet and gloves, so a career can have entirely new teams, up to 12 per season (`career::apply_teams`);
+- the game hook points `career.calendar.add_activity`, `career.contract.decide`, `career.contract.sign` and `session.fuel.load`;
+- the operations `career::set_seat`, `career::set_car_number`, `teams::set_logo` and `tracks::set_track_fuel` (`career::apply_lineup`, `career::set_driver_ratings` and `career::swap_drivers` are in the first half);
+- the migration guide from 1.5 database operations and `file.put` to the registry, with Classic Seasons as the worked example.
 
 **Done when:**
 
 - the shim tests pass;
+- the gate shows no change in the mixin chains of addons made for 1.5 and earlier;
 - Progressive and Career Editor use the hook points instead of their own wraps of those functions;
-- the gate shows no change in the mixin chains of addons made for 1.5 and earlier.
+- Progressive and Career Editor call the operations instead of their own copies of that code;
+- a career with entirely new teams (a 2012 career) shows their names, colours, logos and drivers' wearables in driver select, team select, the grid and the HUD, without editing a database file by hand, and never touches the stock 2026 modes.
 
-### 1.8.0: identities and operations
+### 1.6.x: the tracks system
 
 **Ships:**
 
-- `teams::identities` and `teams::logos` (names, colours, logos), and `drivers::identities` (names, numbers, looks);
-- the operations `career::set_seat`, `career::set_car_number`, `teams::set_logo` and `tracks::set_track_fuel` (`career::apply_lineup`, `career::set_driver_ratings` and `career::swap_drivers` ship in 1.6.0).
+- `tracks::tracks`, `tracks::venues`, `tracks::data` and `tracks::per_package`;
+- every track in the base offered in every box where it fits: garages for the box's team count, grid size, AI data for the box's cars, and Time Trial support. A box lists the season's real calendar first, then every other fitting track under "More tracks";
+- the track select list hook (`ui.track_select.build`), which still needs reverse engineering. Until then, a guard covers a track that doesn't fit.
 
-**Done when:** Progressive and Career Editor call the operations instead of their own copies of that code.
+**Done when:**
 
-### After 1.8
+- a track provided as a record appears in its box, with its calendar slot, garages and AI data;
+- every base track fitting a box is offered in it, and a track that doesn't fit is left out.
+
+### After 1.6
 
 - A new registry, hook point or operation ships as experimental first. It becomes stable once two addons use it (see [Status](/std/versioning#status)).
 - Addons on the Addon Browser may use experimental APIs. The Browser shows an "experimental API" badge on them.

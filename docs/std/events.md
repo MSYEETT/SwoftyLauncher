@@ -403,7 +403,7 @@ Adding a core event takes one catalogue entry, a hand-written payload, one fire 
 ```json
 {
   "name": "session.pit_stop",
-  "since": "1.7.0",
+  "since": "1.6.0",
   "status": "experimental",
   "kind": "notify",
   "thread": "session",

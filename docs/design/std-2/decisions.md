@@ -166,3 +166,8 @@ These were decided from the reviews and are going into the pages:
   - Raw overwrites on catalogued hook points follow the 1.5 rule for every addon: nothing is restricted.
   - Grid size stays one boot setting per install for 1.6.0, and each box is clamped to it.
   - Hook points the game calls every frame use tables built at content or session moments.
+
+## Scope decisions (swofty, 2026-10-28)
+
+- **Identities, career teams, logos and wearables move into 1.6.0.** A career with entirely new teams (up to 12), their logos and badges per context, and the drivers' suits, helmets and gloves are records with image files, usable as JSON data files, with no database editing by hand.
+- **Everything is in 1.6.0 except tracks.** What was 1.7.0 and 1.8.0 ships in 1.6.0: the older libraries underneath registries, `liveries::liveries`, the game hook points and the career operations. The tracks system, every base track in every fitting box and the track select hook move to 1.6.x.
