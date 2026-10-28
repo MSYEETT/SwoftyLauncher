@@ -17,14 +17,14 @@ const EVENTS: &str = "[events] ";
 /// What a test's environment waits for in loader.log before its steps run.
 pub fn ready_line(kind: Kind) -> &'static str {
     match kind {
-        Kind::Boot => MAIN_MENU,
+        Kind::Boot | Kind::Route => MAIN_MENU,
         _ => ATTACHED,
     }
 }
 
 pub fn ready_text(kind: Kind) -> &'static str {
     match kind {
-        Kind::Boot => "the main menu",
+        Kind::Boot | Kind::Route => "the main menu",
         _ => "the loader's attached line",
     }
 }

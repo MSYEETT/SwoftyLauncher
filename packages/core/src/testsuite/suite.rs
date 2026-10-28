@@ -25,6 +25,8 @@ pub struct Suite {
 pub struct Test {
     pub suite: String,
     pub id: String,
+    /// The test file it came from.
+    pub file: PathBuf,
     pub tags: Vec<String>,
     pub env: Env,
     pub steps: Vec<Step>,
@@ -101,17 +103,18 @@ impl Kind {
         }
     }
 
-    /// Why a test in this environment can't run yet, in build step 1.
+    /// Why a test in this environment can't run yet.
     pub fn needs(self) -> Option<&'static str> {
         match self {
-            Kind::None | Kind::Boot | Kind::Benchmark => None,
-            Kind::Route | Kind::GrandPrix | Kind::TimeTrial => Some(NEEDS_AGENT),
+            Kind::None | Kind::Boot | Kind::Benchmark | Kind::Route => None,
+            Kind::GrandPrix | Kind::TimeTrial => Some(NEEDS_SESSION_SETUP),
             Kind::Career => Some("needs the save sandbox"),
         }
     }
 }
 
 pub const NEEDS_AGENT: &str = "needs the test agent";
+pub const NEEDS_SESSION_SETUP: &str = "needs session setup inside the game's screens";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Env {
@@ -187,19 +190,43 @@ impl Count {
 }
 
 impl Test {
-    /// Why this test is skipped in build step 1, if it is.
+    /// Why this test is skipped, if it is.
     pub fn skip_reason(&self) -> Option<&'static str> {
-        if let Some(why) = self.env.kind.needs() {
-            return Some(why);
-        }
-        let agent = self.function.is_some()
+        self.env.kind.needs()
+    }
+
+    /// The test talks to the in-game test agent: a step or check the CLI
+    /// can't do from the logs, a test function or a route environment.
+    pub fn needs_agent(&self) -> bool {
+        self.env.kind == Kind::Route
+            || self.function.is_some()
             || self.steps.iter().any(|s| s.host.is_none())
-            || self.checks.iter().any(|c| matches!(c, Check::Agent { .. }));
-        agent.then_some(NEEDS_AGENT)
+            || self.checks.iter().any(|c| matches!(c, Check::Agent { .. }))
     }
 
     pub fn full_id(&self) -> String {
         format!("{}/{}", self.suite, self.id)
+    }
+
+    /// The test DLL a `fn` test runs from: `native/tests.dll` next to the
+    /// test file, else the only DLL in that folder.
+    pub fn dll(&self) -> Option<PathBuf> {
+        self.function.as_ref()?;
+        let dir = self.file.parent()?.join("native");
+        let named = dir.join("tests.dll");
+        if named.is_file() {
+            return Some(named);
+        }
+        let mut dlls: Vec<PathBuf> = std::fs::read_dir(&dir)
+            .ok()?
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("dll")))
+            .collect();
+        match dlls.len() {
+            1 => dlls.pop(),
+            _ => None,
+        }
     }
 }
 
@@ -561,6 +588,7 @@ fn test(at: &At, v: &Value, suite: &str, d: &Defaults, addon: Option<&str>) -> R
     Ok(Test {
         suite: suite.to_owned(),
         id,
+        file: at.file.to_path_buf(),
         tags: o
             .get("tags")
             .map(|v| at.at("tags").strs(v))
