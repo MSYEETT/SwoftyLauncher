@@ -533,13 +533,35 @@ int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, const std::vec
                                                                            {"numbers", std::move(numbers)},
                                                                            {"cars", std::move(cars)},
                                                                            {"looks", std::move(looks)}})}});
+    bool teams_op = ops->version >= 3 && ops->apply_teams && season::names_new_teams(g_data, p.year);
     std::string text = sj::dump(request), report(4096, '\0');
     size_t len = 0;
-    SwoftyText in{text.data(), text.size()};
-    int r = ops->apply_lineup(in, report.data(), report.size(), &len);
-    if (r == SWOFTY_TOO_SMALL) {
-        report.assign(len + 1, '\0');
+    int r = SWOFTY_REFUSED;
+    if (teams_op) {
+        sj::Value slots = sj::Value::array();
+        for (int i = 0; i < season::kSlots; ++i)
+            slots.push_back(sj::Value::object({{"slot", i + 1}, {"team", season::season_team(g_data, p, i)}, {"seats", sj::Value::array()}}));
+        sj::Value teams_request = sj::Value::object({{"season", sj::Value::object({{"data_group", kGroup},
+                                                                                     {"year", p.year},
+                                                                                     {"teams", std::move(slots)}})},
+                                                     {"lineup", request["lineup"]}});
+        std::string teams_text = sj::dump(teams_request);
+        SwoftyText tin{teams_text.data(), teams_text.size()};
+        r = ops->apply_teams(tin, report.data(), report.size(), &len);
+        if (r == SWOFTY_TOO_SMALL) {
+            report.assign(len + 1, '\0');
+            r = ops->apply_teams(tin, report.data(), report.size(), &len);
+        }
+        if (r == SWOFTY_REFUSED)
+            swofty::log("[progressive] season %d: the core's apply_teams refused the season records; applying the line-up without it", p.year);
+    }
+    if (!teams_op || r == SWOFTY_REFUSED) {
+        SwoftyText in{text.data(), text.size()};
         r = ops->apply_lineup(in, report.data(), report.size(), &len);
+        if (r == SWOFTY_TOO_SMALL) {
+            report.assign(len + 1, '\0');
+            r = ops->apply_lineup(in, report.data(), report.size(), &len);
+        }
     }
     if (r == SWOFTY_ASSET_UNAVAILABLE || r == SWOFTY_ASSET_LATE) {
         swofty::log("[progressive] season %d: the core's apply_lineup is %s; Progressive applies the seats itself", p.year,
