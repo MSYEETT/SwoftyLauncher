@@ -208,17 +208,7 @@ pub struct FEHomeViewModel {
 }
 
 #[repr(C)]
-pub struct GdbDatabase {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct GdbTableCursor {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct GdbValueMap {
     _opaque: [u8; 0],
 }
 
@@ -1237,6 +1227,13 @@ const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, weekend) == 0x1f1
 const _: () = assert!(core::mem::offset_of!(GameWeatherSystem, dataset_dynamic) == 0x2f3a);
 
 #[repr(C)]
+pub struct GdbDatabase {
+    _pad_0x0: [u8; 0xf0],
+    pub loaded: u8,
+}
+const _: () = assert!(core::mem::offset_of!(GdbDatabase, loaded) == 0xf0);
+
+#[repr(C)]
 pub struct GdbStringRecord {
     _pad_0x0: [u8; 0x10],
     pub enc_size: u64,
@@ -1244,6 +1241,19 @@ pub struct GdbStringRecord {
 }
 const _: () = assert!(core::mem::offset_of!(GdbStringRecord, enc_size) == 0x10);
 const _: () = assert!(core::mem::offset_of!(GdbStringRecord, enc) == 0x18);
+
+#[repr(C)]
+pub struct GdbValueMap {
+    _pad_0x0: [u8; 0x28],
+    pub num_elements: u64,
+    pub mask: u64,
+    pub max_num_elements_allowed: u64,
+    _pad_0x40: [u8; 0x8],
+}
+const _: () = assert!(core::mem::offset_of!(GdbValueMap, num_elements) == 0x28);
+const _: () = assert!(core::mem::offset_of!(GdbValueMap, mask) == 0x30);
+const _: () = assert!(core::mem::offset_of!(GdbValueMap, max_num_elements_allowed) == 0x38);
+const _: () = assert!(core::mem::size_of::<GdbValueMap>() == 0x48);
 
 #[repr(C)]
 pub struct VmPropHolder {
@@ -2255,6 +2265,9 @@ pub type Game_SeasonLength_PushCalendarEntry_t =
     unsafe extern "C" fn(calendar: *mut c_void, entry: *const c_void) -> u64;
 pub type Game_SpeechSystem_PostLine_t =
     unsafe extern "C" fn(speech: *mut c_void, line: *mut c_void, retrigger: u8);
+pub type Gdb_HashMap_Rehash_t = unsafe extern "C" fn(map: *mut GdbValueMap, num_buckets: u64);
+pub type Gdb_Load_GameDatabase_t =
+    unsafe extern "C" fn(db: *mut GdbDatabase, cfg: *mut c_void) -> *mut GdbDatabase;
 pub type Gdb_Lookup_Key_t = unsafe extern "C" fn(path: *const c_char) -> *mut *mut c_void;
 pub type Ne_Compare_StringNoCase_t = unsafe extern "C" fn(a: *const c_char, b: *const c_char) -> i32;
 pub type Ne_Detach_ChildNode_t = unsafe extern "C" fn(parent: *mut c_void, child: *mut c_void) -> c_int;
@@ -2886,6 +2899,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Gdb_HashMap_Rehash: Binding = Binding {
+        id: "Gdb_HashMap_Rehash",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Gdb_Load_GameDatabase: Binding = Binding {
+        id: "Gdb_Load_GameDatabase",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Gdb_Lookup_Key: Binding = Binding {
         id: "Gdb_Lookup_Key",
         kind: "func",
@@ -3093,6 +3116,16 @@ pub mod bindings {
     };
     pub const g_Game_Root: Binding = Binding {
         id: "g_Game_Root",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Gdb_Database: Binding = Binding {
+        id: "g_Gdb_Database",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Gdb_RecordAllocator: Binding = Binding {
+        id: "g_Gdb_RecordAllocator",
         kind: "data",
         status: Status::Experimental,
     };
@@ -4203,6 +4236,16 @@ pub mod bindings {
     };
     pub const site_Gdb_DeptCountStore: Binding = Binding {
         id: "site_Gdb_DeptCountStore",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Gdb_InsertGrowCall: Binding = Binding {
+        id: "site_Gdb_InsertGrowCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Gdb_ReserveTarget: Binding = Binding {
+        id: "site_Gdb_ReserveTarget",
         kind: "site",
         status: Status::Experimental,
     };
