@@ -4,17 +4,23 @@
 #include "../registry/table.hpp"
 #include "../runtime.hpp"
 #include "database.hpp"
+#include "facts.hpp"
 #include "scheduler.hpp"
 
+#include <swofty/game.hpp>
+#include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
 #include <windows.h>
 
 #include <atomic>
+#include <cctype>
 #include <cstdio>
 #include <ctime>
+#include <cstddef>
 #include <map>
 #include <mutex>
+#include <set>
 
 namespace swofty_core::apply::moments {
 
@@ -96,9 +102,9 @@ std::string owner_of(const std::string &id)
 
 void facts(const reg::Context &c)
 {
+    std::string session = scheduler().session_name();
     hooks::update_facts([&](hooks::Facts &f) {
-        if (!c.mode.empty())
-            f.mode = c.mode;
+        f.mode = c.mode.empty() ? std::string("unknown") : c.mode;
         f.content = c.content.empty() ? std::string() : c.content.front();
         f.content_registry = c.content.empty() ? std::string() : std::string("content.package");
         f.content_owner = owner_of(f.content);
@@ -119,8 +125,11 @@ void facts(const reg::Context &c)
             if (!f.session)
                 f.session.emplace();
             f.session->type = c.session_type;
+            f.session->session = session;
             f.session->track = c.track;
             f.session->setup_mode = c.setup_mode;
+        } else {
+            f.session.reset();
         }
         f.vehicle_packages.clear();
         if (!c.vehicle_package.empty())
@@ -165,6 +174,210 @@ void extend(Value &, Value &conflicts)
         st[addon] = a;
     }
     conflicts["status"] = st;
+}
+
+
+namespace game {
+
+namespace g = swofty::game;
+namespace mem = swofty::mem;
+
+constexpr size_t MODE_NAME = 0x278;
+constexpr size_t SESSION_STRIDE = 0xa0;
+constexpr uint64_t MAX_SEASONS = 64, MAX_ROUNDS = 64, MAX_SESSIONS = 32;
+
+std::mutex once_mu;
+std::set<std::string> said;
+
+void once(const std::string &why)
+{
+    {
+        std::lock_guard g(once_mu);
+        if (!said.insert(why).second)
+            return;
+    }
+    swofty::log("[apply] facts: %s (logged once)", why.c_str());
+}
+
+uintptr_t resolve(const char *id)
+{
+    return swofty::api ? swofty::api->resolve(id) : 0;
+}
+
+template <class T> bool rd(uintptr_t p, T &out)
+{
+    return p && mem::read(p, out);
+}
+
+uintptr_t current_context()
+{
+    uintptr_t slot = resolve("g_Game_Manager"), mgr = 0, ctx = 0;
+    if (!slot) {
+        once("g_Game_Manager does not resolve on this build; mode, session and track stay empty at a session load");
+        return 0;
+    }
+    if (!rd(slot, mgr) || !mgr || !rd(mgr + offsetof(g::GameManager, mode_context), ctx) || !ctx)
+        return 0;
+    return ctx;
+}
+
+uintptr_t holder_of(uintptr_t ctx)
+{
+    uintptr_t holder = 0;
+    if (!ctx || !rd(ctx + offsetof(g::GameModeContext, championship_holder), holder) || !mem::object_like(holder))
+        return 0;
+    return holder;
+}
+
+std::string mode_name(uintptr_t holder)
+{
+    uintptr_t name = 0;
+    std::string out;
+    if (!holder || !rd(holder + MODE_NAME, name) || !mem::c_string(name, out, 64))
+        return {};
+    for (char ch : out)
+        if (!(std::isalnum(static_cast<unsigned char>(ch)) || ch == '_'))
+            return {};
+    return out;
+}
+
+std::string mode_of(uintptr_t ctx, const char *where)
+{
+    uintptr_t holder = holder_of(ctx);
+    std::string name = mode_name(holder);
+    if (name.empty()) {
+        once(std::string("the game mode name could not be read at ") + where + "; mode unknown");
+        return "unknown";
+    }
+    std::string mode = facts::mode_of(name);
+    once("game mode " + name + " is " + mode);
+    return mode;
+}
+
+bool vtable_is(uintptr_t obj, const char *id)
+{
+    uintptr_t want = resolve(id), vt = 0;
+    return want && rd(obj, vt) && vt == want;
+}
+
+struct Weekend {
+    uint32_t session = 0;
+    bool sprint = false;
+    int track = -1;
+};
+
+bool weekend(uintptr_t holder, Weekend &out)
+{
+    uintptr_t entity = 0, champ = 0, sb = 0, se = 0, season = 0, wb = 0, we = 0, wk = 0, xb = 0, xe = 0;
+    uint32_t si = 0, wi = 0, xi = 0;
+    if (!resolve("vt_Career_Championship") || !resolve("vt_Career_Season") || !resolve("vt_Career_Weekend")) {
+        once("vt_Career_Championship, vt_Career_Season or vt_Career_Weekend does not resolve on this build; session "
+             "and track stay empty");
+        return false;
+    }
+    if (!rd(holder + offsetof(g::ChampionshipHolder, entity), entity) || !mem::object_like(entity) ||
+        !rd(entity + offsetof(g::CareerEntity, current_championship), champ) ||
+        !vtable_is(champ, "vt_Career_Championship"))
+        return false;
+    if (!rd(champ + offsetof(g::Championship, seasons_begin), sb) ||
+        !rd(champ + offsetof(g::Championship, seasons_end), se) ||
+        !rd(champ + offsetof(g::Championship, season_index), si) || se < sb ||
+        (se - sb) / sizeof(g::ChampionshipSeasonEntry) > MAX_SEASONS ||
+        si >= (se - sb) / sizeof(g::ChampionshipSeasonEntry) ||
+        !rd(sb + si * sizeof(g::ChampionshipSeasonEntry) + offsetof(g::ChampionshipSeasonEntry, season), season) ||
+        !vtable_is(season, "vt_Career_Season"))
+        return false;
+    if (!rd(season + offsetof(g::Season, weekends_begin), wb) || !rd(season + offsetof(g::Season, weekends_end), we) ||
+        !rd(season + offsetof(g::Season, current_weekend), wi) || we < wb || (we - wb) / 8 > MAX_ROUNDS ||
+        wi >= (we - wb) / 8 || !rd(wb + wi * 8, wk) || !vtable_is(wk, "vt_Career_Weekend"))
+        return false;
+    uint8_t track = 0xff;
+    if (rd(wk + offsetof(g::Weekend, track_stat_id), track) && track != 0xff)
+        out.track = track;
+    if (!rd(wk + offsetof(g::Weekend, sessions_begin), xb) || !rd(wk + offsetof(g::Weekend, sessions_end), xe) ||
+        !rd(wk + offsetof(g::Weekend, current_session), xi) || xe < xb || (xe - xb) / SESSION_STRIDE > MAX_SESSIONS)
+        return true;
+    std::vector<uint32_t> ids;
+    for (uintptr_t at = xb; at < xe; at += SESSION_STRIDE) {
+        uint32_t id = 0;
+        if (rd(at + offsetof(g::Session, session_id), id))
+            ids.push_back(id);
+    }
+    out.sprint = facts::sprint_weekend(ids);
+    if (xi < ids.size())
+        out.session = ids[xi];
+    return true;
+}
+
+std::mutex tracks_mu;
+std::map<int, std::string> track_labels;
+bool tracks_read = false;
+
+std::string track_label(int stat_id)
+{
+    std::lock_guard g(tracks_mu);
+    if (!tracks_read) {
+        const SwoftyDb *db = runtime::db_table();
+        SwoftyDbCursor cur{};
+        if (!db || !db->available || !db->available() || db->open("tracks", &cur) != SWOFTY_ASSET_OK) {
+            once("the tracks table is not readable yet; the track is left empty");
+            return {};
+        }
+        tracks_read = true;
+        do {
+            SwoftyDbValue v{};
+            const char *label = db->row_name(&cur);
+            if (label && db->cell(&cur, "statId", &v) == SWOFTY_ASSET_OK)
+                track_labels[int(v.i)] = label;
+        } while (db->step(&cur) == SWOFTY_ASSET_OK);
+    }
+    auto it = track_labels.find(stat_id);
+    return it == track_labels.end() ? std::string() : it->second;
+}
+
+std::string track_id(int stat_id)
+{
+    if (stat_id < 0)
+        return {};
+    std::vector<facts::TrackRecord> records;
+    for (auto &id : reg::store().list("track", "")) {
+        reg::Record r = reg::store().get("track", id);
+        if (r.status == reg::Status::ok && r.value["stat_id"].is_int())
+            records.push_back({id, r.value["stat_id"].as_int()});
+    }
+    std::string id = facts::track_of(stat_id, track_label(stat_id), records);
+    if (id.empty())
+        once("track stat id " + std::to_string(stat_id) + " has no tracks row or track record");
+    return id;
+}
+
+SessionFacts at_session_load()
+{
+    SessionFacts f;
+    uintptr_t ctx = current_context();
+    if (!ctx)
+        return f;
+    f.mode = mode_of(ctx, "the session load");
+    if (f.mode == "time_trial") {
+        f.type = f.session = "time_trial";
+        return f;
+    }
+    if (f.mode == "unknown")
+        return f;
+    Weekend w;
+    if (!weekend(holder_of(ctx), w)) {
+        once("the " + f.mode + " game mode has no current championship weekend; session and track stay empty");
+        return f;
+    }
+    facts::Session s = facts::session_of(w.session, w.sprint);
+    if (s.type.empty())
+        once("session id " + std::to_string(w.session) + " is not a known session");
+    f.type = s.type;
+    f.session = s.session;
+    f.track = track_id(w.track);
+    return f;
+}
+
 }
 
 void on_stage(int stage)
@@ -283,8 +496,14 @@ void career_season(int year)
 
 void box_picked(const char *entrant_list)
 {
+    box_picked(entrant_list, nullptr);
+}
+
+void box_picked(const char *entrant_list, const void *mode_context)
+{
     attach();
-    scheduler().content_picked(entrant_list ? entrant_list : "");
+    uintptr_t ctx = mode_context ? reinterpret_cast<uintptr_t>(mode_context) : game::current_context();
+    scheduler().content_picked(entrant_list ? entrant_list : "", game::mode_of(ctx, "the box press"));
 }
 
 void session_load(const char *source)
@@ -295,7 +514,7 @@ void session_load(const char *source)
     if (!flow && scheduler().in_session() && loaded_from_flow.load())
         return;
     loaded_from_flow = flow;
-    scheduler().session_load("", "");
+    scheduler().session_load(game::at_session_load());
     write_reports(from.c_str());
 }
 

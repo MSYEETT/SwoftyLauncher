@@ -1,4 +1,5 @@
 #include "../../src/core/apply/database.hpp"
+#include "../../src/core/apply/facts.hpp"
 #include "../../src/core/apply/ids.hpp"
 #include "../../src/core/apply/room.hpp"
 #include "../../src/core/apply/scheduler.hpp"
@@ -248,6 +249,14 @@ void test_scheduler()
     L.change.patch = Value::object({{"n", Value(7)}});
     uint32_t handle = 0;
     check(st.layer(L, &handle) == SWOFTY_ASSET_OK, "an .in layer is registered");
+    st.add_base("t.session", "tt", Value::object({{"on", Value(false)}}));
+    reg::LayerSpec T;
+    T.addon = "mod.a";
+    T.registry = "t.session";
+    T.id = "game/tt";
+    T.in = Value::array({Value::object({{"mode", Value("time_trial")}})});
+    T.change.patch = Value::object({{"on", Value(true)}});
+    check(st.layer(T, &handle) == SWOFTY_ASSET_OK, "an .in(mode(time_trial)) layer is registered");
     st.end_register();
 
     ap::clear_appliers();
@@ -304,6 +313,33 @@ void test_scheduler()
     check(logged("pkg n = 0"), "the .in layer is off once its content ends");
     check(st.context().content.empty(), "a stock box has no 1.6 content");
 
+    auto tt_on = [&] { return st.get("t.session", "game/tt").value["on"].as_bool(); };
+    check(!tt_on(), "the time trial layer is off before any mode is known");
+    logs.clear();
+    s.content_picked("f1_2025", "time_trial");
+    check(st.context().mode == "time_trial" && tt_on(), "a Time Trial box press applies the .in(mode(time_trial)) layer");
+    check(logged("[apply] facts: mode time_trial, session none, track none"), "the box press logs its facts");
+    check(!facts.empty() && facts.back().mode == "time_trial", "the event facts carry the mode");
+    s.session_load(ap::SessionFacts{"time_trial", "time_trial", "time_trial", "game/monza"});
+    check(logged("[apply] facts: mode time_trial, session time_trial, track game/monza"),
+          "a Time Trial session load logs mode, session and track");
+    check(st.context().session_type == "time_trial" && st.context().track == "game/monza" && s.session_name() == "time_trial",
+          "the session facts reach the store's context");
+    s.session_end("the session ended");
+    check(st.context().session_type.empty() && st.context().track.empty() && s.session_name().empty(),
+          "a session end clears the session facts");
+    s.content_picked("f1_2025", "grand_prix");
+    check(st.context().mode == "grand_prix" && !tt_on(), "a Grand Prix box press leaves the time trial layer off");
+    s.session_load(ap::SessionFacts{"grand_prix", "qualifying", "qualifying_2", "game/monza"});
+    check(logged("[apply] facts: mode grand_prix, session qualifying (qualifying_2), track game/monza"),
+          "a Grand Prix qualifying load logs the session's own name");
+    s.session_end("the session ended");
+    s.content_picked("f1_2025", "");
+    check(st.context().mode == "unknown" && !tt_on(), "an unread mode is unknown, never grand_prix");
+    s.content_picked("f1_2025", "time_trial");
+    s.content_picked("f1_2025");
+    check(st.context().mode == "time_trial", "a box press without a mode source keeps the mode");
+
     calls.clear();
     s.career_loaded("f1_career_progressive/6f3e9a", "driver_career", "f1_career_progressive");
     check(joined(calls) == "t.content.deactivate | t.content.activate -", "a career load puts back and activates");
@@ -323,8 +359,16 @@ void test_scheduler()
     check(joined(calls) == "t.session.session_end | t.session.session qualifying",
           "a second session load ends the first: " + joined(calls));
     calls.clear();
+    s.content_picked("f1_2025", "time_trial");
+    check(st.context().mode == "driver_career" && !tt_on(), "a box press never overrides a loaded career's mode");
+    s.session_load(ap::SessionFacts{"grand_prix", "practice", "practice_1", "game/imola"});
+    check(st.context().mode == "driver_career" && logged("[apply] facts: mode driver_career, session practice (practice_1), track game/imola"),
+          "a career practice keeps the career's mode");
+    calls.clear();
     s.career_unloaded();
     check(joined(calls) == "t.session.session_end | t.content.deactivate", "a career unload ends the session and puts back");
+    check(st.context().mode.empty() && logged("[apply] facts: mode unknown, session none, track none"),
+          "a career unload leaves the mode unknown");
     check(st.context().career.empty() && !st.context().has_year && st.context().content.empty(),
           "the career's context is cleared");
     calls.clear();
@@ -334,6 +378,66 @@ void test_scheduler()
     calls.clear();
     s.deactivate("nothing active");
     check(calls.empty(), "nothing active, nothing to put back");
+}
+
+void test_facts()
+{
+    namespace f = swofty_core::apply::facts;
+    const std::pair<const char *, const char *> modes[] = {
+        {"time_trial", "time_trial"},           {"solo_testing", "time_trial"},
+        {"grand_prix_23", "grand_prix"},        {"grand_prix_splitscreen", "split_screen"},
+        {"driver_career_26", "driver_career"},  {"driver_career_25", "driver_career"},
+        {"driver_career_24", "driver_career"},  {"career_23", "driver_career"},
+        {"my_team_career_26", "my_team"},       {"my_team_career_24", "my_team"},
+        {"story_mode", "story"},                {"story_mode_zenith", "story"},
+        {"event_mode", "f1_world"},             {"championships", "f1_world"},
+        {"rewind_event_mode", "f1_world"},      {"F1CG_solo_battles", "f1_world"},
+        {"career_25_online", "unknown"},        {"career_23_online", "unknown"},
+        {"challenge_career_25", "unknown"},     {"benchmark", "unknown"},
+        {"dev", "unknown"},                     {"", "unknown"},
+        {"grand_prix", "unknown"},              {"time_trial_x", "unknown"},
+    };
+    for (auto &[label, want] : modes)
+        check(f::mode_of(label) == want, std::string("game mode ") + label + " is " + want + ", got " + f::mode_of(label));
+    for (auto &[label, want] : modes)
+        check(std::string(want) != "grand_prix" || std::string(label) == "grand_prix_23",
+              std::string("only the Grand Prix row is grand_prix: ") + label);
+
+    auto is = [](uint32_t id, bool sprint, const char *type, const char *session) {
+        f::Session s = f::session_of(id, sprint);
+        check(s.type == type && s.session == session,
+              "session id " + std::to_string(id) + (sprint ? " (sprint weekend)" : "") + " is " + type + "/" + session +
+                  ", got " + s.type + "/" + s.session);
+    };
+    is(1, false, "practice", "practice_1");
+    is(2, false, "practice", "practice_2");
+    is(3, false, "practice", "practice_3");
+    is(4, false, "practice", "practice_short");
+    is(5, false, "qualifying", "qualifying_1");
+    is(6, false, "qualifying", "qualifying_2");
+    is(7, false, "qualifying", "qualifying_3");
+    is(9, false, "qualifying", "qualifying_s");
+    is(10, true, "qualifying", "sprint_shootout_1");
+    is(14, true, "qualifying", "sprint_shootout_s");
+    is(15, false, "race", "race");
+    is(15, true, "sprint", "sprint");
+    is(16, true, "race", "race_2");
+    is(17, false, "race", "race_3");
+    is(18, false, "time_trial", "time_trial");
+    is(0, false, "", "");
+    is(19, false, "", "");
+    check(f::sprint_weekend({1, 10, 11, 12, 15, 5, 6, 7, 16}) && !f::sprint_weekend({1, 2, 3, 5, 6, 7, 15}),
+          "a weekend with a sprint shootout is a sprint weekend");
+
+    std::vector<f::TrackRecord> tracks = {{"game/monza", 11}, {"mod.t/hockenheim", 44}, {"mod.u/monza_retro", 11}};
+    check(f::track_of(11, "monza", tracks) == "mod.u/monza_retro", "an addon track record carrying the stat id wins");
+    check(f::track_of(11, "monza", {{"game/monza", 11}}) == "game/monza", "a stock track record matches by stat id");
+    check(f::track_of(7, "silverstone", tracks) == "game/silverstone", "no record: game/<tracks row label>");
+    check(f::track_of(7, "", tracks).empty() && f::track_of(-1, "x", tracks).empty() && f::track_of(0xff, "x", tracks).empty(),
+          "no label or no stat id: no track");
+    check(f::line("time_trial", "race", "race", "game/monza") == "[apply] facts: mode time_trial, session race, track game/monza",
+          "the facts line: " + f::line("time_trial", "race", "race", "game/monza"));
+    check(f::line("", "", "", "") == "[apply] facts: mode unknown, session none, track none", "an empty facts line");
 }
 
 void test_stat_id_and_reports(const std::string &dir)
@@ -385,6 +489,7 @@ int main(int argc, char **argv)
     test_room_json();
     test_ids();
     test_scheduler();
+    test_facts();
     test_stat_id_and_reports(dir);
     std::printf("apply: %d check(s), %d failure(s)\n", checks, failures);
     return failures ? 1 : 0;
