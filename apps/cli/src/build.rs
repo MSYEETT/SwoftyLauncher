@@ -8,6 +8,7 @@ use swofty_core::baseline::DepotHashes;
 use swofty_core::build::GVDB;
 use swofty_core::busy::{self, Busy, Step};
 use swofty_core::install::{EA_APP_EXPERIMENTAL, Game, Installer, Source};
+use swofty_core::managed;
 use swofty_core::recovery::{Blocked, Scope, SessionLock};
 use swofty_core::settings::SETTINGS_FILE;
 use swofty_core::stock::{self, Depots};
@@ -15,6 +16,7 @@ use swofty_core::store::Store;
 use swofty_core::{GAME_EXE, steam};
 use swofty_formats::erp::Erp;
 use swofty_formats::gvdb::Gvdb;
+const REPAIR_TIMEOUT: Duration = Duration::from_secs(20);
 pub const UI_ERPS: &[&str] = &[
     "2025_asset_groups/ui_package/flow_frontend.erp",
     "2025_asset_groups/ui_package/persistent.erp",
@@ -171,6 +173,7 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     if swofty_core::compat::write_blocker(&g.dir).is_some() {
         bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
     }
+    repair_importer(store, profile, out);
     let done = AtomicBool::new(false);
     let copied = Copied::default();
     let progress = |n: usize, total: usize| {
@@ -199,6 +202,31 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
         busy::clear_cancel(&store.root);
     }
     r
+}
+
+/// Downloads Simplified for Swofty again when its program for this OS is gone,
+/// which an antivirus does, before the build starts it.
+fn repair_importer(store: &Store, profile: &str, out: &dyn Fn(&str)) {
+    let on = store
+        .profile(profile)
+        .is_ok_and(|p| p.enabled().any(|id| id == managed::ID));
+    let Some(version) = managed::broken(store).filter(|_| on) else {
+        return;
+    };
+    out(&format!(
+        "[repair] {} {version} is missing its program; downloading it again",
+        managed::NAME
+    ));
+    let repaired = managed::release_of(&version, REPAIR_TIMEOUT)
+        .map_err(|e| e.to_string())
+        .and_then(|r| managed::repair(store, &r).map_err(|e| e.to_string()));
+    match repaired {
+        Ok(v) => out(&format!("[repair] installed {} {v} again", managed::NAME)),
+        Err(e) => out(&format!(
+            "[repair] could not install {} again: {e}",
+            managed::NAME
+        )),
+    }
 }
 
 #[derive(Default)]
