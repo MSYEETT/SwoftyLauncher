@@ -74856,6 +74856,180 @@
    "used_by": [
     "re/tests/T123.trace.json"
    ]
+  },
+  {
+   "id": "gamedb.reserve_target",
+   "section": ".xtls",
+   "pattern": "48 89 8C 24 88 00 00 00 48 0F 47 C8 B8 08 00 00 00 49 B9 5C 8F C2 F5 28 5C 8F 02",
+   "match": "0x1445a0a05",
+   "anchor": "0xc",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a0a11",
+   "kind": "mid",
+   "expect": "B8 08 00 00 00",
+   "names": [
+    "site_Gdb_ReserveTarget"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.insert_grow_call",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? FF C5 81 FD 00 01 00 00 0F 84 ?? ?? ?? ?? 4C 8B 9F B8 00 00 00",
+   "match": "0x1445a1325",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a1325",
+   "kind": "mid",
+   "expect": "E8 96 53 00 00",
+   "names": [
+    "site_Gdb_InsertGrowCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.load_game_database",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 28 02 00 00 48 89 D7 49 89 CC",
+   "match": "0x1445a0350",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a0350",
+   "kind": "func_start",
+   "names": [
+    "Gdb_Load_GameDatabase"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.hash_map_rehash",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 48 49 89 D4 48 89 CE 48 B8 5C 8F C2 F5 28 5C 8F 02",
+   "match": "0x1445a66c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a66c0",
+   "kind": "func_start",
+   "names": [
+    "Gdb_HashMap_Rehash"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.hash_map_insert",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC D8 00 00 00 C5 F8 29 B4 24 C0 00 00 00 4C 89 CE 44 88 44 24 37",
+   "match": "0x1445a12d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445a12d0",
+   "kind": "func_start",
+   "names": [
+    "Gdb_HashMap_Insert"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.database",
+   "section": ".xtls",
+   "pattern": "49 B8 25 23 22 84 E4 9C F2 CB 48 8B 15",
+   "match": "0x1445a22f4",
+   "anchor": "0xd",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xa",
+    "len": 7
+   },
+   "target": "0x146cc4278",
+   "kind": "data",
+   "names": [
+    "g_Gdb_Database"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "gamedb.record_allocator",
+   "section": ".xtls",
+   "pattern": "4D 89 F5 4C 8B 35 ?? ?? ?? ?? 48 8B 03",
+   "match": "0x1445a6bf7",
+   "anchor": "0x6",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x3",
+    "len": 7
+   },
+   "target": "0x146cc42c8",
+   "kind": "data",
+   "names": [
+    "g_Gdb_RecordAllocator"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w7-sizing",
+     "how": "static"
+    }
+   ],
+   "used_by": []
   }
  ]
 }
