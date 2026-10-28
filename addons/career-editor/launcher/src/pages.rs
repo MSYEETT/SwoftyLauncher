@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::App;
 use crate::host::Host;
-use crate::live::{Bridge, Live};
+use crate::live::{Bridge, GameBuild, Live};
 use crate::store::{Entry, now_ms};
 use crate::ui::*;
 use crate::undo::{Undo, inverse};
@@ -203,10 +203,7 @@ fn common_notices(app: &App, live: &Live, anytime_page: bool) -> Vec<Value> {
         return n;
     }
     match live.bridge {
-        Bridge::Missing => n.push(notice(
-            "The game is running but its editor plugin hasn't written a snapshot. Check that this profile has Career Mode Editor on, then restart the game.",
-            "warn",
-        )),
+        Bridge::Missing => n.push(notice(&missing_text(live.build.as_ref()), "warn")),
         Bridge::Stale => n.push(notice(
             &format!(
                 "The game plugin stopped answering (last snapshot {}). Edits are paused.",
@@ -216,19 +213,37 @@ fn common_notices(app: &App, live: &Live, anytime_page: bool) -> Vec<Value> {
         )),
         Bridge::Live => {
             if !live.career() {
-                n.push(notice("No career loaded. Load a My Team or Driver Career save in the game.", "accent"));
+                n.push(notice(
+                    "No career loaded. Load a My Team or Driver Career save in the game.",
+                    "accent",
+                ));
             } else if anytime_page {
                 if !live.anytime() {
-                    let why = live.status()["why_anytime"].as_str().unwrap_or("the game is busy");
+                    let why = live.status()["why_anytime"]
+                        .as_str()
+                        .unwrap_or("the game is busy");
                     n.push(notice(&format!("Edits wait: {why}."), "warn"));
                 }
             } else if !live.safe() {
                 let why = live.why().unwrap_or_else(|| "the game is busy".into());
-                n.push(notice(&format!("Edits wait: {why}. Queued edits apply as soon as Team HQ is idle."), "warn"));
+                n.push(notice(
+                    &format!("Edits wait: {why}. Queued edits apply as soon as Team HQ is idle."),
+                    "warn",
+                ));
             }
         }
     }
     n
+}
+
+fn missing_text(build: Option<&GameBuild>) -> String {
+    match build {
+        Some(b) if b.unsupported => format!(
+            "This F1 25{} isn't a game version the mods were made for, so the editor's game plugin can't start. Update the game in Steam or the EA app.",
+            b.version.as_ref().map_or_else(String::new, |v| format!(" ({v})"))
+        ),
+        _ => "The game is running but its editor plugin hasn't written a snapshot. Check that this profile has Career Mode Editor on, then restart the game.".into(),
+    }
 }
 
 fn frame(app: &App, live: &Live, subtitle: String, blocks: Vec<Value>, anytime_page: bool) -> Value {
@@ -1001,6 +1016,82 @@ fn sponsors_card(live: &Live) -> Value {
     )
 }
 
+// The racing number on the driver's entrant row; a snapshot from before 0.2.6 only has the gamedb default.
+fn race_number(d: &Value) -> Option<i64> {
+    match d.get("raceNumber") {
+        Some(n) => int(n),
+        None => int(&d["number"]),
+    }
+}
+
+fn number_cell(d: &Value, editable: bool) -> Value {
+    let n = race_number(d);
+    let mut c = json!({ "text": n.map_or("—".into(), |n| n.to_string()), "sort": n.unwrap_or(0) });
+    if editable {
+        c["edit"] = json!({ "number": { "value": n.unwrap_or(0), "min": 1, "max": 99, "step": 1 } });
+    }
+    c
+}
+
+fn numbers_card(live: &Live) -> Value {
+    let op = "drivers.number.set";
+    let drivers = live
+        .section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut opts = vec![json!({ "value": "", "label": "Choose a driver…" })];
+    for d in &drivers {
+        let n = race_number(d).map_or_else(|| "no number".into(), |n| format!("#{n}"));
+        let team = d["team"]["name"]
+            .as_str()
+            .map_or_else(|| "no team".into(), pretty_team);
+        let you = if d["player"] == true { " (you)" } else { "" };
+        opts.push(json!({ "value": d["driverStatId"].to_string(),
+            "label": format!("{}{you} · {team} · {n}", title_case(d["name"].as_str().unwrap_or("driver"))) }));
+    }
+    let blocks = vec![
+        json!({ "form": { "id": "race_number", "columns": 3, "apply": "Set number", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "driver", "label": "Driver", "value": "", "options": opts } },
+            { "number": { "id": "number", "label": "Race number", "value": 1, "min": 1, "max": 99, "step": 1 } },
+            { "toggle": { "id": "swap", "label": "If another driver has it, give him this driver's number", "value": false } }
+        ] } }),
+        text(
+            &form_help(live, op).unwrap_or_else(|| {
+                "The number on the car, the grid and the standings, saved with the career. Numbers are unique in the championship, so a number another driver has needs the swap. You can also click a number in the ratings table.".into()
+            }),
+            "muted",
+        ),
+    ];
+    card_full(
+        "Race numbers",
+        None,
+        vec![pill("Undo available", "good")],
+        vec![],
+        blocks,
+    )
+}
+
+fn number_op(live: &Live, id: i64, number: i64, swap: bool) -> Result<(String, Value), String> {
+    let d = live
+        .section("drivers")
+        .and_then(|d| d["drivers"].as_array())
+        .and_then(|a| a.iter().find(|d| d["driverStatId"].as_i64() == Some(id)).cloned())
+        .ok_or("that driver isn't in the snapshot any more")?;
+    if !(1..=99).contains(&number) {
+        return Err("Pick a number from 1 to 99.".into());
+    }
+    let mut args = json!({ "driverStatId": id, "number": number, "swap": swap });
+    if let Some(n) = race_number(&d) {
+        args["expect"] = json!(n);
+    }
+    let label = format!(
+        "{}: number {number}",
+        title_case(d["name"].as_str().unwrap_or("driver"))
+    );
+    Ok((label, json!({ "op": "drivers.number.set", "args": args })))
+}
+
 fn swap_card(live: &Live) -> Value {
     let op = "drivers.swap";
     let drivers = live
@@ -1041,17 +1132,24 @@ fn swap_card(live: &Live) -> Value {
         opts.push(json!({ "value": d["driverStatId"].to_string(), "label": label }));
     }
     let help = if my_team {
-        "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Your own seat is locked."
+        "Applies now, mid-season: each driver takes the other's team, car and seat through the game's own driver-move path. Contracts keep the team they were signed with. Free agents, such as drivers made with Driver Manager, aren't listed here: the experimental Free agent into a seat card below signs one. Your own seat is locked."
     } else {
-        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Your own seat is locked."
+        "Applies now, mid-season, through the game's own Driver Career signing path. Two race drivers trade seats. A free agent takes a race seat the way the game signs one: the seat's driver is released (contract ended) and becomes a free agent, and the game re-assigns the team's R&D. Each driver who takes a seat signs that seat's contract, and one without a race number gets a free one. Your own seat is locked."
     };
-    let blocks = vec![
+    let mut blocks = vec![
         json!({ "form": { "id": "swap", "columns": 2, "apply": "Swap seats", "disabled": !live.can(op), "fields": [
             { "select": { "id": "a", "label": "Driver", "value": "", "options": opts } },
             { "select": { "id": "b", "label": "Swaps seats with", "value": "", "options": opts } }
         ] } }),
         text(&form_help(live, op).unwrap_or_else(|| help.into()), "muted"),
     ];
+    if !my_team {
+        blocks.push(text(
+            "Drivers with no place in this championship's line-up (the Ratings table leaves them out) aren't listed: the game gives a driver a line-up place only when it builds a season's line-up.",
+            "muted",
+        ));
+        blocks.extend(late_free_agent_blocks(live));
+    }
     card_full(
         "Swap seats",
         None,
@@ -1061,7 +1159,131 @@ fn swap_card(live: &Live) -> Value {
     )
 }
 
+// Driver Career: Driver Manager drivers made after the career started are in the statistics table
+// (`otherDrivers`, label `dm_<id>`) but have no line-up row; drivers.freeAgent.add gives one a
+// teamless row and a contract, as the career setup makes them for a pool free agent.
+fn late_free_agent_blocks(live: &Live) -> Vec<Value> {
+    let op = "drivers.freeAgent.add";
+    let late: Vec<Value> = live
+        .section("drivers")
+        .and_then(|d| d["otherDrivers"].as_array())
+        .map(|a| {
+            a.iter()
+                .filter(|d| d["name"].as_str().is_some_and(|n| n.starts_with("dm_")))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+    if late.is_empty() || !live.has_op(op) {
+        return vec![];
+    }
+    let mut opts = vec![json!({ "value": "", "label": "Choose a Driver Manager driver…" })];
+    for d in &late {
+        let label = d["name"].as_str().unwrap_or("driver");
+        let initials = d["initials"]
+            .as_str()
+            .map_or_else(String::new, |i| format!("{i} · "));
+        let overall = int(&d["overall"]).map_or_else(String::new, |o| format!(" · overall {o}"));
+        opts.push(
+            json!({ "value": d["driverStatId"].to_string(), "label": format!("{initials}{label}{overall}") }),
+        );
+    }
+    let mut blocks = vec![
+        json!({ "form": { "id": "free_agent_add", "columns": 1, "apply": "Add to line-up as free agent", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "driver", "label": "Driver Manager driver without a line-up place", "value": "", "options": opts } }
+        ] } }),
+        text(
+            "Experimental: back up your save first. The driver joins the line-up as a free agent with his Driver Manager look, no team, no car and no race number, and gets an empty contract, as the game makes them for the free agents of a new career. He then shows in the Driver list above and can take a race seat. There is no undo apart from the save backups.",
+            "muted",
+        ),
+    ];
+    if let Some(h) = form_help(live, op) {
+        blocks.push(text(&h, "muted"));
+    }
+    blocks
+}
+
+// Driver Career: a race driver needs an active contract for the team he races for. The snapshot's
+// `contract` is null when the game keeps no contract object for him.
+fn needs_contract(d: &Value) -> bool {
+    d["player"] != true
+        && d["seat"]["hasCar"] == true
+        && !d["team"].is_null()
+        && d.get("contract").is_some()
+        && !(d["contract"]["active"] == true && d["contract"]["teamStatId"] == d["team"]["teamStatId"])
+}
+
+fn dc_contracts_card(live: &Live) -> Option<Value> {
+    let drivers = live.section("drivers")?["drivers"].as_array()?;
+    if !drivers.iter().any(|d| d.get("contract").is_some()) {
+        return None;
+    }
+    let op = "drivers.contracts.repair";
+    let missing: Vec<&Value> = drivers.iter().filter(|d| needs_contract(d)).collect();
+    if missing.is_empty() {
+        return Some(card(
+            "Contracts",
+            vec![text(
+                "Every race driver has a contract with the team he races for.",
+                "muted",
+            )],
+        ));
+    }
+    let rows: Vec<Value> = missing
+        .iter()
+        .map(|d| {
+            let c = &d["contract"];
+            let state = if c.is_null() {
+                "No contract kept".to_owned()
+            } else if c["active"] != true {
+                "Contract ended".to_owned()
+            } else {
+                format!(
+                    "Contract with {}",
+                    team_label(live, int(&c["teamStatId"]).unwrap_or(-1))
+                )
+            };
+            json!({ "cells": [
+                title_case(d["name"].as_str().unwrap_or("driver")),
+                d["team"]["name"].as_str().map_or_else(|| "—".into(), pretty_team),
+                { "text": state, "pill": true, "tone": "bad" }
+            ] })
+        })
+        .collect();
+    let blocks = vec![
+        json!({ "table": { "id": "dc_contracts", "columns": ["Driver", "Races for", "Contract"], "rows": rows, "compact": true } }),
+        text(
+            &form_help(live, op).unwrap_or_else(|| {
+                "These drivers race without a contract for their team, so the game's contract screens leave their seat out. Each signs the contract of a teammate's seat, through the game's own contract step.".into()
+            }),
+            "muted",
+        ),
+    ];
+    Some(card_full(
+        "Contracts",
+        Some("Race drivers without a contract for their team"),
+        vec![pill("Backup-only undo", "warn")],
+        if live.can(op) {
+            vec![button(
+                "repair_contracts",
+                "Sign their seat contracts",
+                "",
+                "primary",
+            )]
+        } else {
+            vec![]
+        },
+        blocks,
+    ))
+}
+
 fn contracts_card(live: &Live) -> Value {
+    if live.career()
+        && !live.my_team()
+        && let Some(c) = dc_contracts_card(live)
+    {
+        return c;
+    }
     let Some(c) = live
         .section("drivers")
         .map(|d| &d["contracts"])
@@ -1158,6 +1380,54 @@ fn moves_card(live: &Live) -> Value {
         json!({ "table": { "id": "moves", "columns": [ { "key": "when", "title": "When", "width": 100, "sort": true }, "Driver", "From", "To", "Why" ], "rows": rows, "compact": true } })
     };
     card("Driver moves", vec![body])
+}
+
+// My Team only: the experimental free agent signing (drivers.swap with experimentalFreeAgent).
+fn free_agent_card(live: &Live) -> Option<Value> {
+    if !live.my_team() {
+        return None;
+    }
+    let op = "drivers.swap";
+    let drivers = live.section("drivers")?["drivers"].as_array()?.clone();
+    let label = |d: &Value, role: &str| {
+        let team = d["team"]["name"]
+            .as_str()
+            .map_or_else(|| "no team".into(), pretty_team);
+        format!(
+            "{} · {team}{role}",
+            title_case(d["name"].as_str().unwrap_or("driver"))
+        )
+    };
+    let mut free = vec![json!({ "value": "", "label": "Choose a free agent…" })];
+    let mut seats = vec![json!({ "value": "", "label": "Choose a race seat…" })];
+    for d in drivers
+        .iter()
+        .filter(|d| !d["seat"].is_null() && d["player"] != true)
+    {
+        let id = d["driverStatId"].to_string();
+        if d["team"].is_null() {
+            free.push(json!({ "value": id, "label": label(d, "") }));
+        } else if d["seat"]["hasCar"] == true {
+            seats.push(json!({ "value": id, "label": label(d, " · race seat") }));
+        }
+    }
+    let blocks = vec![
+        json!({ "form": { "id": "free_agent", "columns": 2, "apply": "Sign into the seat", "disabled": !live.can(op), "fields": [
+            { "select": { "id": "free", "label": "Free agent", "value": "", "options": free } },
+            { "select": { "id": "seat", "label": "Takes the seat of", "value": "", "options": seats } }
+        ] } }),
+        text(
+            "Experimental, not tested in game yet: back up your save first. The free agent takes the seat now, and the seat's driver becomes a free agent. The free agent also takes over that driver's contract records with the team (next season's move, the decided contract and this season's signing), so the season change keeps him in the seat. Undo puts both back.",
+            "muted",
+        ),
+    ];
+    Some(card_full(
+        "Free agent into a seat",
+        Some("My Team"),
+        vec![pill("Experimental", "warn"), pill("Undo available", "good")],
+        vec![],
+        blocks,
+    ))
 }
 
 fn points_card(live: &Live, names: &[(i64, String, String, bool)]) -> Value {
@@ -1441,6 +1711,49 @@ fn move_card(app: &App, live: &Live, cal: &Value) -> Value {
     )
 }
 
+fn count_note(stops: Option<i64>, rounds: usize) -> String {
+    match stops {
+        Some(n) if n == rounds as i64 => format!(
+            "The game keeps {n} race weekends in this season, so it keeps {n} rounds. To change the calendar, replace or move a round."
+        ),
+        Some(n) => format!(
+            "The game keeps {n} race weekends in this season but the calendar has {rounds} rounds. Repair the round count before you race on."
+        ),
+        None => "Rounds can't be added or removed until the game's race dates for this season are readable. Replace or move a round instead.".into(),
+    }
+}
+
+fn calendar_count_card(live: &Live, cal: &Value) -> Option<Value> {
+    let rounds = cal["rounds"].as_array().map_or(0, Vec::len);
+    let stops = int(&cal["race_weekends"])?;
+    if stops == rounds as i64 {
+        return None;
+    }
+    let op = "season.calendar.repair";
+    let what = if stops > rounds as i64 {
+        format!(
+            "This season has {rounds} rounds, but the game still has {stops} race weekends on its calendar. After round {rounds} the game would go to a race weekend that no longer exists and crash. Repairing adds {} round(s) at the end, using tracks from this career's other seasons. Replace them afterwards if you want other tracks.",
+            stops - rounds as i64
+        )
+    } else {
+        format!(
+            "This season has {rounds} rounds, but the game only has {stops} race weekends on its calendar, so the season can't finish. Repairing removes the last {} round(s) that haven't started.",
+            rounds as i64 - stops
+        )
+    };
+    Some(card_full(
+        "Round count",
+        Some("The calendar doesn't match the game's race weekends"),
+        vec![pill("Backup-only undo", "warn")],
+        if live.can(op) {
+            vec![button("repair_calendar", "Repair the round count", "", "primary")]
+        } else {
+            vec![]
+        },
+        vec![text(&what, "warn")],
+    ))
+}
+
 fn calendar_ops_card(app: &App, live: &Live, cal: &Value) -> Value {
     let rounds = cal["rounds"].as_array().cloned().unwrap_or_default();
     let in_season = season_weekends(cal);
@@ -1501,14 +1814,19 @@ fn calendar_ops_card(app: &App, live: &Live, cal: &Value) -> Value {
     let first = int(&cal["editable_from"]).unwrap_or(1);
     let last = rounds.len() as i64 + 1;
     let can_edit = !editable.is_empty();
+    let stops = int(&cal["race_weekends"]);
+    let (can_add, can_remove) = match stops {
+        Some(n) => (n > rounds.len() as i64, n < rounds.len() as i64),
+        None => (false, false),
+    };
     let mut blocks = vec![
-        json!({ "form": { "id": "cal_add", "columns": 2, "apply": "Add round", "disabled": !any || !live.can("season.calendar.add_round"), "fields": [
+        json!({ "form": { "id": "cal_add", "columns": 2, "apply": "Add round", "disabled": !can_add || !any || !live.can("season.calendar.add_round"), "fields": [
             { "select": { "id": "weekend", "label": "Add a round: track", "value": "", "options": spare_opts } },
             { "number": { "id": "at", "label": "As round", "value": last, "min": first, "max": last, "step": 1, "help": format!("{first} to {last}; later rounds move back one") } } ] } }),
         json!({ "form": { "id": "cal_set", "columns": 2, "apply": "Replace track", "disabled": !(can_edit && any && live.can("season.calendar.set_round")), "fields": [
             { "select": { "id": "round", "label": "Replace the track of", "value": "", "options": round_opts } },
             { "select": { "id": "weekend", "label": "With", "value": "", "options": spare_opts } } ] } }),
-        json!({ "form": { "id": "cal_remove", "columns": 2, "apply": "Remove round", "disabled": !(can_edit && live.can("season.calendar.remove_round")), "fields": [
+        json!({ "form": { "id": "cal_remove", "columns": 2, "apply": "Remove round", "disabled": !(can_remove && can_edit && live.can("season.calendar.remove_round")), "fields": [
             { "select": { "id": "round", "label": "Remove", "value": "", "options": round_opts } } ] } }),
     ];
     if let Some(m) = modded_line {
@@ -1518,6 +1836,7 @@ fn calendar_ops_card(app: &App, live: &Live, cal: &Value) -> Value {
         "Only rounds after this weekend that haven't started can change. A track already on this calendar isn't offered again. Sprint format can't be changed live.",
         "muted",
     ));
+    blocks.push(text(&count_note(stops, rounds.len()), "muted"));
     for n in notes {
         blocks.push(text(&n, "muted"));
     }
@@ -1581,6 +1900,7 @@ fn drivers(app: &App, live: &Live) -> Value {
 
     let op = "drivers.ratings.set";
     let editable = live.can(op);
+    let numbers = live.can("drivers.number.set");
     let mode = app.store.pref_str("rating_mode", "flat");
     let mut columns = vec![
         json!({ "key": "driver", "title": "Driver", "sort": true }),
@@ -1602,7 +1922,7 @@ fn drivers(app: &App, live: &Live) -> Value {
                 json!({ "text": if me { format!("{name} (you)") } else { name } }),
                 json!({ "text": x["team"]["name"].as_str().map_or_else(|| "—".into(), pretty_team),
                         "tone": if x["seat"]["hasCar"] == true { "neutral" } else { "muted" } }),
-                json!({ "text": opt(&x["number"]).unwrap_or_default(), "sort": int(&x["number"]).unwrap_or(0) }),
+                number_cell(x, numbers),
                 json!({ "text": ov.to_string(), "bar": ov as f64 / 100.0, "tone": if ov >= 90 { "good" } else if ov >= 80 { "accent" } else { "neutral" }, "sort": ov }),
             ];
             for s in &stat_names {
@@ -1646,8 +1966,12 @@ fn drivers(app: &App, live: &Live) -> Value {
         vec![],
         rb,
     ));
+    blocks.push(numbers_card(live));
     blocks.push(grid(json!([1, 1]), vec![swap_card(live), moves_card(live)]));
     blocks.push(contracts_card(live));
+    if let Some(c) = free_agent_card(live) {
+        blocks.push(c);
+    }
     frame(app, live, season_line(live), blocks, false)
 }
 
@@ -2058,6 +2382,9 @@ fn season(app: &App, live: &Live) -> Value {
         if crate::calendar::index_named(&rounds) && rounds.iter().all(|r| r["track_stat_id"].is_null()) {
             b.push(text("This career names its rounds by number, so the track of each round shows once the Career Editor addon is updated.", "warn"));
         }
+        if let Some(c) = calendar_count_card(live, cal) {
+            blocks.push(c);
+        }
         blocks.push(card("Calendar", b));
         blocks.push(move_card(app, live, cal));
         blocks.push(calendar_ops_card(app, live, cal));
@@ -2173,7 +2500,7 @@ fn weather(app: &App, live: &Live) -> Value {
     let defaults = [
         (15, "light_rain", 50),
         (25, "heavy_rain", 85),
-        (40, "overcast", 30),
+        (40, "overcast", 0),
     ];
     let kinds = [
         json!({ "value": "off", "label": "Not used" }),
@@ -2189,7 +2516,7 @@ fn weather(app: &App, live: &Live) -> Value {
     }
     for (i, (_, _, intensity)) in defaults.iter().enumerate() {
         let n = i + 1;
-        fields.push(json!({ "slider": { "id": format!("p{n}_int"), "label": format!("Change {n} intensity"), "value": intensity, "min": 0, "max": 100, "step": 5, "unit": "%" } }));
+        fields.push(json!({ "slider": { "id": format!("p{n}_int"), "label": format!("Change {n} intensity"), "value": intensity, "min": 0, "max": 100, "step": 5, "unit": "%", "help": "0% leaves it to the game" } }));
     }
     fields.push(
         json!({ "toggle": { "id": "replace", "label": "Replace the weekend's whole plan", "value": false } }),
@@ -2206,7 +2533,7 @@ fn weather(app: &App, live: &Live) -> Value {
         buttons.push(confirm(
             button("weather_clear", "Clear plan", "eraser", "outline"),
             "Clear the weekend's weather plan?",
-            "Unlocked sessions go back to the game's own forecast at the next rebuild.",
+            "Every session goes back to the game's own forecast at the next forecast build. A session that has started keeps its weather until it's loaded again.",
         ));
     }
     blocks.push(card_full(
@@ -2362,9 +2689,12 @@ fn op_label(op: &str) -> String {
         "weather.seed.lock" => "Pin weather seed".into(),
         "weather.seed.reroll" => "Reroll weather seed".into(),
         "weather.seed.unlock" => "Unpin weather seed".into(),
+        "drivers.number.set" => "Race number".into(),
         "bridge.ping" => "Ping".into(),
         "drivers.swap" => "Swap seats".into(),
         "drivers.contract.set" => "Contract".into(),
+        "drivers.contracts.repair" => "Sign seat contracts".into(),
+        "drivers.freeAgent.add" => "Add free agent".into(),
         "economy.renown.set" => "Set renown".into(),
         "economy.renown.add" => "Add renown".into(),
         "economy.sponsor.loyalty.add" => "Sponsor loyalty".into(),
@@ -2375,6 +2705,7 @@ fn op_label(op: &str) -> String {
         "season.calendar.set_round" => "Replace a round".into(),
         "season.calendar.add_round" => "Add a round".into(),
         "season.calendar.remove_round" => "Remove a round".into(),
+        "season.calendar.repair" => "Repair the round count".into(),
         "season.calendar.toggle_sprint" => "Sprint format".into(),
         "batch" => "Batch".into(),
         other => other.to_owned(),
@@ -2741,6 +3072,26 @@ fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) 
             None,
         );
     }
+    if id == "repair_contracts" {
+        return send(
+            app,
+            host,
+            live,
+            "Sign seat contracts",
+            vec![json!({ "op": "drivers.contracts.repair", "args": {} })],
+            None,
+        );
+    }
+    if id == "repair_calendar" {
+        return send(
+            app,
+            host,
+            live,
+            "Repair the round count",
+            vec![json!({ "op": "season.calendar.repair", "args": {} })],
+            None,
+        );
+    }
     if id == "points_clear" {
         return send(
             app,
@@ -2830,7 +3181,7 @@ fn click(app: &mut App, host: &mut Host, live: &Live, _section: &str, id: &str) 
             None,
         ),
         "weather_clear" => {
-            let mut args = json!({});
+            let mut args = json!({ "started": true });
             if let Some(w) = live
                 .section("weather")
                 .and_then(|w| w["default_weekend"].as_i64())
@@ -2975,6 +3326,22 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
             let m = v["mode"].as_str().unwrap_or("flat").to_owned();
             app.store.set_pref("rating_mode", json!(m));
             Ok(json!("reload"))
+        }
+        "ratings" if ch.iter().any(|c| c == "num") => {
+            let row = ev["submit"]["row"].as_str().ok_or("no row")?;
+            let id: i64 = row.parse().map_err(|_| "bad driver id")?;
+            let number = int(&v["num"]).ok_or("the number must be a whole number")?;
+            let (label, o) = number_op(live, id, number, false)?;
+            send(app, host, live, &label, vec![o], None)
+        }
+        "race_number" => {
+            let id: i64 = v["driver"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a driver.")?;
+            let number = int(&v["number"]).ok_or("Enter a number from 1 to 99.")?;
+            let (label, o) = number_op(live, id, number, v["swap"] == true)?;
+            send(app, host, live, &label, vec![o], None)
         }
         "ratings" => {
             let row = ev["submit"]["row"].as_str().ok_or("no row")?;
@@ -3132,25 +3499,7 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
             let laps = int(&v["laps"]).unwrap_or(0);
             let mut timeline = Vec::new();
             for n in 1..=3 {
-                let kind = v[format!("p{n}_kind")].as_str().unwrap_or("off");
-                if kind == "off" {
-                    continue;
-                }
-                let at = v[format!("p{n}_at")].as_f64().unwrap_or(0.0);
-                let state = v[format!("p{n}_state")].as_str().unwrap_or("clear");
-                let intensity = v[format!("p{n}_int")].as_f64().unwrap_or(50.0) / 100.0;
-                let mut p = json!({ "state": state, "intensity": intensity });
-                match kind {
-                    "lap" => {
-                        if laps <= 0 {
-                            return Err("Set the race laps to plan by lap.".into());
-                        }
-                        p["at_lap"] = json!(at.max(1.0) as i64);
-                    }
-                    "minute" => p["at_minute"] = json!(at),
-                    _ => p["at_fraction"] = json!((at / 100.0).clamp(0.0, 1.0)),
-                }
-                timeline.push(p);
+                timeline.extend(weather_point(v, n, laps)?);
             }
             if timeline.is_empty() {
                 return Err("Add at least one weather change.".into());
@@ -3281,6 +3630,58 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
                 &format!("Swap {} and {}", name(&da), name(&db)),
                 vec![json!({ "op": "drivers.swap", "args": { "a": a, "b": b,
                      "expect": { "aTeamStatId": da["team"]["teamStatId"], "bTeamStatId": db["team"]["teamStatId"] } } })],
+                None,
+            )
+        }
+        "free_agent_add" => {
+            let id: i64 = v["driver"]
+                .as_str()
+                .and_then(|x| x.parse().ok())
+                .ok_or("Choose a Driver Manager driver.")?;
+            let name = live
+                .section("drivers")
+                .and_then(|d| d["otherDrivers"].as_array())
+                .and_then(|a| a.iter().find(|d| d["driverStatId"].as_i64() == Some(id)))
+                .and_then(|d| d["name"].as_str().map(str::to_owned))
+                .ok_or("That driver isn't in the snapshot any more.")?;
+            send(
+                app,
+                host,
+                live,
+                &format!("Add {name} to the line-up as a free agent"),
+                vec![json!({ "op": "drivers.freeAgent.add", "args": { "driverStatId": id } })],
+                None,
+            )
+        }
+        "free_agent" => {
+            let id = |k: &str| v[k].as_str().and_then(|x| x.parse::<i64>().ok());
+            let (Some(free), Some(seat)) = (id("free"), id("seat")) else {
+                return Err("Choose a free agent and a race seat.".into());
+            };
+            let drivers = live
+                .section("drivers")
+                .and_then(|d| d["drivers"].as_array())
+                .cloned()
+                .unwrap_or_default();
+            let find = |id: i64| {
+                drivers
+                    .iter()
+                    .find(|d| d["driverStatId"].as_i64() == Some(id))
+                    .cloned()
+            };
+            let (Some(df), Some(ds)) = (find(free), find(seat)) else {
+                return Err("That driver isn't in the snapshot any more.".into());
+            };
+            let name = |d: &Value| title_case(d["name"].as_str().unwrap_or("driver"));
+            send(
+                app,
+                host,
+                live,
+                &format!("Sign {} into {}'s seat", name(&df), name(&ds)),
+                vec![
+                    json!({ "op": "drivers.swap", "args": { "a": seat, "b": free, "experimentalFreeAgent": true,
+                     "expect": { "aTeamStatId": ds["team"]["teamStatId"], "bTeamStatId": Value::Null } } }),
+                ],
                 None,
             )
         }
@@ -3455,6 +3856,30 @@ fn submit(app: &mut App, host: &mut Host, live: &Live, form: &str, ev: &Value) -
     }
 }
 
+fn weather_point(v: &Value, n: usize, laps: i64) -> Result<Option<Value>, String> {
+    let kind = v[format!("p{n}_kind")].as_str().unwrap_or("off");
+    if kind == "off" {
+        return Ok(None);
+    }
+    let at = v[format!("p{n}_at")].as_f64().unwrap_or(0.0);
+    let mut p = json!({ "state": v[format!("p{n}_state")].as_str().unwrap_or("clear") });
+    let intensity = v[format!("p{n}_int")].as_f64().unwrap_or(50.0);
+    if intensity > 0.0 {
+        p["intensity"] = json!(intensity / 100.0);
+    }
+    match kind {
+        "lap" => {
+            if laps <= 0 {
+                return Err("Set the race laps to plan by lap.".into());
+            }
+            p["at_lap"] = json!(at.max(1.0) as i64);
+        }
+        "minute" => p["at_minute"] = json!(at),
+        _ => p["at_fraction"] = json!((at / 100.0).clamp(0.0, 1.0)),
+    }
+    Ok(Some(p))
+}
+
 pub fn summary(app: &mut App) -> Value {
     let snap = app.store.snapshot().clone();
     let written = snap["written"].as_u64().unwrap_or(0);
@@ -3470,4 +3895,265 @@ pub fn summary(app: &mut App) -> Value {
         items.push(format!("Round {r}/{n}"));
     }
     json!({ "label": "CAREER", "items": items })
+}
+
+#[cfg(test)]
+mod weather_form_tests {
+    use super::*;
+
+    #[test]
+    fn a_weather_change_at_zero_intensity_leaves_it_to_the_game() {
+        let v = json!({ "p1_kind": "percent", "p1_at": 33, "p1_state": "light_rain", "p1_int": 0,
+                        "p2_kind": "lap", "p2_at": 20, "p2_state": "heavy_rain", "p2_int": 85, "p3_kind": "off" });
+        assert_eq!(
+            weather_point(&v, 1, 0).unwrap(),
+            Some(json!({ "state": "light_rain", "at_fraction": 0.33 }))
+        );
+        assert_eq!(
+            weather_point(&v, 2, 53).unwrap(),
+            Some(json!({ "state": "heavy_rain", "intensity": 0.85, "at_lap": 20 }))
+        );
+        assert!(weather_point(&v, 2, 0).is_err());
+        assert_eq!(weather_point(&v, 3, 53).unwrap(), None);
+    }
+}
+
+#[cfg(test)]
+mod missing_notice_tests {
+    use super::*;
+
+    #[test]
+    fn a_missing_snapshot_on_an_unsupported_build_says_so() {
+        let old = GameBuild {
+            version: Some("1.0.136.6820".into()),
+            unsupported: true,
+        };
+        assert_eq!(
+            missing_text(Some(&old)),
+            "This F1 25 (1.0.136.6820) isn't a game version the mods were made for, so the editor's game plugin can't start. Update the game in Steam or the EA app."
+        );
+        let supported = GameBuild {
+            version: Some("1.0.141.7865".into()),
+            unsupported: false,
+        };
+        for b in [Some(&supported), None] {
+            assert!(
+                missing_text(b)
+                    .starts_with("The game is running but its editor plugin hasn't written a snapshot.")
+            );
+        }
+        let unknown = GameBuild {
+            version: None,
+            unsupported: true,
+        };
+        assert!(missing_text(Some(&unknown)).starts_with("This F1 25 isn't a game version"));
+    }
+}
+
+#[cfg(test)]
+mod race_number_tests {
+    use super::*;
+
+    #[test]
+    fn a_race_number_edit_sends_the_number_the_driver_has() {
+        let snap = json!({
+            "written": now_ms(),
+            "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+            "bridge": { "ops": [{ "name": "drivers.number.set" }] },
+            "sections": { "drivers": { "drivers": [
+                { "driverStatId": 9, "name": "max_verstappen", "number": 1, "raceNumber": 3, "team": Value::Null, "seat": { "hasCar": true }, "player": false },
+                { "driverStatId": 30, "name": "d30", "number": 99, "raceNumber": Value::Null, "team": Value::Null, "seat": { "hasCar": false }, "player": false },
+                { "driverStatId": 40, "name": "d40", "number": 7, "team": Value::Null, "seat": { "hasCar": false }, "player": false }
+            ] } },
+        });
+        let live = Live::new(None, &snap, true, None, None);
+        let (label, o) = number_op(&live, 9, 33, true).unwrap();
+        assert_eq!(label, "Max Verstappen: number 33");
+        assert_eq!(
+            o,
+            json!({ "op": "drivers.number.set", "args": { "driverStatId": 9, "number": 33, "swap": true, "expect": 3 } })
+        );
+        let (_, o) = number_op(&live, 30, 12, false).unwrap();
+        assert!(o["args"].get("expect").is_none());
+        assert!(number_op(&live, 9, 0, false).is_err() && number_op(&live, 9, 100, false).is_err());
+        assert!(number_op(&live, 77, 5, false).is_err());
+        let drivers = live.section("drivers").unwrap()["drivers"]
+            .as_array()
+            .unwrap()
+            .clone();
+        assert_eq!(number_cell(&drivers[0], true)["edit"]["number"]["value"], 3);
+        assert_eq!(number_cell(&drivers[1], false), json!({ "text": "—", "sort": 0 }));
+        assert_eq!(number_cell(&drivers[2], false)["text"], "7");
+        let card = serde_json::to_string(&numbers_card(&live)).unwrap();
+        assert!(card.contains("Max Verstappen · no team · #3") && card.contains("D30 · no team · no number"));
+    }
+}
+
+#[cfg(test)]
+mod late_free_agent_tests {
+    use super::*;
+
+    fn live_with(others: Value, ops: Value) -> Live {
+        let snap = json!({
+            "written": now_ms(),
+            "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+            "bridge": { "ops": ops },
+            "sections": { "drivers": { "available": true, "drivers": [], "otherDrivers": others } }
+        });
+        Live::new(None, &snap, true, None, None)
+    }
+
+    #[test]
+    fn lists_only_driver_manager_drivers_without_a_row() {
+        let live = live_with(
+            json!([
+                { "driverStatId": 208, "name": "dm_208", "initials": "SWO", "overall": 71 },
+                { "driverStatId": 120, "name": "some_f2_driver", "overall": 60 }
+            ]),
+            json!([{ "name": "drivers.freeAgent.add" }]),
+        );
+        let text = serde_json::to_string(&late_free_agent_blocks(&live)).unwrap();
+        assert!(text.contains("SWO · dm_208 · overall 71"));
+        assert!(!text.contains("some_f2_driver"));
+        assert!(text.contains("\"id\":\"free_agent_add\""));
+    }
+
+    #[test]
+    fn hidden_without_the_op_or_without_late_drivers() {
+        let dm = json!([{ "driverStatId": 208, "name": "dm_208" }]);
+        assert!(late_free_agent_blocks(&live_with(dm, json!([]))).is_empty());
+        assert!(
+            late_free_agent_blocks(&live_with(
+                json!([{ "driverStatId": 120, "name": "some_f2_driver" }]),
+                json!([{ "name": "drivers.freeAgent.add" }])
+            ))
+            .is_empty()
+        );
+    }
+}
+
+#[cfg(test)]
+mod swap_card_tests {
+    use super::*;
+
+    #[test]
+    fn my_team_swaps_leave_free_agents_out_and_say_why() {
+        let driver = |id: u32, team: Value, car: bool| json!({ "driverStatId": id, "name": format!("d{id}"), "team": team, "seat": { "hasCar": car }, "player": false });
+        let redbull = json!({ "teamStatId": 2, "name": "redbull" });
+        let snap = |mode: &str| {
+            json!({
+                "written": now_ms(),
+                "status": { "game": "running", "career": true, "mode": mode, "safe": true },
+                "bridge": { "ops": [{ "name": "drivers.swap" }] },
+                "sections": { "drivers": { "drivers": [
+                    driver(9, redbull.clone(), true), driver(30, redbull.clone(), false), driver(208, Value::Null, false)
+                ] } },
+            })
+        };
+        let card = |mode: &str| {
+            let live = Live::new(None, &snap(mode), true, None, None);
+            serde_json::to_string(&swap_card(&live)).unwrap()
+        };
+        let my_team = card("my_team");
+        assert!(
+            my_team.contains("D9 · Red Bull Racing · race seat")
+                && my_team.contains("D30 · Red Bull Racing · reserve")
+        );
+        assert!(!my_team.contains("D208"));
+        assert!(my_team.contains(
+            "Free agents, such as drivers made with Driver Manager, aren't listed here: the experimental Free agent into a seat card below signs one."
+        ));
+        let career = card("driver_career");
+        assert!(career.contains("D208 · Free agent") && !career.contains("D30 "));
+        assert!(
+            career.contains("the game gives a driver a line-up place only when it builds a season's line-up")
+        );
+        let live = Live::new(None, &snap("my_team"), true, None, None);
+        let fa = serde_json::to_string(&free_agent_card(&live).unwrap()).unwrap();
+        assert!(
+            fa.contains("D208 · no team")
+                && fa.contains("D9 · Red Bull Racing · race seat")
+                && !fa.contains("D30")
+        );
+        assert!(free_agent_card(&Live::new(None, &snap("driver_career"), true, None, None)).is_none());
+    }
+
+    #[test]
+    fn driver_career_lists_race_drivers_without_a_seat_contract() {
+        let vcarb = json!({ "teamStatId": 482, "name": "racing_bulls" });
+        let driver = |id: u32, car: bool, contract: Value| json!({ "driverStatId": id, "name": format!("d{id}"), "team": vcarb, "seat": { "hasCar": car }, "player": false, "contract": contract });
+        let snap = |drivers: Vec<Value>| {
+            json!({
+                "written": now_ms(),
+                "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+                "bridge": { "ops": [{ "name": "drivers.contracts.repair" }] },
+                "sections": { "drivers": { "drivers": drivers } },
+            })
+        };
+        let render = |drivers: Vec<Value>| {
+            let live = Live::new(None, &snap(drivers), true, None, None);
+            serde_json::to_string(&contracts_card(&live)).unwrap()
+        };
+        let ok = json!({ "teamStatId": 482, "active": true });
+        let lost = render(vec![
+            driver(150, true, ok.clone()),
+            driver(174, true, json!({ "teamStatId": null, "active": false })),
+            driver(9, true, Value::Null),
+            driver(30, false, Value::Null),
+        ]);
+        assert!(
+            lost.contains("D174")
+                && lost.contains("Contract ended")
+                && lost.contains("D9")
+                && lost.contains("No contract kept")
+        );
+        assert!(!lost.contains("D150") && !lost.contains("D30") && lost.contains("repair_contracts"));
+        let fine = render(vec![driver(150, true, ok.clone()), driver(174, true, ok)]);
+        assert!(fine.contains("Every race driver has a contract") && !fine.contains("repair_contracts"));
+        let old = render(vec![
+            json!({ "driverStatId": 1, "team": vcarb, "seat": { "hasCar": true }, "player": false }),
+        ]);
+        assert!(old.contains("Contract edits are My Team only."));
+    }
+}
+
+#[cfg(test)]
+mod calendar_count_tests {
+    use super::*;
+
+    fn cal(rounds: usize, stops: Value) -> Value {
+        let rs: Vec<Value> = (0..rounds)
+            .map(|i| json!({ "round": i + 1, "weekend": i.to_string(), "editable": i > 0 }))
+            .collect();
+        json!({ "rounds": rs, "race_weekends": stops, "editable_from": 2 })
+    }
+
+    fn live() -> Live {
+        let snap = json!({
+            "written": now_ms(),
+            "status": { "game": "running", "career": true, "mode": "driver_career", "safe": true },
+            "bridge": { "ops": [{ "name": "season.calendar.repair" }] },
+            "sections": {},
+        });
+        Live::new(None, &snap, true, None, None)
+    }
+
+    #[test]
+    fn a_matching_round_count_needs_no_repair_and_locks_add_and_remove() {
+        assert!(calendar_count_card(&live(), &cal(24, json!(24))).is_none());
+        assert!(calendar_count_card(&live(), &cal(24, Value::Null)).is_none());
+        assert!(count_note(Some(24), 24).contains("keeps 24 rounds"));
+        assert!(count_note(None, 24).contains("can't be added or removed"));
+    }
+
+    #[test]
+    fn a_short_or_long_calendar_offers_the_repair() {
+        let short =
+            serde_json::to_string(&calendar_count_card(&live(), &cal(20, json!(24))).unwrap()).unwrap();
+        assert!(short.contains("repair_calendar") && short.contains("adds 4 round(s) at the end"));
+        let long =
+            serde_json::to_string(&calendar_count_card(&live(), &cal(25, json!(24))).unwrap()).unwrap();
+        assert!(long.contains("repair_calendar") && long.contains("removes the last 1 round(s)"));
+        assert_eq!(op_label("season.calendar.repair"), "Repair the round count");
+    }
 }

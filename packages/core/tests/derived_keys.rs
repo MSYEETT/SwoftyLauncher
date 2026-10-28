@@ -29,6 +29,7 @@ fn build_report(mut db: Gvdb, ops: &str) -> (DbReport, deps::Report) {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: None,
+        tracks: None,
     };
     let mut report = DbReport::default();
     apply_db_ops_report(&mut db, &ops, &names, &mut report).unwrap();

@@ -114,9 +114,13 @@ impl Browser {
             .unwrap_or_else(|| "Creator".to_owned())
     }
 
-    fn view_label(&self, v: &View) -> String {
+    fn view_label(&self, v: &View, searching: bool) -> String {
         match v {
-            View::Grid => "All addons".to_owned(),
+            View::Grid if self.on_landing(searching) => "Categories".to_owned(),
+            View::Grid => match self.tab {
+                None => "All addons".to_owned(),
+                tab => tab_label(tab).to_owned(),
+            },
             View::Creators => "Creators".to_owned(),
             View::Addon(id) => self.find(id).map_or_else(|| id.clone(), |a| a.name.clone()),
             View::Author(id) => self.publisher_name(id),
@@ -390,13 +394,14 @@ impl Shell {
 
     pub(super) fn back_bar(&self, p: Palette, cx: &mut Context<Self>) -> Div {
         let b = &self.browser;
+        let searching = !b.search.read(cx).value().trim().is_empty();
         let mut crumbs: Vec<(Option<usize>, String)> = b
             .trail
             .iter()
             .enumerate()
-            .map(|(i, (v, _))| (Some(i), b.view_label(v)))
+            .map(|(i, (v, _))| (Some(i), b.view_label(v, searching)))
             .collect();
-        crumbs.push((None, b.view_label(&b.view)));
+        crumbs.push((None, b.view_label(&b.view, searching)));
         let cut = crumbs.len().saturating_sub(CRUMBS_SHOWN);
         let mut parts: Vec<AnyElement> = Vec::new();
         if cut > 0 {

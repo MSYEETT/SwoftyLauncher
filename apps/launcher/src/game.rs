@@ -4,12 +4,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use swofty_core::app_control::Block;
+use swofty_core::app_control::{self, Block};
+use swofty_core::busy::Busy;
 use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
 use swofty_core::launch;
-use swofty_core::overlay_guard::OverlayOff;
+use swofty_core::multiplayer::bridge::{ARMED, armed_env};
 use swofty_core::process::{GameProcess, game_processes};
 use swofty_core::quarantine;
 use swofty_core::recovery::{self, Blocked, Notice, Scope, SessionLock};
@@ -80,10 +81,10 @@ pub struct Probe {
     pub blocked: Option<Blocked>,
     pub blocked_at: Option<f64>,
     pub launch_failed: Option<launch::Failure>,
-    pub overlay_off: Option<OverlayOff>,
+    pub busy: Option<Busy>,
 }
 
-pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>, copy: Option<&Path>) -> Probe {
+pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
     let processes = game_processes();
     let (requests, merged) = merge_requests(store, processes.is_empty(), seen);
     Probe {
@@ -98,12 +99,29 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>, copy: Op
         blocked: Blocked::read(&store.root),
         blocked_at: blocked_at(&store.root),
         launch_failed: launch::Failure::read(&store.root),
-        overlay_off: copy.and_then(OverlayOff::read),
+        busy: build_state(store),
         launch_stage: std::fs::read_to_string(store.root.join(steam_client::STAGE_FILE))
             .ok()
             .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty()),
     }
+}
+
+/// The build a Play is running. One whose process ended is rolled back
+/// here, as at launcher start.
+fn build_state(store: &Store) -> Option<Busy> {
+    Busy::read(&store.root)?;
+    let live = Busy::live(&store.root);
+    if live.is_none() {
+        match recover_stale(store) {
+            Ok(lines) => lines.iter().for_each(|l| eprintln!("swofty-launcher: {l}")),
+            Err(e) => eprintln!("swofty-launcher: could not clean up an unfinished build: {e}"),
+        }
+        if let Ok(Some(_lock)) = SessionLock::try_acquire(&store.root) {
+            Busy::clear(&store.root);
+        }
+    }
+    live
 }
 
 pub fn blocked_at(data: &Path) -> Option<f64> {
@@ -223,8 +241,14 @@ pub struct Launch {
 }
 
 impl Launch {
-    pub fn start(store: &Store, profile: &str, install: &Install, mode: LaunchMode) -> Result<Self, String> {
-        let cli = cli_path(store).ok_or("the swofty command was not found next to the launcher")?;
+    pub fn start(
+        store: &Store,
+        profile: &str,
+        install: &Install,
+        mode: LaunchMode,
+        netplay: bool,
+    ) -> Result<Self, String> {
+        let cli = cli_path(store).ok_or_else(|| app_control::missing(&expected_cli(store)))?;
         let at = now_secs();
         let log = store.root.join("state/launcher-run.log");
         let out = std::fs::create_dir_all(store.root.join("state"))
@@ -243,6 +267,9 @@ impl Launch {
             c.arg("--vr");
         }
         c.arg("--game").arg(&install.dir);
+        if netplay {
+            c.envs(armed_env(ARMED));
+        }
         #[cfg(windows)]
         std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000);
         let child = c
@@ -298,17 +325,43 @@ fn failure_line(log: &str) -> Option<String> {
         .map(|l| l.trim_end_matches(':').to_owned())
 }
 
-fn cli_path(store: &Store) -> Option<PathBuf> {
-    let name = if cfg!(windows) { "swofty.exe" } else { "swofty" };
-    let beside = std::env::current_exe()
+/// A failure as the play bar leads with it: a wrapper's error with its
+/// innermost cause first and what the wrapper was doing after it, and any
+/// other as it is.
+pub fn cause_first(failure: &str) -> String {
+    let Some(reason) = failure
+        .strip_prefix("the wrapper exited (")
+        .and_then(|rest| rest.split_once(") "))
+        .and_then(|(_, rest)| rest.split_once(": "))
+        .map(|(_, reason)| reason)
+    else {
+        return failure.to_owned();
+    };
+    match reason.rsplit_once(": ") {
+        Some((doing, cause)) if !cause.trim().is_empty() => format!("{cause} ({doing})"),
+        _ => reason.to_owned(),
+    }
+}
+
+const CLI: &str = if cfg!(windows) { "swofty.exe" } else { "swofty" };
+
+fn beside_launcher() -> Option<PathBuf> {
+    std::env::current_exe()
         .ok()
-        .and_then(|e| Some(e.parent()?.join(name)));
+        .and_then(|e| Some(e.parent()?.join(CLI)))
+}
+
+fn cli_path(store: &Store) -> Option<PathBuf> {
     let path = std::env::var_os("PATH").unwrap_or_default();
-    beside
+    beside_launcher()
         .into_iter()
-        .chain([store.bin_dir().join(name)])
-        .chain(std::env::split_paths(&path).map(|d| d.join(name)))
+        .chain([store.bin_dir().join(CLI)])
+        .chain(std::env::split_paths(&path).map(|d| d.join(CLI)))
         .find(|p| p.is_file())
+}
+
+fn expected_cli(store: &Store) -> PathBuf {
+    beside_launcher().unwrap_or_else(|| store.bin_dir().join(CLI))
 }
 
 pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> Result<String, StartFailure> {
@@ -369,7 +422,7 @@ mod tests {
     use swofty_core::launch;
     use swofty_core::store::Store;
 
-    use super::{failure_line, not_started};
+    use super::{cause_first, failure_line, not_started};
 
     #[test]
     fn a_cli_that_does_not_start_says_so_in_the_launch_log() {
@@ -416,5 +469,70 @@ mod tests {
         );
         assert_eq!(failure_line("[info] starting\nexit\n").as_deref(), Some("exit"));
         assert_eq!(failure_line("\n"), None);
+    }
+
+    #[test]
+    fn a_wrapper_failure_leads_with_its_innermost_cause() {
+        let blocked = "the download was blocked on this PC or network, typically by antivirus HTTPS or web \
+                       scanning, a VPN or proxy, a network filter or a Wi-Fi login page; turning that off or trying \
+                       another network fixes it";
+        let log = format!(
+            "[info] building profile default\n\
+             [wrapper] downloading offline play 0.3.11 from https://x\n\
+             swofty: the wrapper exited (exit code: 1) before the game started: downloading the offline play \
+             extension: offline play 0.3.11: {blocked}\n\
+             (could not download https://x/v0.3.11/f1op_hook.dll: io: received corrupt message of type \
+             InvalidContentType)\n"
+        );
+        let failure = failure_line(&log).unwrap();
+        assert!(
+            failure.starts_with("the wrapper exited (exit code: 1)"),
+            "{failure}"
+        );
+        assert_eq!(
+            cause_first(&failure),
+            format!("{blocked} (downloading the offline play extension: offline play 0.3.11)")
+        );
+        assert_eq!(
+            cause_first(
+                "the wrapper exited (exit status: 3) before the game started: version.dll already exists in the \
+                 game folder; run swofty restore"
+            ),
+            "version.dll already exists in the game folder; run swofty restore"
+        );
+        assert_eq!(
+            cause_first(
+                "the wrapper exited (signal: 9 (SIGKILL)) while the game was running: installing profile default: \
+                 /games/F1 25/swofty/x.erp: Permission denied (os error 13)"
+            ),
+            "Permission denied (os error 13) (installing profile default: /games/F1 25/swofty/x.erp)"
+        );
+        for kept in [
+            r"the wrapper exited (exit code: 1) before the game started without output; see C:\Swofty\state\wrapper-run.log",
+            "the wrapper did not start within 10 min; check the Steam launch option (swofty doctor)",
+            "building profile default: reading x: missing",
+            "an antivirus removed mod files, so F1 25 was not started",
+        ] {
+            assert_eq!(cause_first(kept), kept);
+        }
+    }
+
+    #[test]
+    fn an_addon_that_needs_a_newer_game_shows_the_update() {
+        let outdated = "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. \
+                        Update F1 25 in Steam or the EA app, then press Play again.";
+        let log = format!(
+            "[info] launching F1 25 directly; waiting for the wrapper, output in C:\\Swofty\\state/wrapper-run.log\n\
+             [wrapper] [info] installing profile default\n\
+             swofty: the wrapper exited (exit code: 1) before the game started: {outdated}\n\
+             (applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+             overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry [Name=vanamersfoort_26])\n"
+        );
+        let failure = failure_line(&log).unwrap();
+        assert_eq!(
+            failure,
+            format!("the wrapper exited (exit code: 1) before the game started: {outdated}")
+        );
+        assert_eq!(cause_first(&failure), outdated);
     }
 }

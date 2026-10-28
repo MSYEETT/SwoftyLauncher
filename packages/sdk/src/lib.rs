@@ -453,6 +453,8 @@ pub struct SwoftyLang {
 pub const EVENT_CAREER_CONTENT_PRESSED: &str = "career.content.pressed";
 pub const CAREER_CONTENT_MODEL_2026: u32 = 0;
 pub const CAREER_CONTENT_MODEL_2025: u32 = 1;
+pub const CAREER_CONTENT_DRIVER: u32 = 1;
+pub const CAREER_CONTENT_MY_TEAM: u32 = 2;
 pub const CAREER_CONTENT_QUEUED: u32 = 0;
 pub const CAREER_CONTENT_LIVE: u32 = 1;
 pub const CAREER_CONTENT_OFF: u32 = 2;
@@ -472,6 +474,7 @@ pub struct SwoftyCareerContentDesc {
     pub entitlement: *const c_char,
     pub car_group: i32,
     pub badge: u32,
+    pub careers: u32,
 }
 
 #[repr(C)]
@@ -714,8 +717,9 @@ mod tests {
         assert_eq!(std::mem::size_of::<SwoftyPopup>(), 16);
         assert_eq!(std::mem::size_of::<SwoftyHud>(), 32);
         assert_eq!(std::mem::offset_of!(SwoftyHud, toast), 16);
-        assert_eq!(std::mem::size_of::<SwoftyCareerContentDesc>(), 72);
+        assert_eq!(std::mem::size_of::<SwoftyCareerContentDesc>(), 80);
         assert_eq!(std::mem::offset_of!(SwoftyCareerContentDesc, car_group), 64);
+        assert_eq!(std::mem::offset_of!(SwoftyCareerContentDesc, careers), 72);
         assert_eq!(std::mem::size_of::<SwoftyCareerContentInfo>(), 352);
         assert_eq!(std::mem::offset_of!(SwoftyCareerContentInfo, id), 32);
         assert_eq!(std::mem::size_of::<SwoftyCareerContent>(), 40);

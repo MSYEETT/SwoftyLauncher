@@ -51,7 +51,9 @@ From 1.3.1, **Play** on an [EA app copy](/using/game-copies) runs in this order:
 3. It hands the EA app the launch link `origin2://game/launch?offerIds=<ids>&autoDownload=1`, with `&cmdParams=-vr` for **Play in VR**. The IDs are the `<contentID>` values in the game folder's `__Installer/installerdata.xml`. The status line reads **Starting F1 25 through the EA app…**.
 4. It waits for F1 25 to start and close, including a second copy the EA app starts, then rolls the game folder back.
 
-When F1 25 hasn't started 3 minutes after the link, the launcher opens the EA app and the status line reads **Press Play on F1 25 in the EA app**. Pressing **Play** there starts the modded session. After 10 more minutes without the game, the launch stops and the game folder rolls back.
+When F1 25 hasn't started 3 minutes after the link, the launcher opens the EA app and the status line reads **Press Play on F1 25 in the EA app**. Pressing **Play** there starts the modded session. After 10 more minutes without the game, the launch stops and the game folder rolls back. The `[ea app]` line after the link says whether offline play's file is still in place.
+
+When the EA app repairs F1 25 before it starts the game, the repair puts EA's `EAAntiCheat.GameServiceLauncher.exe` over offline play's file, and F1 25 starts without mods. Once F1 25 has started, the launcher puts offline play's file back, keeps EA's file as the backup the roll-back restores, and opens **The EA app repaired F1 25**. Close F1 25 and select **Play** in the launcher again.
 
 | | Running | Launch link handed to |
 |---|---|---|
@@ -98,6 +100,36 @@ The launcher opens **Your game files have been edited**. It says how many files 
 swofty: common.erp, ferrari.erp, force_india.erp and 49 more files are not the copy Steam installed, usually after a mod was copied into the game folder by hand; nothing in the game folder was changed; verify the game files in Steam to put them back (open steam://validate/3059520, or F1 25 > Properties > Installed Files > Verify integrity of game files), then try again
 ```
 
+## Game files missing from the game folder
+
+A game file the profile replaces that is missing from the game folder is put back from the launcher's backup of the original, and the install goes on. With no backup, F1 25 is not started and nothing in the game folder is changed. The launcher opens **Some game files are missing**, names the files, and shows the fix for the copy's version:
+
+| `F1_25.exe` version | Fix |
+| --- | --- |
+| Older than 1.0.141.7865 | Update F1 25 in Steam or the EA app |
+| 1.0.141.7865 or newer | Verify the game files in Steam, or repair them in the EA app |
+| Unknown | Update F1 25, then verify the game files |
+
+`swofty run` and `swofty apply` stop with the same fix:
+
+```text
+swofty: nico_rosberg_head_d.tif.2024.mipmaps, nico_rosberg_head_n.tif.2024.mipmaps and nico_rosberg_head_s.tif.2024.mipmaps are missing from the game folder; nothing in the game folder was changed; verify the game files in Steam (open steam://validate/3059520, or F1 25 > Properties > Installed Files > Verify integrity of game files) or repair the game in the EA app to put them back, then try again
+```
+
+## Addon files missing or damaged
+
+A build that stops on an addon file that is missing or shorter than it should be names the addon and the file:
+
+```text
+swofty: Igora Drive (mod.miami24) is missing its file track/miami24.erp. Turn Igora Drive off in this profile, or remove it on the Addons page and install or import it again.
+```
+
+A game file that is shorter than it should be is named with the fix to verify the game files in Steam or repair them in the EA app. An addon install that fails, for example on a full drive, leaves the addon as it was before the install: an addon that wasn't installed stays uninstalled, and an update keeps the previous version.
+
+## An older F1 25
+
+Before a modded session, `swofty run` and the launcher's **Play** compare `F1_25.exe`'s version with 1.0.141.7865, the latest update. On an older copy the launcher shows **F1 25 needs the latest update** and the session goes on; `swofty run` prints the same on a `[warning]` line. Mods may not load on an older copy.
+
 ## Linux: the Steam wrapper
 
 Set Steam's launch option to `swofty run -- %command%` so its Play button starts Swofty Launcher for F1 25. The launcher uses your configured Proton version and records session logs.
@@ -111,6 +143,10 @@ Without the wrapper in the launch option, the launcher's **Play** and `swofty ru
 Select **Play** in the launcher or run `swofty run`. If Steam is closed, it [starts first](#steam). To follow the logs in the launcher, select the arrow next to **Play** and choose **Play with console**.
 
 Modded sessions don't start while `F1_25.exe` is set to **Run this program as an administrator** and the launcher runs normally: Windows won't start the game unelevated (error 740), and the launch stops with a message naming the setting. To fix it, right-click `F1_25.exe` in the game folder, open **Properties > Compatibility** and untick the box, or untick it under **Change settings for all users** when it's set for all users. You can also run the launcher as administrator. `swofty doctor` shows the setting in its `run as admin` row.
+
+The launcher doesn't pass its `__COMPAT_LAYER`, the variable Windows uses to hand compatibility settings on to the programs a program starts, to F1 25, to the offline play session launcher, or to the EA app when it starts the EA app. The launch log says `environment: not passing the Windows compatibility layer __COMPAT_LAYER=<layers> to the game` when it drops one. A `__COMPAT_LAYER` under `"env"` in `"launch"` in `$DATA/config.json` is still passed. Each session's `env.txt` lists the environment the launcher starts the game with.
+
+Modded sessions also don't start while the game folder is one this process can't create files in, such as the EA app's `C:\Program Files\EA Games\F1 25`, and the launcher runs normally. The check creates and deletes a file in the game folder and in `2025_asset_groups/ui_package`, the first folder an install writes in. A file that Windows puts in `%LOCALAPPDATA%\VirtualStore` instead counts as one it can't create. The launch stops before the build with a message naming the folder; the launcher offers **Restart as administrator**. See [A game folder only administrators can change](/using/game-copies#a-game-folder-only-administrators-can-change).
 
 ## VR
 

@@ -273,8 +273,14 @@ void ready()
     lang_override_setup();
     events_setup();
     hud_setup();
+    focus_setup();
+    // postfx only observes barriers, and grade replaces some batches, so postfx subscribes first.
+    postfx_setup();
     grade_setup();
     telemetry_setup();
+    net_trace_setup();
+    netplay_setup();
+    netplay_drive_setup();
     perf::start();
 }
 

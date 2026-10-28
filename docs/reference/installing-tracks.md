@@ -7,7 +7,7 @@ description: What activating a community track changes in the archives, the game
 
 If you're contributing track support, here's what happens when a track is activated. For playing with tracks, see [Mods and tracks](/using/mods#tracks).
 
-Tracks live as [mods](/reference/mods/tracks) in the Team Simplified library. Its build hook works through enabled track packages in profile order, emitting a `track.add` [operation](/reference/data/operations) for each, with the source `library/<id>/track` in Team Simplified's `addon-data` folder. A data addon can list `track.add` in an `assets` file too ([A track with its own name](/reference/data/track-names)). Both `swofty build` and `swofty apply` activate every `track.add` before the other database ops. You'll find the code in `packages/core/src/activation/`.
+Tracks live as [mods](/reference/mods/tracks) in the Team Simplified library. Its build hook works through enabled track packages in profile order, emitting a `track.add` [operation](/reference/data/operations) for each, with the source `library/<id>/track` in Team Simplified's `addon-data` folder. A data addon can list `track.add` in an `assets` file too ([A track with its own name](/reference/data/track-names)). Both `swofty build` and `swofty apply` activate every `track.add` before the other database ops, and those ops can't remove the records activation adds; see [Removing stock records](/reference/ops/database#removing-stock-records). You'll find the code in `packages/core/src/activation/`.
 
 ## The track archive
 
@@ -29,6 +29,7 @@ The build also fills gaps in the archive:
 
 - For each variant world the package lacks (`classic`, `f2_previous`, ...), it copies the nearest world the package has as a stand-in.
 - It points texture mip paths at `environment_package/tracks/<code>/mipmaps/<file>` and adds the files from the package's `mipmaps/` there.
+- It gives every route of the AI racing line (`<code>_ai_track.aispline`) a change of passing space. F1 25 sorts each gate of a route into space on the left, on the right or on both sides from its white lines and the stock `ai_track_config.space_lines` settings, and crashes when an AI car drives a route without a single change, such as a pit lane drawn at one width. On such a route the build moves one white line at a gate no other route uses.
 - It makes room for the F1 2026 grid if the built database's `f1_2026` grid list holds more cars than the `f1_26_myteam` world (with the common world) has grid slots, garages or pit boxes. The layer holding the last grid slot gets copies of the last slot, garage, in-garage spot and pit box. Each copy goes one row or bay beyond the two before it. Without two slots, garages or boxes to work out the spacing from, the build warns you that a Grand Prix there with that many cars crashes.
 
 ## The database
@@ -44,6 +45,8 @@ The build also fills gaps in the archive:
 
 Each clone copies all source-row keys listed in `track_tables.json`, plus any keys named by your manifest's overrides. The table's `_<row>_instancecount_` grows by one.
 
+A database mod built from a whole game database sets the records it holds to its own copy's values. Where that is the game's own value of a record a track changes, the track's value stays, and a track list the mod rewrites keeps the tracks added to it.
+
 Some sub-table names in `F1_25.exe` exist only as strings built on the stack. To collect every name the game-DB readers use, including those stack-built names, use `tools/track_keys.py`.
 
 ## Menus
@@ -55,6 +58,8 @@ Some sub-table names in `F1_25.exe` exist only as strings built on the stack. To
 ## ERS
 
 You won't find your manifest's `ers` values in the database. They go into per-track `TrackSettings` entries in the car handling files: every 2026 handling file gets an entry for your code, cloned from the base track's and given your manifest's values. Without an entry, the track still loads, but the cars use their default ERS settings.
+
+An addon that changes a 2026 handling file gets the same entry in its copy, and so does every handling file with `TrackSettings` in a car archive an addon puts whole, such as a Classic Seasons season's cars. The manifest's `OverrideDetectionLapProgress` and `OverrideActivationLapProgress` set where overtake mode is detected and where it can be used, as fractions of the lap.
 
 ## Checking a build
 

@@ -98,7 +98,7 @@ The importer compares each file with the clean files of the installed game build
 
 - Text counts like any other change: every changed string and every key the stock files don't have becomes a `lang.set`, and new keys are added to the game's text. A language the package lacks takes the changes of its `language_eng.lng`, or of its first language file by name.
 - Removals apply only when `game_version` matches the installed game. Otherwise they're dropped, and the mod's row says how many and which version the package was made for.
-- The launcher skips every database removal of a stock record, whatever the game version, and warns with the count per mod. See [Removing stock records](/reference/ops/database#removing-stock-records).
+- The launcher skips every database removal of a stock record, whatever the game version, and of a record a track adds, and warns with the count per mod. See [Removing stock records](/reference/ops/database#removing-stock-records).
 - A database change touches only the records the package changed, and archives merge one resource at a time.
 - Every resource a mod adds or changes goes into an overlay of the `2025_asset_groups/` archive it belongs to. A changed resource may change size there.
 - Resources a mod carries in a `shader_package_2025/` archive stay in that archive. The launcher merges them into the game's copy and writes it into the game files, and each GPU build of the archive gets its own copy.

@@ -3,9 +3,10 @@ mod db;
 mod doctor;
 mod ea;
 mod offline;
-mod overlay;
+mod postfx;
 mod recover;
 mod run;
+mod saves;
 mod send_logs;
 mod setup;
 mod time;
@@ -102,11 +103,6 @@ enum Command {
         about = "The one-time setup before modded play: put the game folder back, verify it, then play"
     )]
     Setup(setup::SetupCommand),
-    #[command(
-        subcommand,
-        about = "The in-game overlay: whether the core turned it off after the GPU stopped responding, and turning it back on"
-    )]
-    Overlay(overlay::OverlayCommand),
     #[command(subcommand, about = "Show and change addon settings in the profile")]
     Settings(SettingsCommand),
     #[command(subcommand, about = "List and delete profiles")]
@@ -145,6 +141,16 @@ enum Command {
         )]
         start: bool,
     },
+    #[command(
+        subcommand,
+        about = "Post-process passes: compile an addon's shaders to check them"
+    )]
+    Postfx(postfx::PostfxCommand),
+    #[command(
+        subcommand,
+        about = "List the profile save backups taken before sessions without an addon that affects saves, and restore one"
+    )]
+    Saves(saves::SavesCommand),
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -248,10 +254,20 @@ fn main() -> ExitCode {
     match run_cli(&store, args) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("swofty: {e:#}");
+            eprintln!("swofty: {}", causes(&e));
             ExitCode::FAILURE
         }
     }
+}
+
+fn causes(e: &anyhow::Error) -> String {
+    let mut out = e.to_string();
+    for c in e.chain().skip(1).map(|c| c.to_string()) {
+        if !out.contains(&c) {
+            out = format!("{out}: {c}");
+        }
+    }
+    out
 }
 
 fn migrate(store: &Store) {
@@ -448,7 +464,6 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Addons(cmd) => addons(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Offline(cmd) => offline::command(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Setup(cmd) => setup::command(&store, cmd).map(|_| ExitCode::SUCCESS),
-        Command::Overlay(cmd) => overlay::command(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Settings(cmd) => settings(&store, &profile, cmd).map(|_| ExitCode::SUCCESS),
         Command::Profile(cmd) => profiles(&store, cmd).map(|_| ExitCode::SUCCESS),
         Command::Db { game, cmd } => db::command(&store, &profile, game, cmd),
@@ -459,7 +474,9 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Logs { dir, exe, .. } => run::logs(&store, dir, exe),
         Command::Doctor => doctor::doctor(&store),
         Command::Game(cmd) => game(&store, cmd).map(|_| ExitCode::SUCCESS),
+        Command::Saves(cmd) => saves::command(&store, cmd),
         Command::Steam { start } => run::steam_check(&store, start),
+        Command::Postfx(cmd) => postfx::command(cmd),
         Command::Update { check } => update::update(check),
     }
 }
@@ -536,6 +553,13 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                 };
                 println!("{id:32} {:10} {state:9} {}", m.version.to_string(), m.name);
             }
+            for u in store.unreadable_addons() {
+                let version = u.version.as_deref().unwrap_or("?");
+                println!(
+                    "{:32} {version:10} {:9} {}: it {}",
+                    u.id, "unusable", u.name, u.reason
+                );
+            }
         }
         AddonsCommand::Install { path } => {
             for result in store.install_addons(&path) {
@@ -545,6 +569,17 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                     println!("warning: {line}");
                 }
             }
+        }
+        AddonsCommand::Enable { id } if let Some(u) = unreadable(store, &id) => {
+            bail!("{}", u.line())
+        }
+        AddonsCommand::Disable { id, .. } if unreadable(store, &id).is_some() => {
+            store.update_profile(profile, |p| p.set_enabled(&id, false))?;
+            println!("disabled {id} in profile {profile}");
+        }
+        AddonsCommand::Remove { id, .. } if unreadable(store, &id).is_some() => {
+            store.remove_addon(&id)?;
+            println!("removed {id}");
         }
         AddonsCommand::Enable { id }
         | AddonsCommand::Disable { id, .. }
@@ -570,6 +605,10 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn unreadable(store: &Store, id: &str) -> Option<swofty_core::store::Unreadable> {
+    store.unreadable_addons().into_iter().find(|u| u.id == id)
 }
 
 fn confirm_saves(w: &SavesWarning, verb: &str, yes: bool) -> Result<()> {
@@ -767,6 +806,18 @@ mod tests {
     use swofty_core::manifest::AddonManifest;
 
     use super::*;
+
+    #[test]
+    fn an_error_says_its_os_message_once() {
+        let e: anyhow::Error = swofty_core::Error::Io {
+            path: "F1 25/a.erp".into(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        }
+        .into();
+        assert_eq!(causes(&e), "F1 25/a.erp: entity not found");
+        let e = anyhow::Error::from(std::io::Error::from(std::io::ErrorKind::NotFound)).context("reading x");
+        assert_eq!(causes(&e), "reading x: entity not found");
+    }
 
     struct Mods(AddonManifest);
 

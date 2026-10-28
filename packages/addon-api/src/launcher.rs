@@ -132,6 +132,13 @@ pub trait GameFiles: Send + Sync {
         None
     }
 
+    /// The folder the game keeps the addon `id`'s storage files in: its
+    /// folder in the game copy, or the launcher's data folder in a session
+    /// where the game can't create files in its own.
+    fn addon_dir(&self, id: &str) -> Option<PathBuf> {
+        self.dir().map(|d| d.join("swofty").join("addons").join(id))
+    }
+
     fn status(&self) -> GameStatus {
         GameStatus::default()
     }
@@ -144,6 +151,30 @@ pub trait GameFiles: Send + Sync {
         let _ = profile;
         Ok(None)
     }
+
+    fn profile_heads(&self, profile: &str) -> Result<Option<ProfileHeads>> {
+        let _ = profile;
+        Ok(None)
+    }
+}
+
+/// The driver heads the profile's addons put that drivers can wear: ones an
+/// addon adds a row for, and ones the build adds a row for.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProfileHeads {
+    #[serde(default)]
+    pub heads: Vec<ProfileHead>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProfileHead {
+    pub label: String,
+    #[serde(default)]
+    pub addon: Option<String>,
+    #[serde(default)]
+    pub addon_name: Option<String>,
+    #[serde(default)]
+    pub female: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

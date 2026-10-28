@@ -92,6 +92,7 @@ fn report(game: &Path) -> Report {
             build_id: Some(20_553_335),
             version: Some("1.17.0".into()),
         },
+        room: None,
     }
 }
 
@@ -1095,6 +1096,92 @@ fn finds_a_crash_report_kept_in_a_session_folder() {
 }
 
 #[test]
+fn sends_the_career_editor_snapshot_a_game_that_cant_write_its_folder_left_in_the_data_folder() {
+    let root = tmp("snapshot-kept");
+    let (store, game) = fake_data(&root);
+    std::fs::File::options()
+        .write(true)
+        .open(game.join(SNAPSHOT))
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - Duration::from_secs(3600))
+        .unwrap();
+    let kept = crate::addon_storage::addon_dir(&store.root, "swofty.career-editor").join("snapshot.json");
+    put(&kept, r#"{"status":{"career":false}}"#);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    assert_eq!(
+        entry(&bundle.zip().unwrap(), "game/career-editor/snapshot.json"),
+        r#"{"status":{"career":false}}"#
+    );
+}
+
+#[test]
+fn sends_the_loaders_fallback_log_and_says_why_it_was_used() {
+    let root = tmp("fallback");
+    let (store, game) = fake_data(&root);
+    let fallback = "2026-10-24 16:34:40.020 [ 1416] swofty loader (version.dll proxy) attached, pid 24676\r\n\
+         2026-10-24 16:34:40.020 [ 1416] log: C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be \
+         opened (error 5); this is the fallback log C:\\Users\\id\\AppData\\Local\\Swofty\\state\\loader-fallback.log\r\n\
+         2026-10-24 16:34:40.021 [ 1416] process: user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, \
+         UAC virtualization off, __COMPAT_LAYER=(unset)\r\n";
+    put(&store.root.join(LOADER_FALLBACK), fallback);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "x");
+    assert!(names(&bundle.zip().unwrap()).contains(LOADER_FALLBACK));
+    let why = "logged in the data folder: C:\\Program Files\\EA Games\\F1 25\\swofty\\loader.log could not be \
+               opened (error 5); the game runs as user id (S-1-5-21-1-2-3-1001), medium integrity, not elevated, UAC \
+               virtualization off, __COMPAT_LAYER=(unset)\n";
+    let summary = summary_of(&bundle);
+    assert!(
+        summary.contains(&format!(
+            "\nMod loader\n  state/loader-fallback.log                mod loader attached\n  {:40} {why}",
+            ""
+        )),
+        "{summary}"
+    );
+    put(&store.sessions_dir().join("20261020-090000/loader.log"), fallback);
+    let summary = summary_of(&Bundle::collect_with(
+        &store,
+        &report(&game),
+        Limits::default(),
+        "x",
+    ));
+    assert!(
+        summary.contains(&format!(
+            "\nMod loader\n  sessions/20261020-090000                 mod loader attached\n  {:40} {why}",
+            ""
+        )),
+        "the live fallback is the newest session's, so the session's line stands for it: {summary}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn names_the_game_files_windows_virtualised() {
+    let root = tmp("virtualised");
+    let copy = root.join("VirtualStore/Program Files/EA Games/F1 25");
+    assert_eq!(virtualised(&copy), None);
+    for rel in [
+        "version.dll",
+        "EAAntiCheat.GameServiceLauncher.exe",
+        "swofty/addons/core/swofty_core.dll",
+    ] {
+        put(&copy.join(rel), "x");
+    }
+    let line = virtualised(&copy).unwrap();
+    assert!(
+        line.starts_with("Windows keeps 3 file(s) written to the game folder in "),
+        "{line}"
+    );
+    assert!(
+        line.ends_with(
+            ", where F1 25 doesn't read them: EAAntiCheat.GameServiceLauncher.exe, swofty/addons/core/swofty_core.dll, \
+             version.dll"
+        ),
+        "{line}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn says_when_the_mod_loader_never_attached() {
     let root = tmp("noloader");
     let (store, game) = fake_data(&root);
@@ -1117,7 +1204,7 @@ fn says_when_the_mod_loader_never_attached() {
     assert!(
         summary.contains(
             "\nMod loader\n  sessions/20261020-090000                 mod loader never attached \
-             (version.dll not loaded; antivirus suspected)\n  sessions/20261019-090000                 \
+             (version.dll not loaded)\n  sessions/20261019-090000                 \
              mod loader attached\n"
         ),
         "{summary}"
@@ -1421,14 +1508,14 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
     );
     put(
         &store.root.join("sessions/20261019-090000/loader.log"),
-        "1 [overlay] off: swofty/overlay-gpu-removed.json records the GPU removed 4.8 s after the overlay drew\n",
+        "1 [overlay] api: kizi.pitlane on_paint -> ok (token 1)\n\
+         2 [overlay] drawing on swapchain 0000000012345678 with the DIRECT queue 00000000AAAA\n\
+         3 [overlay] first overlay frame submitted: 96 vertices\n\
+         4 [overlay] the GPU was removed (present 0x887a0005, reason 0x887a0006) 4.8 s after the overlay last drew \
+         (swapchain by F1_25.exe); the overlay stops drawing\n",
     );
-    let record = "{\n  \"schema\": 1,\n  \"when\": \"2026-10-24 02:39:47\",\n  \"present_hr\": \"0x887a0005\",\n  \
-                  \"removed_reason\": \"0x887a0006\",\n  \"after_draw_ms\": 4812,\n  \"swapchain_by\": \"F1_25.exe\"\n}\n";
-    put(&game.join("swofty/overlay-gpu-removed.json"), record);
     let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261021-091500");
     let zip = bundle.zip().unwrap();
-    assert_eq!(entry(&zip, "game/overlay-gpu-removed.json"), record);
     let summary = summary_of(&bundle);
     let overlay = summary
         .split_once("\nOverlay\n")
@@ -1440,11 +1527,6 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
         lines[0],
         "  Addons that draw over the game: Manual Pit Lane (kizi.pitlane)"
     );
-    assert_eq!(
-        lines[1],
-        "  Kept off: game/overlay-gpu-removed.json says the GPU was removed 4.8 s after the overlay drew \
-         (2026-10-24 02:39:47, present 0x887a0005, reason 0x887a0006, swapchain by F1_25.exe)"
-    );
     assert!(
         lines.contains(
             &"  sessions/20261020-090000                 drew on 2560x1440, 4 buffer(s), format 24; on_paint by kizi.pitlane"
@@ -1452,8 +1534,12 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
         "{overlay}"
     );
     assert!(
-        lines.iter().any(|l| l
-            .starts_with("  sessions/20261019-090000                 off (swofty/overlay-gpu-removed.json")),
+        lines.contains(
+            &"  sessions/20261019-090000                 drew on 0000000012345678 with the DIRECT queue 00000000AAAA; \
+              on_paint by kizi.pitlane; the GPU was \
+              removed (present 0x887a0005, reason 0x887a0006) 4.8 s after the overlay last drew (swapchain by \
+              F1_25.exe); the overlay stops drawing"
+        ),
         "{overlay}"
     );
     assert!(
@@ -1469,4 +1555,88 @@ fn names_the_overlay_addons_and_whether_the_overlay_drew() {
         .unwrap();
     assert_eq!(pitlane["experimental_features"], serde_json::json!(["overlay"]));
     std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn sends_the_room_logs_trace_and_state_without_secrets() {
+    let root = tmp("room");
+    let (store, game) = fake_data(&root);
+    crate::multiplayer::diag::secret("bundle-test", &["turn-credential-9f8e7d"]);
+    put(
+        &store.root.join(crate::multiplayer::diag::FILE),
+        "20261026-101010.000Z room ABCD opened: 1 member(s)\n20261026-101011.000Z leaked turn-credential-9f8e7d\n",
+    );
+    put(
+        &store.root.join(crate::multiplayer::diag::PREVIOUS),
+        "20261026-090000.000Z phase: in the lobby\n",
+    );
+    put(
+        &game.join(crate::multiplayer::bridge::STATUS_FILE),
+        r#"{"pid":42,"self":2,"base":41000,"game_port":21414}"#,
+    );
+    put(&game.join(NET_TRACE), "# swofty net trace\nbind s=1 port=21414\n");
+    put(
+        &store
+            .root
+            .join(crate::multiplayer::diag::PRINTS_DIR)
+            .join("ABCD-20261026-101010.json"),
+        r#"{"room":"ABCD","host":{"note":"turn-credential-9f8e7d"}}"#,
+    );
+    let mut r = report(&game);
+    r.room = Some(serde_json::json!({
+        "phase": {"phase": "in_lobby"},
+        "room": {"code": "ABCD"},
+        "session_token": "tok-should-go",
+        "last_error": "relay said turn-credential-9f8e7d",
+    }));
+    let bundle = Bundle::collect_with(&store, &r, Limits::default(), "20261026-101010");
+    crate::multiplayer::diag::secret("bundle-test", &[]);
+    let zip = bundle.zip().unwrap();
+    let got = names(&zip);
+    for want in [
+        "state/multiplayer.log",
+        "state/multiplayer.1.log",
+        "game/netplay.json",
+        "game/net-trace.log",
+        "multiplayer/session.json",
+        "state/multiplayer-prints/ABCD-20261026-101010.json",
+    ] {
+        assert!(got.contains(want), "no {want} in {got:?}");
+    }
+    assert!(entry(&zip, "state/multiplayer.log").contains("room ABCD opened"));
+    assert!(entry(&zip, "game/netplay.json").contains("\"game_port\":21414"));
+    assert!(entry(&zip, "game/net-trace.log").contains("bind s=1 port=21414"));
+    let room = entry(&zip, "multiplayer/session.json");
+    assert!(room.contains("\"code\": \"ABCD\""), "{room}");
+    for name in &got {
+        let text = entry(&zip, name);
+        assert!(!text.contains("turn-credential-9f8e7d"), "{name}: {text}");
+        assert!(!text.contains("tok-should-go"), "{name}: {text}");
+    }
+}
+
+#[test]
+fn leaves_out_room_files_that_are_not_there() {
+    let root = tmp("no-room");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261026-101010");
+    let got = names(&bundle.zip().unwrap());
+    for absent in [
+        "state/multiplayer.log",
+        "game/netplay.json",
+        "game/net-trace.log",
+        "multiplayer/session.json",
+    ] {
+        assert!(!got.contains(absent), "{absent} in {got:?}");
+    }
+}
+
+#[test]
+fn memory_names_the_page_file_when_windows_gives_the_commit_limit() {
+    let gb = 1024 * 1024 * 1024;
+    assert_eq!(
+        memory_text(16 * gb, Some(35 * gb)),
+        ", 16 GB memory, 19 GB page file (35 GB commit limit)"
+    );
+    assert_eq!(memory_text(32 * gb, None), ", 32 GB memory");
 }

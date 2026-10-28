@@ -54,10 +54,11 @@ pub(crate) fn badge(icon: IconName, size: f32, p: Palette) -> Div {
     tile(size, p).child(Icon::new(icon).size(px(size * 0.5)).text_color(p.text_muted))
 }
 
-/// The race track mark (The Noun Project, RaceTrack 7280751, licensed) for track
-/// addons without an icon of their own.
+/// The race track mark (The Noun Project, RaceTrack 7280751, licensed).
+pub(crate) const TRACK: &[u8] = include_bytes!("../assets/track.svg");
+
+/// The track mark for track addons without an icon of their own.
 pub(crate) fn track_badge(size: f32, p: Palette) -> Div {
-    const TRACK: &[u8] = include_bytes!("../assets/track.svg");
     tile(size, p).child(svg().data(TRACK).size(px(size * 0.55)).text_color(p.text_muted))
 }
 
@@ -809,7 +810,10 @@ impl Shell {
                             };
                             window.push_notification(Notification::success(text), cx);
                         }
-                        Err(e) => window.push_notification(Notification::error(e), cx),
+                        Err(e) => {
+                            crate::app_log::action("delete profile").failed(&e);
+                            window.push_notification(Notification::error(e), cx)
+                        }
                     }
                     shell.update(cx, |s, cx| s.reload(cx)).ok();
                     true
@@ -971,7 +975,7 @@ impl Shell {
         if moved {
             self.cancel_scroll();
         }
-        self.db_leaving(page, cx);
+        self.db_page_change(page, cx);
         self.page = page;
         if let Page::Section(i) = page {
             self.fetch_views(Some(i), cx);

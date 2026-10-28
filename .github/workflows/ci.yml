@@ -327,6 +327,49 @@ jobs:
         run: |
           zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I packages/sdk/include native/test/telemetry_feed_test.cpp -o telemetry_feed_test
           ./telemetry_feed_test
+      - name: Career Mode Editor race number unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/race_numbers_test.cpp addons/career-editor/native/src/race_numbers.cpp -o race_numbers_test
+          ./race_numbers_test
+      - name: Career Mode Editor weather plan unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/weather_plan_test.cpp addons/career-editor/native/src/weather_plan.cpp -o weather_plan_test
+          ./weather_plan_test
+      - name: Career Mode Editor line-up unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/lineup_test.cpp addons/career-editor/native/src/lineup.cpp -o lineup_test
+          ./lineup_test
+      - name: Career Mode Editor rating search unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/rating_solve_test.cpp addons/career-editor/native/src/rating_solve.cpp -o rating_solve_test
+          ./rating_solve_test
+      - name: Career Mode Editor calendar rules unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/calendar_rules_test.cpp addons/career-editor/native/src/calendar_rules.cpp -o calendar_rules_test
+          ./calendar_rules_test
+      - name: Any Team Transfers unit test and build
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          AT_TEST_DIR: ${{ runner.temp }}/any-team-test
+        run: |
+          addons/any-team-transfers/native/test/run.sh
+          addons/any-team-transfers/native/build.sh
 
       - name: Wine and Xvfb
         timeout-minutes: 10
@@ -355,6 +398,15 @@ jobs:
       - name: Career UI Wine test
         run: native/test/run_career_ui_test.sh
 
+      - name: Loader log fallback Wine test
+        run: native/test/run_log_fallback_test.sh
+
+      - name: Socket trace Wine test
+        run: native/test/run_net_trace_test.sh
+
+      - name: Socket hooks Wine test
+        run: native/test/run_netplay_test.sh
+
       # Saved after the Wine tests, which compile their fixtures into the same cache.
       - name: Save the Zig cache
         if: github.ref == 'refs/heads/main' && steps.zig-cache.outputs.cache-hit != 'true'
@@ -364,3 +416,13 @@ jobs:
             native/build/zig-cache
             addons/re-optimization/native/build/zig-cache
           key: ${{ steps.zig-cache.outputs.cache-primary-key }}
+
+  # Every push to main also builds the release binaries: the run keeps the release cache warm, and a tag on
+  # this commit takes its binaries from here (release.yml) instead of building again.
+  release-binaries:
+    name: Release binaries
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/release-binaries.yml
+    with:
+      ref: ${{ github.sha }}
+      retention-days: 7

@@ -150,6 +150,54 @@ fn walk(base: &Path, dir: &Path, out: &mut BTreeMap<String, String>) {
 }
 
 #[test]
+fn a_stock_file_missing_from_the_game_folder_goes_back_from_its_backup() {
+    let f = Fixture::new("missing-backed-up");
+    let game = f.game("1");
+    let inst = Installer::new(&f.data, &game);
+    inst.apply(&f.plan("b")).unwrap();
+    inst.apply(&Plan::vanilla()).unwrap();
+    std::fs::remove_dir_all(f.game.join("2025_asset_groups/ui_package")).unwrap();
+
+    inst.apply(&f.plan("b")).unwrap();
+    assert_eq!(f.read(UI), "ui-B");
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(f.read(UI), "ui-v1");
+    assert_eq!(inst.verify().unwrap(), []);
+}
+
+#[test]
+fn a_stock_file_missing_with_no_backup_stops_with_what_puts_it_back() {
+    let f = Fixture::new("missing-no-backup");
+    let game = f.game("1");
+    let inst = Installer::new(&f.data, &game);
+    inst.apply(&f.plan("b")).unwrap();
+    inst.apply(&Plan::vanilla()).unwrap();
+    std::fs::remove_dir_all(f.game.join("2025_asset_groups/ui_package")).unwrap();
+    std::fs::remove_dir_all(f.data.join("baseline/objects")).unwrap();
+    let before = f.snapshot();
+
+    let err = inst.apply(&f.plan("b")).unwrap_err();
+    assert!(
+        matches!(&err, swofty_core::Error::MissingStock { files, version: None } if files == &[UI.to_owned()]),
+        "{err}"
+    );
+    let text = err.to_string();
+    assert!(
+        text.starts_with(
+            "flow_frontend.erp is missing from the game folder; nothing in the game folder was changed"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("update F1 25 in Steam or the EA app, then verify"),
+        "{text}"
+    );
+    assert!(text.contains("steam://validate/3059520"), "{text}");
+    assert_eq!(f.snapshot(), before);
+    assert!(Journal::open(&f.data).unwrap().is_empty());
+}
+
+#[test]
 fn profile_switches_return_to_the_baseline() {
     let f = Fixture::new("switch");
     let original = f.snapshot();
@@ -193,7 +241,7 @@ fn a_kill_between_any_two_steps_rolls_back_to_the_baseline() {
 
         let open = Journal::open(&f.data).unwrap();
         assert_eq!(open.len(), 1, "k={k}");
-        if let Some(e) = open[0].entries.last().filter(|e| e.state == State::Pending) {
+        if let Some(e) = open[0].entries.get(k).filter(|e| e.state == State::Pending) {
             match e.op {
                 Op::ReplaceFile | Op::CreateFile => write(&f.game.join(&e.path), "partial"),
                 Op::CreateDir => std::fs::create_dir_all(f.game.join(&e.path)).unwrap(),
@@ -210,6 +258,74 @@ fn a_kill_between_any_two_steps_rolls_back_to_the_baseline() {
         assert_eq!(f.snapshot(), original, "k={k}");
         assert_eq!(restarted.verify().unwrap(), [], "k={k}");
     }
+}
+
+#[test]
+fn an_install_the_free_space_cannot_hold_changes_nothing() {
+    let f = Fixture::new("space");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let short = Installer {
+        free_space: |_| Some(1),
+        ..Installer::new(&f.data, &game)
+    };
+    let err = short.apply(&f.maps_plan()).unwrap_err();
+    assert!(
+        matches!(err, swofty_core::Error::NoSpace { free: 1, .. }),
+        "{err}"
+    );
+    assert!(err.to_string().starts_with("not enough free space on "), "{err}");
+    assert!(err.to_string().contains(" GB, 0.0 GB free"), "{err}");
+    assert_eq!(f.snapshot(), original);
+    assert!(Journal::open(&f.data).unwrap().is_empty());
+    assert!(
+        !f.data.join("baseline/objects").exists(),
+        "no original was backed up"
+    );
+
+    let roomy = Installer {
+        free_space: |_| Some(u64::MAX),
+        ..Installer::new(&f.data, &game)
+    };
+    roomy.apply(&f.maps_plan()).unwrap();
+    assert_eq!(f.read(UI), "ui-B");
+}
+
+#[test]
+fn an_install_of_thousands_of_files_writes_the_journal_once() {
+    let f = Fixture::new("many");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let mut plan = f.plan("a");
+    for i in 0..10_000 {
+        let src = f.src.join(format!("many/{i}"));
+        write(&src, &i.to_string());
+        plan.added
+            .insert(format!("2025_asset_groups/many/{}/{i}.erp", i % 50), src);
+    }
+    let started = std::time::Instant::now();
+    Installer::new(&f.data, &game).apply(&plan).unwrap();
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(60),
+        "{:?}",
+        started.elapsed()
+    );
+    let open = Journal::open(&f.data).unwrap();
+    assert!(open[0].committed && open[0].entries.iter().all(|e| e.state == State::Done));
+    assert_eq!(open[0].entries.len(), 7 + 10_000 + 51);
+    assert_eq!(f.read("2025_asset_groups/many/7/9957.erp"), "9957");
+
+    let mut stopped = Installer::new(&f.data, &game);
+    stopped.stop_after = Some(5_000);
+    assert!(stopped.apply(&plan).is_err());
+    assert!(
+        Journal::open(&f.data).unwrap()[0]
+            .entries
+            .iter()
+            .all(|e| e.state == State::Pending)
+    );
+    assert_eq!(Installer::new(&f.data, &game).recover().unwrap(), []);
+    assert_eq!(f.snapshot(), original);
 }
 
 #[test]
@@ -316,7 +432,7 @@ fn a_kill_while_installing_maps_rolls_back_to_the_baseline() {
         inst.stop_after = Some(k);
         assert_eq!(inst.apply(&f.maps_plan()).is_ok(), k == total, "k={k}");
         let open = Journal::open(&f.data).unwrap();
-        if let Some(e) = open[0].entries.last().filter(|e| e.state == State::Pending) {
+        if let Some(e) = open[0].entries.get(k).filter(|e| e.state == State::Pending) {
             match e.op {
                 Op::ReplaceFile | Op::CreateFile => write(&f.game.join(&e.path), "partial"),
                 Op::CreateDir => std::fs::create_dir_all(f.game.join(&e.path)).unwrap(),
@@ -328,33 +444,4 @@ fn a_kill_while_installing_maps_rolls_back_to_the_baseline() {
         assert_eq!(f.snapshot(), original, "k={k}");
         assert_eq!(restarted.verify().unwrap(), [], "k={k}");
     }
-}
-
-#[test]
-fn the_overlay_off_record_survives_rollback_tidy_and_restore() {
-    let f = Fixture::new("overlay-off");
-    let original = f.snapshot();
-    let game = f.game("1");
-    let inst = Installer::new(&f.data, &game);
-    let record = "swofty/overlay-gpu-removed.json";
-
-    inst.apply(&f.plan("a")).unwrap();
-    write(&f.game.join(record), "{\"schema\": 1}");
-    write(&f.game.join("swofty/loader.log"), "log");
-    inst.apply(&Plan::vanilla()).unwrap();
-    assert_eq!(f.read(record), "{\"schema\": 1}");
-
-    assert_eq!(inst.tidy(&f.root.join("logs")).unwrap(), 1);
-    assert_eq!(f.read(record), "{\"schema\": 1}");
-    assert!(!f.game.join("swofty/loader.log").exists());
-    assert_eq!(inst.verify().unwrap(), []);
-
-    write(&f.game.join("swofty/stray.txt"), "x");
-    assert!(inst.verify().unwrap().contains(&Drift::Addition("swofty".into())));
-    assert_eq!(inst.restore().unwrap(), []);
-    assert_eq!(f.read(record), "{\"schema\": 1}");
-    assert!(!f.game.join("swofty/stray.txt").exists());
-
-    std::fs::remove_dir_all(f.game.join("swofty")).unwrap();
-    assert_eq!(f.snapshot(), original);
 }

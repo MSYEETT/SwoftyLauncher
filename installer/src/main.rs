@@ -14,6 +14,7 @@ use std::time::Duration;
 use eframe::egui::{self, Color32, CornerRadius, Margin, RichText, Stroke};
 use swofty_core::app_control::Block;
 use swofty_core::launcher::Progress;
+use swofty_core::session::COMPAT_LAYER;
 use swofty_core::update::{self, Install};
 
 const FOLDER_NAME: &str = "SwoftyLauncher";
@@ -320,15 +321,19 @@ fn install(
     Ok(exe)
 }
 
+/// Opens the installed launcher as the signed-in user. An elevated installer
+/// hands it to the desktop's shell, so the launcher doesn't inherit the
+/// administrator rights; started directly, it gets none of the installer's
+/// compatibility layers.
 fn launch(exe: &Path) -> Result<(), String> {
-    let mut command = Command::new(exe);
-    if let Some(root) = exe.parent().and_then(Path::parent) {
-        command.current_dir(root);
+    #[cfg(windows)]
+    if let Some(root) = exe.parent().and_then(Path::parent)
+        && swofty_core::compat::elevated()
+        && win32::shell_open(exe, root).is_ok()
+    {
+        return Ok(());
     }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+    command(exe)
         .spawn()
         .map(drop)
         .map_err(|e| match Block::of(exe, &e) {
@@ -338,6 +343,19 @@ fn launch(exe: &Path) -> Result<(), String> {
                 exe.display()
             ),
         })
+}
+
+fn command(exe: &Path) -> Command {
+    let mut command = Command::new(exe);
+    if let Some(root) = exe.parent().and_then(Path::parent) {
+        command.current_dir(root);
+    }
+    command
+        .env_remove(COMPAT_LAYER)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    command
 }
 
 fn main() -> eframe::Result {
@@ -358,4 +376,24 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| Ok(Box::new(Installer::new(cc)))),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn starts_the_launcher_in_its_folder_without_the_compatibility_layers() {
+        let root = Path::new("SwoftyLauncher");
+        let c = command(&root.join("bin").join(update::exe("swofty-launcher")));
+        assert_eq!(c.get_current_dir(), Some(root));
+        assert!(c.get_envs().any(|(k, v)| k == COMPAT_LAYER && v.is_none()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn asks_windows_to_run_it_with_the_rights_it_was_started_with() {
+        let manifest = win32::manifest().expect("an embedded application manifest");
+        assert!(manifest.contains(r#"level="asInvoker""#), "{manifest}");
+    }
 }

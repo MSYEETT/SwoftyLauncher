@@ -97,7 +97,12 @@ The core draws the overlay only where it knows the drawing is ordered with the g
 | A swapchain that a frame generation module (DLSS Frame Generation, FSR or XeSS frame generation) created or presents | Doesn't draw on it |
 | A swapchain created through Streamline's frame generation hook (`sl.dlss_g.dll`, every NVIDIA Streamline build of F1 25) | Draws while the game's `hardware_settings_config.xml` has `frame_gen mode="0"`; stops for the session once it reads anything else |
 | The GPU still holds the previous frames' overlay work | Skips drawing that frame |
-| The GPU was removed within 10 s of an overlay draw | Stops, and writes `swofty/overlay-gpu-removed.json` |
-| `swofty/overlay-gpu-removed.json` exists at launch | Off for the session: `available()` is `false` and `on_paint` returns `unavailable` |
+| The GPU was removed | Stops for the rest of the session; an `[overlay]` line says how long after the overlay last drew |
 
-Deleting `swofty/overlay-gpu-removed.json` turns the overlay back on at the next launch. The launcher shows a notice while the file exists, with **Turn the overlay back on**, which deletes it; `swofty overlay reset` does the same. Rollback and Restore game folder keep the file. Colours are not converted for HDR output.
+Colours are `0xRRGGBBAA` in sRGB. On HDR output the core converts them, so overlay white matches the game's own HUD white (350 nits by default, `SWOFTY_OVERLAY_NITS` to change it):
+
+| Back buffer | Output |
+|---|---|
+| R10G10B10A2 with the HDR10 colour space (`SetColorSpace1`), or with no colour space set while the game's `hardware_settings_config.xml` has `hdr mode` above 0 | BT.2020 PQ |
+| R16G16B16A16_FLOAT | Linear scRGB |
+| Anything else | sRGB as given |

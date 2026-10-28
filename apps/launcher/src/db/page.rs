@@ -47,6 +47,7 @@ pub(crate) fn notice(
 fn hit_group(kind: HitKind) -> &'static str {
     match kind {
         HitKind::ModuleRow => "Drivers, teams and tracks",
+        HitKind::Added => "Driver Manager drivers",
         HitKind::Table => "Tables",
         HitKind::Row => "Rows",
         HitKind::Key => "Keys",
@@ -58,6 +59,7 @@ fn hit_group(kind: HitKind) -> &'static str {
 fn hit_icon(kind: HitKind) -> IconName {
     match kind {
         HitKind::ModuleRow => IconName::User,
+        HitKind::Added => IconName::Users,
         HitKind::Table => IconName::Table2,
         HitKind::Row => IconName::Rows3,
         HitKind::Key => IconName::KeyRound,

@@ -1,0 +1,137 @@
+name: DXC
+
+# Builds dxc, dxcompiler and the open-source DXIL validator (dxil) from microsoft/DirectXShaderCompiler at
+# the tag in tools/dxc/version, for the dxc/ folder of a release, which compiles addons' post-process
+# passes. These builds are under the University of Illinois/NCSA licence; Microsoft's own binary
+# releases carry other terms. tools/dxc/SHA256SUMS pins the archives of one run of this workflow. A
+# dispatch with publish and that run's id attaches those archives to this repository's dxc-<tag>
+# pre-release, which release.yml downloads; the archives must match the pinned hashes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Attach the archives to the dxc-<tag> pre-release
+        type: boolean
+        default: false
+      run_id:
+        description: The DXC run whose archives tools/dxc/SHA256SUMS pins (publish takes them instead of building)
+        type: string
+        default: ''
+  push:
+    paths:
+      - .github/workflows/dxc.yml
+      - tools/dxc/**
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_id == '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-22.04
+            archive: dxc-linux-x86_64.tar.gz
+          - name: Windows
+            os: windows-latest
+            archive: dxc-windows-x86_64.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the tag
+        shell: bash
+        run: echo "DXC_TAG=$(cat tools/dxc/version)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: microsoft/DirectXShaderCompiler
+          ref: ${{ env.DXC_TAG }}
+          path: dxc-src
+          submodules: recursive
+
+      - name: Install Ninja
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      # The install rpath ($ORIGIN/../lib) goes into the build tree, so bin/dxc finds lib/ wherever dxc/ lands.
+      # Windows takes the newest Visual Studio on the runner, CMake's default generator there.
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then gen=(-A x64); else gen=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON); fi
+          cmake -S dxc-src -B build "${gen[@]}" -C dxc-src/cmake/caches/PredefinedParams.cmake \
+            -DLLVM_INCLUDE_TESTS=OFF -DHLSL_INCLUDE_TESTS=OFF -DCLANG_INCLUDE_TESTS=OFF \
+            -DENABLE_SPIRV_CODEGEN=OFF -DSPIRV_BUILD_TESTS=OFF -DLLVM_ENABLE_ASSERTIONS=OFF
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --target dxc dxcompiler dxildll --parallel
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dxc/bin
+          if [ "$RUNNER_OS" = Windows ]; then
+            cp build/Release/bin/dxc.exe build/Release/bin/dxcompiler.dll build/Release/bin/dxil.dll dxc/bin/
+          else
+            mkdir -p dxc/lib
+            cp build/bin/dxc dxc/bin/
+            cp -L build/lib/libdxcompiler.so build/lib/libdxil.so dxc/lib/
+            strip dxc/bin/dxc dxc/lib/*.so
+          fi
+          cp dxc-src/LICENSE.TXT dxc/LICENSE.txt
+          cp dxc-src/ThirdPartyNotices.txt dxc/ThirdPartyNotices.txt
+          echo "$DXC_TAG" > dxc/VERSION
+
+      - name: Check that a pass compiles to signed DXIL
+        shell: bash
+        run: |
+          dxc/bin/dxc -T cs_6_0 -E main -HV 2021 -I packages/sdk/include -Fo vignette.dxil templates/postfx-pass/fx/vignette.hlsl
+          python3 -c "import sys; d = open('vignette.dxil', 'rb').read(); sys.exit(0 if d[:4] == b'DXBC' and any(d[4:20]) else 'unsigned DXIL')"
+
+      - name: Archive
+        shell: bash
+        run: tar czf "${{ matrix.archive }}" dxc
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish dxc-<tag>
+    needs: build
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.publish && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artefacts
+          merge-multiple: true
+          run-id: ${{ inputs.run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Check the pinned hashes
+        working-directory: artefacts
+        run: sha256sum -c ../tools/dxc/SHA256SUMS
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="dxc-$(cat tools/dxc/version)"
+          cp tools/dxc/SHA256SUMS artefacts/SHA256SUMS
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease --latest=false \
+            --title "dxc $(cat tools/dxc/version) for post-process passes" \
+            --notes "dxc, dxcompiler and dxil built from microsoft/DirectXShaderCompiler $(cat tools/dxc/version) by the DXC workflow, for the dxc/ folder of launcher releases. University of Illinois/NCSA licence (LICENSE.txt inside)."
+          gh release upload "$tag" artefacts/dxc-*.tar.gz artefacts/SHA256SUMS --clobber

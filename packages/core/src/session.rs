@@ -11,6 +11,8 @@ use crate::update::UpdateConfig;
 
 pub const DEFAULT_WINEDEBUG: &str = "+timestamp,+pid,+tid,+loaddll,fixme-all";
 pub const LOADER_LOG: &str = "swofty/loader.log";
+/// Where in the data folder the loader logs when the game folder refuses `LOADER_LOG`.
+pub const LOADER_FALLBACK: &str = "state/loader-fallback.log";
 pub const LOADER_MARK: &str = "loader_mark.json";
 pub const PERF_LOG: &str = "swofty/perf.log";
 
@@ -236,6 +238,11 @@ fn is_yes(on: &bool) -> bool {
 /// the helper then creates a game process that dies during startup before
 /// loading a single DLL. Build-shell variables are not part of running a
 /// game, so they are dropped, and whatever remains is trimmed to fit.
+///
+/// The launcher's own [`COMPAT_LAYER`] is dropped too: Windows applies the
+/// layers it names to every program started with it, and with one set (such
+/// as `DetectorsAppHealth`) F1 25 has held System32's version.dll instead of
+/// the loader. `overrides` can still set one.
 pub fn game_env(
     parent: impl IntoIterator<Item = (String, String)>,
     overrides: &BTreeMap<String, String>,
@@ -307,7 +314,7 @@ pub fn game_env(
 
     let mut env: BTreeMap<String, String> = parent
         .into_iter()
-        .filter(|(k, _)| !is_build_shell_var(k))
+        .filter(|(k, _)| !is_build_shell_var(k) && !is_compat_layer(k))
         .collect();
     for (k, v) in overrides {
         env.insert(k.clone(), v.clone());
@@ -327,6 +334,37 @@ pub fn game_env(
         env.remove(&largest);
     }
     env
+}
+
+/// The variable Windows reads a process's compatibility layers from, and
+/// hands on to the programs that process starts.
+pub const COMPAT_LAYER: &str = "__COMPAT_LAYER";
+
+pub fn is_compat_layer(name: &str) -> bool {
+    name.eq_ignore_ascii_case(COMPAT_LAYER)
+}
+
+/// `WINEDLLOVERRIDES` with Wine loading a native version.dll first, so the
+/// loader in the game folder attaches whatever the prefix's registry holds:
+/// a prefix the launcher didn't find, a version value of its own, or a
+/// registry a wineserver wrote back over the launcher's. None when the value
+/// already names version.dll, which is left as the player set it.
+pub fn with_version_override(value: Option<&str>) -> Option<String> {
+    const OVERRIDE: &str = "version=n,b";
+    let names_version = |v: &str| {
+        v.split(';').any(|entry| {
+            let names = entry.split_once('=').map_or(entry, |(names, _)| names);
+            names.split(',').any(|n| {
+                let n = n.trim().trim_start_matches('*').to_ascii_lowercase();
+                n == "version" || n == "version.dll"
+            })
+        })
+    };
+    match value.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(v) if names_version(v) => None,
+        Some(v) => Some(format!("{};{OVERRIDE}", v.trim_end_matches(';'))),
+        None => Some(OVERRIDE.to_owned()),
+    }
 }
 
 pub const SDL2_SONAME: &str = "libSDL2-2.0.so.0";
@@ -428,6 +466,9 @@ pub struct LaunchRequest {
     pub profile: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub apply: bool,
+    /// `SWOFTY_NETPLAY` for the game, for a wrapper Steam starts without the caller's environment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub netplay: Option<String>,
 }
 
 pub const END_FILE: &str = "end.json";
@@ -494,10 +535,28 @@ impl SessionEnd {
             crash_code,
             reason,
         };
+        let named = |x: u32| {
+            crate::crash::fatal_name(x)
+                .map(|n| format!("{n}, "))
+                .unwrap_or_default()
+        };
         let Some(c) = code else {
-            return match stopped {
-                Some(who) => end(Ending::Stopped, None, format!("{who}; {unread}")),
-                None => end(Ending::Unknown, None, unread.to_owned()),
+            return match (stopped, loader.unhandled) {
+                (Some(who), _) => end(Ending::Stopped, None, format!("{who}; {unread}")),
+                (None, Some(x)) => end(
+                    Ending::Crash,
+                    Some(x),
+                    format!(
+                        "the mod loader saw an unhandled exception ({}{x:#010x}); {unread}",
+                        named(x)
+                    ),
+                ),
+                (None, None) if loader.low_disk => end(
+                    Ending::Crash,
+                    None,
+                    format!("F1 25 closed after its Insufficient Storage dialog; {unread}"),
+                ),
+                (None, None) => end(Ending::Unknown, None, unread.to_owned()),
             };
         };
         if let Some(who) = stopped {
@@ -510,11 +569,6 @@ impl SessionEnd {
         if c == 0 {
             return end(Ending::Quit, None, "F1 25 exited with code 0".into());
         }
-        let named = |x: u32| {
-            crate::crash::fatal_name(x)
-                .map(|n| format!("{n}, "))
-                .unwrap_or_default()
-        };
         if let Some(x) = loader.unhandled {
             return end(
                 Ending::Crash,
@@ -526,6 +580,13 @@ impl SessionEnd {
             );
         }
         let u = c as u32;
+        if loader.low_disk {
+            return end(
+                Ending::Crash,
+                None,
+                format!("F1 25 closed with code {c} after its Insufficient Storage dialog"),
+            );
+        }
         if crash_code(u) {
             return end(
                 Ending::Crash,
@@ -597,16 +658,15 @@ impl SessionRecord {
         }
     }
 
-    /// Whether to show the session as a crash. A stop or a quit is not one,
-    /// and an end without an exit code tells nothing.
+    /// Whether to show the session as a crash: only an end with evidence of
+    /// one, a crash exit code, an exception the mod loader saw or the game's
+    /// Insufficient Storage dialog. F1 25 also
+    /// leaves -1 and other codes when it is closed, so an `Unknown` end shows
+    /// as closed, not crashed.
     pub fn crashed(&self) -> bool {
         match &self.end {
-            Some(e) => match e.end {
-                Ending::Crash => true,
-                Ending::Unknown => e.exit_code.is_some_and(|c| c != 0),
-                Ending::Quit | Ending::Stopped => false,
-            },
-            None => self.exit_code.is_some_and(|c| c != 0),
+            Some(e) => e.end == Ending::Crash,
+            None => self.exit_code.is_some_and(|c| crash_code(c as u32)),
         }
     }
 
@@ -704,6 +764,29 @@ pub fn parse_steam_command(argv: &[String]) -> SteamCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wine_loads_a_native_version_dll_unless_the_player_set_one() {
+        assert_eq!(with_version_override(None).as_deref(), Some("version=n,b"));
+        assert_eq!(with_version_override(Some(" ")).as_deref(), Some("version=n,b"));
+        assert_eq!(
+            with_version_override(Some("dxgi=n;")).as_deref(),
+            Some("dxgi=n;version=n,b")
+        );
+        for set in [
+            "version=b",
+            "d3d11,Version=n",
+            "VERSION.DLL=n,b",
+            "*version=b",
+            "dinput8;version",
+        ] {
+            assert_eq!(with_version_override(Some(set)), None, "{set}");
+        }
+        assert_eq!(
+            with_version_override(Some("versions=n")).as_deref(),
+            Some("versions=n;version=n,b")
+        );
+    }
 
     #[test]
     fn config_keeps_console_flag() {
@@ -838,6 +921,24 @@ mod tests {
     }
 
     #[test]
+    fn game_env_drops_an_inherited_compat_layer() {
+        let parent = || {
+            [
+                ("Path".to_string(), r"C:\WINDOWS\system32".to_string()),
+                ("__COMPAT_LAYER".to_string(), "DetectorsAppHealth".to_string()),
+                ("__compat_layer".to_string(), "RunAsInvoker".to_string()),
+            ]
+        };
+        let env = game_env(parent(), &BTreeMap::new());
+        assert_eq!(env.keys().collect::<Vec<_>>(), ["Path"]);
+        let mut overrides = BTreeMap::new();
+        overrides.insert(COMPAT_LAYER.to_string(), "HighDpiAware".to_string());
+        let env = game_env(parent(), &overrides);
+        assert_eq!(env.get(COMPAT_LAYER).map(String::as_str), Some("HighDpiAware"));
+        assert_eq!(env.len(), 2);
+    }
+
+    #[test]
     fn game_env_fits_the_windows_block() {
         let parent = (0..400).map(|i| (format!("VAR{i:03}"), "x".repeat(200)));
         let mut overrides = BTreeMap::new();
@@ -909,7 +1010,12 @@ mod tests {
         assert_eq!((live.started, live.exit_code), (Some(100.5), None));
         assert!(!live.crashed());
         std::fs::write(dir.join("exit_code"), "3\n").unwrap();
-        assert!(SessionRecord::read(&dir).crashed());
+        assert!(
+            !SessionRecord::read(&dir).crashed(),
+            "a code that is not a crash code"
+        );
+        std::fs::write(dir.join("exit_code"), "-1073741819\n").unwrap();
+        assert!(SessionRecord::read(&dir).crashed(), "an access violation");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -959,6 +1065,22 @@ mod tests {
         );
         let end = SessionEnd::resolve(Some(-1), "", None, None);
         assert!(end.reason.contains("not attached"), "{}", end.reason);
+        let full = format!(
+            "{ATTACHED}[3820] dialog shown: Insufficient Storage: 652/2048 MiB available on 'C:\\', please free \
+             some space.\n[stub] [offline] game exited with code 4294967295\n"
+        );
+        let end = SessionEnd::resolve(Some(-1), "", None, Some(&seen(&full)));
+        assert_eq!((end.end, end.crash_code), (Ending::Crash, None));
+        assert!(end.reason.contains("Insufficient Storage"), "{}", end.reason);
+        let end = SessionEnd::resolve(None, "no code", None, Some(&seen(&full)));
+        assert_eq!(end.end, Ending::Crash);
+        let stopped = SessionEnd::resolve(
+            Some(-1),
+            "",
+            Some("Stop in the launcher closed F1 25"),
+            Some(&seen(&full)),
+        );
+        assert_eq!(stopped.end, Ending::Stopped);
         for code in [1, 0x4001_0004, 255] {
             assert_eq!(
                 SessionEnd::resolve(Some(code), "", None, None).end,
@@ -986,6 +1108,24 @@ mod tests {
                 reason: "the EA app started F1 25".into(),
             }
         );
+    }
+
+    #[test]
+    fn an_unhandled_exception_is_a_crash_when_the_ea_app_started_the_game() {
+        let log = format!("{ATTACHED}{UNHANDLED}");
+        let end = SessionEnd::resolve(None, "the EA app started F1 25", None, Some(&seen(&log)));
+        assert_eq!(
+            (end.end, end.exit_code, end.crash_code),
+            (Ending::Crash, None, Some(0xc000_0005))
+        );
+        assert!(end.reason.contains("access violation"), "{}", end.reason);
+        let stopped = SessionEnd::resolve(
+            None,
+            "",
+            Some("Stop in the launcher closed F1 25"),
+            Some(&seen(&log)),
+        );
+        assert_eq!(stopped.end, Ending::Stopped);
     }
 
     #[test]
@@ -1022,8 +1162,8 @@ mod tests {
         std::fs::write(dir.join("exit_code"), "-1\n").unwrap();
         std::fs::write(dir.join("game_end"), "200\n").unwrap();
         assert!(
-            SessionRecord::read(&dir).crashed(),
-            "no end file: any non-zero code"
+            !SessionRecord::read(&dir).crashed(),
+            "no end file: -1 is not a crash code"
         );
         let mut end = SessionEnd::resolve(Some(-1), "", Some("Stop in the launcher closed F1 25"), None);
         end.write(&dir).unwrap();
@@ -1032,7 +1172,7 @@ mod tests {
         assert!(!record.crashed());
         for (ending, code, shown) in [
             (Ending::Crash, Some(-1), true),
-            (Ending::Unknown, Some(-1), true),
+            (Ending::Unknown, Some(-1), false),
             (Ending::Unknown, None, false),
             (Ending::Quit, Some(0), false),
         ] {

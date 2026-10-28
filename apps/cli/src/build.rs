@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use swofty_core::baseline::DepotHashes;
 use swofty_core::build::GVDB;
+use swofty_core::busy::{self, Busy, Step};
 use swofty_core::install::{EA_APP_EXPERIMENTAL, Game, Installer, Source};
 use swofty_core::recovery::{Blocked, Scope, SessionLock};
 use swofty_core::settings::SETTINGS_FILE;
@@ -31,7 +34,7 @@ pub fn supported(g: &Game) -> Result<()> {
 
 /// `--game`, else the active copy (`swofty game use`, the launcher's game
 /// switcher), else Steam's.
-pub fn game_dir(store: &Store, explicit: Option<PathBuf>) -> Result<PathBuf> {
+fn game_dir(store: &Store, explicit: Option<PathBuf>) -> Result<PathBuf> {
     explicit
         .or_else(|| swofty_core::copies::find_active(&store.config()).map(|c| c.dir))
         .context("F1 25 not found; pass --game, add the folder with swofty game add, or run swofty doctor")
@@ -61,12 +64,14 @@ fn build_profile(store: &Store, profile: &str, g: &Game) -> Result<swofty_core::
         return Ok(built);
     }
     let settings = built.overlay.join(SETTINGS_FILE);
-    std::fs::create_dir_all(settings.parent().expect("has parent"))?;
+    let dir = settings.parent().expect("has parent");
+    std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
     let session = match built.settings.take() {
         Some(s) => s,
         None => store.session_settings(profile)?,
     };
-    std::fs::write(&settings, serde_json::to_vec_pretty(&session)?)?;
+    std::fs::write(&settings, serde_json::to_vec_pretty(&session)?)
+        .with_context(|| format!("writing {}", settings.display()))?;
     if !built.plan.loader.is_empty() {
         built.plan.loader.insert(SETTINGS_FILE.into(), settings);
     }
@@ -163,6 +168,186 @@ fn common_root<'a>(paths: impl Iterator<Item = &'a String>) -> String {
 /// way that are provably ours are cleared and the install is tried once
 /// more; anything else stops it untouched, with what a restore would do.
 pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
+    if swofty_core::compat::write_blocker(&g.dir).is_some() {
+        bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
+    }
+    let done = AtomicBool::new(false);
+    let copied = Copied::default();
+    let progress = |n: usize, total: usize| {
+        copied.0.store(n as u64, Ordering::Relaxed);
+        copied.1.store(total as u64, Ordering::Relaxed);
+    };
+    let busy = session.then(|| {
+        busy::clear_cancel(&store.root);
+        let addons = store
+            .profile(profile)
+            .map(|p| p.enabled().map(str::to_owned).collect())
+            .unwrap_or_default();
+        Busy::new(profile, addons)
+    });
+    let r = std::thread::scope(|s| {
+        s.spawn(|| heartbeat(&done, &store.root, busy, &copied));
+        let r = install_checked(store, profile, g, session, out, &progress)
+            .map_err(|e| named(store, g, e))
+            .map_err(|e| denied(e, &g.dir))
+            .map_err(|e| outdated(store, g, e));
+        done.store(true, Ordering::Relaxed);
+        r
+    });
+    if session {
+        Busy::clear(&store.root);
+        busy::clear_cancel(&store.root);
+    }
+    r
+}
+
+#[derive(Default)]
+struct Copied(AtomicU64, AtomicU64);
+
+/// While a build and install run, a line every 30 s that they moved, and one
+/// a minute while a single step runs long, so the launcher's ten-minute limit
+/// on a silent wrapper stops only one that is stuck. A session's build also
+/// keeps `state/build.json` current.
+fn heartbeat(done: &AtomicBool, data: &Path, mut busy: Option<Busy>, copied: &Copied) {
+    const NOTE: Duration = Duration::from_secs(2);
+    let first = swofty_core::work();
+    let mut beat = Beat::new(first, swofty_core::doing(), Instant::now());
+    let mut noted: Option<Instant> = None;
+    while !done.load(Ordering::Relaxed) {
+        if let Some(b) = busy.as_mut()
+            && noted.is_none_or(|n| n.elapsed() >= NOTE)
+        {
+            noted = Some(Instant::now());
+            track(b, swofty_core::work() - first, copied);
+            b.write(data).ok();
+        }
+        std::thread::sleep(Duration::from_millis(250));
+        if let Some(line) = beat.line(swofty_core::work(), swofty_core::doing(), Instant::now()) {
+            crate::run::say("info", &line);
+        }
+    }
+}
+
+struct Beat {
+    start: Instant,
+    first: u64,
+    last: u64,
+    doing: String,
+    tick: Instant,
+    said: Instant,
+}
+
+impl Beat {
+    const EVERY: Duration = Duration::from_secs(30);
+    const QUIET: Duration = Duration::from_secs(60);
+
+    fn new(work: u64, doing: String, at: Instant) -> Self {
+        Self {
+            start: at,
+            first: work,
+            last: work,
+            doing,
+            tick: at,
+            said: at,
+        }
+    }
+
+    fn line(&mut self, work: u64, step: String, at: Instant) -> Option<String> {
+        if at.saturating_duration_since(self.tick) < Self::EVERY {
+            return None;
+        }
+        self.tick = at;
+        let moved = work != self.last || step != self.doing;
+        if !moved && at.saturating_duration_since(self.said) < Self::QUIET {
+            return None;
+        }
+        self.said = at;
+        self.last = work;
+        self.doing = step;
+        Some(format!(
+            "build: still working after {} s ({} file(s) and fragment(s) so far{})",
+            at.saturating_duration_since(self.start).as_secs(),
+            work - self.first,
+            match self.doing.is_empty() {
+                true => String::new(),
+                false => format!("; {}", self.doing),
+            }
+        ))
+    }
+}
+
+/// Names the addon or game file a build stopped on when it is missing or cut
+/// short, and what to do about it.
+fn named(store: &Store, g: &Game, e: anyhow::Error) -> anyhow::Error {
+    match e.downcast::<swofty_core::Error>() {
+        Ok(e) => swofty_core::build::named(store, &g.dir, e).into(),
+        Err(e) => e,
+    }
+}
+
+/// Names the game folder and the fix when Windows refused a write in it.
+fn denied(e: anyhow::Error, game: &Path) -> anyhow::Error {
+    let refused = e.chain().any(|c| match c.downcast_ref::<swofty_core::Error>() {
+        Some(
+            swofty_core::Error::Io { path, source }
+            | swofty_core::Error::Formats(swofty_formats::Error::IoAt { path, source }),
+        ) => source.kind() == std::io::ErrorKind::PermissionDenied && path.starts_with(game),
+        _ => false,
+    });
+    if !refused {
+        return e;
+    }
+    anyhow::anyhow!(
+        "{e}. Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, \
+         or move F1 25 to a folder outside Program Files",
+        game.display()
+    )
+}
+
+/// Leads with the update to install when an addon's changes failed to apply
+/// to an F1 25 older than the newest update the launcher knows. The build's
+/// own error follows on the next line, for the logs and Send Logs.
+fn outdated(store: &Store, g: &Game, e: anyhow::Error) -> anyhow::Error {
+    let version = swofty_core::exe_version::read(&g.dir.join(GAME_EXE));
+    let names = store
+        .addons()
+        .map(|a| a.into_iter().map(|(id, m)| (id, m.name)).collect())
+        .unwrap_or_default();
+    outdated_with(e, version.as_deref(), &names)
+}
+
+fn outdated_with(
+    e: anyhow::Error,
+    version: Option<&str>,
+    names: &std::collections::BTreeMap<String, String>,
+) -> anyhow::Error {
+    let raw = format!("{e:#}");
+    match swofty_core::known_problems::outdated_game(&raw, version, names) {
+        Some(d) => anyhow::anyhow!("{}\n({raw})", d.text()),
+        None => e,
+    }
+}
+
+fn track(b: &mut Busy, work: u64, copied: &Copied) {
+    let total = copied.1.load(Ordering::Relaxed);
+    if total == 0 {
+        b.step = Step::Building;
+        b.done = work;
+    } else {
+        b.step = Step::Copying;
+        b.done = copied.0.load(Ordering::Relaxed);
+        b.total = total;
+    }
+}
+
+fn install_checked(
+    store: &Store,
+    profile: &str,
+    g: &Game,
+    session: bool,
+    out: &dyn Fn(&str),
+    progress: &dyn Fn(usize, usize),
+) -> Result<()> {
     crate::setup::gate(store)?;
     Blocked::clear(&store.root).ok();
     stock::Report::clear(&store.root).ok();
@@ -170,6 +355,8 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     let inst = Installer {
         session,
         depot: depots.as_ref().map_or(&() as &dyn DepotHashes, |d| d),
+        out,
+        progress,
         ..Installer::new(&store.root, g)
     };
     let built = build_profile(store, profile, g)?;
@@ -269,10 +456,19 @@ fn heal_launcher(
 }
 
 /// An original that turned out not to be Steam's while the install backed it
-/// up stops the launch the same way as the check before the build.
+/// up, or one missing from the game folder with no backup, stops the launch
+/// the same way as the check before the build.
 fn not_stock(store: &Store, g: &Game, r: swofty_core::Result<()>) -> swofty_core::Result<()> {
-    if let Err(swofty_core::Error::NotStock(files)) = &r {
-        stock::Report::new(files.clone(), &g.dir).write(&store.root).ok();
+    match &r {
+        Err(swofty_core::Error::NotStock(files)) => {
+            stock::Report::new(files.clone(), &g.dir).write(&store.root).ok();
+        }
+        Err(swofty_core::Error::MissingStock { files, version }) => {
+            stock::Report::missing(files.clone(), &g.dir, version.clone())
+                .write(&store.root)
+                .ok();
+        }
+        _ => {}
     }
     r
 }
@@ -282,7 +478,13 @@ pub fn apply(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
     supported(&g)?;
     let out = |l: &str| println!("{l}");
     let Some(lock) = SessionLock::try_acquire(&store.root)? else {
-        bail!("a modded session is running or rolling back; close F1 25 and try again");
+        if let Some(b) = Busy::live(&store.root) {
+            bail!("{}", b.text());
+        }
+        bail!(
+            "{}",
+            crate::recover::held(store, swofty_core::process::game_running())
+        );
     };
     crate::recover::stale(store, &lock, &g, Scope::All, &out)?;
     install(store, profile, &g, false, &out)?;
@@ -369,6 +571,61 @@ mod tests {
     use swofty_core::manifest::AddonManifest;
 
     use super::*;
+
+    #[test]
+    fn names_the_game_folder_when_windows_refuses_a_write() {
+        let game = Path::new("/games/F1 25");
+        let refused = swofty_core::Error::Io {
+            path: game.join("2025_asset_groups/ui_package/databases.erp"),
+            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        let text = denied(anyhow::Error::from(refused), game).to_string();
+        assert!(
+            text.ends_with(
+                "Windows refused to let Swofty change files in /games/F1 25; run Swofty Launcher as \
+                 administrator, or move F1 25 to a folder outside Program Files"
+            ),
+            "{text}"
+        );
+        let elsewhere = swofty_core::Error::Io {
+            path: "/data/cache/x".into(),
+            source: std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+        };
+        assert!(
+            !denied(anyhow::Error::from(elsewhere), game)
+                .to_string()
+                .contains("administrator")
+        );
+    }
+
+    const APPLY_FAILED: &str = "applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+                                overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry \
+                                [Name=vanamersfoort_26]";
+
+    #[test]
+    fn an_addon_that_does_not_apply_to_an_old_game_leads_with_the_update() {
+        let names = BTreeMap::from([("swofty.classic-seasons".to_owned(), "Classic Seasons".to_owned())]);
+        let failed = || anyhow::Error::from(swofty_core::Error::Other(APPLY_FAILED.to_owned()));
+        assert_eq!(
+            format!("{:#}", outdated_with(failed(), Some("1.0.136.6820"), &names)),
+            format!(
+                "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. \
+                 Update F1 25 in Steam or the EA app, then press Play again.\n({APPLY_FAILED})"
+            )
+        );
+        for version in [Some("1.0.141.7865"), None, Some("")] {
+            assert_eq!(
+                format!("{:#}", outdated_with(failed(), version, &names)),
+                APPLY_FAILED,
+                "{version:?}"
+            );
+        }
+        let other = anyhow::anyhow!("version.dll already exists in the game folder; run swofty restore");
+        assert_eq!(
+            outdated_with(other, Some("1.0.136.6820"), &names).to_string(),
+            "version.dll already exists in the game folder; run swofty restore"
+        );
+    }
 
     struct Writer(AddonManifest);
 
@@ -634,5 +891,44 @@ mod tests {
             ..report.pairs[0].clone()
         };
         assert!(conflicts_text(&report, &names).ends_with("  and 3 more\n"));
+    }
+
+    #[test]
+    fn the_build_file_follows_the_build_then_the_copy() {
+        let mut b = Busy::new("default", vec!["swofty.classic-seasons".into()]);
+        let copied = Copied::default();
+        track(&mut b, 3155, &copied);
+        assert_eq!((b.step, b.done, b.total), (Step::Building, 3155, 0));
+        copied.0.store(443, Ordering::Relaxed);
+        copied.1.store(2544, Ordering::Relaxed);
+        track(&mut b, 3160, &copied);
+        assert_eq!((b.step, b.done, b.total), (Step::Copying, 443, 2544));
+    }
+
+    #[test]
+    fn a_step_that_runs_long_still_writes_a_line_a_minute() {
+        let t0 = Instant::now();
+        let mut beat = Beat::new(100, String::new(), t0);
+        let mut at = |s: u64, work: u64| {
+            beat.line(
+                work,
+                "building swofty.classic-seasons".into(),
+                t0 + Duration::from_secs(s),
+            )
+        };
+        assert_eq!(at(29, 457), None);
+        let line = |s: u64| {
+            format!(
+                "build: still working after {s} s (357 file(s) and fragment(s) so far; building swofty.classic-seasons)"
+            )
+        };
+        assert_eq!(at(30, 457), Some(line(30)));
+        assert_eq!(at(60, 457), None);
+        assert_eq!(at(90, 457), Some(line(90)));
+        assert_eq!(at(120, 457), None);
+        assert_eq!(at(150, 457), Some(line(150)));
+        assert!(at(180, 460).is_some());
+        let lines = (7..=40).filter_map(|n| at(n * 30, 460)).count();
+        assert_eq!(lines, 17, "one a minute over 17 silent minutes");
     }
 }

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Value, json};
 
 use crate::manifest::AddonManifest;
-use crate::session::{LOADER_LOG, PERF_LOG};
+use crate::session::{LOADER_FALLBACK, LOADER_LOG, PERF_LOG};
 use crate::store::Store;
 use crate::{Error, GAME_EXE, Result};
 
@@ -23,12 +23,17 @@ pub const TOTAL_CAP: u64 = 40 << 20;
 pub const PART_LIMIT: usize = 9 << 20;
 pub const SESSIONS: usize = 3;
 pub const SNAPSHOT: &str = "swofty/addons/swofty.career-editor/snapshot.json";
+const CAREER_EDITOR: &str = "swofty.career-editor";
 pub const PERF_LINES: usize = 60;
 const LOADER_HEAD: u64 = 16 << 10;
 pub const LOADER_DIR: &str = "swofty";
 pub const KEPT_DIR: &str = "logs";
 pub const KEPT: usize = 10;
 pub const LAUNCH_LOGS: [&str; 2] = ["state/launcher-run.log", "state/wrapper-run.log"];
+pub const NET_TRACE: &str = "swofty/net-trace.log";
+pub const NET_TRACE_CAP: u64 = 16 << 20;
+/// How many saved fingerprint comparisons a bundle carries, newest first.
+const PRINTS_SENT: usize = 3;
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
@@ -152,6 +157,8 @@ pub struct Report {
     pub name: String,
     pub message: String,
     pub game: GameInfo,
+    /// The running room's state, already redacted, sent as `multiplayer/session.json`.
+    pub room: Option<Value>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -235,7 +242,11 @@ impl Collector {
     }
 
     fn file(&mut self, path: String, from: &Path, redact: Option<fn(&str) -> String>) {
-        let cap = self.limits.file.min(self.budget());
+        self.file_capped(path, from, redact, self.limits.file);
+    }
+
+    fn file_capped(&mut self, path: String, from: &Path, redact: Option<fn(&str) -> String>, file_cap: u64) {
+        let cap = file_cap.min(self.budget());
         let len = match std::fs::metadata(from) {
             Ok(m) => m.len(),
             Err(e) => return self.skipped.push(format!("{path}: {e}")),
@@ -339,29 +350,57 @@ impl Bundle {
                 }
             }
         }
+        if let Some(game) = &report.game.dir {
+            let status = game.join(crate::multiplayer::bridge::STATUS_FILE);
+            if status.is_file() {
+                c.file("game/netplay.json".into(), &status, None);
+            }
+            let trace = game.join(NET_TRACE);
+            if trace.is_file() {
+                c.file_capped("game/net-trace.log".into(), &trace, None, NET_TRACE_CAP);
+            }
+        }
+        if let Some(room) = &report.room {
+            let mut room = room.clone();
+            redact_json(&mut room);
+            let text =
+                crate::multiplayer::diag::scrub(&serde_json::to_string_pretty(&room).unwrap_or_default());
+            c.push("multiplayer/session.json".into(), text.into_bytes(), None);
+        }
+        let fallback = store.root.join(LOADER_FALLBACK);
+        if !sessions
+            .first()
+            .is_some_and(|d| same_contents(&fallback, &d.join("loader.log")))
+        {
+            loader.extend(loader_line(LOADER_FALLBACK, &fallback));
+        }
         for (id, log) in helper_logs(store) {
             c.file(format!("addons/{id}/{}", crate::helper::LOG_FILE), &log, None);
         }
         for (id, log) in addon_logs(store) {
             c.file(format!("addons/{id}/logs/{}", file_name(&log)), &log, None);
         }
-        if let Some(snapshot) = report.game.dir.as_ref().map(|d| d.join(SNAPSHOT))
-            && snapshot.is_file()
+        if let Some(snapshot) = report
+            .game
+            .dir
+            .as_ref()
+            .and_then(|d| crate::addon_storage::newest(&store.root, d, CAREER_EDITOR, "snapshot.json"))
         {
             c.file("game/career-editor/snapshot.json".into(), &snapshot, None);
         }
-        if let Some(record) = report.game.dir.as_deref().map(crate::overlay_guard::path)
-            && record.is_file()
-        {
-            c.file(
-                format!("game/{}", crate::overlay_guard::REMOVED_FILE),
-                &record,
-                None,
-            );
-        }
         for log in state_logs(store) {
             let name = file_name(&log);
-            c.file(format!("state/{name}"), &log, None);
+            let redact = name
+                .starts_with("multiplayer")
+                .then_some(crate::multiplayer::diag::scrub as fn(&str) -> String);
+            c.file(format!("state/{name}"), &log, redact);
+        }
+        for print in crate::multiplayer::diag::newest_prints(&store.root, PRINTS_SENT) {
+            c.file(
+                format!("{}/{}", crate::multiplayer::diag::PRINTS_DIR, file_name(&print)),
+                &print,
+                Some(crate::multiplayer::diag::scrub as fn(&str) -> String),
+            );
         }
         let not_stock = store.root.join("state/not-stock.json");
         if not_stock.is_file() {
@@ -497,7 +536,7 @@ impl Bundle {
         for dir in newest_sessions(store, SESSIONS) {
             logs.push((format!("sessions/{}", file_name(&dir)), dir.join("loader.log")));
         }
-        for l in overlay_lines(store, report.game.dir.as_deref(), &logs) {
+        for l in overlay_lines(store, &logs) {
             s.push_str(&l);
             s.push('\n');
         }
@@ -680,19 +719,27 @@ fn modified(path: &Path) -> Option<std::time::SystemTime> {
 }
 
 /// Whether a session's loader.log shows the loader running. One with only the
-/// offline play stub's lines means version.dll never loaded in the game.
-fn loader_line(label: &str, log: &Path) -> Option<String> {
-    let head = read_head(log, LOADER_HEAD).ok()?;
-    let state = match crate::quarantine::attached(&String::from_utf8_lossy(&head))? {
-        true => "mod loader attached",
-        false => "mod loader never attached (version.dll not loaded; antivirus suspected)",
+/// offline play stub's lines means version.dll never loaded in the game. A
+/// loader the game folder refused logged to the data folder, and says why.
+fn loader_line(label: &str, log: &Path) -> Vec<String> {
+    let Ok(head) = read_head(log, LOADER_HEAD) else {
+        return Vec::new();
     };
-    Some(format!("  {label:40} {state}"))
+    let head = String::from_utf8_lossy(&head);
+    let state = match crate::quarantine::attached(&head) {
+        Some(true) => "mod loader attached",
+        Some(false) => "mod loader never attached (version.dll not loaded)",
+        None => return Vec::new(),
+    };
+    let mut out = vec![format!("  {label:40} {state}")];
+    out.extend(
+        crate::quarantine::refused(&head).map(|why| format!("  {:40} logged in the data folder: {why}", "")),
+    );
+    out
 }
 
-/// Which addons draw over the game, whether the core keeps the overlay off, and what each
-/// session's `[overlay]` lines say.
-fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)]) -> Vec<String> {
+/// Which addons draw over the game, and what each session's `[overlay]` lines say.
+fn overlay_lines(store: &Store, logs: &[(String, PathBuf)]) -> Vec<String> {
     let mut out = Vec::new();
     let painters = crate::overlay_guard::painters(store, &store.active_profile());
     let names: Vec<String> = painters
@@ -707,13 +754,6 @@ fn overlay_lines(store: &Store, game: Option<&Path>, logs: &[(String, PathBuf)])
             names.join(", ")
         }
     ));
-    if let Some(off) = game.and_then(crate::overlay_guard::OverlayOff::read) {
-        out.push(format!(
-            "  Kept off: game/{} says {}",
-            crate::overlay_guard::REMOVED_FILE,
-            off.describe()
-        ));
-    }
     for (label, log) in logs {
         let Ok(head) = read_head(log, OVERLAY_READ) else {
             continue;
@@ -877,7 +917,30 @@ fn game_files_section(store: &Store, game: Option<&Path>) -> String {
     for line in eac {
         s.push_str(&format!("  {line}\n"));
     }
+    if let Some(line) = game
+        .and_then(crate::compat::virtual_store)
+        .and_then(|v| virtualised(&v))
+    {
+        s.push_str(&format!("  {line}\n"));
+    }
     s
+}
+
+/// The game files Windows virtualised for this user. A process it redirects
+/// writes them to the VirtualStore, where F1 25 never reads them.
+fn virtualised(copy: &Path) -> Option<String> {
+    const SHOWN: usize = 6;
+    let files = files_under(copy, 6);
+    let names: Vec<&str> = files.iter().take(SHOWN).map(|(rel, _)| rel.as_str()).collect();
+    (!files.is_empty()).then(|| {
+        format!(
+            "Windows keeps {} file(s) written to the game folder in {}, where F1 25 doesn't read them: {}{}",
+            files.len(),
+            copy.display(),
+            names.join(", "),
+            if files.len() > SHOWN { ", ..." } else { "" }
+        )
+    })
 }
 
 fn eac_files(game: &Path) -> Vec<String> {
@@ -1065,7 +1128,15 @@ fn addons_summary(store: &Store) -> Value {
         ),
         Err(e) => json!({ "error": e.to_string() }),
     };
+    let unreadable: Vec<Value> = store
+        .unreadable_addons()
+        .iter()
+        .map(|u| json!({ "id": u.id, "name": u.name, "version": u.version, "reason": u.reason }))
+        .collect();
     let mut out = json!({ "installed": installed, "profiles": profiles });
+    if !unreadable.is_empty() {
+        out["unreadable"] = Value::Array(unreadable);
+    }
     redact_json(&mut out);
     out
 }
@@ -1177,6 +1248,13 @@ fn addon_lines(store: &Store) -> String {
             Err(_) => n,
         })
         .collect();
+    let unreadable = store.unreadable_addons();
+    if !unreadable.is_empty() {
+        s.push_str("  Can't be used:\n");
+        for u in &unreadable {
+            s.push_str(&format!("        {}\n", u.line()));
+        }
+    }
     if !others.is_empty() {
         s.push_str(&format!("  Other profiles: {}\n", others.join(", ")));
     }
@@ -1394,18 +1472,70 @@ fn hardware() -> String {
         })
     }
     .unwrap_or_else(|| "unknown CPU".into());
-    let memory = std::fs::read_to_string("/proc/meminfo").ok().and_then(|m| {
-        let kb: u64 = m
-            .lines()
-            .find_map(|l| l.strip_prefix("MemTotal:"))?
-            .trim()
-            .trim_end_matches("kB")
-            .trim()
-            .parse()
-            .ok()?;
-        Some(format!(", {:.0} GB memory", kb as f64 / 1024. / 1024.))
-    });
+    let memory = windows_memory()
+        .map(|(ram, commit)| memory_text(ram, Some(commit)))
+        .or_else(|| {
+            let kb: u64 = std::fs::read_to_string("/proc/meminfo")
+                .ok()?
+                .lines()
+                .find_map(|l| l.strip_prefix("MemTotal:"))?
+                .trim()
+                .trim_end_matches("kB")
+                .trim()
+                .parse()
+                .ok()?;
+            Some(memory_text(kb * 1024, None))
+        });
     format!("{cpu} ({threads} threads){}", memory.unwrap_or_default())
+}
+
+/// `ram` and Windows' commit limit (`commit`, RAM plus the page file), in bytes.
+fn memory_text(ram: u64, commit: Option<u64>) -> String {
+    let gb = |b: u64| format!("{:.0} GB", b as f64 / 1024. / 1024. / 1024.);
+    match commit {
+        Some(c) => format!(
+            ", {} memory, {} page file ({} commit limit)",
+            gb(ram),
+            gb(c.saturating_sub(ram)),
+            gb(c)
+        ),
+        None => format!(", {} memory", gb(ram)),
+    }
+}
+
+/// The PC's RAM and commit limit in bytes.
+#[cfg(windows)]
+fn windows_memory() -> Option<(u64, u64)> {
+    #[repr(C)]
+    #[derive(Default)]
+    struct MemoryStatus {
+        length: u32,
+        load: u32,
+        total_phys: u64,
+        avail_phys: u64,
+        total_page_file: u64,
+        avail_page_file: u64,
+        total_virtual: u64,
+        avail_virtual: u64,
+        avail_extended_virtual: u64,
+    }
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
+    }
+    let mut status = MemoryStatus {
+        length: std::mem::size_of::<MemoryStatus>() as u32,
+        ..MemoryStatus::default()
+    };
+    // SAFETY: `status` is a MEMORYSTATUSEX with its length set, and it
+    // outlives the call.
+    let ok = unsafe { GlobalMemoryStatusEx(&mut status) } != 0;
+    ok.then_some((status.total_phys, status.total_page_file))
+}
+
+#[cfg(not(windows))]
+fn windows_memory() -> Option<(u64, u64)> {
+    None
 }
 
 #[cfg(test)]
