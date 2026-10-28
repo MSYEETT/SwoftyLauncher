@@ -385,13 +385,12 @@ inline void lower_identity(const std::string &id, const Value &rec, const Lookup
 {
     plan.owner = addon_of(id);
     std::string label = label_of(lookup, "driver.identity", id);
-    if (!rec["look"].is_string() || rec["look"].as_string().empty()) {
-        plan.lines.push_back("driver.identity " + id + ": no look; a seated driver without one hangs the next session load; nothing applied");
-        plan.refused++;
+    if (!rec["donor"].is_string()) {
+        plan.lines.push_back("driver.identity " + id + ": no donor row to copy; the record names a driver row something else made, nothing applied");
         return;
     }
-    if (!rec["donor"].is_string()) {
-        plan.lines.push_back("driver.identity " + id + ": no donor row to copy; nothing applied");
+    if (!rec["look"].is_string() || rec["look"].as_string().empty()) {
+        plan.lines.push_back("driver.identity " + id + ": no look; a seated driver without one hangs the next session load; nothing applied");
         plan.refused++;
         return;
     }
