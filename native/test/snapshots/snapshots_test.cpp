@@ -194,6 +194,22 @@ static void format_tests()
     expect(fmt::decode(flipped, fe, why) == fmt::Decoded::corrupt, "a flipped byte fails the checksum");
 }
 
+static void provisional_save_tests()
+{
+    logs.clear();
+    reg::Store st;
+    world(st);
+    snap::Book book(st, [](const std::string &s) { logs.push_back(s); });
+    st.set_snapshot_source(book.source());
+    book.loaded(nullptr);
+    book.career_loaded("driver_career:new1", career_ctx());
+    book.season_start(2016, career_ctx());
+    fmt::Bytes body;
+    book.saving(body);
+    expect(logged("1 career(s) still on a provisional id are left out of this save"),
+           "a career still on a provisional id is not written with the save");
+}
+
 static void freeze_tests()
 {
     logs.clear();
@@ -953,6 +969,7 @@ int main(int argc, char **argv)
         return generate(argv[2]);
     format_tests();
     freeze_tests();
+    provisional_save_tests();
     migration_tests();
     budget_tests();
     creation_tests();

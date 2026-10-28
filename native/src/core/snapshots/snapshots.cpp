@@ -1,4 +1,5 @@
 #include "snapshots.hpp"
+#include "clock.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -193,6 +194,10 @@ bool Book::saving(Bytes &body)
     if (loaded_state_ == fmt::Decoded::newer || (dirty_.empty() && !test_pad_))
         return false;
     fmt::Entry out = entry_;
+    size_t provisional = std::erase_if(out.careers, [](const fmt::Career &c) { return seasons::is_provisional(c.id); });
+    if (provisional)
+        note("[registry] swofty_registry: " + std::to_string(provisional) +
+             " career(s) still on a provisional id are left out of this save");
     if (test_pad_) {
         std::erase_if(out.extra, [](const fmt::Item &i) { return i.tag == fmt::T_TEST_PAD; });
         fmt::Item pad;
