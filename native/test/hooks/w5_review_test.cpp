@@ -34,8 +34,8 @@ static void live_on_unfired_events()
     expect(add != SWOFTY_ASSET_OK,
            "live(career.calendar.add_activity) is not ok on a core that never fires it (catalogue Fired::no); "
            "hooks.md tells addons to fall back when live<AddActivity>() is false (got " + std::to_string(add) + ")");
-    expect(season != SWOFTY_ASSET_OK,
-           "live(career.season.start) is not ok while nothing fires it in 1.6.0 (got " + std::to_string(season) + ")");
+    expect(season == SWOFTY_ASSET_OK,
+           "live(career.season.start) is ok: the core fires it at a season's start (got " + std::to_string(season) + ")");
 }
 
 static void unknown_mode_is_not_grand_prix()

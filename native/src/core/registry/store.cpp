@@ -501,7 +501,7 @@ struct Adapter {
 struct Res {
     Status st = Status::no_record;
     Value v;
-    std::string owner;
+    std::string owner, why;
     std::map<std::string, std::string> origins;
     std::map<std::string, std::vector<std::string>> changers;
     std::map<std::string, std::vector<std::string>> blocked;
@@ -611,7 +611,7 @@ struct Store::Impl {
         return SWOFTY_ASSET_OK;
     }
     std::map<std::pair<std::string, std::string>, std::optional<Value>> option_reads;
-    std::set<std::string> unchecked;
+    std::set<std::string> unchecked, reported_invalid;
     SnapshotSource snapshot;
 
     bool read_option(const std::string &addon, const std::string &id, Value &out)
@@ -833,6 +833,10 @@ struct Engine {
             }
             return false;
         }
+        for (auto &[name, sh] : s.regs)
+            if (sh.def.shared && sh.def.provider_registry == registry && !sh.def.shared_prefix.empty() &&
+                id.rfind(sh.def.shared_prefix + "/", 0) == 0)
+                return exists(sh, id);
         return exists(*g, id);
     }
 
@@ -1325,6 +1329,7 @@ struct Engine {
         }
         if (cs != 0) {
             R.st = Status::invalid;
+            R.why = cs == 2 ? "its chain of bases loops" : "its chain of bases is too deep";
             memo[key] = R;
             return R;
         }
@@ -1349,6 +1354,7 @@ struct Engine {
             std::string why;
             if (!valid(v, why)) {
                 R.st = Status::invalid;
+                R.why = why;
                 memo[key] = R;
                 return R;
             }
@@ -1361,6 +1367,8 @@ struct Engine {
             Res B = compute(path[path.size() - 2], ex);
             if (B.st != Status::ok) {
                 R.st = B.st == Status::no_record ? Status::no_record : Status::invalid;
+                if (R.st == Status::invalid)
+                    R.why = "its base " + path[path.size() - 2] + " is invalid" + (B.why.empty() ? "" : ": " + B.why);
                 memo[key] = R;
                 return R;
             }
@@ -1373,6 +1381,7 @@ struct Engine {
                     variant_refusals.push_back({p->addon, r.def.name, id, "invalid", "the variant's edit failed", p->op});
                 Res bad;
                 bad.st = Status::invalid;
+                bad.why = "the variant's edit failed";
                 memo[key] = bad;
                 return bad;
             }
@@ -1469,6 +1478,7 @@ struct Engine {
                 }
                 if (!opt) {
                     R.st = Status::invalid;
+                    R.why = h.pointer + " " + std::string(h.value->as_string()) + " does not resolve in " + target;
                     return;
                 }
                 if (h.element.empty()) {
@@ -1539,6 +1549,8 @@ void Store::Impl::evaluate(Reg &r)
         if (fresh.empty()) {
             ev.refusals.insert(ev.refusals.end(), e.variant_refusals.begin(), e.variant_refusals.end());
             for (auto &[id, R] : ev.top) {
+                if (R.st == Status::invalid && !R.why.empty() && reported_invalid.insert(r.def.name + " " + id + " " + R.why).second)
+                    note("[registry] " + r.def.name + " " + id + " is invalid: " + R.why);
                 if (R.st != Status::ok)
                     continue;
                 for (auto &[p, who] : R.changers) {
@@ -2278,6 +2290,7 @@ Record Store::get(const std::string &registry_at, const std::string &id)
     }
     out.status = R.st;
     out.owner = R.owner;
+    out.why = R.why;
     if (R.st != Status::ok)
         return out;
     out.value = R.v;
@@ -2419,6 +2432,7 @@ Record Store::get_live(const std::string &registry, const std::string &id, const
     e.finalize(R);
     out.status = R.st;
     out.owner = R.owner;
+    out.why = R.why;
     if (R.st == Status::ok) {
         out.value = std::move(R.v);
         out.origins = std::move(R.origins);
@@ -2528,6 +2542,8 @@ Value Store::effective_report()
                     o[p] = Value(a);
                 rec["origins"] = o;
                 rec["owner"] = Value(R.owner);
+            } else if (R.st == Status::invalid && !R.why.empty()) {
+                rec["reason"] = Value(R.why);
             }
             if (r.def.snapshot)
                 rec["snapshot"] = Value(std::to_string(r.def.major) + "." + std::to_string(r.def.minor));

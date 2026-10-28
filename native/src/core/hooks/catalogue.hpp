@@ -45,7 +45,7 @@ inline constexpr Event EVENTS[] = {
     {"career.created", N, "swofty::career::events::Created", 1, false, Fired::no, nullptr},
     {"career.loaded", N, "swofty::career::events::Loaded", 1, false, Fired::yes, SWOFTY_EVENT_CAREER_LOADED},
     {"career.hub", N, SHELL, 1, false, Fired::yes, SWOFTY_EVENT_CAREER_HUB},
-    {"career.season.start", N, "swofty::career::events::SeasonStart", 1, false, Fired::no, nullptr},
+    {"career.season.start", N, "swofty::career::events::SeasonStart", 1, false, Fired::yes, nullptr},
     {"career.time.advance", N, SHELL, 1, true, Fired::no, nullptr},
     {"career.day", N, SHELL, 1, true, Fired::no, nullptr},
     {"career.calendar.add_activity", C, "swofty::career::events::AddActivity", 1, false, Fired::game, nullptr},

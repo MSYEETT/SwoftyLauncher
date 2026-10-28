@@ -75,15 +75,46 @@ DriverRef driver_ref(const json::Value &label, const std::set<std::string, std::
     const std::string *s = label.if_string();
     if (!s || s->empty())
         return {};
-    return DriverRef((stock.contains(*s) ? "game/" : "person/") + *s);
+    if (stock.contains(*s))
+        return DriverRef("game/" + *s);
+    return DriverRef("person/" + *s + "|game/" + *s);
 }
 
-TeamRef team_ref(const json::Value &team)
+std::string constructor_key(std::string_view name)
+{
+    std::string key = slug(name);
+    if (key == "red_bull_racing")
+        return "red_bull";
+    if (key == "rb")
+        return "racing_bulls";
+    return key;
+}
+
+TeamRef team_ref(const json::Value &team, const json::Value &slot_rows)
 {
     if (team["kind"].as_string() != "real")
         return {};
-    std::string key = slug(team["name"].as_string());
-    return key.empty() ? TeamRef() : TeamRef("constructor/" + key);
+    std::string key = constructor_key(team["name"].as_string());
+    if (key.empty())
+        return {};
+    std::string chain;
+    for (const json::Value *row : {&team["cs_team"], &team["stock_team"]})
+        if (row->is_string() && !row->as_string().empty())
+            chain += "game/" + std::string(row->as_string()) + "|";
+    chain += "constructor/" + key;
+    if (const json::Value *row = slot_rows.find(std::to_string(team["slot"].as_int())); row && row->is_string())
+        chain += "|game/" + std::string(row->as_string());
+    return TeamRef(chain + "?");
+}
+
+json::Value stock_rows(const json::Value &doc)
+{
+    json::Value rows = json::Value::object();
+    if (const json::Array *teams = doc["seasons"]["2025"]["teams"].if_array())
+        for (const json::Value &t : *teams)
+            if (t["stock_team"].is_string())
+                rows[std::to_string(t["slot"].as_int())] = t["stock_team"];
+    return rows;
 }
 
 BoxRef box_ref(int year, const json::Value &season)
@@ -150,9 +181,9 @@ json::Value pool_slice(const json::Value &doc, std::string_view year)
 }
 
 career::SeasonTeam season_team(const json::Value &t, const std::set<std::string, std::less<>> &stock,
-                               json::Value &rest)
+                               const json::Value &slot_rows, json::Value &rest)
 {
-    career::SeasonTeam team{.slot = static_cast<int>(t["slot"].as_int()), .team = team_ref(t)};
+    career::SeasonTeam team{.slot = static_cast<int>(t["slot"].as_int()), .team = team_ref(t, slot_rows)};
     rest = without(t, {"slot"});
     json::Value drivers = json::Value::array();
     bool taken[2] = {false, false};
@@ -202,11 +233,12 @@ career::Season season_record(const json::Value &doc, std::string_view key, int y
         .box = box_ref(year, s),
     };
     json::Value extra = without(s, {"teams", "changes"});
+    const json::Value rows = stock_rows(doc);
     json::Value teams = json::Value::object();
     if (const json::Array *list = s["teams"].if_array())
         for (const json::Value &t : *list) {
             json::Value rest;
-            career::SeasonTeam team = season_team(t, stock, rest);
+            career::SeasonTeam team = season_team(t, stock, rows, rest);
             teams["slot=" + std::to_string(team.slot)] = std::move(rest);
             season.teams.push_back(std::move(team));
         }
@@ -254,7 +286,8 @@ void add_ratings(const json::Value &doc, std::string_view key, swofty::Ref<caree
             if (v[k].is_number())
                 rest.erase(k);
         r.extra = json::Value::object({{"progressive", std::move(rest)}});
-        std::string rkey = std::string(key) + "/" + std::string(driver.id());
+        std::string person(driver.id());
+        std::string rkey = std::string(key) + "/" + person.substr(0, person.find('|'));
         if (career::ratings.add(rkey, std::move(r)).empty())
             refused(n, "career.driver_ratings " + rkey);
         else

@@ -80,11 +80,14 @@ class Rules:
     def driver(self, label):
         if not label:
             return None
-        return ("game/" if label in self.stock else "person/") + label
+        if label in self.stock:
+            return "game/" + label
+        return f"person/{label}|game/{label}"
 
     def label(self, ref):
         if ref is None:
             return None
+        ref = ref.split("|")[0]
         for prefix in ("game/", "person/"):
             if ref.startswith(prefix):
                 return ref[len(prefix):]
@@ -92,7 +95,15 @@ class Rules:
         return ref
 
     def team(self, t):
-        return f"constructor/{slug(t['name'])}" if t["kind"] == "real" else None
+        if t["kind"] != "real":
+            return None
+        key = {"red_bull_racing": "red_bull", "rb": "racing_bulls"}.get(slug(t["name"]), slug(t["name"]))
+        chain = "".join(f"game/{t[f]}|" for f in ("cs_team", "stock_team") if t.get(f))
+        chain += f"constructor/{key}"
+        slot_row = {x["slot"]: x["stock_team"] for x in self.years["seasons"]["2025"]["teams"] if x.get("stock_team")}.get(t["slot"])
+        if slot_row:
+            chain += f"|game/{slot_row}"
+        return chain + "?"
 
     def box(self, year, season):
         own = f"classic-seasons-{year}"
@@ -253,7 +264,7 @@ def main():
     float_text = set()
     for y, drivers in years["ratings"]["years"].items():
         for label, v in drivers.items():
-            want_ratings[f"{y}/{rules.driver(label)}"] = (y, label, v)
+            want_ratings[f"{y}/{rules.driver(label).split('|')[0]}"] = (y, label, v)
     got_keys = [a["key"] for a in adds[RATINGS]]
     if sorted(got_keys) != sorted(want_ratings):
         fail(RATINGS, f"{len(got_keys)} keys, want {len(want_ratings)}; "

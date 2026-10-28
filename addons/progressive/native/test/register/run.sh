@@ -36,6 +36,11 @@ python3 "$REPO/tools/std/validate.py" --repo "$REPO" --schema "$REPO/packages/sd
 python3 "$REPO/tools/std/validate.py" --repo "$REPO" --schema "$REPO/packages/sdk/std/registries/career.driver_ratings/1.0.json" \
     "$OUT"/records/career.driver_ratings/*.json >"$OUT/validate-ratings.txt" || { cat "$OUT/validate-ratings.txt"; exit 1; }
 python3 "$REPO/tools/std/validate.py" --repo "$REPO" --data "$OUT/records/seasons.data.json"
+CORE=$REPO/native/src/core/registry
+"${PIN[@]}" "${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O1 -w -I"$REPO/packages/sdk/include" \
+    -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine -o "$OUT/records_test" "$REPO/native/test/registry/progressive_records_test.cpp" \
+    "$CORE"/store.cpp "$CORE"/table.cpp "$CORE"/validate.cpp "$CORE"/schema.cpp "$CORE"/engine.cpp "$CORE"/older.cpp
+"$OUT/records_test" "$OUT/captured.json"
 echo "validate: $(grep -c '^ok' "$OUT/validate-season.txt") career.season and $(grep -c '^ok' "$OUT/validate-ratings.txt") career.driver_ratings records valid"
 
 "$OUT/fake_core" "$ADDON" "$OUT/api8.json" 8 2>/dev/null
