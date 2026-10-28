@@ -17,11 +17,27 @@ pids=()
 "${PIN[@]}" "${CXX[@]}" -o "$OUT/rows_test" content/rows_test.cpp ../src/core/apply/ids.cpp "${SRC[@]}" & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include \
     -c ../src/core/apply/content/appliers.cpp -o "$OUT/appliers.windows.o" & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include -I../third_party/zstd \
+    -c ../src/core/apply/content/logos.cpp -o "$OUT/logos.windows.o" & pids+=($!)
+ZS=../third_party/zstd
+mkdir -p "$OUT/zstd"
+zobjs=()
+for c in $ZS/common/*.c $ZS/compress/*.c $ZS/decompress/*.c; do
+    o=$OUT/zstd/$(basename "${c%.c}").o
+    zobjs+=("$o")
+    [[ $o -nt $c ]] || "${PIN[@]}" zig cc -target x86_64-linux-musl -O2 -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0 \
+        -DZSTD_DISABLE_ASM -DDEBUGLEVEL=0 -I$ZS -c "$c" -o "$o" &
+done
+for p in $(jobs -p); do wait "$p"; done
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -o "$OUT/bc7_test" content/bc7_test.cpp & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off -I$ZS \
+    -o "$OUT/logo_build_test" content/logo_build_test.cpp "${zobjs[@]}" & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -c content/bc7_test.cpp -o "$OUT/bc7_test.windows.o" & pids+=($!)
 for p in "${pids[@]}"; do wait "$p"; done
 "$OUT/bc7_test" content/bc7
+"$OUT/logo_build_test" content/bc7 "$OUT/logo_out"
+python3 content/check_logo_build.py content/bc7 "$OUT/logo_out"
 "$OUT/rows_test" ../../packages/sdk/std/registries
 python3 content/check_lowering.py "$OUT/lower_tool"

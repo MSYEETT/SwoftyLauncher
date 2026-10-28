@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import struct
 import random
 import sys
 from pathlib import Path
@@ -112,5 +113,87 @@ def main():
         (OUT / f"grown_{n}.bin").write_bytes(b)
 
 
+def build_game():
+    import copy
+    import hashlib
+    import subprocess
+
+    import pkg
+    import erpw
+
+    game = OUT / "game/2025_asset_groups/ui_package"
+    (game / "screens").mkdir(parents=True, exist_ok=True)
+
+    def entry(name, value):
+        S = lambda s: pkg.Val("stri", s)
+        return pkg.Obj([(S("ValueType"), S("uistring")), (S("Name"), S(name)), (S("ReadOnly"), pkg.Val("bool", True)),
+                        (S("Value"), S(value)), (S("DBType"), S("Variable"))])
+
+    def uidb(names):
+        S = lambda s: pkg.Val("stri", s)
+        leaf = pkg.Obj([(S("Name"), S("driver_select_team_logos")), (S("TextureArray"), pkg.Val("bool", True)),
+                        (S("Contents"), pkg.Arr([entry(n, f"ui_package/art/textures/x/{n}.tif") for n in names]))])
+        teams = pkg.Obj([(S("Name"), S("teams")), (S("Contents"), pkg.Obj([(S("driver_select_team_logos"), leaf)]))])
+        ov = pkg.Obj([(S("Name"), S("overrides")), (S("Contents"), pkg.Obj([(S("teams"), teams)]))])
+        p = pkg.Pkg()
+        p.root = pkg.Obj([(S("overrides"), ov)])
+        return p
+
+    def write_erp(path, resources):
+        e = erpw.Erp.__new__(erpw.Erp)
+        hdr = bytearray(0x30)
+        hdr[:4] = b"ERPK"
+        struct.pack_into("<I", hdr, 4, 3)
+        e.hdr, e.res = bytes(hdr), []
+        for name, frags in resources:
+            r = erpw.Res()
+            r.name, r.type, r.unk = name, b"texture".ljust(16, b"\0"), b"\0\0\0\0"
+            r.frags = []
+            for tag, data, comp in frags:
+                f = erpw.Frag()
+                f.name, f.size, f.flags, f.comp = tag, len(data), 0x10, comp
+                f.raw = subprocess.run(["zstd", "-c", "-3", "-q"], input=data, capture_output=True, check=True).stdout if comp == erpw.ZSTD else data
+                f.packed, f.off = len(f.raw), 0
+                r.frags.append(f)
+            r.hash = hashlib.md5(b"".join(d for _, d, _ in frags)).digest()
+            e.res.append(r)
+        e.to_file(str(path))
+
+    URI = "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.teams.driver_select_team_logos.texarray"
+    head, data, view = stock_array(64, 64, 3)
+    names = ["a", "b", "c"]
+    p = uidb(names)
+    stock_uidb = p.to_bytes()
+    assert pkg.Pkg(stock_uidb).to_bytes() == stock_uidb
+    write_erp(game / "databases.erp", [("eaid://ui_package/databases/other.uidb", [(b"data", b"zz" * 40, erpw.STORED)]),
+                                      ("eaid://ui_package/databases/overrides.uidb", [(b"data", stock_uidb, erpw.ZSTD)])])
+    for rel in ("flow_a.erp", "screens/b.erp"):
+        write_erp(game / rel, [("eaid://ui_package/art/filler.texture", [(b"data", bytes(range(256)) * 9, erpw.ZSTD)]),
+                               (URI + ".image", [(b"head", head, erpw.STORED), (b"data", data, erpw.ZSTD)]),
+                               (URI, [(b"view", view, erpw.ZSTD)])])
+    write_erp(game / "flow_none.erp", [("eaid://ui_package/art/other.texture", [(b"data", b"q" * 100, erpw.STORED)])])
+
+    shape = (OUT / "shape64.bc7").read_bytes()
+    donor = data[64 * 64:2 * 64 * 64]
+    head2, data2, view2 = grown_array(head, data, view, 3, [shape, donor])
+    p2 = copy.deepcopy(p)
+    lst = p2.root["overrides"]["Contents"]["teams"]["Contents"]["driver_select_team_logos"]["Contents"]
+    for key in ("newteam", "newalias"):
+        e = copy.deepcopy(lst.items[-1])
+        e.set("Name", pkg.Val("stri", key))
+        e.set("Value", pkg.Val("stri", f"ui_package/art/textures/swofty/team_logos/{key}.tif"))
+        lst.items.append(e)
+    expect = OUT / "expect"
+    expect.mkdir(exist_ok=True)
+    (expect / "head.bin").write_bytes(head2)
+    (expect / "data.bin").write_bytes(data2)
+    (expect / "view.bin").write_bytes(view2)
+    (expect / "overrides.uidb").write_bytes(p2.to_bytes())
+    rgba = (OUT / "shape64.rgba").read_bytes()
+    nl = rgba.index(b"\n")
+    Image.frombytes("RGBA", (64, 64), rgba[nl + 1:]).save(OUT / "shape64.png")
+
+
 if __name__ == "__main__":
     main()
+    build_game()
