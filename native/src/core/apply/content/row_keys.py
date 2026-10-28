@@ -18,7 +18,35 @@ ROOTS = ["audio.audio_bundle_settings.audio_bundle_settings_N", "car_setup.prese
          "customisation.custom_avatar.gloves.Gloves_N", "entrants.animation.driver_heads.driver_head_N",
          "entrants.driver_customisations.folder_N", "entrants.team_customisation.team_customisation_for_year_N",
          "entrants.drivers.driver_N", "driver_statistics.driver_statistics.DriverStatisticsHolder_N",
-         "engine_management.driver_wear_rates.driver_wear_rate_N"]
+         "engine_management.driver_wear_rates.driver_wear_rate_N",
+         "entrants.teams.team_N", "pit_lane.pit_times.team_pit_times_N", "bank.initial_team_cash.InitialTeamCash_N",
+         "showroom.teams_history.team_history_N"]
+CATALOG = HERE.parents[4] / "tools" / "gamedb" / "catalog" / "keys.tsv.gz"
+CATALOGUED = ["facilities.facilities.Facilities_N.team_developments.TeamDevelopment_N",
+              "driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements."
+              "TeamDriverRatingRangeRequirement_N",
+              "recognition.RecognitionDataGroup_N.team_modifiers.TeamModifier_N",
+              "career.my_team_renown_and_form.MyTeamRenownAndFormDataGroup_N.initial_renown_and_form."
+              "InitialTeamRenownAndForm_N",
+              "career.my_team_sponsors.MyTeamSponsorsDataGroup_N.team_primary_sponsors.team_primary_sponsor_N"]
+
+
+def catalogued():
+    """Shapes the launcher's row_keys.txt.gz lacks (rows nested in a data group), from the key catalogue: a table's
+    fields, with `+word` for each nested table below it."""
+    tables = {}
+    for line in gzip.decompress(CATALOG.read_bytes()).decode().splitlines()[1:]:
+        cols = line.split("\t")
+        if len(cols) > 2:
+            tables.setdefault(cols[1], []).append(cols[2])
+    out = {}
+    for root in CATALOGUED:
+        for table in sorted(t for t in tables if t == root or t.startswith(root + ".")):
+            keys = [f for f in tables[table] if not (f.startswith("_") and f.endswith("_instancecount_"))]
+            nested = sorted({t[len(table) + 1:-2] for t in tables if t.startswith(table + ".") and t.endswith("_N")
+                             and "." not in t[len(table) + 1:]})
+            out[table] = keys + ["+" + n for n in nested]
+    return out
 
 
 EXTRA = {
@@ -39,7 +67,8 @@ def main():
     for shape, (path, table) in EXTRA.items():
         listed = json.loads(path.read_text())["fields"][table]
         shapes[shape] += [k for k in listed if k not in shapes[shape]]
-    keep = sorted(s for s in shapes if any(s == r or s.startswith(r + ".") for r in ROOTS))
+    shapes.update(catalogued())
+    keep = sorted(s for s in shapes if any(s == r or s.startswith(r + ".") for r in ROOTS + CATALOGUED))
     missing = [r for r in ROOTS if r not in shapes]
     if missing:
         raise SystemExit(f"row_keys.txt.gz has no {', '.join(missing)}")

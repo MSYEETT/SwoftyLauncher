@@ -12,6 +12,7 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/forward.hpp>
+#include <swofty/systems/ops.hpp>
 #include <swofty/systems/teams.hpp>
 
 // Career: modes, contents, seasons and their boxes, calendars, ratings, the market, contracts, R&D,

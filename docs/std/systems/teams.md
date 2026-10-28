@@ -257,6 +257,9 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 - **Unknown:** a single logo-key resolver (logos are formatted at several sites) and the display-name lookups behind `team.name.resolve`.
 - **Stat ids:** teams use ids up to 514, from the install's store.
 - **A new team row needs all 30 keys,** `story_info` included, or the game reads garbage.
-- **Side data** is found by team label: pit times, showroom history, animation team data, team customisation per season, initial cash, renown, team icons, standings.
+- **Side data** is found by team label. The core copies the donor's rows, relabelled, in every data group that holds one: pit times, initial cash, facilities, driver market, recognition, renown and form, primary sponsors and showroom history. Team customisation per season (suit, gloves) belongs to the wearables records, animation team data follows the vehicle, and the team icons and story standings are not copied.
+- **Constructors:** a `team.constructor` record names the team that is that constructor, the last enabled one in load order. A team reference by constructor resolves to that team's row label.
+- **Logos:** the image files of a `team.logo` record are found and checked at boot, and a team with a hud or broadcast image gets its own timing tower badge key. The core does not yet grow the texture arrays, so a new key shows no slice until it does. `set_logo` records the team's logo for the session (career operations table version 5).
+- **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names and colours are written into the loaded team record once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting.
 - **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
 - **Colours** are signed ARGB in the database, and the core converts them.

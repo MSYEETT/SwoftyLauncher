@@ -1,6 +1,6 @@
-// The SDK's table version 5 operation (swofty/systems/drivers.hpp set_look) against a stand-in SwoftyCareerOps
+// The SDK's table version 6 operation (swofty/systems/drivers.hpp set_look) against a stand-in SwoftyCareerOps
 // table on the host: it sends the driver's and the look's ids as they are, refuses an empty reference, maps a
-// refusal of the core to invalid, and is unavailable on a table older than version 5 or without one.
+// refusal of the core to invalid, and is unavailable on a table older than version 6 or without one.
 
 #include <cstdio>
 #include <cstring>
@@ -32,10 +32,10 @@ static int set_look(const char *driver, const char *look)
     return SWOFTY_ASSET_OK;
 }
 
-static const SwoftyCareerOps kOps4 = {4,       available, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                      nullptr, nullptr,   nullptr, nullptr, nullptr, set_look};
 static const SwoftyCareerOps kOps5 = {5,       available, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                      nullptr, nullptr,   nullptr, nullptr, nullptr, set_look};
+                                      nullptr, nullptr,   nullptr, nullptr, nullptr, nullptr, set_look};
+static const SwoftyCareerOps kOps6 = {6,       available, nullptr, nullptr, nullptr, nullptr, nullptr,
+                                      nullptr, nullptr,   nullptr, nullptr, nullptr, nullptr, set_look};
 
 int main()
 {
@@ -43,11 +43,11 @@ int main()
     Ref<drivers::Look> look("mod.a/hamilton_2017");
     CHECK(drivers::set_look(hamilton, look) == Result::unavailable);
 
-    career::detail::set_ops_table(&kOps4);
+    career::detail::set_ops_table(&kOps5);
     CHECK(drivers::set_look(hamilton, look) == Result::unavailable);
     CHECK(g_driver.empty());
 
-    career::detail::set_ops_table(&kOps5);
+    career::detail::set_ops_table(&kOps6);
     CHECK(drivers::set_look(hamilton, look) == Result::ok);
     CHECK(g_driver == "game/lewis_hamilton" && g_look == "mod.a/hamilton_2017");
     CHECK(drivers::set_look(salo, look) == Result::ok && g_driver == "person/mika_salo");
@@ -58,9 +58,9 @@ int main()
 
     career::detail::set_ops_table(nullptr);
     if (failures) {
-        std::printf("sdk_ops_v5_test: %d failure(s)\n", failures);
+        std::printf("sdk_ops_v6_test: %d failure(s)\n", failures);
         return 1;
     }
-    std::printf("sdk_ops_v5_test: set_look on table version 5, older tables and no table: ok\n");
+    std::printf("sdk_ops_v6_test: set_look on table version 6, older tables and no table: ok\n");
     return 0;
 }

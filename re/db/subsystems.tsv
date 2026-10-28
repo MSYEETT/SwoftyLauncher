@@ -16,8 +16,8 @@ hud	Hud	ui-re	open	in-race HUD: HUD screen VM, dynamic HUD component view-models
 loc	Loc	-	open	localisation: NeLocaleModule, per-language table sets, .lng path build, load, parse and key lookup
 protection	Prot	-	open	Denuvo stubs and .data1 bodies, signature/cert checks, VirtualProtect callers
 render	Render	overlay	open	D3D12/DXGI present path, swapchain overlay hooks, in-game immediate-mode HUD rendering
-session	Sess	re-teams	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
-teams	Team	re-teams	open	team identity for new teams: entrants.teams rows and the side data found by team label, the loaded team record, team colours, team logos and badges per context (uidb logo arrays, texarrays, the registry-path format sites), team-count limits
+session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
+teams	Team	-	open	team identity for new teams: entrants.teams rows and the side data found by team label, the loaded team record, team colours, team logos and badges per context (uidb logo arrays, texarrays, the registry-path format sites), team-count limits
 ui	Ui	ui-idf	open	authored UI formats (!pkg .ui/UIDF node grammar, .uidb/.uir/scene .idf) + ERP UI packaging + the view-model binding runtime + how to edit/add menus and widgets
 vm	Vm	ui-re	open	UI view-model registry: node properties, setters, routes
 wearables	Wear	re-wear	open	driver wear: helmet/suit/glove item rows, driver customisations (looks), team customisations per season (team kit), the customisation catalogue and the driver actor spawner's kit pick

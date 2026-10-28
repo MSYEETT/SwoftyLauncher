@@ -6,6 +6,9 @@
 #include "../ids.hpp"
 #include "boot.hpp"
 #include "gvdb.hpp"
+#include "teams.hpp"
+#include "../../career_ops/teams_plan.hpp"
+#include "../../registry/table.hpp"
 
 #include "../../runtime.hpp"
 
@@ -347,6 +350,53 @@ void apply_liveries(Expansion &x, Report &report, const std::string &registry)
         report.summary = report.summary.empty() ? summary : report.summary + "; " + summary;
 }
 
+void apply_logos(Expansion &x, Report &report)
+{
+    Live &live_teams = live();
+    live_teams.manifest = x.logos;
+    std::map<std::string, std::pair<int, int>> per_array;
+    int missing = 0, aliases = 0;
+    for (auto &l : x.logos) {
+        if (!l.stock.empty()) {
+            aliases++;
+            report.lines.push_back("team.logo " + l.id + ": " + l.context + " of " + l.team + " is the stock key " + l.stock +
+                                   " in " + l.array + "; no resolver redirect is built yet");
+            continue;
+        }
+        uint64_t size = 0;
+        bool found = runtime::file_size(runtime::under_swofty("addons/" + l.addon + "/" + l.file), &size) && size;
+        if (!found) {
+            missing++;
+            report.refused++;
+            report.lines.push_back("team.logo " + l.id + ": " + l.context + " image " + l.file + " is not in swofty/addons/" +
+                                   l.addon + "/");
+            continue;
+        }
+        per_array[l.array].first++;
+    }
+    for (auto &[array, n] : per_array)
+        report.lines.push_back("team.logo: " + std::to_string(n.first) + " image(s) for " + array +
+                               "; the texture array is not grown by this core yet, so the key shows no slice");
+    if (!x.logos.empty())
+        report.lines.push_back("team.logo: " + std::to_string(x.logos.size()) + " logo slot(s) planned, " +
+                               std::to_string(missing) + " image(s) missing, " + std::to_string(aliases) + " stock alias(es)");
+}
+
+void set_up_dresser()
+{
+    Live &l = live();
+    l.log = [](const std::string &line) { swofty::log("[teams] %s", line.c_str()); };
+    l.identity = [](const std::string &id) -> const Value * {
+        static std::map<std::string, Value> keep;
+        auto rec = registry::store().get("team.identity", id);
+        if (rec.status != registry::Status::ok)
+            return nullptr;
+        return &(keep[id] = rec.value);
+    };
+    l.stat_of = [](const std::string &id) -> int64_t { return ids::store().get("team.identity", id).id; };
+    career_ops::teams::dresser() = &dress_slot;
+}
+
 void release_database()
 {
     State &s = state();
@@ -417,6 +467,8 @@ public:
             std::string_view(registry_) == "suit" || std::string_view(registry_) == "gloves" ||
             std::string_view(registry_) == "driver.head")
             apply_liveries(x, report, registry_);
+        if (std::string_view(registry_) == "team.identity")
+            apply_logos(x, report);
         if (staged) {
             std::string records = std::to_string(staged) + " database record" + (staged == 1 ? "" : "s");
             report.summary = report.summary.empty() ? records : report.summary + "; " + records;
@@ -427,6 +479,61 @@ public:
 
 private:
     const char *registry_;
+};
+
+class Constructors : public Applier {
+public:
+    const char *registry() const override { return "team.constructor"; }
+    Applies applies() const override { return Applies::boot; }
+    void boot(Store &st, Report &report) override
+    {
+        std::lock_guard g(mu);
+        std::map<std::string, Value> keep;
+        Lookup lookup = own_lookup(st, keep);
+        TeamRefs refs = refs_of(st, lookup);
+        report.applied = refs.constructors;
+        report.refused = refs.constructors_refused;
+        for (auto &l : refs.lines)
+            report.lines.push_back(l);
+    }
+};
+
+class Logos : public Applier {
+public:
+    const char *registry() const override { return "team.logo"; }
+    Applies applies() const override { return Applies::read; }
+    void install_read(Store &st, Report &report) override
+    {
+        std::lock_guard g(mu);
+        std::map<std::string, Value> keep;
+        Lookup lookup = own_lookup(st, keep);
+        for (auto &id : in_load_order(st, "team.logo")) {
+            const Value *rec = lookup("team.logo", id);
+            if (!rec)
+                continue;
+            int images = 0, bad = 0;
+            for (const char *context : LOGO_CONTEXTS) {
+                const Value &v = (*rec)["images"][context];
+                if (v.is_string()) {
+                    uint64_t size = 0;
+                    bool found = runtime::file_size(runtime::under_swofty("addons/" + addon_of(id) + "/" + std::string(v.as_string())), &size) && size;
+                    images++;
+                    if (!found) {
+                        bad++;
+                        report.lines.push_back("team.logo " + id + ": " + context + " image " + std::string(v.as_string()) +
+                                               " is not in swofty/addons/" + addon_of(id) + "/");
+                    }
+                } else if (v.is_object()) {
+                    images++;
+                }
+            }
+            if (bad)
+                report.refused++;
+            else
+                report.applied++;
+            report.lines.push_back("team.logo " + id + ": " + std::to_string(images) + " image(s)");
+        }
+    }
 };
 
 class Boxes : public Applier {
@@ -467,6 +574,9 @@ void register_appliers()
         for (const char *reg : ROW_REGISTRIES)
             make<Rows>(reg);
         make<Boxes>();
+        make<Constructors>();
+        make<Logos>();
+        set_up_dresser();
     });
 }
 

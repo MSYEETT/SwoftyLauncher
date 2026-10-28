@@ -13,7 +13,7 @@
 // row the same way. A person/ id works as a driver reference and resolves to the last enabled driver in
 // load order that is that person. The core refuses an identity without a look. What a row holds that this
 // header doesn't name is kept in the record's `extra`. set_look calls the core's career operations (table
-// version 5) and returns unavailable on a core without it; it refuses an empty look.
+// version 6) and returns unavailable on a core without it; it refuses an empty look.
 
 namespace swofty::drivers {
 
@@ -110,7 +110,7 @@ inline Registry<Stats> stats{"driver.stats", {.applies = Applies::boot}};
 inline Result set_look(Ref<Identity> driver, Ref<Look> look)
 {
     auto t = career::detail::live_ops();
-    if (!t || t->version < 5 || !t->set_look)
+    if (!t || t->version < 6 || !t->set_look)
         return Result::unavailable;
     std::string d(driver.id()), l(look.id());
     if (d.empty() || l.empty())

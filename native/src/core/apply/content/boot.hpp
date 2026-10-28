@@ -4,6 +4,7 @@
 #include "lower.hpp"
 #include "rows.hpp"
 #include "wear.hpp"
+#include "teams.hpp"
 
 #include "../../registry/store.hpp"
 
@@ -20,6 +21,7 @@
 namespace swofty_core::apply::content {
 
 inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound",   "vehicle.package",     "vehicle",         "livery",
+                                                 "team.identity",  "team.pit_times",
                                                  "helmet",         "suit",                "gloves",          "driver.head",
                                                  "driver.look",    "driver.person",       "driver.identity", "driver.stats",
                                                  "wearable.season_set", "content.package"};
@@ -109,6 +111,9 @@ inline Value own_value(registry::Store &st, const std::string &reg, const std::s
             v[base_field] = Value(chain[1]);
         if (inherited("label"))
             v["label"] = Value(key_of(id));
+    } else if (reg == "team.identity") {
+        if (!rec["donor"].is_string())
+            v["donor"] = Value(chain[1]);
     } else if (reg == "content.package") {
         Value db = rec["database"];
         if (db.is_object() && inherited("database") && !inherited("entrant_list")) {
@@ -161,7 +166,7 @@ inline std::vector<Pin> pins(registry::Store &st)
     std::map<std::string, Value> keep;
     Lookup lookup = own_lookup(st, keep);
     for (const char *reg : {"vehicle.package", "vehicle", "livery", "helmet", "suit", "gloves", "driver.head", "driver.look",
-                            "driver.identity", "wearable.season_set", "content.package"})
+                            "driver.identity", "wearable.season_set", "content.package", "team.identity"})
         for (auto &id : in_load_order(st, reg)) {
             const Value *rec = lookup(reg, id);
             if (!rec)
@@ -189,8 +194,24 @@ struct Expansion {
     std::vector<Group> groups;
     std::vector<Folder> folders;
     std::vector<Owned> owned;
+    std::vector<LogoImage> logos;
     std::set<std::string> owners;
 };
+
+inline TeamRefs refs_of(registry::Store &st, const Lookup &lookup)
+{
+    std::vector<std::pair<std::string, const Value *>> idents, ctors, pits;
+    for (auto &id : in_load_order(st, "team.identity"))
+        if (const Value *r = lookup("team.identity", id))
+            idents.push_back({id, r});
+    for (auto &id : in_load_order(st, "team.constructor"))
+        if (const Value *r = lookup("team.constructor", id))
+            ctors.push_back({id, r});
+    for (auto &id : in_load_order(st, "team.pit_times"))
+        if (const Value *r = lookup("team.pit_times", id))
+            pits.push_back({id, r});
+    return team_refs(idents, ctors, pits);
+}
 
 // The vehicles that wear each livery: every vehicle record, stock or an addon's, whose effective livery names it.
 inline std::map<std::string, std::vector<std::string>> wearers(registry::Store &st)
@@ -220,6 +241,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
     };
     auto worn = wearers(st);
     WearCtx wear = wear_context(st, lookup);
+    TeamRefs refs = refs_of(st, lookup);
     int slot = 0;
     for (const char *reg : ROW_REGISTRIES) {
         auto &lines = x.lines[reg];
@@ -254,6 +276,10 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_stats(id, *rec, lookup, read, plan);
             else if (r == "wearable.season_set")
                 lower_season_set(id, *rec, lookup, read, plan, stat);
+            else if (r == "team.identity")
+                lower_team(id, *rec, lookup, read, refs, plan, stat);
+            else if (r == "team.pit_times")
+                lower_pit_times(id, *rec, lookup, read, refs, plan);
             else
                 lower_package(id, *rec, lookup, plan, stat, &wear.person_driver);
             x.engine.add_fields(plan.fields);
@@ -282,6 +308,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             x.groups.insert(x.groups.end(), plan.groups.begin(), plan.groups.end());
             x.folders.insert(x.folders.end(), plan.folders.begin(), plan.folders.end());
             x.owned.insert(x.owned.end(), plan.owned.begin(), plan.owned.end());
+            x.logos.insert(x.logos.end(), plan.logos.begin(), plan.logos.end());
             if (plan.refused && (r == "livery" || is_wear_registry(r)))
                 x.refused[reg] += int(plan.refused);
         }

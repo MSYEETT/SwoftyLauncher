@@ -23,6 +23,11 @@ pub struct Binding {
 }
 
 #[repr(C)]
+pub struct AiController {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct AiHandlingConfig {
     _opaque: [u8; 0],
 }
@@ -183,6 +188,11 @@ pub struct CarWheelProxies {
 }
 
 #[repr(C)]
+pub struct ControllerSet {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct DepartmentData {
     _opaque: [u8; 0],
 }
@@ -213,6 +223,11 @@ pub struct GdbValueSlot {
 }
 
 #[repr(C)]
+pub struct InputRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct NeStr {
     _opaque: [u8; 0],
 }
@@ -224,6 +239,11 @@ pub struct RedFlagSystem {
 
 #[repr(C)]
 pub struct RnDDepartmentConfig {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct SpectatorDirector {
     _opaque: [u8; 0],
 }
 
@@ -2261,6 +2281,8 @@ pub type Game_CareerActivities_AddActivity_t =
     unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u32);
 pub type Game_CareerActivities_RemoveActivity_t =
     unsafe extern "C" fn(calendar: *mut c_void, activity: *const c_void, day: u16);
+pub type Game_CareerContinue_HandleCommand_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut NeStr, value: *mut c_void) -> u64;
 pub type Game_CareerSetup_ResetEntrants_t = unsafe extern "C" fn(setup: *mut c_void);
 pub type Game_CareerWizard_PushNextStep_t = unsafe extern "C" fn(wizard: *mut c_void);
 pub type Game_CareerWizard_StartsInF1_t = unsafe extern "C" fn(
@@ -2362,6 +2384,8 @@ pub type Game_SaveData_SerialiseContainer_t = unsafe extern "C" fn(
     groups: u64,
 ) -> *mut c_int;
 pub type Game_SaveData_WriteBag_t = unsafe extern "C" fn(codec: *mut NeBagCodec, bag: *mut c_void) -> c_int;
+pub type Game_SaveMgr_RequestProfileSave_Thunk_t =
+    unsafe extern "C" fn(save_mgr: *mut c_void, callback: *mut c_void, a3: u8, a4: u8) -> bool;
 pub type Game_SceneManagerSpawn_SpawnScene_t = unsafe extern "C" fn(
     mgr: *mut c_void,
     opts: *const u8,
@@ -2378,6 +2402,9 @@ pub type Game_Set_VehicleController_Thunk_t =
     unsafe extern "C" fn(system: *mut c_void, vehicle: u64, ai: u32, flag: i32);
 pub type Game_SpeechSystem_PostLine_t =
     unsafe extern "C" fn(speech: *mut c_void, line: *mut c_void, retrigger: u8);
+pub type Game_TeamHQAdvanceViewModel_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut NeStr, data: *mut c_void) -> u64;
+pub type Game_TeamHQAdvanceViewModel_Update_t = unsafe extern "C" fn(vm: *mut c_void) -> u64;
 pub type Game_Teleport_Vehicle_t = unsafe extern "C" fn(
     car: *mut c_void,
     name: *const c_char,
@@ -2921,6 +2948,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_CareerContinue_HandleCommand: Binding = Binding {
+        id: "Game_CareerContinue_HandleCommand",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_CareerSetup_ResetEntrants: Binding = Binding {
         id: "Game_CareerSetup_ResetEntrants",
         kind: "func",
@@ -3126,6 +3158,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Game_SaveMgr_RequestProfileSave_Thunk: Binding = Binding {
+        id: "Game_SaveMgr_RequestProfileSave_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_SceneManagerSpawn_SpawnScene: Binding = Binding {
         id: "Game_SceneManagerSpawn_SpawnScene",
         kind: "func",
@@ -3148,6 +3185,16 @@ pub mod bindings {
     };
     pub const Game_SpeechSystem_PostLine: Binding = Binding {
         id: "Game_SpeechSystem_PostLine",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_TeamHQAdvanceViewModel_OnCommandRaised: Binding = Binding {
+        id: "Game_TeamHQAdvanceViewModel_OnCommandRaised",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_TeamHQAdvanceViewModel_Update: Binding = Binding {
+        id: "Game_TeamHQAdvanceViewModel_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4933,6 +4980,11 @@ pub mod bindings {
     };
     pub const vt_Game_DriverCareerSlotPredicate: Binding = Binding {
         id: "vt_Game_DriverCareerSlotPredicate",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Game_FECareerViewModel: Binding = Binding {
+        id: "vt_Game_FECareerViewModel",
         kind: "vtable",
         status: Status::Experimental,
     };

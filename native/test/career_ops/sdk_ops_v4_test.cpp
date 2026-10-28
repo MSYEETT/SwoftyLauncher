@@ -8,6 +8,7 @@
 #include <string>
 
 #include <swofty/systems/career.hpp>
+#include <swofty/systems/teams.hpp>
 #include <swofty/systems/tracks.hpp>
 
 using namespace swofty;
@@ -58,10 +59,20 @@ static int set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len
     return report(std::string(3000, ' '), out, cap, len);
 }
 
+static std::string g_logo_team, g_logo;
+static int set_logo(const char *team, const char *logo)
+{
+    g_logo_team = team;
+    g_logo = logo;
+    return std::string_view(logo) == "swofty.progressive/missing" ? int(SWOFTY_REFUSED) : int(SWOFTY_ASSET_OK);
+}
+
 static const SwoftyCareerOps kOps2 = {2,       available, driver_stat, nullptr, nullptr,       nullptr, nullptr, nullptr,
-                                      nullptr, set_seat,  set_car_number, set_track_fuel, nullptr};
+                                      nullptr, set_seat,  set_car_number, set_track_fuel, nullptr, nullptr};
 static const SwoftyCareerOps kOps4 = {4,       available, driver_stat, nullptr, nullptr,       nullptr, nullptr, nullptr,
-                                      nullptr, set_seat,  set_car_number, set_track_fuel, nullptr};
+                                      nullptr, set_seat,  set_car_number, set_track_fuel, set_logo, nullptr};
+static const SwoftyCareerOps kOps5 = {5,       available, driver_stat, nullptr, nullptr,       nullptr, nullptr, nullptr,
+                                      nullptr, set_seat,  set_car_number, set_track_fuel, set_logo, nullptr};
 
 int main()
 {
@@ -97,6 +108,15 @@ int main()
     CHECK(g_fuel == "{\"track\":\"*\",\"set\":\"sprint_f1_2026\",\"from\":\"sprint_f1_2025\",\"why\":\"season 2017\"}");
     CHECK(tracks::restore_track_fuel("2026") == career::Result::ok);
     CHECK(g_fuel == "{\"restore\":true,\"why\":\"2026\"}");
+
+    Ref<teams::Identity> williams("game/williams");
+    Ref<teams::Logo> logo("swofty.progressive/williams_2017"), missing("swofty.progressive/missing");
+    CHECK(teams::set_logo(williams, logo) == teams::Result::unavailable && g_logo.empty());
+    career::detail::set_ops_table(&kOps5);
+    CHECK(teams::set_logo(williams, logo) == teams::Result::ok);
+    CHECK(g_logo_team == "game/williams" && g_logo == "swofty.progressive/williams_2017");
+    CHECK(teams::set_logo(williams, missing) == teams::Result::invalid);
+    CHECK(teams::set_logo(Ref<teams::Identity>(), logo) == teams::Result::invalid);
 
     career::detail::set_ops_table(nullptr);
     if (failures) {

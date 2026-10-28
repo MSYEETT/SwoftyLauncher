@@ -6947,7 +6947,8 @@
    ],
    "used_by": [
     "addons/career-editor/native/src/components.cpp",
-    "native/src/core/career.cpp"
+    "native/src/core/career.cpp",
+    "native/src/core/testagent/agent.cpp"
    ]
   },
   {
@@ -75578,6 +75579,962 @@
    "used_by": [
     "native/src/core/car_category.cpp"
    ]
+  },
+  {
+   "id": "fe_flow.state_intro_on_update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 70 48 89 D6 48 89 CF 48 8B 89 F8 0B 00 00",
+   "match": "0x1436da4d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436da4d0",
+   "kind": "func_start",
+   "names": [
+    "FeFlow_StateIntro_OnUpdate"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "vm.node_set_bool",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 55 53 48 81 EC 20 03 00 00 F6 41 26 01 0F 85 ?? ?? ?? ?? 44 89 CB 44 89 C7 49 89 D6 48 89 CE 48 8B 49 58 48 8B 01 FF 50 38 84 DB 75 0E 0F B6 08",
+   "match": "0x140973e20",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140973e20",
+   "kind": "func_start",
+   "names": [
+    "Vm_NodeSet_Bool"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "vm.sync_point_is_complete",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 33 47 0F 84 F2 95 46 01 98 73 7B A4 A3",
+   "match": "0x1442626c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1442626c0",
+   "kind": "func_start",
+   "names": [
+    "Vm_SyncPoint_IsComplete"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.career_continue_handle_command",
+   "section": ".xtls",
+   "pattern": "56 48 83 EC 20 48 8B 02 48 85 C0 74 38",
+   "match": "0x141a1db90",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a1db90",
+   "kind": "func_start",
+   "names": [
+    "Game_CareerContinue_HandleCommand"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.team_hq_advance_view_model_update",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 48 89 CE 48 8B 89 E8 06 00 00",
+   "match": "0x1422ca380",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1422ca380",
+   "kind": "func_start",
+   "names": [
+    "Game_TeamHQAdvanceViewModel_Update"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.team_hq_advance_view_model_on_command_raised",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 03 00 00 4C 8B B1 20 06 00 00",
+   "match": "0x1422c3540",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1422c3540",
+   "kind": "func_start",
+   "names": [
+    "Game_TeamHQAdvanceViewModel_OnCommandRaised"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.save_mgr_request_profile_save_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? FF AB 62 24 E9 79 90",
+   "match": "0x1436595b0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1436595b0",
+   "kind": "func_start",
+   "names": [
+    "Game_SaveMgr_RequestProfileSave_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "session.intro",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 01 48 81 C1 E0 0D 00 00",
+   "match": "0x1437b562b",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x14585bff0",
+   "kind": "data",
+   "names": [
+    "vt_Sess_Intro"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "vm.bool_type_desc",
+   "section": ".xtls",
+   "pattern": "48 8D 0D ?? ?? ?? ?? FF 50 10 39 C3 75 17 48 8B 07",
+   "match": "0x1402572ce",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146129dc0",
+   "kind": "data",
+   "names": [
+    "g_Vm_BoolTypeDesc"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "vm.empty_node_handle",
+   "section": ".xtls",
+   "pattern": "0F 85 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? C5 F8 57 C0 C5 F8 29 44 24 30 48 C7 44 24 40 00 00 00 00 48 8D 15 ?? ?? ?? ?? 4C 8D 05",
+   "match": "0x1406a742e",
+   "anchor": "0x2a",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x27",
+    "len": 7
+   },
+   "target": "0x146ca0e90",
+   "kind": "data",
+   "names": [
+    "k_Vm_EmptyNodeHandle"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.fe_career_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 07 48 8D 05 ?? ?? ?? ?? 49 89 87 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 68 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 98 02 00 00 66 41 C7 87 A8 03 00 00 00 01",
+   "match": "0x14164bb66",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1457385b0",
+   "kind": "data",
+   "names": [
+    "vt_Game_FECareerViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "fe_tiles.career_kind_item",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 48 8D 8E 78 01 00 00",
+   "match": "0x14172557a",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x145703eb0",
+   "kind": "data",
+   "names": [
+    "vt_FeTile_CareerKindItem"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.career_continue_driver_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05 ?? ?? ?? ?? 49 89 84 24 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 84 24 68 02 00 00 49 C7 84 24 B8 13 00 00 00 00 00 00",
+   "match": "0x14164a1cd",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1457264a0",
+   "kind": "data",
+   "names": [
+    "vt_Game_CareerContinueDriverViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.career_continue_my_team_view_model",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05 ?? ?? ?? ?? 49 89 84 24 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 84 24 68 02 00 00 48 8B 4B E8",
+   "match": "0x14164a4f6",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x145726670",
+   "kind": "data",
+   "names": [
+    "vt_Game_CareerContinueMyTeamViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.team_hq_advance_view_model",
+   "section": ".xtls",
+   "pattern": "C4 C1 78 11 84 24 90 06 00 00 48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05",
+   "match": "0x1422cf9a2",
+   "anchor": "0xd",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xa",
+    "len": 7
+   },
+   "target": "0x14577a9c0",
+   "kind": "data",
+   "names": [
+    "vt_Game_TeamHQAdvanceViewModel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.save_mgr_system_key",
+   "section": ".xtls",
+   "pattern": "49 89 84 24 80 14 00 00 49 8B B4 24 70 14 00 00 48 8D 05",
+   "match": "0x1407d3f67",
+   "anchor": "0x13",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x10",
+    "len": 7
+   },
+   "target": "0x146100ca8",
+   "kind": "data",
+   "names": [
+    "k_Game_SaveMgrSystemKey"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "session.vehicle_table",
+   "section": ".xtls",
+   "pattern": "76 0E 48 8D 05 ?? ?? ?? ?? 4C 8B 3C D8",
+   "match": "0x140173e20",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x2",
+    "len": 7
+   },
+   "target": "0x146ce86e0",
+   "kind": "data",
+   "names": [
+    "g_Sess_VehicleTable"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "session.vehicle_count",
+   "section": ".xtls",
+   "pattern": "74 E5 38 1D ?? ?? ?? ?? 76 0E 48 8D 05",
+   "match": "0x140173e18",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x2",
+    "len": 6
+   },
+   "target": "0x146ce86dc",
+   "kind": "data",
+   "names": [
+    "g_Sess_VehicleCount"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "game.message_set_advance_destination",
+   "section": ".xtls",
+   "pattern": "48 8D 0D ?? ?? ?? ?? 48 89 4C 24 50 48 C7 44 24 60 02 00 00 00",
+   "match": "0x141c65066",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1457548b8",
+   "kind": "data",
+   "names": [
+    "vt_Game_MessageSetAdvanceDestination"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "ts-v1",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/testagent/agent.cpp"
+   ]
+  },
+  {
+   "id": "session.ai_controller",
+   "section": ".xtls",
+   "pattern": "48 89 C3 48 85 C0 74 5A 4C 8B 36 48 8D 05",
+   "match": "0x143896a82",
+   "anchor": "0xe",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xb",
+    "len": 7
+   },
+   "target": "0x145882150",
+   "kind": "data",
+   "names": [
+    "vt_Sess_AiController"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.human_controller",
+   "section": ".xtls",
+   "pattern": "48 8B 6E 38 48 8D 05 ?? ?? ?? ?? 49 89 06",
+   "match": "0x1438969f7",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x4",
+    "len": 7
+   },
+   "target": "0x145882170",
+   "kind": "data",
+   "names": [
+    "vt_Sess_HumanController"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 48 8D 05 ?? ?? ?? ?? 48 89 46 20 48 89 7E 28 48 8B 07",
+   "match": "0x143897fc3",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1458824a0",
+   "kind": "data",
+   "names": [
+    "vt_Sess_ControllerSystem"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_destroy_sets",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 20 48 89 CE 4C 8B 71 30",
+   "match": "0x143899f30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143899f30",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_DestroySets"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_apply_inputs",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 48 C5 F8 29 74 24 30 80 B9 64 03 00 00 00",
+   "match": "0x14389a120",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389a120",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_ApplyInputs"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_write_flags",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 20 48 8B 79 10 48 8B 59 18 48 39 DF 74 5C",
+   "match": "0x14389ce30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389ce30",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_WriteFlags"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_active",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 70 89 D3",
+   "match": "0x142e18650",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18650",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetActive"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_update",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 50 80 B9 D1 00 00 00 00",
+   "match": "0x142e18dd0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18dd0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_Update"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_request_driver",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 48 80 B9 D1 00 00 00 00",
+   "match": "0x142e19950",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e19950",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_RequestDriver"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_apply_request",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 89 CE 0F B6 99 DC 00 00 00",
+   "match": "0x142e1a0f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e1a0f0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_ApplyRequest"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_current",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 78 44 89 C7 89 D3 48 89 CE 88 91 D6 00 00 00",
+   "match": "0x142e19d50",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e19d50",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetCurrent"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_ui_flag_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 44 D0 D4 E9 ?? ?? ?? ?? 5B E9",
+   "match": "0x142e18d10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18d10",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetUiFlag_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_hide",
+   "section": ".xtls",
+   "pattern": "48 83 EC 38 8B 05 ?? ?? ?? ?? 8B 0D",
+   "match": "0x141c237e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c237e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_Hide"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_show",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 48 89 CE 8B 05 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 65 48 8B 14 25 58 00 00 00 48 8B 0C CA 3B 81 04 00 00 00 0F 8F ?? ?? ?? ?? 8B 05 ?? ?? ?? ?? A8 40 0F 84 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 01 0F 85 ?? ?? ?? ?? B9 D4 00 00 00 48 8D 15 ?? ?? ?? ?? 66 2E 0F 1F 84 00 00 00 00 00",
+   "match": "0x141c247a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c247a0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_Show"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.hud_on_spectator_hud_visibility",
+   "section": ".xtls",
+   "pattern": "48 83 EC 28 44 0F B6 42 10 BA 04 00 00 00",
+   "match": "0x141a36940",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a36940",
+   "kind": "func_start",
+   "names": [
+    "Sess_Hud_OnSpectatorHudVisibility"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.hud_set_visibility_bit",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 44 89 C3 89 D7 48 89 CE 45 84 C0 74 08",
+   "match": "0x141a39bc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a39bc0",
+   "kind": "func_start",
+   "names": [
+    "Sess_Hud_SetVisibilityBit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_handle_command",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 8B 02 48 85 C0 0F 84 ?? ?? ?? ?? 48 89 CE 8B 00 3D 1B E0 82 D8",
+   "match": "0x141c244e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c244e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_HandleCommand"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_on_activated",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 68 48 89 CB 48 81 C1 C0 09 00 00",
+   "match": "0x141c20e60",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c20e60",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_OnActivated"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
   }
  ]
 }
