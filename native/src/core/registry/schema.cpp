@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <set>
 #include <unordered_map>
 
@@ -30,6 +31,34 @@ bool ascii_digit(char32_t c)
 bool ascii_word(char32_t c)
 {
     return c == '_' || ascii_digit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+bool in_ranges(char32_t c, const char32_t (*ranges)[2], std::size_t n)
+{
+    for (std::size_t i = 0; i < n; ++i)
+        if (c >= ranges[i][0] && c <= ranges[i][1])
+            return true;
+    return false;
+}
+
+bool py_digit(char32_t c)
+{
+    static const char32_t ranges[][2] = {{0x660, 0x669}, {0x6F0, 0x6F9}, {0x966, 0x96F}, {0xFF10, 0xFF19}};
+    return ascii_digit(c) || (c >= 0x80 && in_ranges(c, ranges, std::size(ranges)));
+}
+
+bool py_word(char32_t c)
+{
+    static const char32_t ranges[][2] = {
+        {0xAA, 0xAA},     {0xB2, 0xB3},     {0xB5, 0xB5},     {0xB9, 0xBA},     {0xBC, 0xBE},     {0xC0, 0xD6},
+        {0xD8, 0xF6},     {0xF8, 0x2C1},    {0x2C6, 0x2D1},   {0x2E0, 0x2E4},   {0x2EC, 0x2EC},   {0x2EE, 0x2EE},
+        {0x370, 0x374},   {0x376, 0x377},   {0x37A, 0x37D},   {0x37F, 0x37F},   {0x386, 0x386},   {0x388, 0x38A},
+        {0x38C, 0x38C},   {0x38E, 0x3A1},   {0x3A3, 0x3F5},   {0x3F7, 0x481},   {0x48A, 0x52F},   {0x531, 0x556},
+        {0x560, 0x588},   {0x5D0, 0x5EA},   {0x620, 0x64A},   {0x660, 0x669},   {0x6F0, 0x6F9},   {0x966, 0x96F},
+        {0x1E00, 0x1F15}, {0x3041, 0x3096}, {0x30A1, 0x30FA}, {0x4E00, 0x9FFF}, {0xAC00, 0xD7A3}, {0xFF10, 0xFF19},
+        {0xFF21, 0xFF3A}, {0xFF41, 0xFF5A}};
+    return c == '_' || ascii_digit(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= 0x80 && in_ranges(c, ranges, std::size(ranges)));
 }
 
 void decode(std::string_view s, std::u32string &out)
@@ -373,8 +402,8 @@ struct CharClass {
                 break;
             }
         if (!hit && flags)
-            hit = ((flags & digit) && ascii_digit(c)) || ((flags & not_digit) && !ascii_digit(c)) ||
-                  ((flags & word) && ascii_word(c)) || ((flags & not_word) && !ascii_word(c)) ||
+            hit = ((flags & digit) && py_digit(c)) || ((flags & not_digit) && !py_digit(c)) ||
+                  ((flags & word) && py_word(c)) || ((flags & not_word) && !py_word(c)) ||
                   ((flags & space) && py_space(c)) || ((flags & not_space) && !py_space(c));
         return hit != negate;
     }
@@ -419,8 +448,8 @@ struct Regex {
             return i == n;
         case Op::wordb:
         case Op::nwordb: {
-            bool before = i > 0 && ascii_word(s[i - 1]);
-            bool after = i < n && ascii_word(s[i]);
+            bool before = i > 0 && py_word(s[i - 1]);
+            bool after = i < n && py_word(s[i]);
             return (before != after) == (op == Op::wordb);
         }
         default:

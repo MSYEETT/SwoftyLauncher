@@ -29,7 +29,9 @@
 //   field (but not a required one), and a keyed list's minItems and maxItems wait for the merged result.
 // - pattern is a regular expression run by a linear-time matcher (no backtracking): literals, ".",
 //   classes, \d \w \s and their negations, groups, "|", "*", "+", "?", "{m,n}", ^, $, \b, \A, \Z.
-//   \d, \w and \b are ASCII; anything else (lookaround, backreferences) fails the compile.
+//   \w, \d and \b follow Python's Unicode classes for Latin, Greek, Cyrillic, Armenian, Hebrew, Arabic, kana,
+//   CJK and Hangul (other scripts count as non-word); anything else (lookaround, backreferences, flags)
+//   fails the compile.
 //
 // Errors carry a JSON Pointer ("/teams/0/slot", "/" for the value itself) and a message. Nothing throws.
 
