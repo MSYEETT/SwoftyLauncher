@@ -29,60 +29,70 @@ The rest: `characters`, `wizards`, `hub_tabs`.
 
 ```cpp
 #pragma once
-#include <swofty/registry.hpp>
+#include <swofty/career.hpp>
 #include <swofty/events.hpp>
+#include <swofty/registry.hpp>
+#include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/teams.hpp>
-#include <swofty/systems/tracks.hpp>
-#include <swofty/systems/content.hpp>
 
 namespace swofty::career {
-
-struct Calendar;
 
 enum class Kind { driver_career, my_team };
 enum class Freeze { per_season, at_creation };
 enum class AfterLast { market, hold, end };
+enum class ChangeKind { swap, stand_in, move, replace };
+enum class Careers { driver, my_team, both };
 
-struct Mode {
+struct ModeRecord {
+    static constexpr Version version{1, 0};
     std::string data_group;                    // partitions 8 career tables and the save slots: "f1_career_progressive"
     std::string save_container;                // save_data.name: the mode's own container in the profile save
     Text title;                                // the career tile's title
     Kind kind = Kind::driver_career;
     Freeze freeze = Freeze::per_season;        // per_season: each season's line-up, ratings and rules freeze when it starts
     StatId stat_id = StatId::automatic;        // a game_modes.ModeChampionship row
+    json::Value extra;
 };
-SWOFTY_RECORD(Mode, data_group, save_container, title, kind, freeze, stat_id)
-inline Registry<Mode> modes{"career.mode", { .applies = Applies::boot }};
+SWOFTY_RECORD(ModeRecord, data_group, save_container, title, kind, freeze, stat_id)
+inline Registry<ModeRecord> modes{"career.mode", {.applies = Applies::boot}};
 
 struct Content {
-    Ref<Mode> mode;
+    static constexpr Version version{1, 0};
+    Ref<ModeRecord> mode;
     Path tile;                                 // the tile image
     Ref<Content> model;                        // clone the 8 data-group tables, championship and components from it
     Ref<Calendar> calendar;                    // the wizard's calendar
     AfterLast after_last = AfterLast::market;  // past the last season record: the market, the last year forever, or the end
+    Text title;
+    Text description;
+    std::string data_group;
+    std::string suffix;
+    std::string save_container;
+    int car_group = -1;
+    int badge = 0;
+    std::string entitlement;
+    Careers careers = Careers::driver;
+    json::Value extra;
 };
-SWOFTY_RECORD(Content, mode, tile, model, calendar, after_last)
-inline Registry<Content> contents{"career.content", { .applies = Applies::boot }};   // (tile, gate, slot predicate)
+SWOFTY_RECORD(Content, mode, tile, model, calendar, after_last, title, description, data_group, suffix, save_container,
+              car_group, badge, entitlement, careers)
+inline Registry<Content> contents{"career.content", {.applies = Applies::boot}};
 
 struct SeasonTeam {
-    int slot = 0;                              // 1-11, the career team that carries this season's team
+    int slot = 0;                              // 1-12, the career team that carries this season's team
     Ref<teams::Identity> team;                 // empty: the slot is empty this season
     std::array<Ref<drivers::Identity>, 2> seats;
 };
 SWOFTY_RECORD(SeasonTeam, slot, team, seats)
 
-enum class ChangeKind {
-    swap,       // the two drivers exchange seats
-    stand_in,   // `in` drives until `until_round`, then `out` returns
-    move,       // `in` was on the grid in another seat and moves to this one
-    replace,    // `in` takes the seat for the rest of the season; `out` leaves the grid
-};
-
 struct SeasonChange {
     int round = 0, slot = 0, seat = 0;         // from this round on, this seat
     Ref<drivers::Identity> out, in;
-    ChangeKind kind = ChangeKind::swap;
+    ChangeKind kind = ChangeKind::swap;        // swap: the two drivers exchange seats; stand_in: `in` drives until
+                                               // `until_round`, then `out` returns; move: `in` was on the grid in
+                                               // another seat and moves to this one; replace: `in` takes the seat for
+                                               // the rest of the season and `out` leaves the grid
     std::optional<int> until_round;            // stand_in only
 };
 SWOFTY_RECORD(SeasonChange, round, slot, seat, out, in, kind, until_round)
@@ -91,14 +101,15 @@ struct Season {
     static constexpr Version version{1, 0};
     std::string data_group;
     int year = 0;
-    Ref<content::Package> box;                 // the box it races in: its cars, looks and rules; .or_else() names the fallback
+    Ref<::swofty::content::Package> box;       // the box it races in: its cars, looks and rules; .or_else() names the fallback
     Ref<Calendar> calendar;                    // the season's real calendar; empty: the career's
     Keyed<SeasonTeam, &SeasonTeam::slot> teams;
     Keyed<SeasonChange, &SeasonChange::round, &SeasonChange::slot, &SeasonChange::seat> changes;
     json::Value extra;                         // fields from a newer minor, kept for the round trip
 };
 SWOFTY_RECORD(Season, data_group, year, box, calendar, teams, changes)
-inline Registry<Season> seasons{"career.season", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
+inline Registry<Season> seasons{"career.season",
+                                {.applies = Applies::read, .snapshot = true, .snapshot_budget = 65536}};
 
 struct Round {
     int round = 0;
@@ -109,40 +120,92 @@ struct Round {
 SWOFTY_RECORD(Round, round, race, venue, date)
 
 struct Calendar {
+    static constexpr Version version{1, 0};
     Keyed<Round, &Round::round> rounds;        // schedule.event_lists rows
     int seasons = 10;                          // _season_instancecount_: the career length
     std::vector<int> transfer_windows;         // the round after which a window opens
+    json::Value extra;
 };
-inline Registry<Calendar> calendars{"career.calendar", { .applies = Applies::boot }};
+SWOFTY_RECORD(Calendar, rounds, seasons, transfer_windows)
+inline Registry<Calendar> calendars{"career.calendar", {.applies = Applies::boot}};
 
 struct DriverRatings {
+    static constexpr Version version{1, 0};
     Ref<Season> season;
     Ref<drivers::Identity> driver;
-    float experience, racecraft, awareness, pace;   // 0..100, one decimal
+    float experience = 0, racecraft = 0, awareness = 0, pace = 0;   // 0..100, one decimal
+    json::Value extra;
 };
 SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, pace)
-inline Registry<DriverRatings> ratings{"career.driver_ratings", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
+inline Registry<DriverRatings> ratings{"career.driver_ratings",
+                                       {.applies = Applies::read, .snapshot = true, .snapshot_budget = 65536}};
+
+struct CharacterSwap {
+    std::string character;
+    std::string with;
+};
+SWOFTY_RECORD(CharacterSwap, character, with)
 
 struct Character {
+    static constexpr Version version{1, 0};
     Ref<Character> replaces;                   // the stock character it stands in for, per data group
     Text first_name, last_name;
     Path portrait;                             // the core makes the message_avatars slice
     std::vector<std::string> mute;             // speech lines it mutes: "agent", "agent_cutscene"
+    std::string data_group;
+    Keyed<CharacterSwap, &CharacterSwap::character> swaps;
+    std::map<std::string, std::map<std::string, std::string>> strings;
+    json::Value extra;
 };
-inline Registry<Character> characters{"career.character", { .applies = Applies::content }};
+SWOFTY_RECORD(Character, replaces, first_name, last_name, portrait, mute, data_group, swaps, strings)
+inline Registry<Character> characters{"career.character", {.applies = Applies::content}};
 
 struct WizardStep {
     std::string route;                         // the setup screen it opens, in flow_career_season_setup
     Text title;
     std::vector<std::string> options;          // the addon options this step sets for the new career
 };
+SWOFTY_RECORD(WizardStep, route, title, options)
+
+struct WizardRoute {
+    std::string from;
+    std::string to;
+};
+SWOFTY_RECORD(WizardRoute, from, to)
+
+struct WizardSwap {
+    int at = 0;
+    int with = 0;
+};
+SWOFTY_RECORD(WizardSwap, at, with)
 
 struct Wizard {                                // new-career setup steps, after the game's own
+    static constexpr Version version{1, 0};
     Ref<Content> content;                      // the career tile it runs for
     std::vector<WizardStep> steps;
+    std::string data_group;
+    bool starts_in_f1 = false;
+    Keyed<WizardRoute, &WizardRoute::from> tile_routes;
+    Keyed<WizardSwap, &WizardSwap::at> replace_steps;
+    Keyed<WizardSwap, &WizardSwap::at> force_options;
+    Keyed<WizardRoute, &WizardRoute::from> confirm_routes;
+    std::vector<std::string> hide_driver_tabs;
+    json::Value extra;
 };
-SWOFTY_RECORD(Wizard, content, steps)
-inline Registry<Wizard> wizards{"career.wizard", { .applies = Applies::content }};
+SWOFTY_RECORD(Wizard, content, steps, data_group, starts_in_f1, tile_routes, replace_steps, force_options, confirm_routes,
+              hide_driver_tabs)
+inline Registry<Wizard> wizards{"career.wizard", {.applies = Applies::content}};
+
+struct HubTab {
+    static constexpr Version version{1, 0};
+    std::string name;
+    std::string title;
+    std::string data_group;
+    std::vector<std::string> options;
+    json::Value extra;
+};
+SWOFTY_RECORD(HubTab, name, title, data_group, options)
+inline Registry<HubTab> hub_tabs{"hub.tab", {.applies = Applies::read}};
 
 namespace events {
 
@@ -167,6 +230,31 @@ struct AddActivity {                           // Game_CareerActivities_AddActiv
     bool player;                               // the calendar is the human player's
 };
 
+struct ContractDecide {
+    static constexpr const char *point = "career.contract.decide";
+    static constexpr uint32_t version = 1;
+    static constexpr uint32_t negotiate = 0x5e3c3c2d;
+    static constexpr uint32_t ends_this_season = 0xd2985448;
+    static constexpr uint32_t next = 0x7c9b1ec4;
+    uint32_t size, payload_version;
+    void *state;
+    uint32_t link;
+};
+
+struct ContractSign {
+    static constexpr const char *point = "career.contract.sign";
+    static constexpr uint32_t version = 1;
+    static constexpr uint32_t work_out_replaced = 0x3fff0000;
+    uint32_t size, payload_version;
+    void *contracts;
+    void *contract;
+    uint32_t driver;
+    uint32_t replaced;
+    uint32_t team;
+    uint8_t type;
+    bool notify;
+};
+
 struct StandingsRebuild {                      // Career_Rebuild_SeasonStandings (modify)
     static constexpr const char *point = "career.standings.rebuild";
     static constexpr uint32_t version = 1;
@@ -174,24 +262,27 @@ struct StandingsRebuild {                      // Career_Rebuild_SeasonStandings
     void *championship;                        // the standings the game rebuilt
 };
 
-// also: Loaded (career.loaded), Unloaded (career.unloaded), ContractDecide (career.contract.decide), ContractSign (career.contract.sign),
-// SeasonProcess (career.season.process), LineupChanges (career.lineup.changes),
-// WeekendCreate (career.weekend.create), RndStart (career.rnd.start), and the lifecycle in Events
+// no payload beyond size and payload_version: Created (career.created), Loaded (career.loaded),
+// Unloaded (career.unloaded), SeasonEnd (career.season.end), SeasonBreak (career.season.break), Saving (career.saving)
 
 } // namespace events
 
-struct ApplyReport {                           // what apply_lineup did, seat by seat
+struct ApplyReport {                           // what apply_teams and apply_lineup did, seat by seat
     size_t changed = 0, unchanged = 0, refused = 0;
     std::vector<std::string> refusals;         // one line per refused seat: which seat, and why
 };
 
+const SwoftyCareerOps *ops();
+Result set_slots(std::string_view data_group, const std::vector<uint32_t> &team_stats);
+Result apply_teams(const Season &season, ApplyReport *report = nullptr);
 Result apply_lineup(const Season &season, ApplyReport *report = nullptr);
 Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
+Result set_seat_of_team(uint32_t team_stat, int seat, Ref<drivers::Identity> driver);
 Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
-Result set_car_number(Ref<drivers::Identity> driver, int number);
+Result set_car_number(Ref<drivers::Identity> driver, int number, bool swap = false);
 Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b);   // the game's full move sequence
+Result apply_dropped_scores(const events::StandingsRebuild &, int);   // unavailable
 Result report_season(int year, int season_index);   // the career's owner: the season at season_index is year
-Result apply_dropped_scores(const events::StandingsRebuild &s, int best_results);   // keeps gross totals for the UI
 
 } // namespace swofty::career
 ```
@@ -520,9 +611,22 @@ career::swap_drivers(drivers::identities["game/alex_albon"], drivers::identities
 career::report_season(2017, 1);
 ```
 
-`apply_lineup`, `set_driver_ratings`, `swap_drivers` and `report_season` are in the core from 1.6.0, in Driver Career. `set_seat`, `set_car_number` and `apply_dropped_scores` return `unavailable`.
+The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `SwoftyCareerOps` in `swofty_api.h`, `SWOFTY_CAREER_OPS_VERSION` 6). A call returns `unavailable` on a core whose table is older than the version that added it. `apply_dropped_scores` returns `unavailable` on every core.
+
+| Table version | Adds | Header call |
+| --- | --- | --- |
+| 1 | `available`, `driver_stat`, `set_slots`, `apply_lineup`, `set_driver_ratings`, `swap_drivers` | `career::set_slots`, `career::apply_lineup`, `career::set_driver_ratings`, `career::swap_drivers` |
+| 2 | `report_season` | `career::report_season` |
+| 3 | `apply_teams` | `career::apply_teams` |
+| 4 | `set_seat`, `set_car_number`, `set_track_fuel` | `career::set_seat`, `career::set_seat_of_team`, `career::set_car_number`, `tracks::set_track_fuel` |
+| 5 | `set_logo` | `teams::set_logo` |
+| 6 | `set_look` | `drivers::set_look` |
+
+`set_seat` takes a 1-based `slot` of the loaded career's data group, `set_seat_of_team` a team stat id; `set_car_number` takes `swap`, which gives the driver who held the number the caller's old one. `set_driver_ratings` writes experience, racecraft, awareness and pace by game stat id 0, 1, 3 and 4.
 
 - **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
+- **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`.
+- **`set_seat`:** the driver takes race seat 0 or 1 of a slot in Driver Career. A race driver exchanges seats with the seat's driver; a free agent takes the seat and the seat's driver leaves the grid.
 - **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied.
 - **What it refuses:** a driver not in the drivers table, a driver without a single career row, a driver named on two seats (the second), the player (never moved) and the player's seat (never given away). The refused seats keep their drivers.
 

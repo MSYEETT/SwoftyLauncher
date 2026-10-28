@@ -15,6 +15,7 @@ struct Fixture {
     root: PathBuf,
     store: Store,
     game: Game,
+    _pin: swofty_core::builtin::LoaderPin,
 }
 
 impl Fixture {
@@ -36,7 +37,12 @@ impl Fixture {
             user_reg: None,
         };
         let store = Store::new(root.join("data"));
-        Self { root, store, game }
+        Self {
+            root,
+            store,
+            game,
+            _pin: swofty_core::builtin::LoaderPin::none(),
+        }
     }
 
     fn addon(&self, id: &str, name: &str, version: &str, ops: &str, registry: Option<&str>) {

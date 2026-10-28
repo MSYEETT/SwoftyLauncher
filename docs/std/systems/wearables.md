@@ -24,38 +24,52 @@ A few terms used on this page:
 
 namespace swofty::wearables {
 
+using Result = swofty::Result;
+
 struct Helmet {                                    // a customisation.custom_avatar.helmets row and its archive
+    static constexpr Version version{1, 0};
     Path archive;                                  // the helmet archive (or the resources of one)
     Ref<Helmet> from;                              // the shell and row it starts from
     Text name;                                     // its name in the picker
     Ref<drivers::Identity> driver;                 // who can pick it; empty: any driver
-    std::array<Colour, 4> colours;                 // colour_1..4_default; every item row needs them
+    std::optional<std::array<Colour, 4>> colours;  // colour_1..4_default; empty: the core takes them from the `from` row
     bool official_team_item = false;               // is_official_team_item
     StatId stat_id = StatId::automatic;            // the item id
+    json::Value extra;
 };
+SWOFTY_RECORD(Helmet, archive, from, name, driver, colours, official_team_item, stat_id)
 
 struct Suit {                                      // a suits row and its archive
+    static constexpr Version version{1, 0};
     Path archive;
     Ref<Suit> from;
     Ref<teams::Identity> team;                     // the team it belongs to
-    std::array<Colour, 4> colours;                 // colour_N_default
+    std::optional<std::array<Colour, 4>> colours;  // colour_N_default
     StatId stat_id = StatId::automatic;
+    json::Value extra;
 };
+SWOFTY_RECORD(Suit, archive, from, team, colours, stat_id)
 
 struct Gloves {                                    // a gloves row and its archive
+    static constexpr Version version{1, 0};
     Path archive;
     Ref<Gloves> from;
     Ref<teams::Identity> team;
-    std::array<Colour, 4> colours;
+    std::optional<std::array<Colour, 4>> colours;
     StatId stat_id = StatId::automatic;
+    json::Value extra;
 };
+SWOFTY_RECORD(Gloves, archive, from, team, colours, stat_id)
 
 struct SeasonSet {                                 // one team_customisation_for_year row
+    static constexpr Version version{1, 0};
     Ref<teams::Identity> team;                     // the team
-    int season;                                    // the year
+    int season = 0;                                // the year
     Ref<Suit> suit;                                // its suit that season
     Ref<Gloves> gloves;                            // its gloves that season
+    json::Value extra;
 };
+SWOFTY_RECORD(SeasonSet, team, season, suit, gloves)
 
 inline Registry<Helmet> helmets{"helmet", { .applies = Applies::boot }};
 inline Registry<Suit> suits{"suit", { .applies = Applies::boot }};

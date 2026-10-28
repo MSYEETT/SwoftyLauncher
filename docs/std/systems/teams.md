@@ -24,11 +24,18 @@ A few terms used on this page:
 
 namespace swofty::teams {
 
+using Result = swofty::Result;
+
+enum class LogoContext : int32_t { driver_select, team_select, hud, broadcast, hub };
+
 struct Constructor {                               // a real team; the core owns the constructor/ ids
+    static constexpr Version version{1, 0};
     std::string name;                              // "Scuderia Toro Rosso"
     std::string country;                           // "italy"
     Ref<Identity> team;                            // resolved: the last enabled team in load order that is this constructor
+    json::Value extra;
 };
+SWOFTY_RECORD(Constructor, name, country, team)
 
 struct Colours {
     Colour menu;                                   // ui_team_colour: menus and the timing tower
@@ -36,6 +43,7 @@ struct Colours {
     Colour secondary;                              // secondary_colour
     Colour tertiary;                               // tertiary_colour
 };
+SWOFTY_RECORD(Colours, menu, primary, secondary, tertiary)
 
 struct Names {
     Text title;                                    // display_name
@@ -43,8 +51,17 @@ struct Names {
     Text super_short;                              // display_name_super_short
     std::string code;                              // display_name_code: "MER"
 };
+SWOFTY_RECORD(Names, title, short_name, super_short, code)
+
+struct Logo {
+    static constexpr Version version{1, 0};
+    std::map<LogoContext, Path> images;            // one image per context; a slice each, not a whole array
+    json::Value extra;
+};
+SWOFTY_RECORD(Logo, images)
 
 struct Identity {                                  // one entrants.teams row
+    static constexpr Version version{1, 0};
     Ref<Identity> donor;                           // the row it copies, all 30 keys with story_info (new teams)
     Ref<Constructor> constructor;                  // the real team it is; empty: a fictional team
     std::vector<Ref<Constructor>> provides;        // the constructor/ ids this team provides (shared ids)
@@ -57,18 +74,18 @@ struct Identity {                                  // one entrants.teams row
     int prestige = 0;                              // prestige
     std::string nationality;                       // nationality
     StatId stat_id = StatId::automatic;            // team ids run to 514
+    json::Value extra;
 };
-
-enum class LogoContext { driver_select, team_select, hud, broadcast, hub };
-
-struct Logo {
-    std::map<LogoContext, Path> images;            // one image per context; a slice each, not a whole array
-};
+SWOFTY_RECORD(Identity, donor, constructor, provides, names, colours, wear, livery_name, logo, audio_id, prestige,
+              nationality, stat_id)
 
 struct PitTimes {                                  // one pit_lane.pit_times row, found by team label
+    static constexpr Version version{1, 0};
     Ref<Identity> team;
     Ref<PitTimes> from;                            // copy another team's row
+    json::Value extra;
 };
+SWOFTY_RECORD(PitTimes, team, from)
 
 inline Registry<Constructor> constructors{"team.constructor", { .applies = Applies::boot }};
 inline Registry<Identity> identities{"team.identity", { .applies = Applies::boot }};   // names and colours also on read
@@ -76,8 +93,8 @@ inline Registry<Logo> logos{"team.logo", { .applies = Applies::read }};
 inline Registry<PitTimes> pit_times{"team.pit_times", { .applies = Applies::boot }};
 
 Result set_logo(Ref<Identity> team, Ref<Logo> logo);     // from now on, every context
-Result set_name(Ref<Identity> team, Names names);        // the loaded team's names
-Result set_colours(Ref<Identity> team, Colours colours); // needs the Sess_Load_Teams record layout
+Result set_name(Ref<Identity>, Names);                   // the loaded team's names; unavailable
+Result set_colours(Ref<Identity>, Colours);              // needs the Sess_Load_Teams record layout; unavailable
 
 }
 

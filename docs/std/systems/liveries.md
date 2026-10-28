@@ -1,6 +1,6 @@
 ---
 title: Liveries
-description: Liveries in code - liveries, special liveries, decal sets, sponsor packs and AI livery choices as typed registries, how a livery fits a car by its model, and the livery events and operations.
+description: Liveries in code - liveries and special liveries as a typed registry, and how a livery fits a car by its model. AI livery choices, decal sets, sponsor packs and the livery events and operations are described for headers that come later.
 ---
 
 # Liveries
@@ -22,12 +22,16 @@ A few terms used on this page:
 
 ```cpp
 #include <swofty/registry.hpp>
+#include <swofty/systems/forward.hpp>
 
 namespace swofty::liveries {
+
+using Result = swofty::Result;
 
 enum class Unlock { owned, game };                 // owned: the core reports it owned; game: the game's unlock row decides
 
 struct Livery {
+    static constexpr Version version{1, 0};
     Ref<cars::Vehicle> vehicle;                    // the car it was made for (compatible_vehicle); it fits every car
                                                    // with the same model
     Path textures;                                 // a folder of textures over the car's own
@@ -39,62 +43,11 @@ struct Livery {
     Ref<tracks::Venue> event;                      // the grand prix it's made for, if any
     Unlock unlock = Unlock::owned;                 // who decides whether the player has it
     StatId stat_id = StatId::automatic;            // the se_livery and unlock rows' ids
+    json::Value extra;
 };
+SWOFTY_RECORD(Livery, vehicle, textures, archive, partial, special, suffix, picker_name, event, unlock, stat_id)
 
-struct ProjectionArea { Side side; Rect area; };   // decal_customisation_system.projection_areas, per car side
-
-struct DecalSet {                                  // a My Team decal set
-    Path textures;                                 // its decal images
-    std::vector<ProjectionArea> areas;             // where they project
-    StatId stat_id = StatId::automatic;
-};
-
-struct SponsorPack {
-    std::map<std::string, Path> slices;            // texture-array slice -> image: "sponsors_2026[petronas]"
-};
-
-struct AiAssignment {
-    Ref<cars::Vehicle> vehicle;                    // the AI car
-    int season;                                    // the season it applies to
-    Ref<Livery> livery;                            // the special livery it races; locked ones race the default
-};
-
-inline Registry<Livery> liveries{"livery", { .applies = Applies::boot }};
-inline Registry<DecalSet> decal_sets{"livery.decal_set", { .applies = Applies::boot }};
-inline Registry<SponsorPack> sponsor_packs{"livery.sponsor_pack", { .applies = Applies::boot }};   // slices written into the arrays at boot
-inline Registry<AiAssignment> ai_assignments{"livery.ai_assignment", { .applies = Applies::session }};
-
-Result grant(Ref<Livery> livery);                  // report it owned to the game
-Result assign(int car, Ref<Livery> livery);        // a live car's livery (later)
-
-}
-
-namespace swofty::liveries::events {
-
-struct SpecialList {                               // Game_Build_SpecialLiveryList: after
-    static constexpr const char *point = "livery.special.list";
-    static constexpr uint32_t version = 1;
-    uint32_t size, payload_version;
-    Ref<cars::Vehicle> vehicle;                    // the car whose picker is built
-    std::vector<Ref<Livery>> &list;                // append to it
-};
-
-struct FrontendSet {                               // Game_FrontendSceneComponentCar_SetCarLivery: before
-    static constexpr const char *point = "livery.frontend.set";
-    static constexpr uint32_t version = 1;
-    uint32_t size, payload_version;
-    Ref<cars::Vehicle> vehicle;
-    Ref<Livery> livery;                            // the livery the front end shows; before handlers may change it
-};
-
-struct AiSelect {                                  // the AI car's livery suffix at session load: before
-    static constexpr const char *point = "livery.ai_select";
-    static constexpr uint32_t version = 1;
-    uint32_t size, payload_version;
-    int car;
-    Ref<cars::Vehicle> vehicle;
-    Ref<Livery> livery;                            // empty: the team's own
-};
+inline Registry<Livery> liveries{"livery", {.applies = Applies::boot}};
 
 }
 ```
@@ -275,6 +228,8 @@ SWOFTY_ADDON()
 The importer routes a `.vtf` inside a livery's `wep.erp` to `vehicle.handling`. Installing a livery leaves R&D Tyres' handling in place.
 
 ## AI liveries
+
+The 1.6.0 header has no `ai_assignments` registry, no decal sets or sponsor packs, and no livery events or operations (`grant`, `assign`). This section and the next describe them for headers that come later.
 
 <Split>
 
