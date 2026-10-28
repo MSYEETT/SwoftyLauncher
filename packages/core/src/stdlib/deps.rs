@@ -48,6 +48,8 @@ pub struct Std {
     pub lock: Option<Lock>,
     pub data_files: Vec<String>,
     pub records: Vec<data::Record>,
+    /// The files its data files and lock name through `Path` fields, for the build to place.
+    pub files: super::paths::Named,
     /// Why its `registry.json` or lock file couldn't be read.
     pub unreadable: Vec<String>,
 }
@@ -70,6 +72,11 @@ impl Std {
             .flat_map(|text| data::records(&m.id, &text))
             .collect();
         records.sort_by(|a, b| (&a.registry, &a.id).cmp(&(&b.registry, &b.id)));
+        let lock_files = lock.as_ref().map(|l| l.files.as_slice()).unwrap_or_default();
+        let files = match data_files.is_empty() && lock_files.is_empty() {
+            true => Default::default(),
+            false => super::paths::named(dir, &data_files, lock_files),
+        };
         Self {
             id: m.id.clone(),
             name: m.name.clone(),
@@ -78,6 +85,7 @@ impl Std {
             lock,
             data_files,
             records,
+            files,
             unreadable,
         }
     }
@@ -91,6 +99,7 @@ impl Std {
             lock: None,
             data_files: Vec::new(),
             records: Vec::new(),
+            files: Default::default(),
             unreadable: Vec::new(),
         }
     }

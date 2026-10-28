@@ -42,6 +42,8 @@ pub struct Lock {
     /// Registries the addon defines, with their `major.minor`, when the lock lists them.
     pub registries: BTreeMap<String, String>,
     pub needs: Vec<LockNeed>,
+    /// The files in the addon's folder its code names through `file()`, relative to the folder.
+    pub files: Vec<String>,
     pub extra: BTreeMap<String, Value>,
 }
 
@@ -118,6 +120,15 @@ impl Lock {
                             })
                         })
                         .collect();
+                }
+                "files" | "paths" => {
+                    out.files.extend(
+                        v.as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|f| f.as_str().or_else(|| f.get("path").and_then(Value::as_str)))
+                            .map(str::to_owned),
+                    );
                 }
                 _ => {
                     out.extra.insert(key, v);
@@ -238,9 +249,11 @@ mod tests {
     fn a_record_can_say_what_it_stands_for() {
         let l = Lock::parse(
             r#"{ "provides": { "track": [ { "id": "mod.bahrain24/sepang", "provides": ["venue/sepang"] } ] },
-                 "registries": { "tails.whatif.presets": "1.0" }, "later": true }"#,
+                 "registries": { "tails.whatif.presets": "1.0" }, "later": true,
+                 "files": [ "sounds/v10.bdl", { "path": "cars/ferrari/" } ] }"#,
         )
         .unwrap();
+        assert_eq!(l.files, ["sounds/v10.bdl", "cars/ferrari/"]);
         assert!(l.provides_record("track", "venue/sepang"));
         assert_eq!(l.registries["tails.whatif.presets"], "1.0");
         assert_eq!(l.extra["later"], true);

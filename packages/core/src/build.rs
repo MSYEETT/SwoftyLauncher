@@ -1034,10 +1034,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         })
         .flatten();
     if let Some(placed) = &std_index {
-        hasher.update(placed.index.to_json());
-        for (rel, src) in &placed.files {
-            hasher.update(format!("std {rel};"));
-            hasher.update(std::fs::read(src).map_err(io_err(src))?);
+        hasher.update(crate::stdlib::index::Index::stamp(placed)?);
+        for id in &resolved.order {
+            for path in std16.get(id).into_iter().flat_map(|s| &s.files.missing) {
+                built.warnings.push(format!(
+                    "{}: its registry data names {path}, which isn't a file or folder inside the addon; the game \
+                     reports it missing",
+                    addons[id].name
+                ));
+            }
         }
     }
     let room_asked = std16
@@ -1720,8 +1725,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     }
                 }
                 let data: usize = placed.index.addons.iter().map(|a| a.data.len()).sum();
+                let named: usize = placed
+                    .index
+                    .addons
+                    .iter()
+                    .filter_map(|a| std16.get(&a.id))
+                    .map(|s| s.files.files.len())
+                    .sum();
                 built.lines.push(format!(
-                    "registry: index for {} addon(s) with {data} data file(s) under {LOADER_DIR}/registry",
+                    "registry: index for {} addon(s) with {data} data file(s) and {named} file(s) they name, under \
+                     {LOADER_DIR}/registry and {LOADER_DIR}/{ADDONS_DIR}",
                     placed.index.addons.len()
                 ));
             }
@@ -2277,6 +2290,7 @@ mod tests {
                 false => Vec::new(),
             },
             records: Vec::new(),
+            files: Default::default(),
             unreadable: Vec::new(),
         };
         let replaces = r#"{ "replaced_operations": ["db/records.json"] }"#;

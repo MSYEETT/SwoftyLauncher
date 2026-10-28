@@ -90,12 +90,12 @@ impl Index {
                 continue;
             };
             let has_registry = s.registry.is_some();
-            if s.data_files.is_empty() && !has_registry {
+            if s.data_files.is_empty() && !has_registry && s.files.files.is_empty() {
                 continue;
             }
             let dir = addons_dir.join(id);
             let data: Vec<String> = s.data_files.iter().map(|rel| under_loader(id, rel)).collect();
-            for rel in &s.data_files {
+            for rel in s.data_files.iter().chain(&s.files.files) {
                 files.insert(format!("{LOADER_DIR}/{}", under_loader(id, rel)), dir.join(rel));
             }
             let registry = has_registry.then(|| under_loader(id, super::manifest::FILE));
@@ -112,6 +112,22 @@ impl Index {
             });
         }
         (!index.addons.is_empty()).then_some(Placed { index, files })
+    }
+
+    /// What the build hash counts for the index: the index itself, each data file and
+    /// `registry.json` whole, and each other placed file by its size and modification time.
+    pub fn stamp(placed: &Placed) -> crate::Result<Vec<u8>> {
+        let mut out = placed.index.to_json().into_bytes();
+        for (rel, src) in &placed.files {
+            out.extend(format!("std {rel};").bytes());
+            if rel.ends_with(".json") {
+                out.extend(std::fs::read(src).map_err(crate::io_err(src))?);
+            } else {
+                let meta = std::fs::metadata(src).map_err(crate::io_err(src))?;
+                out.extend(format!("{}|{:?};", meta.len(), meta.modified().ok()).bytes());
+            }
+        }
+        Ok(out)
     }
 
     pub fn to_json(&self) -> String {
@@ -284,6 +300,62 @@ mod tests {
             placed.files["swofty/addons/a.data/registry/sounds.json"],
             std::path::Path::new("/store/addons/a.data/registry/sounds.json")
         );
+    }
+
+    #[test]
+    fn places_the_files_records_name_and_counts_them_in_the_stamp() {
+        let root = std::env::temp_dir().join(format!("swofty-index-files-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let put = |rel: &str, body: &str| {
+            let p = root.join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, body).unwrap();
+        };
+        put(
+            "mod.esp/registry/sounds.json",
+            r#"{ "engine_sound": { "v10_screamer": { "bundle": "sounds/v10_screamer.bdl" } } }"#,
+        );
+        put("mod.esp/sounds/v10_screamer.bdl", "bundle one");
+        put(
+            "t.code/registry.lock.json",
+            r#"{ "provides": {}, "needs": [], "files": ["data/years.json", "../x"] }"#,
+        );
+        put("t.code/data/years.json", "{}");
+        put("m.old/data/x.bin", "old");
+        let ms: BTreeMap<String, AddonManifest> = [("mod.esp", false), ("t.code", true), ("m.old", false)]
+            .into_iter()
+            .map(|(id, n)| (id.to_owned(), manifest(id, n)))
+            .collect();
+        let std: BTreeMap<String, Std> = ms
+            .iter()
+            .map(|(id, m)| (id.clone(), Std::read(&root.join(id), m)))
+            .collect();
+        assert_eq!(std["t.code"].files.missing, ["../x"]);
+        let order: Vec<String> = ["mod.esp", "t.code", "m.old"].map(String::from).to_vec();
+        let placed = Index::plan("p", &order, &ms, &std, &root).unwrap();
+        assert_eq!(
+            placed.files.keys().collect::<Vec<_>>(),
+            [
+                "swofty/addons/mod.esp/registry/sounds.json",
+                "swofty/addons/mod.esp/sounds/v10_screamer.bdl",
+                "swofty/addons/t.code/data/years.json",
+            ]
+        );
+        assert_eq!(
+            placed
+                .index
+                .addons
+                .iter()
+                .map(|a| a.id.as_str())
+                .collect::<Vec<_>>(),
+            ["mod.esp", "t.code"]
+        );
+        assert!(!placed.index.to_json().contains("v10_screamer.bdl"));
+        let before = Index::stamp(&placed).unwrap();
+        assert_eq!(before, Index::stamp(&placed).unwrap());
+        put("mod.esp/sounds/v10_screamer.bdl", "a longer second bundle");
+        assert_ne!(before, Index::stamp(&placed).unwrap());
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
