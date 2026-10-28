@@ -5,6 +5,7 @@
 
 #include "core_events.hpp"
 #include "hooks.hpp"
+#include "payloads.hpp"
 
 namespace swofty_core::hooks::events {
 namespace {
@@ -45,6 +46,8 @@ static_assert(declared<ca::PartsRegister>(SWOFTY_POINT_NOTIFY));
 static_assert(declared<so::BundleResolve>(SWOFTY_POINT_MODIFY));
 static_assert(sizeof(ce::Loaded) == sizeof(Shell) && sizeof(ce::Created) == sizeof(Shell));
 
+constexpr auto fire_core = [](auto &e) { return fire(e); };
+
 template <class E> bool shell()
 {
     E e{};
@@ -74,5 +77,30 @@ bool car_built(ca::Built &payload) { return fire(payload); }
 bool car_reset(ca::Reset &payload) { return fire(payload); }
 bool car_parts_register(ca::PartsRegister &payload) { return fire(payload); }
 bool audio_bundle_resolve(so::BundleResolve &payload) { return fire(payload); }
+
+bool car_upgrades_fit(int32_t car, const char *vehicle, swofty::cars::Department department, float driver_stat,
+                      float &rating)
+{
+    return payloads::upgrades_fit(fire_core, car, vehicle, department, driver_stat, rating);
+}
+
+bool car_vtf_read(const swofty::cars::live::Car &car, const char *section, const char *field, const char *upgrade,
+                  float &value)
+{
+    return payloads::vtf_read(fire_core, car, section, field, upgrade, value);
+}
+
+bool car_built(const swofty::cars::live::Car &car) { return payloads::built(fire_core, car); }
+bool car_reset(const swofty::cars::live::Car &car, bool upgrade) { return payloads::reset(fire_core, car, upgrade); }
+
+bool car_parts_register(int32_t car, const char *vehicle, void *front_wing, const payloads::PartSink &add)
+{
+    return payloads::parts_register(fire_core, car, vehicle, front_wing, add);
+}
+
+bool audio_bundle_resolve(int32_t car, const char *vehicle, const char *switch_name, std::string &engine_sound)
+{
+    return payloads::bundle_resolve(fire_core, car, vehicle, switch_name, engine_sound);
+}
 
 }

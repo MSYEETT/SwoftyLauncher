@@ -149,6 +149,8 @@ pub struct Evidence {
     pub tracks: Vec<String>,
     /// Which addon overrode which in the profile's last build.
     pub conflicts: Vec<Pair>,
+    /// Per addon id, the game's entrant lists it renamed or removed that the last build kept.
+    pub kept_lists: BTreeMap<String, Vec<String>>,
     /// The game's exit code, or the crash code the session recorded.
     pub code: Option<u32>,
 }
@@ -208,6 +210,7 @@ impl Evidence {
                 .collect();
             self.enabled = report.order;
             self.conflicts = report.pairs;
+            self.kept_lists = report.kept_lists;
         }
         self
     }
@@ -687,6 +690,9 @@ const SEPANG: &str = "mod.bahrain24";
 /// game returns it to the garage.
 const PITLANE: &str = "kizi.pitlane";
 const PITLANE_CRASH: &str = "F1_25.exe+0x389a1d7 ";
+/// The entrant list search by name (fn 0x141738eb0) that runs off the end of the
+/// game's loaded lists when the name is missing.
+const ENTRANT_LIST_SEARCH: &str = "F1_25.exe+0x1738f30 ";
 /// How long before the crash Manual Pit Lane's lines count, and after it.
 const PITLANE_SECS: f64 = 1.5;
 const PITLANE_AFTER_SECS: f64 = 0.5;
@@ -1148,6 +1154,86 @@ fn pitlane_crash(e: &Evidence, f: &Fatal) -> bool {
     garbage || (kept && at)
 }
 
+fn entrant_list_crash(e: &Evidence, f: &Fatal) -> bool {
+    let at = |l: &str| l.contains("unhandled ") && l.contains(ENTRANT_LIST_SEARCH);
+    f.module.as_deref() == Some("f1_25.exe")
+        && (crash_lines(&e.loader).into_iter().any(at) || e.report.iter().flat_map(|r| r.lines()).any(at))
+}
+
+/// The text `rdi` points at in the crash report's memory dump, the name the game looked up.
+fn searched_name(report: &str) -> Option<String> {
+    let mut lines = report
+        .lines()
+        .skip_while(|l| !l.starts_with("== Memory at the registers"))
+        .skip_while(|l| !l.trim_start().starts_with("rdi="));
+    let rdi = u64::from_str_radix(lines.next()?.trim_start().get(4..20)?, 16).ok()?;
+    let mut dump = BTreeMap::new();
+    for l in lines.take_while(|l| l.starts_with("    ")) {
+        let t = l.trim_start();
+        let Some(addr) = t.get(..16).and_then(|a| u64::from_str_radix(a, 16).ok()) else {
+            continue;
+        };
+        let bytes: Vec<u8> = t
+            .get(17..)
+            .unwrap_or_default()
+            .split_whitespace()
+            .take(16)
+            .map_while(|b| u8::from_str_radix(b, 16).ok())
+            .collect();
+        dump.insert(addr, bytes);
+    }
+    let mut name = Vec::new();
+    let mut addr = rdi;
+    loop {
+        let byte = *dump.get(&(addr & !0xf))?.get((addr & 0xf) as usize)?;
+        if byte == 0 {
+            break;
+        }
+        name.push(byte);
+        if name.len() > 64 {
+            return None;
+        }
+        addr += 1;
+    }
+    let ok = !name.is_empty()
+        && name
+            .iter()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_');
+    ok.then(|| String::from_utf8_lossy(&name).into_owned())
+}
+
+fn missing_entrant_list(e: &Evidence) -> Diagnosis {
+    let list = e.report.as_deref().and_then(searched_name);
+    let addon = e
+        .kept_lists
+        .iter()
+        .find(|(_, lists)| list.as_ref().is_none_or(|l| lists.contains(l)))
+        .map(|(id, _)| name(e, id));
+    let which = list
+        .as_ref()
+        .map_or("an entrant list".to_owned(), |l| format!("the entrant list {l}"));
+    let by = addon.as_ref().map_or(String::new(), |a| {
+        format!(" The last build found {a} renaming or removing it.")
+    });
+    let mut steps = vec![match &addon {
+        Some(a) => format!("Turn off {a}, or ask its author for a version made for this F1 25 update."),
+        None => "Turn off the database addons you added most recently, such as imported team packs, one at a time \
+                 until the crash stops."
+            .to_owned(),
+    }];
+    steps.push("Press Play again.".to_owned());
+    Diagnosis {
+        id: "missing_entrant_list",
+        title: format!("F1 25 crashed looking for {which}"),
+        what: format!(
+            "F1 25 looks up {which} by name when it builds a menu such as the F1 World Showroom, and the game's \
+             database has no such list. A database addon renames or removes it, often one made for an older F1 25 \
+             update.{by}"
+        ),
+        steps,
+    }
+}
+
 fn pitlane(e: &Evidence) -> Diagnosis {
     let addon = e
         .names
@@ -1216,6 +1302,9 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
     }
     if pitlane_crash(e, &f) {
         return Some(pitlane(e));
+    }
+    if entrant_list_crash(e, &f) {
+        return Some(missing_entrant_list(e));
     }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
@@ -1910,6 +1999,65 @@ mod tests {
             .collect()
     }
 
+    const LIST_SEARCH: &str = "\
+2026-10-28 01:49:51.119 [15588] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 15588, 237 s after load, at F1_25.exe+0x1738f30 .xtls fn base+0x1738eb0+0x80
+2026-10-28 01:49:51.119 [15588] [crash]   rsi=000000006b18b9ca rdi=0000000021500d09 rbp=0000000000000000 rsp=000000006b18b940
+2026-10-28 01:49:51.119 [15588] [crash]   #0  F1_25.exe+0x1738f30 .xtls fn base+0x1738eb0+0x80
+2026-10-28 01:49:51.119 [15588] [crash]   #1  F1_25.exe+0x17384ec .xtls fn base+0x17382b0+0x23c
+2026-10-28 01:49:51.120 [15588] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0x1738f30 .xtls fn base+0x1738eb0+0x80 reached the top-level filter; passing it to the game's filter
+";
+
+    const LIST_REPORT: &str = "\
+== Exception
+  ACCESS_VIOLATION (0xc0000005), flags 0x0, at F1_25.exe+0x1738f30 .xtls fn base+0x1738eb0+0x80
+
+== Memory at the registers
+  rcx=000000000715a9d1: committed private region 0x715a000 +0x238a6000 (allocation 0x6c90000), read/write
+    000000000715a9d0> 66 31 5f 32 30 32 36 5f 64 72 69 76 65 72 5f 70  f1_2026_driver_p
+  rdi=0000000021500d09: committed private region 0x21500000 +0x9500000 (allocation 0x6c90000), read/write
+    0000000021500cf0  64 00 95 9e 01 00 00 00 f0 40 6a 21 00 00 00 00  d........@j!....
+    0000000021500d00> 66 17 e9 2a 01 00 07 00 c0 66 32 5f 32 30 32 36  f..*.....f2_2026
+    0000000021500d10  00 6e 5f 70 61 63 6b 61 67 65 00 17 00 00 00 00  .n_package......
+  r14=cb42b7f752c18f53: not a valid address
+";
+
+    #[test]
+    fn a_missing_entrant_list_names_the_list_and_the_addon_the_build_saw() {
+        let mut e = ev(LIST_SEARCH, &["F1_25.exe"]);
+        e.report = Some(LIST_REPORT.to_owned());
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "missing_entrant_list");
+        assert_eq!(d.title, "F1 25 crashed looking for the entrant list f2_2026");
+        assert!(
+            d.steps[0].starts_with("Turn off the database addons"),
+            "{:?}",
+            d.steps
+        );
+
+        e = with_names(e, &[("mod.old-team-pack", "Old Team Pack")]);
+        e.kept_lists = BTreeMap::from([("mod.old-team-pack".to_owned(), vec!["f2_2026".to_owned()])]);
+        let d = diagnose(&e).unwrap();
+        assert!(
+            d.what
+                .ends_with("The last build found Old Team Pack renaming or removing it."),
+            "{}",
+            d.what
+        );
+        assert_eq!(
+            d.steps[0],
+            "Turn off Old Team Pack, or ask its author for a version made for this F1 25 update."
+        );
+
+        e.report = None;
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.title, "F1 25 crashed looking for an entrant list");
+        let other = LIST_SEARCH.replace("+0x1738f30", "+0x1738f31");
+        assert_ne!(
+            diagnose(&ev(&other, &["F1_25.exe"])).map(|d| d.id),
+            Some("missing_entrant_list")
+        );
+    }
+
     /// `SWOFTY_KP_CASES=<folder of extracted Send Logs bundles> cargo test -p swofty-core --lib
     /// diagnoses_real_bundles -- --ignored --nocapture` prints each crashed session's diagnosis.
     #[test]
@@ -1977,6 +2125,7 @@ mod tests {
                     enabled: conflicts.order.clone(),
                     tracks: Vec::clone(&tracks),
                     conflicts: conflicts.pairs.clone(),
+                    kept_lists: conflicts.kept_lists.clone(),
                     ..e
                 };
                 let found = diagnose(&e).map_or_else(

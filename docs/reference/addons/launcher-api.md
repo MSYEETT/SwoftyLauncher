@@ -252,8 +252,10 @@ The smaller helper is in [Your first addon](./first-addon).
   - **[Dashboard blocks](./launcher-api/blocks#dashboard-blocks)** (1.0.10): hero, pills, tiles, meters, card, grid.
   - **[Image](./launcher-api/blocks#image)** (1.0.12) and **[drop zone](./launcher-api/blocks#drop-zone)** (1.3.0).
   - **[Tabs](./launcher-api/blocks#tabs)** (1.0.10). {#tabs}
-- **[Forms](./launcher-api/forms)** (1.0.10): number, slider, text, select and toggle fields with an Apply button, or live. {#forms}
-- **[Tables](./launcher-api/tables)** (1.0.10): sortable columns, editable cells, pictures, switches. {#tables}
+- **[Forms](./launcher-api/forms)** (1.0.10): number, slider, text, select, toggle and colour fields with an Apply button, or live. {#forms}
+  - **[Colour fields](./launcher-api/forms#colour-fields)** (1.5.25): a colour dot that opens a picker. {#colour-fields}
+- **[Tables](./launcher-api/tables)** (1.0.10): sortable columns, editable cells, colours, pictures, switches. {#tables}
+  - **[Colour cells](./launcher-api/tables#colour-cells)** (1.5.25): a cell that opens the colour picker.
   - **[Row details](./launcher-api/tables#row-details)** (1.5.8): a panel beside the table. {#row-details}
   - **[Search](./launcher-api/tables#search)**: a search box over a table or a list. {#search}
 - **[Live pages](./launcher-api/live-pages)** (1.0.10): `tick` from the launcher, `invalidate` from the plugin. {#live-pages}
@@ -269,6 +271,21 @@ Parts of the protocol need a newer launcher. `hello` carries the launcher's vers
 
 ```json
 "compat": { "game": "f1_25", "launcher": ">=1.0.10" }
+```
+
+Or check `launcher` in `hello` and leave out what that launcher can't show. The template sends its colour field and colour column only to launcher 1.5.25 or later:
+
+```rust [src/main.rs]
+const COLOURS: [u64; 3] = [1, 5, 25];
+
+fn at_least(version: &str, wanted: [u64; 3]) -> bool {
+    let core = version.split(['-', '+']).next().unwrap_or_default(); // without a pre-release or build suffix
+    let parts: Vec<u64> = core.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+    parts.len() == 3 && parts[..] >= wanted[..]
+}
+
+// in hello
+addon.colours = at_least(params["launcher"].as_str().unwrap_or_default(), COLOURS);
 ```
 
 An older launcher rejects a view that holds a block it doesn't know, and stops a plugin that sends a host call it doesn't know. Both mark the plugin failed ([Isolation and failures](./launcher-api/protocol#isolation-and-failures)).

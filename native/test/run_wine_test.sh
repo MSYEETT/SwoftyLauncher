@@ -286,6 +286,9 @@ EOF
         once "ers: the new-lap guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(ers new lap guard\)': 1 mixin"
         once "ers: the new-lap guard is armed" '\[ers\] new-lap guard armed'
         count "ers: each participant without a vehicle is skipped and logged" 4 '\[ers\] vehicle_newlap for vehicle (9|24): participant [01] of 4 has no vehicle'
+        once "acclim: the track acclimatisation guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(track acclimatisation guard\)': 1 mixin"
+        once "acclim: the track acclimatisation guard is armed" '\[acclim\] track acclimatisation guard armed'
+        once "acclim: the programme without targets is skipped and logged" '\[acclim\] Track Acclimatisation programme 0x[0-9a-f]+ has no targets at this track \(targets 0x0\); refresh skipped'
         check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x[0-9a-f]+'
         check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
         once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'
@@ -547,6 +550,27 @@ for mode in crash exit heap abort; do
         check "abort: Ne_FatalAbort is recognised" '\[crash\] crash report .*crash-.*: the game aborted itself'
         parse_report "the game aborted itself" "Ne_FatalAbort" || status=1
         [[ $code != 0 ]] && echo "ok  : abort: the process aborted ($code)" || { echo "FAIL: abort: process exited 0"; status=1; }
+    fi
+done
+for guard in on off; do
+    echo "==== acclim ($guard)"
+    code=0
+    rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
+    SWOFTY_ACCLIM_GUARD=$([[ $guard == off ]] && echo 0) timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" acclim >"$OUT/acclim.out" 2>&1 || code=$?
+    grep -E '\[acclim\]|\[crash\] (unhandled |crash report [^:]*crash-[0-9])' "$LOG" || true
+    if [[ $guard == on ]]; then
+        once "acclim on: the refresh of a programme without targets is skipped" '\[acclim\] Track Acclimatisation programme 0x[0-9a-f]+ has no targets at this track \(targets 0x0\); refresh skipped'
+        grep -q 'acclim: the refresh returned' "$OUT/acclim.out" && echo "ok  : acclim on: the refresh returned" ||
+            { echo "FAIL: acclim on: the refresh did not return"; status=1; }
+        count "acclim on: no unhandled fault" 0 '\[crash\] unhandled '
+        compgen -G "$SW/crash-*.txt" >/dev/null && { echo "FAIL: acclim on: a crash report was written"; status=1; } ||
+            echo "ok  : acclim on: no crash report"
+    else
+        once "acclim off: the guard is off" '\[acclim\] track acclimatisation guard off \(SWOFTY_ACCLIM_GUARD=0\)'
+        check "acclim off: the refresh faults where the game does" '\[crash\] unhandled ACCESS_VIOLATION .*Game_PracticeTrackAcclimatisation_RefreshState\+0x1fb'
+        check "acclim off: faulting access" '\[crash\]   reading 0x4'
+        parse_report "Game_PracticeTrackAcclimatisation_RefreshState+0x1fb" "reading 0x4" || status=1
+        [[ $code != 0 ]] && echo "ok  : acclim off: process ended with $code" || { echo "FAIL: acclim off: process exited 0"; status=1; }
     fi
 done
 echo "==== ntpage"

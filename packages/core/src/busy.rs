@@ -95,7 +95,11 @@ impl Busy {
     pub fn progress(&self) -> String {
         match self.step {
             Step::Building if self.done > 0 => {
-                format!("building the mods ({} files so far)", thousands(self.done))
+                format!(
+                    "building the mods ({} {} so far)",
+                    thousands(self.done),
+                    if self.done == 1 { "file" } else { "files" }
+                )
             }
             Step::Building => "building the mods".to_owned(),
             Step::Copying => format!(

@@ -73,6 +73,8 @@ struct AddActivity {
 } // namespace swofty::career::events
 ```
 
+Payload fields are C types. A record id or a text is a `const char *` with a member function for its C++ form (`vehicle_id` and `vehicle()`, `section_str` and `section()`), and a callback is a C function pointer with a `user` pointer and a member function that calls it (see [ABI](/std/abi#rules)).
+
 ## Phases
 
 Every call to a hook point runs three phases:
