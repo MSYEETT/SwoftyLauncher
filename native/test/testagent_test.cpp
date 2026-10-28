@@ -265,6 +265,8 @@ static void flow(ta::Runner &r, const char *name)
     r.fires().fired(std::string("flow:") + name);
 }
 
+static_assert(ta::CareerTimes{}.title == 15000, "the title wait is 15 s, then the CLI presses the pad");
+
 static ta::Runner &fast(ta::Runner &r)
 {
     auto &t = r.career_times();
