@@ -155,6 +155,8 @@ pub struct Evidence {
     pub kept_lists: BTreeMap<String, Vec<String>>,
     /// The game's exit code, or the crash code the session recorded.
     pub code: Option<u32>,
+    /// The game exe's version, when it can be read.
+    pub game_version: Option<String>,
 }
 
 impl Evidence {
@@ -188,6 +190,7 @@ impl Evidence {
             .as_ref()
             .and_then(|e| e.crash_code.or(e.exit_code.map(|c| c as u32)))
             .or(session.exit_code.map(|c| c as u32));
+        let game_version = game.and_then(|g| crate::exe_version::read(&g.join(crate::GAME_EXE)));
         Self {
             loader,
             report,
@@ -195,6 +198,7 @@ impl Evidence {
             game_files,
             names,
             code,
+            game_version,
             ..Default::default()
         }
     }
@@ -1438,8 +1442,22 @@ fn quit_fault_diagnosis() -> Diagnosis {
     }
 }
 
-/// The cause of a crash, from the first rule that recognises it.
+/// The cause of a crash, from the first rule that recognises it. A crash no
+/// rule recognises, on an F1 25 older than [`LATEST_GAME_VERSION`], is put down
+/// to the old build.
 pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
+    matched(e).or_else(|| {
+        let mut d = outdated_exe(e.game_version.as_deref())?;
+        d.what = format!(
+            "Your F1 25 is {}. Mods are made for {LATEST_GAME_VERSION}, the latest update, and F1 25 crashed on \
+             the older one.",
+            e.game_version.as_deref().unwrap_or_default().trim()
+        );
+        Some(d)
+    })
+}
+
+fn matched(e: &Evidence) -> Option<Diagnosis> {
     if let Some((drive, free, need)) = low_disk(&e.loader) {
         return Some(low_disk_space(&drive, free, need));
     }
@@ -2396,6 +2414,19 @@ mod tests {
     /// diagnoses_real_bundles -- --ignored --nocapture` prints each crashed session's diagnosis,
     /// and each other session a rule recognises.
     #[test]
+    fn unmatched_crash_on_old_build_names_the_update() {
+        let mut e = ev("", &[]);
+        assert_eq!(diagnose(&e), None);
+        e.game_version = Some("1.0.136.6820".to_owned());
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "outdated_exe");
+        assert!(d.what.contains("1.0.136.6820"));
+        assert!(d.text().contains("Steam or the EA app"));
+        e.game_version = Some(LATEST_GAME_VERSION.to_owned());
+        assert_eq!(diagnose(&e), None);
+    }
+
+    #[test]
     #[ignore]
     fn diagnoses_real_bundles() {
         let Some(root) = std::env::var_os("SWOFTY_KP_CASES") else {
@@ -2450,7 +2481,13 @@ mod tests {
                 let report = report_name(&loader).and_then(|n| read_capped(&logs.join("crash").join(n)));
                 let game_files = report.as_deref().map(game_folder_modules).unwrap_or_default();
                 let mut e = Evidence::read(&record, None, BTreeMap::new());
+                let game_version = read_capped(&logs.join("summary.txt")).and_then(|t| {
+                    t.lines()
+                        .find_map(|l| l.strip_prefix("F1 25 "))
+                        .map(|v| v.trim().to_owned())
+                });
                 e = Evidence {
+                    game_version,
                     loader,
                     report,
                     game_files,

@@ -1,6 +1,7 @@
 #include <swofty/mixin.hpp>
 
 #include "../runtime.hpp"
+#include "declare_all.hpp"
 #include "older.hpp"
 #include "table.hpp"
 
@@ -77,6 +78,16 @@ void setup()
                     ix.failed ? ", some refused (see the lines above)" : "");
     else
         swofty::log("[registry] no swofty/registry/index.json; load order follows the order addons register in");
+    const SwoftyRegistry *t = reg::table();
+    size_t count = 0;
+    if (t && t->declare)
+        count = swofty_core::registry::declare_system_registries([&](const std::string &name, const std::string &schema) {
+            if (reg::store().declared(name))
+                return false;
+            return t->declare(name.c_str(), swofty::detail::text(schema)) == SWOFTY_ASSET_OK;
+        });
+    swofty::log("[registry] core declared %zu registr%s from the SDK headers; an addon that declares one again keeps its own newer minor",
+                count, count == 1 ? "y" : "ies");
 }
 
 }
