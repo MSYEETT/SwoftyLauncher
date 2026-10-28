@@ -83,7 +83,21 @@ fn not_restarted(text: String, window: &mut Window, cx: &mut App) {
 /// running a few seconds later. One that closes before then is reported.
 fn restart_elevated(window: &mut Window, cx: &mut App) {
     app_log::note("restart as administrator: asking Windows");
-    let elevated = match compat::relaunch_elevated() {
+    let started = cx.background_executor().spawn(async move {
+        std::thread::spawn(compat::relaunch_elevated)
+            .join()
+            .unwrap_or_else(|_| Err("the administrator prompt failed".to_owned()))
+    });
+    window
+        .spawn(cx, async move |cx| {
+            let started = started.await;
+            cx.update(|window, cx| elevated_started(started, window, cx)).ok();
+        })
+        .detach();
+}
+
+fn elevated_started(started: Result<compat::Elevated, String>, window: &mut Window, cx: &mut App) {
+    let elevated = match started {
         Ok(e) => e,
         Err(why) => {
             app_log::note(&format!("restart as administrator: {why}"));

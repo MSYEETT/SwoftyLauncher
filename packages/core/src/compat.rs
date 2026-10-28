@@ -436,6 +436,15 @@ mod shell {
         fn ShellExecuteExW(info: *mut ShellExecuteInfoW) -> i32;
     }
 
+    const COINIT_APARTMENTTHREADED: u32 = 0x2;
+    const COINIT_DISABLE_OLE1DDE: u32 = 0x4;
+
+    #[link(name = "ole32")]
+    unsafe extern "system" {
+        fn CoInitializeEx(reserved: *mut c_void, coinit: u32) -> i32;
+        fn CoUninitialize();
+    }
+
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn CloseHandle(handle: *mut c_void) -> i32;
@@ -514,8 +523,19 @@ mod shell {
             icon_or_monitor: std::ptr::null_mut(),
             process: std::ptr::null_mut(),
         };
-        // SAFETY: every string the struct points at outlives the call.
-        let ok = unsafe { ShellExecuteExW(&mut info) } != 0;
+        // SAFETY: COM is initialised for this thread only and uninitialised after the call when it succeeded,
+        // and every string the struct points at outlives the call.
+        let ok = unsafe {
+            let com = CoInitializeEx(
+                std::ptr::null_mut(),
+                COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+            ) >= 0;
+            let ok = ShellExecuteExW(&mut info) != 0;
+            if com {
+                CoUninitialize();
+            }
+            ok
+        };
         if !ok {
             let e = std::io::Error::last_os_error();
             return Err(if e.raw_os_error() == Some(ERROR_CANCELLED) {

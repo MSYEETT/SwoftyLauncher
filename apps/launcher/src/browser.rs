@@ -1136,6 +1136,7 @@ impl Shell {
                     Err(e) => {
                         let refused = matches!(e, swofty_core::Error::Requires(_));
                         let error = e.to_string();
+                        crate::app_log::action(verb).addon(&addon.id).failed(&error);
                         s.record(
                             Op::Install,
                             false,

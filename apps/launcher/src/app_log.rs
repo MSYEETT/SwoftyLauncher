@@ -1,6 +1,7 @@
 //! The launcher's own log, `state/launcher-app.log` in the data folder: a
-//! line when it starts, what Restart as administrator did, and a panic that
-//! closed it. Send Logs collects it with the other state logs.
+//! line when it starts, what Restart as administrator did, every action in
+//! the window that failed, and a panic that closed it. Send Logs collects it
+//! with the other state logs.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -41,6 +42,116 @@ fn append(path: &Path, text: &str) {
 
 pub(crate) fn note(text: &str) {
     append(&path(), text);
+}
+
+static GAME: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
+/// The game folder failed actions name their files against.
+pub(crate) fn set_game(dir: Option<&Path>) {
+    if let Ok(mut game) = GAME.lock() {
+        *game = dir.map(Path::to_path_buf);
+    }
+}
+
+/// An action in the launcher window, logged when it fails with the addon it
+/// was for and the files it used. Files show relative to the data or game
+/// folder, else by name, and the error never carries a full user path.
+#[derive(Default)]
+pub(crate) struct Action<'a> {
+    name: &'a str,
+    addon: Option<&'a str>,
+    files: Vec<&'a Path>,
+}
+
+pub(crate) fn action(name: &str) -> Action<'_> {
+    Action {
+        name,
+        ..Action::default()
+    }
+}
+
+impl<'a> Action<'a> {
+    pub(crate) fn addon(mut self, id: &'a str) -> Self {
+        self.addon = Some(id);
+        self
+    }
+
+    pub(crate) fn file(mut self, path: &'a Path) -> Self {
+        self.files.push(path);
+        self
+    }
+
+    pub(crate) fn files(mut self, paths: &'a [PathBuf]) -> Self {
+        self.files.extend(paths.iter().map(PathBuf::as_path));
+        self
+    }
+
+    pub(crate) fn failed(&self, error: impl std::fmt::Display) {
+        note(&self.line(&Roots::now(), &error.to_string()));
+    }
+
+    fn line(&self, roots: &Roots, error: &str) -> String {
+        let mut line = format!("failed: {}", self.name);
+        if let Some(id) = self.addon {
+            line.push_str(&format!("; addon {id}"));
+        }
+        if !self.files.is_empty() {
+            let files: Vec<String> = self.files.iter().map(|f| roots.file(f)).collect();
+            line.push_str(&format!("; file {}", files.join(", ")));
+        }
+        format!("{line}: {}", roots.scrub(error))
+    }
+}
+
+struct Roots {
+    data: PathBuf,
+    game: Option<PathBuf>,
+    home: Option<PathBuf>,
+}
+
+impl Roots {
+    fn now() -> Self {
+        let home = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+        Self {
+            data: swofty_core::paths::data_dir(),
+            game: GAME.lock().ok().and_then(|g| g.clone()),
+            home: std::env::var_os(home).map(PathBuf::from),
+        }
+    }
+
+    fn named(&self) -> [(Option<&Path>, &'static str); 3] {
+        [
+            (Some(self.data.as_path()), "<data>"),
+            (self.game.as_deref(), "<game>"),
+            (self.home.as_deref(), "~"),
+        ]
+    }
+
+    fn file(&self, path: &Path) -> String {
+        for (root, tag) in self.named().into_iter().take(2) {
+            if let Some(rel) = root.and_then(|r| path.strip_prefix(r).ok()) {
+                let parts: Vec<String> = rel
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect();
+                return format!("{tag}/{}", parts.join("/"));
+            }
+        }
+        path.file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+    }
+
+    fn scrub(&self, text: &str) -> String {
+        let mut text = text.to_owned();
+        for (root, tag) in self.named() {
+            let root = root.map(|r| r.display().to_string()).unwrap_or_default();
+            let root = root.trim_end_matches(['/', '\\']);
+            if root.len() > 3 {
+                text = text.replace(root, tag);
+            }
+        }
+        text
+    }
 }
 
 /// The start line, then every panic, before the default hook prints it.
@@ -101,6 +212,70 @@ mod tests {
         let text = std::fs::read_to_string(&log).unwrap();
         assert_eq!(text.lines().count(), 1, "{text}");
         assert!(text.ends_with("started 1.0.1\n"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_failed_action_names_its_files_without_a_user_path() {
+        let home = PathBuf::from("/home/someone");
+        let roots = Roots {
+            data: home.join(".local/share/swofty"),
+            game: Some(PathBuf::from("/games/F1 25")),
+            home: Some(home.clone()),
+        };
+        let dropped = home.join("Downloads/Sepang Simplified.zip");
+        let line = action("import")
+            .addon("swofty.simplified-importer")
+            .file(&dropped)
+            .file(&roots.data.join("addons/swofty.sepang/addon.json"))
+            .line(
+                &roots,
+                &format!(
+                    "could not read {}: The system cannot find the path specified. (os error 3)",
+                    home.join(".local/share/swofty/imports/sepang/track.erp")
+                        .display()
+                ),
+            );
+        assert_eq!(
+            line,
+            "failed: import; addon swofty.simplified-importer; file Sepang Simplified.zip, \
+             <data>/addons/swofty.sepang/addon.json: could not read <data>/imports/sepang/track.erp: \
+             The system cannot find the path specified. (os error 3)"
+        );
+        let line = action("restore the game folder")
+            .file(Path::new("/games/F1 25/2025_asset_groups/x.erp"))
+            .line(
+                &roots,
+                &format!("{} is in use", home.join("Desktop/save.bin").display()),
+            );
+        assert_eq!(
+            line,
+            "failed: restore the game folder; file <game>/2025_asset_groups/x.erp: ~/Desktop/save.bin is in use"
+        );
+        assert!(!line.contains("someone"));
+    }
+
+    #[test]
+    fn a_failed_action_is_written_to_the_log() {
+        let dir = std::env::temp_dir().join(format!("swofty-app-log-failed-{}", std::process::id()));
+        let log = dir.join(FILE);
+        let roots = Roots {
+            data: dir.clone(),
+            game: None,
+            home: None,
+        };
+        append(
+            &log,
+            &action("install addon")
+                .addon("swofty.classic-seasons")
+                .line(&roots, "no space left"),
+        );
+        let text = std::fs::read_to_string(&log).unwrap();
+        assert!(
+            text.trim_end()
+                .ends_with("failed: install addon; addon swofty.classic-seasons: no space left"),
+            "{text}"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 }
