@@ -150,6 +150,9 @@ inline std::string thousands(uint64_t n)
 inline std::string line(const Report &r)
 {
     std::string older = thousands(r.older_asked), fresh = thousands(r.registry_asked);
+    if (!r.loaded && r.presize == "unavailable")
+        return "[registry] room: pre-size unavailable" + (r.reason.empty() ? std::string() : " (" + r.reason + ")") +
+               "; the value map was not measured (older addons' edits " + older + "; 1.6 records " + fresh + ")";
     if (!r.loaded)
         return "[registry] room: nothing to size (no older addons' database edits, no 1.6 database records); the value "
                "map is the game's own";
