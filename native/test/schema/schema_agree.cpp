@@ -212,7 +212,7 @@ Value check_example(const fs::path &file, const std::string &display, const std:
         entry["kind"] = "record";
         DataOptions o;
         o.max_errors = 100000;
-        report = check_record(doc, pick_versions(name, 0, pin), o);
+        report = check_record(doc, name, pick_versions(name, 0, pin), o);
     }
     Value versions = Value::object();
     for (auto &[v, errs] : report.by_version)
