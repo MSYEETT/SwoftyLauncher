@@ -401,6 +401,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "swofty.json", link: "/reference/addons/manifest", icon: "file" },
               { text: "registry.json", link: "/std/manifest", icon: "file" },
               { text: "Packaging and publishing", link: "/reference/addons/publishing", icon: "file" },
+              { text: "Testing your addon", link: "/std/testing", icon: "file" },
             ],
           },
           {
@@ -460,6 +461,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Standard library 1.6: implementation plan", link: "/design/std-2/implementation", icon: "file" },
               { text: "Standard library 1.6: coverage", link: "/design/std-2/coverage", icon: "file" },
               { text: "Standard library 1.6: decisions", link: "/design/std-2/decisions", icon: "file" },
+              { text: "Test suite: design and plan", link: "/design/std-2/test-suite", icon: "file" },
             ],
           },
         ],

@@ -1,0 +1,168 @@
+---
+title: Testing your addon
+description: Write tests that start the game in a known state, such as a race at a chosen track, a career at the contract window or a given menu, run steps, check what happened and report, with one command and no clicking.
+---
+
+# Testing your addon
+
+`swofty test` starts F1 25 in the state your test needs, runs your steps, checks the results and writes a report. A test never clicks through menus or plays through races to get somewhere: it names where it starts, and the launcher and the core take it there.
+
+```sh
+swofty test run ./my-addon            # every test the addon ships
+swofty test run ./my-addon -t smoke   # only the tests tagged smoke
+swofty test plan ./my-addon           # what would run, and how many game starts it takes
+```
+
+```text
+swofty test: 6 tests in 3 game starts
+  benchmark bahrain 3 laps .......... tyre_temps_rise_on_track    pass   (1 m 52 s)
+  career fixtures/my-team-r3 ........ rnd_tab_hidden_in_team_hq   pass
+                                      rnd_upgrade_applies          FAIL  expected engine.max_torque > 493, got 493
+  route laptop_rnd .................. rnd_page_lists_departments  pass
+5 passed, 1 failed  ·  report: swofty-test/20261028-1402/report.json, junit.xml
+```
+
+## A test
+
+A test lives in your addon's `tests/` folder. The test file says where each test starts, what it does and what must be true afterwards.
+
+<Split>
+
+Each test has:
+
+- **An environment**: where the game starts. A race with AI, a career from a saved fixture, a menu, or just the main menu.
+- **Steps**: what happens once it's there. Wait for an event, read values, open a menu, skip a session.
+- **Checks**: what must be true. A log line, a value, no crash, the frame rate.
+
+Tests with the same environment share one game start, so a suite of twenty career tests starts the game once.
+
+<template #example>
+<Example root="swofty.rnd-tyres-thermal" data-file="tests/thermal.test.json" files="swofty.json, tests/native/tests.cpp, tests/native/tests.dll, tests/fixtures/my-team-r3/fixture.json">
+<template #data>
+
+```json
+{
+  "schema": 1,
+  "suite": "swofty.rnd-tyres-thermal",
+  "tests": [
+    {
+      "id": "tyre_temps_rise_on_track",
+      "tags": ["smoke"],
+      "env": { "kind": "benchmark", "track": "bahrain", "laps": 3, "cars": 10 },
+      "steps": [
+        { "wait": { "event": "race.start" }, "timeout_s": 90 },
+        { "sample": { "read": "car[0].tyres[fl].temperature", "every_ms": 500, "for_s": 60, "as": "fl" } }
+      ],
+      "assert": [
+        { "series": "fl", "rises_by": 8 },
+        { "log": "\\[rnd-tyres\\] thermal model on" },
+        { "no_crash": true }
+      ]
+    },
+    {
+      "id": "rnd_tab_hidden_in_team_hq",
+      "env": { "kind": "career", "fixture": "fixtures/my-team-r3", "at": "team_hq" },
+      "fn": "rnd_tab_hidden"
+    }
+  ]
+}
+```
+
+</template>
+</Example>
+</template>
+</Split>
+
+## Environments
+
+| `kind` | Starts at | Use it for |
+|---|---|---|
+| `boot` | the main menu | menus, tiles, addon settings, anything at startup |
+| `benchmark` | a race with AI cars, straight from launch | physics, AI, sounds, tyres, anything on track |
+| `route` | a menu, opened by its route | a screen your addon adds or changes |
+| `career` | a saved career, loaded into Team HQ, a weekend or a session | careers: contracts, R&D, seasons, calendars |
+| `grand_prix`, `time_trial` | a session from a box, at a track, in a car | year packs, tracks, rules per box |
+
+```json
+{ "kind": "benchmark", "track": "monaco", "laps": 2, "cars": 20, "weather": "rain", "box": "swofty.classic-seasons-2017/f1_2017" }
+{ "kind": "route", "routes": ["career", "team_hq", "contracts"] }
+{ "kind": "career", "fixture": "fixtures/progressive-2018-r10", "at": "weekend_hub" }
+{ "kind": "time_trial", "box": "mod.season-2008/f1_2008", "track": "venue/albert_park", "car": "mod.season-2008/ferrari" }
+```
+
+In a `benchmark` race the AI drives every car, including the player's. For a test that needs the player's controls, such as the MFD or DRS, a step drives the car with the virtual pad.
+
+## Steps
+
+```json
+{ "wait": { "event": "career.season.start" }, "timeout_s": 120 }
+{ "route": "contracts" }
+{ "skip": "session" }
+{ "advance": { "days": 7 } }
+{ "ai_drives_player": true }
+{ "pad": { "press": "mfd_fuel", "then": "right" } }
+{ "set": { "car[player].f1_aero.lift_scale": 1.05 } }
+{ "read": "career.money", "as": "money_before" }
+{ "capture": "frame", "name": "team_hq" }
+{ "save": "now" }
+```
+
+`skip` and `advance` use the game's own simulate and calendar code, so a test can get from the first race of a season to the season break in seconds. `read` and `set` use the same names as `cars::live` and the system pages.
+
+## Checks
+
+```json
+{ "log": "\\[career\\] season 2019 starts", "min": 1 }
+{ "value": "car[0].chassis.mass", "between": [790, 830] }
+{ "value": "money_after", "greater_than": "money_before" }
+{ "event": "car.reset", "count": 2 }
+{ "no_crash": true }
+{ "perf": { "p99_ms": { "max": 40 } } }
+```
+
+## Tests in code
+
+A test can also be a C++ function in a test DLL your addon ships next to the test file. It runs inside the game, a step at a time, without blocking it.
+
+```cpp
+#include <swofty/test.hpp>
+#include <swofty/systems/career.hpp>
+
+SWOFTY_TEST(rnd_tab_hidden)(swofty::test::Context &t) -> swofty::test::Task
+{
+    co_await t.at("team_hq", 60);
+    t.expect(!t.read<bool>("ui.team_hq.tabs.rnd.visible"), "the R&D tab is hidden");
+    co_await t.route("laptop_rnd");
+    co_await t.log("\\[rnd-tyres\\] blocked", 5);
+    co_await t.capture("team_hq");
+}
+
+SWOFTY_TESTS()
+```
+
+The test DLL loads only during `swofty test`, never in normal play.
+
+## Fixtures
+
+A fixture is a saved game in a known state: a career after ten races, a My Team at the contract window, a Grand Prix weekend. Capture one from a running test session:
+
+```sh
+swofty test shell                       # start the game in test mode
+> career load 1                         # or play to the state you want
+> fixture capture progressive-2018-r10
+```
+
+```text
+fixtures/progressive-2018-r10/
+  fixture.json        the game build, the addons and versions it needs, what it holds
+  save/               the game's save files
+  storage/            addon storage that lives outside the save
+```
+
+Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud.
+
+## Running tests
+
+- One game runs at a time on a machine, so tests queue for it. `swofty test run` waits for the game to be free, and with `--take-over` it closes a running game first.
+- Every run uses its own launcher profile with only the addons the tests name, and puts the game folder back afterwards.
+- The report is JSON and JUnit, with logs, frames and the values sampled. The exit code is 0 when everything passed, 1 when a test failed, and 2 when the game couldn't be started.
