@@ -95,7 +95,7 @@ drivers::identities.variant("alain_prost", drivers::identities["game/jarno_opmee
 [registry] stat ids: session.mode swofty.f1-1990/f1_1990 -> 16 (pool 5,7,16-31)
 ```
 
-- **One store per install.** The core keeps the ids it allocates in the game, at `<game>/swofty/registry/ids.json`, keyed by record id. A record gets the same id at every later start.
+- **One store per install.** The core keeps the ids it allocates in the launcher's data folder, at `$DATA/registry/ids.json`, keyed by record id. A record gets the same id at every later start.
 - **Ids are reused only when no career uses them.** An id stays taken while any career's save refers to it.
 - **Each career carries its own id map** in its save entry (`swofty_registry`): every record it uses, with the stat id it was saved with. A save synced to another PC can't swap a track or a driver.
 

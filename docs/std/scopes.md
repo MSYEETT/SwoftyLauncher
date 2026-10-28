@@ -241,7 +241,7 @@ The core keeps everything it saves for a career in that career's entry in `swoft
 
 The game never decodes `swofty_registry`. The core holds its bytes outside the game's heaps and writes them into the save stream through the save splice. The game's own `SAVE_DATA` heap is 3 MB for the whole profile save and has no room for it: a 16,368-byte copy failed there with 5,200 bytes free. An addon that isn't installed when the save is written doesn't lose its records: the save splice keeps entries it doesn't recognise.
 
-**The stat-id map** lists the stat id of every record the career's save refers to: cars, teams, drivers, looks and tracks. Stat ids come from one store per install, in the game, at `<game>/swofty/registry/ids.json`. The core reuses an id only when no career uses it. When a career loads, the core checks the install's ids against the career's map, so a save synced to another PC can't swap a track or a driver.
+**The stat-id map** lists the stat id of every record the career's save refers to: cars, teams, drivers, looks and tracks. Stat ids come from one store per install, in the launcher's data folder, at `$DATA/registry/ids.json`. The core reuses an id only when no career uses it. When a career loads, the core checks the install's ids against the career's map, so a save synced to another PC can't swap a track or a driver.
 
 ### Budget
 
