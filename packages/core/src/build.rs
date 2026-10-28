@@ -11,7 +11,7 @@ use crate::activation::grid::grid_size;
 use crate::activation::place::{
     PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
 };
-use crate::activation::ui::{MapUi, build_ui, plan_lists, stamp as ui_stamp};
+use crate::activation::ui::{Kept, MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::asset::{
     AssetOp, FileKind, FileOp, GroupOp, ItemOp, LangOp, Op, OpFile, Origin, Root, Source, TrackOp,
 };
@@ -19,7 +19,7 @@ use crate::baseline::{Baseline, Objects, hex, sha256_file, sha256_opt};
 use crate::builtin::{CORE_DB, CORE_ID, LOADER_ENV, core_db_ops, loader_dir, loader_files};
 use crate::conflicts::Report;
 use crate::dbedit::driver_manager;
-use crate::erpbuild::{ErpBuild, Resized, SliceMerge, reads, unsupported, writes};
+use crate::erpbuild::{ErpBuild, Held, Resized, SliceMerge, reads, unsupported, writes};
 use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, PassValue, PostFx, Strength, relative_inside};
@@ -1231,9 +1231,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
     }
+    let mut menu_kept = Kept::new();
     if !ui_maps.is_empty() {
         let ui = build_ui(&ui_maps, &resolve, &store.root.join("cache/menus"))?;
         caches.push(ui.dir.clone());
+        menu_kept = ui.kept;
         built
             .warnings
             .extend(ui.notes.iter().map(|n| format!("menus: {n}")));
@@ -1345,6 +1347,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
         let mut erps = ErpBuild::new(&base);
+        for (erp, resource) in menu_kept.keys() {
+            erps.keep(erp, resource);
+        }
         let runtime_route = planner.route(Kind::Erp) == Route::Runtime;
         // Every origin that writes, in load order: the later wins.
         let mut ranks: Vec<String> = Vec::new();
@@ -1365,10 +1370,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     source,
                 }) if runtime_route => {
                     let path = resolve(source)?;
-                    let stale =
-                        crate::erpbuild::stale_stats_in(&swofty_formats::erp::ErpFile::open(&path)?)?.len();
+                    let file = swofty_formats::erp::ErpFile::open(&path)?;
+                    let stale = crate::erpbuild::stale_stats_in(&file)?.len();
+                    let menus = file
+                        .erp
+                        .resources
+                        .iter()
+                        .any(|r| targets.iter().any(|t| erps.keeps(t, &r.name)));
                     let fits = match merged_later(&slices, at, targets, &path)? {
                         Some(why) => Err(why),
+                        None if menus => Err("it carries the track menu pictures".to_owned()),
                         None if targets.iter().any(|t| !crate::erpbuild::served_at_runtime(t)) => {
                             Err("the in-game loader patches only archives under 2025_asset_groups".to_owned())
                         }
@@ -1426,6 +1437,29 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 ));
             }
         }
+        let keeper = |h: &Held| {
+            let codes = menu_kept.get(&(h.erp.clone(), h.resource.clone()))?;
+            tracks
+                .iter()
+                .filter(|(_, p, _)| codes.contains(&p.track_code))
+                .map(|(_, _, o)| o)
+                .max_by_key(|o| rank(o))
+                .cloned()
+        };
+        let origin = |s: &str| {
+            erp_ops
+                .iter()
+                .find(|op| op.origin.to_string() == s)
+                .map(|op| op.origin.clone())
+        };
+        keep_menus(
+            &mut built,
+            &mut planner,
+            erps.take_held(),
+            &keeper,
+            &origin,
+            &name,
+        );
         for n in erps.take_notes() {
             built.lines.push(format!("erp: {n}"));
         }
@@ -1727,6 +1761,37 @@ fn merged_later(
         .iter()
         .find(|(_, _, uri)| names.iter().any(|n| n == uri))
         .map(|(_, erp, uri)| format!("a later erp.merge-slices merges into {uri} in {erp}")))
+}
+
+fn kept_menus_line(name: &str) -> String {
+    format!("{name} ships its own track menu pictures; the launcher's track menus are kept")
+}
+
+fn keep_menus(
+    built: &mut Built,
+    planner: &mut Planner,
+    held: Vec<Held>,
+    keeper: &dyn Fn(&Held) -> Option<Origin>,
+    origin: &dyn Fn(&str) -> Option<Origin>,
+    name: &dyn Fn(&str) -> String,
+) {
+    let mut warned = Vec::new();
+    for h in held {
+        let line = kept_menus_line(&name(&h.origin));
+        if !warned.contains(&line) {
+            built.warnings.push(line.clone());
+            warned.push(line);
+        }
+        if let (Some(keeper), Some(lost)) = (keeper(&h), origin(&h.origin))
+            && keeper.addon != lost.addon
+        {
+            let target = Target::Resource {
+                erp: h.erp,
+                uri: h.resource,
+            };
+            planner.kept(target, &keeper, &lost);
+        }
+    }
 }
 
 fn record_merge(built: &mut Built, planner: &mut Planner, origin: &Origin, m: SliceMerge) {
@@ -4145,6 +4210,317 @@ mod tests {
         assert_eq!(
             value(car, "testring", "OverrideActivationLapProgress").as_deref(),
             Some("0.95")
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_tracks_keep_their_menu_pictures_over_an_addon_that_ships_its_own() {
+        use swofty_formats::erp::{Erp, ErpFile, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
+        use swofty_formats::gvdb::Record;
+        use swofty_formats::pkg::{Arr, Node, Obj, Pkg, Val};
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-menus-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let write = |rel: &str, data: Vec<u8>| {
+            let p = dir.join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, data).unwrap();
+        };
+        for slot in [SLOTS[0], SLOTS[1], crate::activation::ui::PICTURE_SLOT] {
+            write(&slot_file(slot), archive(&["eaid://ui_package/slot.uil"], 0));
+        }
+        let res = "tracks.track_resource.TrackResource_0";
+        let set = "track_data.game_setup.TrackDataSet_0";
+        let records = vec![
+            Record::new("tracks._Track_instancecount_", 0, "1"),
+            Record::new("tracks.Track_0._metadata_", 2, "melbourne"),
+            Record::new("tracks.Track_0.statId", 0, "5"),
+            Record::new("tracks.Track_0.track_resource", 2, "2019"),
+            Record::new("tracks.track_resource._TrackResource_instancecount_", 0, "1"),
+            Record::new(&format!("{res}._metadata_"), 2, "2019"),
+            Record::new(&format!("{res}.iblAssetGroupsRoot"), 2, "probes/"),
+            Record::new(&format!("{res}.iblKey"), 2, "key_2019.assetgroup"),
+            Record::new("track_data.game_setup._TrackDataSet_instancecount_", 0, "1"),
+            Record::new(&format!("{set}._metadata_"), 2, "f1"),
+            Record::new(&format!("{set}._TrackData_instancecount_"), 0, "1"),
+            Record::new(&format!("{set}.TrackData_0._metadata_"), 2, "melbourne"),
+            Record::new(&format!("{set}.TrackData_0.track"), 2, "melbourne"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+
+        let resource = |name: &str, kind: &str, fragments: Vec<Vec<u8>>| {
+            let mut r = Resource {
+                name: name.into(),
+                kind: swofty_formats::erp::kind(kind).unwrap(),
+                unk: vec![0; 4],
+                fragments: fragments
+                    .into_iter()
+                    .map(|data| Fragment {
+                        name: *b"temp",
+                        offset: 0,
+                        size: data.len() as u64,
+                        flags: 0x10,
+                        compression: STORED,
+                        packed: data.len() as u64,
+                        raw: data,
+                    })
+                    .collect(),
+                hash: [0; 16],
+            };
+            r.hash = r.content_hash().unwrap();
+            r
+        };
+        let surface = |name: &str, slices: &[u8]| {
+            let mut head = vec![0u8; 40];
+            head[12..16].copy_from_slice(&2u32.to_le_bytes());
+            head[16..20].copy_from_slice(&2u32.to_le_bytes());
+            head[28..32].copy_from_slice(&(slices.len() as u32).to_le_bytes());
+            let data = slices.iter().flat_map(|b| [*b; 4]).collect();
+            resource(&format!("{name}.image"), "GfxSurfaceRes", vec![head, data])
+        };
+        let view = |name: &str, slices: u32| {
+            let mut v = vec![0u8; 0x18];
+            v[0x14..].copy_from_slice(&slices.to_le_bytes());
+            resource(name, "GfxSurfaceRes", vec![v])
+        };
+        let erp_of = |resources: Vec<Resource>| {
+            let mut header = [0u8; HEADER_LEN];
+            header[..4].copy_from_slice(MAGIC);
+            header[4..8].copy_from_slice(&3u32.to_le_bytes());
+            Erp {
+                header,
+                version: 3,
+                resources,
+            }
+            .to_bytes()
+        };
+        let obj = |pairs: Vec<(&str, Node)>| {
+            Node::Obj(Obj::new(
+                pairs.into_iter().map(|(k, v)| (Val::str(k), v)).collect(),
+            ))
+        };
+        let list = |names: &[&str]| {
+            let items = names
+                .iter()
+                .map(|n| {
+                    obj(vec![
+                        ("Name", Node::Val(Val::str(*n))),
+                        ("Value", Node::Val(Val::str("ui_package/stock.tif"))),
+                    ])
+                })
+                .collect();
+            obj(vec![("Contents", Node::Arr(Arr::new(items)))])
+        };
+        let in_contents = |key: &str, inner: Node| obj(vec![(key, obj(vec![("Contents", inner)]))]);
+        let pkg = |name: &str, root: Node| {
+            let data = Pkg {
+                name: *b"UIDB",
+                root,
+                vca: Vec::new(),
+                layout: None,
+            }
+            .to_bytes()
+            .unwrap();
+            resource(name, "UIDB", vec![data])
+        };
+        const OVERRIDES: &str = "eaid://ui_package/databases/overrides.uidb";
+        const MINIMAP: &str = "eaid://ui_package/databases/minimap.uidb";
+        const UIDTA: &str = "eaid://ui_package/art/texture_arrays/ui_dynamic_texture_loading.uidta";
+        const FLAGS: &str =
+            "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.tracks.flags_circle.texarray";
+        const TRACKS: &str =
+            "eaid://ui_package/art/texture_arrays/overrides.uidb/overrides.fe_world.tracks.texarray";
+        const LOGO: &str = "eaid://ui_package/art/textures/team_logo.tif";
+        let stock = ["bahrain", "blank", "melbourne"];
+        let overrides = obj(vec![(
+            "overrides",
+            obj(vec![(
+                "Contents",
+                obj(vec![
+                    (
+                        "tracks",
+                        obj(vec![("Contents", obj(vec![("flags_circle", list(&stock))]))]),
+                    ),
+                    (
+                        "fe_world",
+                        obj(vec![("Contents", obj(vec![("tracks", list(&stock))]))]),
+                    ),
+                ]),
+            )]),
+        )]);
+        let entry = obj(vec![("Name", Node::Val(Val::str("bahrain")))]);
+        let minimap = in_contents(
+            "hud",
+            in_contents("minimap", in_contents("tracks", Node::Arr(Arr::new(vec![entry])))),
+        );
+        let ui = |rel: &str| format!("2025_asset_groups/ui_package/{rel}");
+        let (front, hub) = (ui("common_front_end.erp"), ui("flow_career_hub.erp"));
+        for rel in crate::activation::ui::UI_ERPS {
+            let resources = match *rel {
+                "databases.erp" => vec![pkg(OVERRIDES, overrides.clone()), pkg(MINIMAP, minimap.clone())],
+                "flow_race.erp" => vec![pkg(MINIMAP, minimap.clone())],
+                "persistent.erp" => vec![pkg(
+                    UIDTA,
+                    obj(vec![("TextureArrays", Node::Arr(Arr::new(Vec::new())))]),
+                )],
+                "common_front_end.erp" => vec![
+                    view(FLAGS, 3),
+                    surface(FLAGS, &[0, 1, 2]),
+                    view(TRACKS, 3),
+                    surface(TRACKS, &[0, 1, 2]),
+                    surface(LOGO, &[0]),
+                ],
+                "flow_career_hub.erp" => vec![view(FLAGS, 3), surface(FLAGS, &[0, 1, 2])],
+                _ => vec![view("eaid://ui_package/other.tif", 1)],
+            };
+            write(&ui(rel), erp_of(resources));
+        }
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let install = |id: &str, ops: &str, files: Vec<(&str, Vec<u8>)>| {
+            let src = root.join("src").join(id);
+            std::fs::create_dir_all(src.join("track")).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "{id}", "name": "{id}", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }}, "operations": {{ "assets": ["ops.json"] }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(
+                src.join("ops.json"),
+                format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+            )
+            .unwrap();
+            for (rel, data) in files {
+                std::fs::write(src.join(rel), data).unwrap();
+            }
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled(id, true))
+                .unwrap();
+        };
+        for (code, pixel) in [("ring_a", 0xa0u8), ("ring_b", 0xb0)] {
+            let picture =
+                |key: &str| format!("eaid://ui_package/art/textures/track_installer/{code}/{key}.tif");
+            let images = serde_json::json!({ "resources": {
+                "flag_circle": picture("flag_circle"),
+                "preview_small": picture("preview_small"),
+            } });
+            let manifest = serde_json::json!({
+                "track_code": code,
+                "track_name": code,
+                "erp": format!("{code}.erp"),
+                "activation": { "copy_from_track": "melbourne", "copy_slot": "melbourne" },
+                "ui": { "images_file": "images.json" },
+            });
+            let world = format!("eaid://environment_package/tracks/{code}/wep/{code}_common.wep");
+            let archive = erp_of(vec![
+                resource(&world, "WEP", vec![vec![0]]),
+                view(&picture("flag_circle"), 1),
+                surface(&picture("flag_circle"), &[pixel]),
+                view(&picture("preview_small"), 1),
+                surface(&picture("preview_small"), &[pixel + 1]),
+            ]);
+            install(
+                &format!("mod.{code}"),
+                r#"{"op":"track.add","source":"track"}"#,
+                vec![
+                    ("track/manifest.json", manifest.to_string().into_bytes()),
+                    ("track/images.json", images.to_string().into_bytes()),
+                    (&format!("track/{code}.erp"), archive),
+                ],
+            );
+        }
+        install(
+            "t.pack",
+            &format!(
+                r#"{{"op":"erp.overlay","erps":["{front}"],"source":"front.erp"}},
+                   {{"op":"erp.overlay","erps":["{hub}"],"source":"hub.erp"}}"#
+            ),
+            vec![
+                (
+                    "front.erp",
+                    erp_of(vec![
+                        view(FLAGS, 4),
+                        surface(FLAGS, &[0, 1, 2, 9]),
+                        view(TRACKS, 2),
+                        surface(TRACKS, &[0, 9]),
+                        surface(LOGO, &[7]),
+                    ]),
+                ),
+                (
+                    "hub.erp",
+                    erp_of(vec![view(FLAGS, 4), surface(FLAGS, &[0, 1, 2, 9])]),
+                ),
+            ],
+        );
+
+        let built = build(&store, "default", &game).unwrap();
+        assert!(
+            built.warnings.contains(&kept_menus_line("t.pack")),
+            "{:#?}",
+            built.warnings
+        );
+        let slices = |rel: &str, name: &str| {
+            let file = ErpFile::open(&built.plan.data[rel]).unwrap();
+            let r = file.load(file.erp.find(name).unwrap()).unwrap();
+            let data = r.fragments.last().unwrap().data().unwrap();
+            match name.ends_with(".image") {
+                true => data.chunks(4).map(|c| c[0]).collect::<Vec<u8>>(),
+                false => data[0x14..0x18].to_vec(),
+            }
+        };
+        let image = |name: &str| format!("{name}.image");
+        assert_eq!(slices(&front, &image(FLAGS)), [0, 1, 2, 0xa0, 0xb0]);
+        assert_eq!(slices(&front, FLAGS), 5u32.to_le_bytes());
+        assert_eq!(slices(&front, &image(TRACKS)), [0, 1, 2, 0xa1, 0xb1]);
+        assert_eq!(slices(&front, TRACKS), 5u32.to_le_bytes());
+        assert_eq!(slices(&hub, &image(FLAGS)), [0, 1, 2, 0xa0, 0xb0]);
+        assert_eq!(slices(&front, &image(LOGO)), [7]);
+        let db = ErpFile::open(&built.plan.data[&ui("databases.erp")]).unwrap();
+        let res = db.load(db.erp.find(OVERRIDES).unwrap()).unwrap();
+        let pkg = Pkg::parse(&res.fragments[0].data().unwrap()).unwrap();
+        let names = |a: &str, b: &str| -> Vec<String> {
+            let mut cur = &pkg.root;
+            for p in ["overrides", "Contents", a, "Contents", b, "Contents"] {
+                cur = cur.as_obj().unwrap().get(p).unwrap();
+            }
+            cur.as_arr()
+                .unwrap()
+                .items
+                .iter()
+                .map(|n| {
+                    let name = n.as_obj().unwrap().get("Name").unwrap();
+                    name.as_val().unwrap().as_str().unwrap().to_owned()
+                })
+                .collect()
+        };
+        let indexed = ["bahrain", "blank", "melbourne", "ring_a", "ring_b"];
+        assert_eq!(names("tracks", "flags_circle"), indexed);
+        assert_eq!(names("fe_world", "tracks"), indexed);
+        let pair = built
+            .report
+            .pairs
+            .iter()
+            .find(|p| p.loser == "t.pack")
+            .unwrap_or_else(|| panic!("{:#?}", built.report.pairs));
+        assert_eq!((pair.winner.as_str(), pair.resources), ("mod.ring_b", 6));
+        assert!(pair.items.contains(&format!("{front}:{}", image(FLAGS))));
+        assert_eq!(
+            crate::conflicts::last(&store, "default").unwrap().pairs,
+            built.report.pairs
         );
         std::fs::remove_dir_all(&root).ok();
     }
