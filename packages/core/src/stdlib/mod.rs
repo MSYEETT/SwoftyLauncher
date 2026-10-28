@@ -10,6 +10,7 @@ pub mod deps;
 pub mod index;
 pub mod lock;
 pub mod manifest;
+pub mod paths;
 pub mod range;
 pub mod reports;
 pub mod room;

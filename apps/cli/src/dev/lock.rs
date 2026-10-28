@@ -16,6 +16,8 @@ pub struct Lock {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
     pub needs: Vec<Need>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Clone)]
@@ -146,6 +148,7 @@ impl Lock {
                 .into_iter()
                 .map(|((record, or), policy)| Need { record, or, policy })
                 .collect(),
+            files: Vec::new(),
         }
     }
 

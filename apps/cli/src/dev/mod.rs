@@ -311,9 +311,10 @@ pub fn write_lock(store: &Store, sdk: &Path, folder: &Path) -> Result<Option<Rec
     for dll in &dlls {
         recordings.push(record(&recorder, &scratch, dll, &folder.join(MANIFEST_FILE))?);
     }
-    let lock = Lock::from_recordings(&recordings, &lock::generated_by());
-    std::fs::write(&lock_path, lock.to_json()).with_context(|| format!("{}", lock_path.display()))?;
+    let mut lock = Lock::from_recordings(&recordings, &lock::generated_by());
     let (files, missing) = recorded_files(sdk, folder, &recordings);
+    lock.files = files.clone();
+    std::fs::write(&lock_path, lock.to_json()).with_context(|| format!("{}", lock_path.display()))?;
     Ok(Some(Recorded { lock, files, missing }))
 }
 
