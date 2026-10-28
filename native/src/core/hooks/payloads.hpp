@@ -3,9 +3,12 @@
 #include <functional>
 #include <string>
 
+#include <swofty/systems/ai.hpp>
 #include <swofty/systems/career.hpp>
 #include <swofty/systems/cars.hpp>
+#include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/spectator.hpp>
 #include <swofty/systems/tracks.hpp>
 
 // Builds the C-layout payloads of the core's car and sound events and fires them through `fire` (the
@@ -166,6 +169,51 @@ inline void fuel_load(swofty::tracks::events::FuelLoad &f, const char *track, ui
     f.track_id = track ? track : "";
     f.session_type = session_type;
     f.kind = fuel_kind(session_type);
+}
+
+// The session points (session_points.hpp). Vehicle indexes become cars::live::Car handles (the game's car
+// object is not carried: addons read a car through its index).
+
+inline void controller_update(swofty::ai::events::ControllerUpdate &u, int32_t vehicle, float throttle, float brake,
+                              float steering)
+{
+    u = {};
+    u.size = sizeof u;
+    u.payload_version = swofty::ai::events::ControllerUpdate::version;
+    u.vehicle = vehicle;
+    u.throttle = throttle;
+    u.brake = brake;
+    u.steering = steering;
+}
+
+inline void player_control(swofty::sessions::events::PlayerControl &c, uint32_t vehicle, swofty::sessions::Control from,
+                           swofty::sessions::Control to, int32_t reason)
+{
+    c = {};
+    c.size = sizeof c;
+    c.payload_version = swofty::sessions::events::PlayerControl::version;
+    c.car = swofty::cars::live::Car(vehicle);
+    c.from = from;
+    c.to = to;
+    c.reason = reason;
+}
+
+inline void controllers_rebuilt(swofty::cars::events::ControllersRebuilt &r, uint32_t vehicle, uint32_t reason)
+{
+    r = {};
+    r.size = sizeof r;
+    r.payload_version = swofty::cars::events::ControllersRebuilt::version;
+    r.car = swofty::cars::live::Car(vehicle);
+    r.reason = reason;
+}
+
+inline void hud_visible(swofty::spectator::events::HudVisible &h, uint32_t following, bool visible)
+{
+    h = {};
+    h.size = sizeof h;
+    h.payload_version = swofty::spectator::events::HudVisible::version;
+    h.following = swofty::cars::live::Car(following);
+    h.visible = visible;
 }
 
 }

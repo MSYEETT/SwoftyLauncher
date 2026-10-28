@@ -26,6 +26,8 @@ const SwoftyHooks *table();
 Table &core();
 GameOps game_ops();
 void declare_game_points(Table &t);
+void declare_session_points(Table &t);
+void arm_session_points();
 void set_records(RecordFn fn);
 void window_stage();
 void drop_module(void *module);

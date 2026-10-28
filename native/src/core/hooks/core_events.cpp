@@ -1,7 +1,10 @@
 #include <swofty/systems/career.hpp>
+#include <swofty/systems/ai.hpp>
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/content.hpp>
+#include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/spectator.hpp>
 #include <swofty/systems/tracks.hpp>
 
 #include "core_events.hpp"
@@ -47,6 +50,10 @@ static_assert(declared<ca::VtfRead>(SWOFTY_POINT_MODIFY));
 static_assert(declared<ca::Built>(SWOFTY_POINT_NOTIFY));
 static_assert(declared<ca::Reset>(SWOFTY_POINT_NOTIFY));
 static_assert(declared<ca::PartsRegister>(SWOFTY_POINT_NOTIFY));
+static_assert(declared<ca::ControllersRebuilt>(SWOFTY_POINT_NOTIFY));
+static_assert(declared<swofty::ai::events::ControllerUpdate>(SWOFTY_POINT_CANCEL));
+static_assert(declared<swofty::sessions::events::PlayerControl>(SWOFTY_POINT_CANCEL));
+static_assert(declared<swofty::spectator::events::HudVisible>(SWOFTY_POINT_MODIFY));
 static_assert(declared<so::BundleResolve>(SWOFTY_POINT_MODIFY));
 static_assert(sizeof(ce::Loaded) == sizeof(Shell) && sizeof(ce::Created) == sizeof(Shell));
 

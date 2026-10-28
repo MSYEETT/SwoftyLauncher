@@ -88,7 +88,7 @@ inline constexpr Event EVENTS[] = {
     {"session.red_flag", N, SHELL, 1, false, Fired::no, nullptr},
     {"session.penalty.issue", C, SHELL, 1, false, Fired::no, nullptr},
     {"session.car.status", N, SHELL, 1, false, Fired::no, nullptr},
-    {"session.player.control", C, SHELL, 1, false, Fired::no, nullptr},
+    {"session.player.control", C, "swofty::sessions::events::PlayerControl", 1, false, Fired::game, nullptr},
     {"session.finish", N, SHELL, 1, false, Fired::no, nullptr},
     {"session.grid.group_result", C, SHELL, 1, false, Fired::no, nullptr},
     {"session.results.finalise", N, SHELL, 1, false, Fired::no, SWOFTY_EVENT_RESULTS},
@@ -101,6 +101,10 @@ inline constexpr Event EVENTS[] = {
     {"car.built", N, "swofty::cars::events::Built", 1, false, Fired::no, nullptr},
     {"car.reset", N, "swofty::cars::events::Reset", 1, false, Fired::no, nullptr},
     {"car.parts.register", N, "swofty::cars::events::PartsRegister", 1, false, Fired::no, nullptr},
+    {"car.controllers.rebuilt", N, "swofty::cars::events::ControllersRebuilt", 1, false, Fired::game, nullptr},
+
+    {"ai.controller.update", C, "swofty::ai::events::ControllerUpdate", 1, true, Fired::game, nullptr},
+    {"hud.spectator.visible", M, "swofty::spectator::events::HudVisible", 1, false, Fired::game, nullptr},
 
     {"audio.bundle.resolve", M, "swofty::sounds::events::BundleResolve", 1, false, Fired::no, nullptr},
 };
