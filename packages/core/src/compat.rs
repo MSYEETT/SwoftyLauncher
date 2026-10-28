@@ -380,6 +380,42 @@ mod shell {
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn CloseHandle(handle: *mut c_void) -> i32;
+        fn GetProcessId(process: *mut c_void) -> u32;
+        fn WaitForSingleObject(handle: *mut c_void, ms: u32) -> u32;
+        fn GetExitCodeProcess(process: *mut c_void, code: *mut u32) -> i32;
+    }
+
+    const WAIT_OBJECT_0: u32 = 0;
+
+    pub struct Process(*mut c_void);
+
+    // SAFETY: a process handle can be waited on and closed from any thread.
+    unsafe impl Send for Process {}
+
+    impl Process {
+        pub fn pid(&self) -> u32 {
+            // SAFETY: the handle is open until drop.
+            unsafe { GetProcessId(self.0) }
+        }
+
+        pub fn exited_within(&self, wait: std::time::Duration) -> Option<u32> {
+            let ms = u32::try_from(wait.as_millis()).unwrap_or(u32::MAX);
+            // SAFETY: the handle is open until drop, and `code` outlives the call.
+            unsafe {
+                if WaitForSingleObject(self.0, ms) != WAIT_OBJECT_0 {
+                    return None;
+                }
+                let mut code = 0;
+                (GetExitCodeProcess(self.0, &mut code) != 0).then_some(code)
+            }
+        }
+    }
+
+    impl Drop for Process {
+        fn drop(&mut self) {
+            // SAFETY: the handle came from ShellExecuteExW with NOCLOSEPROCESS and is closed once.
+            unsafe { CloseHandle(self.0) };
+        }
     }
 
     fn wide(s: &std::ffi::OsStr) -> Vec<u16> {
@@ -396,7 +432,7 @@ mod shell {
         format!("\"{inner}\"")
     }
 
-    pub fn relaunch_elevated() -> Result<(), String> {
+    pub fn relaunch_elevated() -> Result<Option<Process>, String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
         let args: Vec<String> = std::env::args().skip(1).map(|a| quote(&a)).collect();
         let (verb, file) = (wide("runas".as_ref()), wide(exe.as_os_str()));
@@ -419,8 +455,7 @@ mod shell {
             icon_or_monitor: std::ptr::null_mut(),
             process: std::ptr::null_mut(),
         };
-        // SAFETY: every string the struct points at outlives the call, and the
-        // process handle it returns is closed once.
+        // SAFETY: every string the struct points at outlives the call.
         let ok = unsafe { ShellExecuteExW(&mut info) } != 0;
         if !ok {
             let e = std::io::Error::last_os_error();
@@ -430,11 +465,7 @@ mod shell {
                 e.to_string()
             });
         }
-        if !info.process.is_null() {
-            // SAFETY: the handle came from ShellExecuteExW with NOCLOSEPROCESS.
-            unsafe { CloseHandle(info.process) };
-        }
-        Ok(())
+        Ok((!info.process.is_null()).then_some(Process(info.process)))
     }
 
     #[cfg(test)]
@@ -447,12 +478,38 @@ mod shell {
     }
 }
 
-/// Starts this program again as administrator, with the same arguments,
-/// through the Windows elevation prompt. Ok once the new process has started;
-/// the caller then exits.
-pub fn relaunch_elevated() -> Result<(), String> {
+/// The copy of this program [`relaunch_elevated`] started as administrator.
+pub struct Elevated {
     #[cfg(windows)]
-    return shell::relaunch_elevated();
+    process: Option<shell::Process>,
+}
+
+impl Elevated {
+    pub fn pid(&self) -> Option<u32> {
+        #[cfg(windows)]
+        return self.process.as_ref().map(shell::Process::pid);
+        #[cfg(not(windows))]
+        None
+    }
+
+    /// Its exit code, when it closed within `wait`.
+    pub fn exited_within(&self, wait: std::time::Duration) -> Option<u32> {
+        #[cfg(windows)]
+        return self.process.as_ref()?.exited_within(wait);
+        #[cfg(not(windows))]
+        {
+            let _ = wait;
+            None
+        }
+    }
+}
+
+/// Starts this program again as administrator, with the same arguments,
+/// through the Windows elevation prompt. Ok with the new process once it has
+/// started; the caller waits a moment before it exits.
+pub fn relaunch_elevated() -> Result<Elevated, String> {
+    #[cfg(windows)]
+    return shell::relaunch_elevated().map(|process| Elevated { process });
     #[cfg(not(windows))]
     Err("restarting as administrator is only for Windows".to_owned())
 }
