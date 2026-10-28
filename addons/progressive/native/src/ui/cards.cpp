@@ -68,7 +68,11 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include <swofty/storage.hpp>
+
 #include "../cards_logic.hpp"
+#include "../choose_logic.hpp"
+#include "../records.hpp"
 #include "wizard_ratings.hpp"
 
 namespace {
@@ -254,11 +258,58 @@ void take_back(const char *why, bool restore_rows)
     g_mode = 0;
 }
 
+struct Effective {
+    bool tried = false;
+    bool differs = false;
+    progressive::season::Data base, effective;
+};
+
+Effective &effective_years()
+{
+    static Effective e;
+    if (e.tried)
+        return e;
+    e.tried = true;
+    std::string file, text, err;
+    if (swofty::storage::read("data/years.json", file) != swofty::storage::Result::ok)
+        return e;
+    text = file;
+    if (!pg::records::read_years(text, "Choose Driver") || text == file)
+        return e;
+    if (!progressive::season::parse(file, e.base, err) || !progressive::season::parse(text, e.effective, err)) {
+        swofty::log("[progressive] cards: Choose Driver keeps the game's season lists: years.json REFUSED: %s", err.c_str());
+        return e;
+    }
+    e.differs = true;
+    return e;
+}
+
+bool season_rows(unsigned stat, int year, Rows &out, std::vector<EntrantRecord> &store, uintptr_t list)
+{
+    if (!rows_of(list, out) || !out.count)
+        return false;
+    Effective &e = effective_years();
+    if (!e.differs)
+        return true;
+    store.assign(out.begin, out.begin + out.count);
+    progressive::choose::Stats st = progressive::choose::reseat(store, e.base, e.effective, year);
+    if (!st.changed())
+        return true;
+    out.begin = store.data();
+    out.count = store.size();
+    swofty::log("[progressive] cards: Choose Driver %d (list %u): the effective career.season seats: %zu driver(s) moved, "
+                "%zu added, %zu taken off",
+                year, stat, st.moved, st.added, st.removed);
+    return true;
+}
+
 bool dress(uintptr_t vm, uintptr_t mode, uintptr_t entrants, uintptr_t career_list, int year)
 {
     unsigned stat = pc::kFirstSeasonList + static_cast<unsigned>(year - pc::kFirstYear);
     Rows career{}, season{}, first{};
-    if (!rows_of(career_list, career) || !rows_of(list_at(entrants, stat), season) || !season.count) {
+    static std::vector<EntrantRecord> season_store;
+    if (!rows_of(career_list, career) || !season_rows(stat, year, season, season_store, list_at(entrants, stat)) ||
+        !season.count) {
         if (g_logged++ < 8)
             swofty::log("[progressive] cards: %d: the career list (%u) or the season list (%u) has no rows; Choose Driver "
                         "keeps the 2026 looks",

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# records_logic.hpp on the host: register.cpp registers into the core's registry (native/src/core/registry,
+# records_logic.hpp and choose_logic.hpp on the host: register.cpp registers into the core's registry (native/src/core/registry,
 # the engine behind the SDK fake core), a second addon layers swofty.progressive/2017, and the overlaid
 # years.json goes through Progressive's season planner and ratings parser (records_test.cpp).
 set -euo pipefail

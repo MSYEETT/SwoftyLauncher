@@ -9,6 +9,8 @@
 //                Hamilton leaves the Mercedes and Alonso's McLaren seat goes to another driver;
 //   a rating:    the same addon's pace 96 for Alonso in 2017 reaches the ratings parser;
 //   a change:    a layer that drops a 2017 mid-season change drops it from what the planner reads;
+//   choose:      the same layer puts Alonso at the Mercedes in Choose Driver's season list (choose_logic.hpp)
+//                and takes Hamilton off it; no layer leaves the list as it is;
 //   no registry: no record means years.json as it is.
 
 #include <cstdio>
@@ -19,6 +21,8 @@
 #include <swofty/fake_core.hpp>
 #include <swofty/storage.hpp>
 
+#include "cards_logic.hpp"
+#include "choose_logic.hpp"
 #include "ratings_logic.hpp"
 #include "records_logic.hpp"
 #include "season_logic.hpp"
@@ -212,6 +216,90 @@ void what_if_layer_changes_the_2017_seats(const sj::Value &file)
     EXPECT(parse_season(doc).year(2016)->changes.size() == parse_season(file).year(2016)->changes.size());
 }
 
+struct ListRow {
+    uint8_t id_lo = 0;
+    uint16_t id_hi = 0;
+    uint32_t driver_customisation = progressive::cards::kNoKey;
+    uint32_t team_stat_id = progressive::cards::kNoKey;
+    uint32_t vehicle_ref = progressive::cards::kNoKey;
+    uint32_t vehicle_customisation = progressive::cards::kNoKey;
+    uint32_t badge_stat_id = progressive::cards::kNoKey;
+    uint16_t team_position = 0x00ff;
+    uint8_t car_number = progressive::cards::kNoNumber;
+};
+
+std::vector<ListRow> season_list(const season::Data &d, int year)
+{
+    std::vector<ListRow> rows;
+    const season::Year *y = d.year(year);
+    for (int i = 0; i < season::kSlots; ++i)
+        for (const season::SeatDriver &sd : y->teams[static_cast<size_t>(i)].drivers) {
+            const season::PoolDriver *p = d.driver(sd.driver);
+            ListRow r;
+            r.id_hi = static_cast<uint16_t>(p->stat);
+            r.team_stat_id = static_cast<uint32_t>(d.slots[static_cast<size_t>(i)].team_stat) << 16;
+            r.vehicle_ref = static_cast<uint32_t>(5000 + i) << 16;
+            r.driver_customisation = static_cast<uint32_t>(sd.look.stat) << 16;
+            r.team_position = static_cast<uint16_t>(0x100 | sd.position);
+            r.car_number = static_cast<uint8_t>(sd.number);
+            rows.push_back(r);
+        }
+    return rows;
+}
+
+const ListRow *find_row(const std::vector<ListRow> &rows, const season::Data &d, const char *label)
+{
+    for (const ListRow &r : rows)
+        if (r.id_hi == d.driver(label)->stat)
+            return &r;
+    return nullptr;
+}
+
+void choose_driver_lists_the_effective_seats(const sj::Value &file)
+{
+    sj::Value doc = file;
+    pr::Summary n = pr::overlay(doc, season_of, rating_of);
+    EXPECT(n.changed());
+    season::Data base = parse_season(file), eff = parse_season(doc);
+    std::vector<ListRow> rows = season_list(base, 2017);
+    const size_t before = rows.size();
+    const ListRow *alonso0 = find_row(rows, base, "fernando_alonso");
+    const uint32_t mclaren_team = alonso0 ? alonso0->team_stat_id : 0;
+    const uint32_t mclaren_look = alonso0 ? alonso0->driver_customisation : 0;
+    const ListRow *ham = find_row(rows, base, "lewis_hamilton");
+    const uint32_t mercedes_team = ham ? ham->team_stat_id : 1;
+    const uint32_t mercedes_car = ham ? ham->vehicle_ref : 1;
+
+    progressive::choose::Stats st = progressive::choose::reseat(rows, base, eff, 2017);
+    EXPECT(st.changed() && st.moved == 1 && st.removed == 1);
+    const ListRow *alonso = find_row(rows, eff, "fernando_alonso");
+    EXPECT(alonso && alonso->team_stat_id == mercedes_team && alonso->team_stat_id != mclaren_team);
+    EXPECT(alonso && alonso->vehicle_ref == mercedes_car);
+    EXPECT(alonso && (alonso->team_position & 0xff) == 0 && (alonso->team_position >> 8));
+    EXPECT(alonso && alonso->driver_customisation == mclaren_look);
+    EXPECT(!find_row(rows, eff, "lewis_hamilton"));
+    const ListRow *bottas = find_row(rows, eff, "valtteri_bottas");
+    EXPECT(bottas && bottas->team_stat_id == mercedes_team);
+    EXPECT(rows.size() + st.removed == before + st.added);
+
+    std::vector<ListRow> career = season_list(base, 2017);
+    std::vector<ListRow> out(rows.size() + 64);
+    progressive::cards::Stats cs{};
+    progressive::cards::Rows<ListRow> c{career.data(), career.size()}, s{rows.data(), rows.size()}, f{};
+    size_t built = progressive::cards::build(c, s, f, out.data(), out.size(), cs);
+    bool at_mercedes = false;
+    for (size_t i = 0; i < built; ++i)
+        if (out[i].id_hi == eff.driver("fernando_alonso")->stat && out[i].team_stat_id == mercedes_team)
+            at_mercedes = true;
+    EXPECT(at_mercedes);
+
+    std::vector<ListRow> same = season_list(base, 2017);
+    EXPECT(!progressive::choose::reseat(same, base, base, 2017).changed());
+    std::vector<ListRow> untouched = season_list(base, 2017);
+    EXPECT(untouched.size() == same.size() && std::memcmp(untouched.data(), same.data(), same.size() * sizeof(ListRow)) == 0);
+    EXPECT(!progressive::choose::reseat(same, base, eff, 2016).changed());
+}
+
 void no_registry_changes_nothing(const sj::Value &file)
 {
     sj::Value doc = file;
@@ -260,6 +348,7 @@ int main(int argc, char **argv)
                               [](career::DriverRatings &r) { r.pace = 96; }, swofty::Scope::profile);
         engine->end_register();
         what_if_layer_changes_the_2017_seats(file);
+        choose_driver_lists_the_effective_seats(file);
         swofty::api = nullptr;
     }
     no_registry_changes_nothing(file);
