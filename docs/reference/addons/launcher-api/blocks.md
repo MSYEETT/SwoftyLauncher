@@ -148,11 +148,13 @@ Blocks side by side.
 
 ```json
 { "image": { "path": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/helmets/helmet_042-91c0.png", "width": 240, "height": 135, "caption": "Carbon stripe", "fit": "contain" } }
+{ "image": { "path": "/home/you/.local/share/swofty/cache/addons/example.launcher-addon/logos/ferrari.png", "width": 96, "height": 96, "fit": "contain", "transparent": true } }
 ```
 
 - `path` (absolute), `width` and `height` (in pixels) are required. `width` shrinks to the space the block is in.
 - `fit` is `cover` (default), which fills the box and crops, or `contain`, which shows the whole picture inside the box.
 - `caption` is a muted line under it.
+- `"transparent": true` *(1.5.25)* draws the picture without the box and border behind it, so its transparent parts show the card or panel under it. An older launcher ignores `transparent` and draws the box.
 - A path outside those two folders shows an empty box.
 - An older launcher fails the view.
 

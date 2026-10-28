@@ -138,6 +138,8 @@ void save_splice_commit();
 void snapshots_start(bool splice_live);
 std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
+std::vector<CoreMixins> track_acclim_mixins();
+void track_acclim_commit();
 void hud_setup();
 void focus_setup();
 void hud_fatal();
