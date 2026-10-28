@@ -47,6 +47,7 @@ const SwoftyCareerContent *career_content_table();
 std::vector<CoreMixins> career_content_mixins();
 void career_content_commit();
 const SwoftyEra *era_table();
+const SwoftyRegistry *registry_table();
 std::vector<CoreMixins> era_mixins();
 void era_commit();
 std::vector<CoreMixins> car_category_mixins();
@@ -2201,6 +2202,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->characters = runtime::characters_table();
     a->career_wizard = runtime::wizard_table();
     a->era = runtime::era_table();
+    a->registry = runtime::registry_table();
     a->hooks = swofty_core::hooks::table();
     a->services = swofty_core::services::table();
     a->version = SWOFTY_API_VERSION;
