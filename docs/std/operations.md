@@ -52,7 +52,11 @@ SWOFTY_ADDON()
 </template>
 </Split>
 
-`apply_lineup` and `set_seat` use the loaded career's mode. Driver Career and My Team move drivers through different game sequences: Driver Career confirms each move, sets the contract state and posts the moves as finalised, and My Team follows the game's pending-moves step with no confirmation. The operation picks the sequence that matches `ctx.mode()`.
+`apply_lineup` runs Driver Career's sequence: it confirms each move, sets the contract states, signs the seated drivers' contracts and posts the moves as finalised. In My Team it returns `unavailable`. A season's slots race as the teams of its data group's slot table, which the mode's owner sets once with `career::set_slots` (see [Career](/std/systems/career#operations)):
+
+```cpp
+career::set_slots("f1_career_progressive", { 476, 477, 478, 484, 480, 481, 479, 482, 485, 483, 486 });   // slot 1 is team stat 476
+```
 
 ## Setting ratings
 
@@ -71,16 +75,29 @@ void start_of_season_ratings(int year)
 }
 ```
 
-## The planned operations
+## The core's operations
 
-Each one moves into the core when a second addon needs it. Its first version comes from the code that already does the job in Progressive Career or Career Editor:
+In the core from 1.6.0, built from Progressive Career's verified seat, swap and ratings code:
 
 ```cpp
 // swofty/systems/career.hpp
 namespace swofty::career {
+Result set_slots(std::string_view data_group, const std::vector<uint32_t> &team_stats);
 Result apply_lineup(const Season &season, ApplyReport *report = nullptr);
-Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
 Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
+Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b);
+const SwoftyCareerOps *ops();                    // the C table, for a resolved line-up or more statistics
+}
+```
+
+`set_driver_ratings` writes the four ratings into the driver's statistic curves at his place on them. A call that would move another driver's values is undone. The C table's `set_driver_ratings` also takes focus (game stat id 5) and any other statistic by id. See [The C ABI](/std/abi#the-career-operations-table).
+
+The planned operations move into the core when a second addon needs them. Each one's first version comes from the code that already does the job in Progressive Career or Career Editor:
+
+```cpp
+// swofty/systems/career.hpp
+namespace swofty::career {
+Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
 Result set_car_number(Ref<drivers::Identity> driver, int number);
 }
 // swofty/systems/teams.hpp

@@ -1,11 +1,11 @@
 ---
 title: The C ABI
-description: The SwoftyAddonRegister export and the SwoftyRegistry, SwoftyHooks and SwoftyServices tables under the standard library's C++ wrappers.
+description: The SwoftyAddonRegister export, the SwoftyRegistry, SwoftyHooks and SwoftyServices tables under the standard library's C++ wrappers, and the career operations table.
 ---
 
 # The C ABI
 
-The typed C++ API sits on one export, `SwoftyAddonRegister`, and three C tables appended to `SwoftyApi` in API version 9. A C caller, or an addon in another language, uses these directly.
+The typed C++ API sits on one export, `SwoftyAddonRegister`, and three C tables appended to `SwoftyApi` in API version 9. The career operations are a fourth table, from a core export only. A C caller, or an addon in another language, uses these directly.
 
 For example, a `SWOFTY_REGISTER` block that adds an engine sound becomes one `registry->add` call from `SwoftyAddonRegister`, at the early stage.
 
@@ -175,6 +175,56 @@ SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
 SWOFTY_EXPORT int SwoftyAddonRegister(const SwoftyApi *api);
 ```
 
+## The career operations table
+
+The core exports `SwoftyCoreCareerOps`. The table isn't a `SwoftyApi` field: `swofty/systems/career.hpp` finds it with `GetProcAddress`, and on a core without it every operation returns `unavailable`.
+
+```c
+typedef struct SwoftyCareerOps {
+    uint32_t version;                                                          /* 1 */
+    int (*available)(void);
+    int (*driver_stat)(const char *driver_ref, uint32_t *out);                 /* "game/<label>", "person/<label>" */
+    int (*set_slots)(const char *data_group, const uint32_t *team_stats, size_t count);
+    int (*apply_lineup)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
+    int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
+} SwoftyCareerOps;
+
+SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
+```
+
+- **Ids:** a stat id is the upper 16 bits of the game's key. `driver_stat` reads the drivers table row whose label is the part after the `/`.
+- **Threads:** every call runs on the flow thread. From another thread it returns `SWOFTY_ASSET_LATE`.
+- **Bindings:** a call that needs a binding the running build doesn't resolve returns `SWOFTY_ASSET_UNAVAILABLE` and logs the binding's id.
+- **Logs:** each call writes one `[career-ops]` line with what changed.
+
+`apply_lineup` takes one of two requests. `{"season": ...}` is a `career.season` record, which the core plans against the slot table. `{"lineup": ...}` is a line-up in stat ids, which the core writes as given:
+
+```json
+{ "lineup": {
+    "year": 2017, "why": "season start", "visuals": true, "player_team": 476,
+    "moves": [ { "driver": 7, "team": 476, "seat": 0, "car": 212, "holder": 5, "mate": 9 } ],
+    "repositions": [ { "driver": 9, "seat": 1 } ],
+    "releases": [ 5 ],
+    "numbers": [ { "driver": 7, "number": 14 } ],
+    "cars": [ { "driver": 7, "car": 212 } ],
+    "looks": [ { "driver": 7, "look": 455 } ] } }
+```
+
+- **moves:** the driver takes `seat` (0 or 1) of `team`, with that seat's row as the template, else his new teammate's, else any row of the team. `holder` and `mate` name the seat's row and the teammate's row by driver; without them, or at -1, they're the team's rows on that position and the other. `car` is used when the template row has none (-1: none given).
+- **cars and looks:** written only when `visuals` is true.
+- **numbers:** never written on the player's row.
+- **player_team:** the team the line-up seats the player at, or -1. A moved player signs with that team only.
+
+The report the core writes:
+
+```json
+{ "result": "ok", "changed": 2, "unchanged": 19, "refused": 0, "refusals": [], "written": 2, "released": 1,
+  "numbers": 0, "finalise": "posted", "line_up_changes": 2, "contracts_signed": 1 }
+```
+
+`result` is `ok`, `failed` (the batch was written back) or `refused`. For a season, `changed` counts seats set and `unchanged` seats already right. For a line-up, they count rows written and rows already as planned.
+
 ## What the C++ wrapper calls
 
 ```text
@@ -197,6 +247,10 @@ swofty::option<V>(id)            option
 swofty::adapter(from, to, ...)   adapter
 swofty::migrate(from, to, fn)    migrate
 data files, C callers            provide (a JSON value), layer (a JSON merge patch)
+career::set_slots                career ops set_slots
+career::apply_lineup             career ops apply_lineup    {"season": the record}; the report fills ApplyReport
+career::set_driver_ratings       career ops driver_stat, set_driver_ratings   ids 0, 1, 3, 4
+career::swap_drivers             career ops driver_stat, swap_drivers
 ```
 
 An edit crosses the ABI as JSON:
