@@ -220,6 +220,6 @@ For how the AI drives, see [AI](/std/systems/ai).
 
 ## Readiness
 
-The parts, their fields and how they're stored are mapped from the game's code. Before 1.6.0 ships, in-game traces confirm when cars are built, which events rebuild them, how a car's index matches its participant, and the live values of downforce, DRS, tyre wear, fuel and ERS.
+The parts, their fields and how they're stored are mapped from the game's code and checked independently. An in-game trace confirmed that cars are built once at session load and torn down when it ends, that the game rebuilds every car twice while a session loads and rebuilds one car when control of it changes, and the live values of engine speed, fuel, ERS, tyre wear, mass and the aero coefficients. Still to confirm in game: DRS, the fuel-mix and setup controls, career R&D upgrades, and how a car's index matches its participant.
 
 Credit: the front wing damage, suspension damage, fuel ECU and ERS layouts were cross-checked against findings shared by Will (william09leo), the author of Heavier Damage.
