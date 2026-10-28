@@ -25,11 +25,19 @@ A few terms used on this page:
 
 namespace swofty::drivers {
 
+using Result = swofty::Result;
+
+enum class BodyType { male, female };
+enum class Stat : int32_t { experience, racecraft, awareness, pace, focus };   // one driver statistic
+
 struct Person {                                    // a real driver; the core owns the person/ ids
+    static constexpr Version version{1, 0};
     std::string name;                              // "Rio Haryanto"
     std::string nationality;                       // "indonesia"
     Ref<Identity> driver;                          // resolved: the last enabled driver in load order that is this person
+    json::Value extra;
 };
+SWOFTY_RECORD(Person, name, nationality, driver)
 
 struct Names {
     Text first;                                    // first_name
@@ -37,8 +45,34 @@ struct Names {
     Text full;                                     // full_name
     std::string code;                              // initials: "VER"
 };
+SWOFTY_RECORD(Names, first, last, full, code)
+
+struct Head {                                      // an entrants.animation.driver_heads row and its files
+    static constexpr Version version{1, 0};
+    Path archive;                                  // character_package/heads/<...>/<head>/
+    Path morph;                                    // morph_poses/<head>.erp
+    Ref<Head> rig_from;                            // the head row it copies (game/male_ls222, game/female_ls112)
+    BodyType body = BodyType::male;                // body_type
+    bool customisable = false;                     // available_for_customisation
+    StatId stat_id = StatId::automatic;            // heads from 265
+    json::Value extra;
+};
+SWOFTY_RECORD(Head, archive, morph, rig_from, body, customisable, stat_id)
+
+struct Look {                                      // a driver_customisations row
+    static constexpr Version version{1, 0};
+    Ref<wearables::Helmet> helmet;                 // the helmet
+    Ref<wearables::Suit> suit;                     // the suit
+    Ref<wearables::Gloves> gloves;                 // the gloves
+    std::string pose;                              // one of the 59 poses
+    std::string podium_emote;                      // one of the 52 emotes
+    StatId stat_id = StatId::automatic;            // look ids
+    json::Value extra;
+};
+SWOFTY_RECORD(Look, helmet, suit, gloves, pose, podium_emote, stat_id)
 
 struct Identity {                                  // one entrants.drivers row
+    static constexpr Version version{1, 0};
     Ref<Identity> donor;                           // the row it copies, all 129 keys (game/jarno_opmeer)
     Ref<Person> person;                            // the real person it is; empty: a fictional driver
     Names names;                                   // the driver's names
@@ -51,35 +85,24 @@ struct Identity {                                  // one entrants.drivers row
     int garage_slot = 0;                           // garage_slot_preference
     std::vector<std::string> pools;                // driver pools with a free-agent row: "f1_2026_driver_pool"
     StatId stat_id = StatId::automatic;            // driver ids 0-254, 58 free
+    json::Value extra;
 };
+SWOFTY_RECORD(Identity, donor, person, names, nationality, number, head, look, audio_name, seasons_completed,
+              garage_slot, pools, stat_id)
 
-enum class BodyType { male, female };
-
-struct Head {                                      // an entrants.animation.driver_heads row and its files
-    Path archive;                                  // character_package/heads/<...>/<head>/
-    Path morph;                                    // morph_poses/<head>.erp
-    Ref<Head> rig_from;                            // the head row it copies (game/male_ls222, game/female_ls112)
-    BodyType body = BodyType::male;                // body_type
-    bool customisable = false;                     // available_for_customisation
-    StatId stat_id = StatId::automatic;            // heads from 265
+struct Curve {                                     // a rating from the first season to the driver's peak (not swofty::Curve)
+    float start = 0;
+    float peak = 0;
 };
-
-struct Look {                                      // a driver_customisations row
-    Ref<wearables::Helmet> helmet;                 // the helmet
-    Ref<wearables::Suit> suit;                     // the suit
-    Ref<wearables::Gloves> gloves;                 // the gloves
-    std::string pose;                              // one of the 59 poses
-    std::string podium_emote;                      // one of the 52 emotes
-    StatId stat_id = StatId::automatic;            // look ids
-};
-
-struct Curve { float start; float peak; };         // a rating from the first season to the driver's peak (not swofty::Curve)
-enum class Stat { experience, racecraft, awareness, pace, focus };   // one driver statistic
+SWOFTY_RECORD(Curve, start, peak)
 
 struct Stats {                                     // a DriverStatisticsHolder: the stock ratings
+    static constexpr Version version{1, 0};
     Ref<Identity> driver;
     Curve experience, racecraft, awareness, pace, focus;
+    json::Value extra;
 };
+SWOFTY_RECORD(Stats, driver, experience, racecraft, awareness, pace, focus)
 
 inline Registry<Person> people{"driver.person", { .applies = Applies::boot }};
 inline Registry<Identity> identities{"driver.identity", { .applies = Applies::boot }};
