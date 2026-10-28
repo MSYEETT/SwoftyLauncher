@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 use swofty_core::baseline::DepotHashes;
@@ -203,49 +204,75 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
 #[derive(Default)]
 struct Copied(AtomicU64, AtomicU64);
 
-/// While a build and install run, a line every 30 s that they moved, so the
-/// launcher's ten-minute limit on a silent wrapper stops only one that is
-/// stuck. A session's build also keeps `state/build.json` current.
+/// While a build and install run, a line every 30 s that they moved, and one
+/// a minute while a single step runs long, so the launcher's ten-minute limit
+/// on a silent wrapper stops only one that is stuck. A session's build also
+/// keeps `state/build.json` current.
 fn heartbeat(done: &AtomicBool, data: &Path, mut busy: Option<Busy>, copied: &Copied) {
-    const EVERY: std::time::Duration = std::time::Duration::from_secs(30);
-    const NOTE: std::time::Duration = std::time::Duration::from_secs(2);
-    let start = std::time::Instant::now();
+    const NOTE: Duration = Duration::from_secs(2);
     let first = swofty_core::work();
-    let mut last = first;
-    let mut doing = swofty_core::doing();
-    let mut tick = start;
-    let mut noted: Option<std::time::Instant> = None;
+    let mut beat = Beat::new(first, swofty_core::doing(), Instant::now());
+    let mut noted: Option<Instant> = None;
     while !done.load(Ordering::Relaxed) {
         if let Some(b) = busy.as_mut()
             && noted.is_none_or(|n| n.elapsed() >= NOTE)
         {
-            noted = Some(std::time::Instant::now());
+            noted = Some(Instant::now());
             track(b, swofty_core::work() - first, copied);
             b.write(data).ok();
         }
-        std::thread::sleep(std::time::Duration::from_millis(250));
-        if tick.elapsed() < EVERY {
-            continue;
+        std::thread::sleep(Duration::from_millis(250));
+        if let Some(line) = beat.line(swofty_core::work(), swofty_core::doing(), Instant::now()) {
+            crate::run::say("info", &line);
         }
-        tick = std::time::Instant::now();
-        let now = swofty_core::work();
-        let step = swofty_core::doing();
-        if now != last || step != doing {
-            crate::run::say(
-                "info",
-                &format!(
-                    "build: still working after {} s ({} file(s) and fragment(s) so far{})",
-                    start.elapsed().as_secs(),
-                    now - first,
-                    match step.is_empty() {
-                        true => String::new(),
-                        false => format!("; {step}"),
-                    }
-                ),
-            );
-            last = now;
-            doing = step;
+    }
+}
+
+struct Beat {
+    start: Instant,
+    first: u64,
+    last: u64,
+    doing: String,
+    tick: Instant,
+    said: Instant,
+}
+
+impl Beat {
+    const EVERY: Duration = Duration::from_secs(30);
+    const QUIET: Duration = Duration::from_secs(60);
+
+    fn new(work: u64, doing: String, at: Instant) -> Self {
+        Self {
+            start: at,
+            first: work,
+            last: work,
+            doing,
+            tick: at,
+            said: at,
         }
+    }
+
+    fn line(&mut self, work: u64, step: String, at: Instant) -> Option<String> {
+        if at.saturating_duration_since(self.tick) < Self::EVERY {
+            return None;
+        }
+        self.tick = at;
+        let moved = work != self.last || step != self.doing;
+        if !moved && at.saturating_duration_since(self.said) < Self::QUIET {
+            return None;
+        }
+        self.said = at;
+        self.last = work;
+        self.doing = step;
+        Some(format!(
+            "build: still working after {} s ({} file(s) and fragment(s) so far{})",
+            at.saturating_duration_since(self.start).as_secs(),
+            work - self.first,
+            match self.doing.is_empty() {
+                true => String::new(),
+                false => format!("; {}", self.doing),
+            }
+        ))
     }
 }
 
@@ -876,5 +903,32 @@ mod tests {
         copied.1.store(2544, Ordering::Relaxed);
         track(&mut b, 3160, &copied);
         assert_eq!((b.step, b.done, b.total), (Step::Copying, 443, 2544));
+    }
+
+    #[test]
+    fn a_step_that_runs_long_still_writes_a_line_a_minute() {
+        let t0 = Instant::now();
+        let mut beat = Beat::new(100, String::new(), t0);
+        let mut at = |s: u64, work: u64| {
+            beat.line(
+                work,
+                "building swofty.classic-seasons".into(),
+                t0 + Duration::from_secs(s),
+            )
+        };
+        assert_eq!(at(29, 457), None);
+        let line = |s: u64| {
+            format!(
+                "build: still working after {s} s (357 file(s) and fragment(s) so far; building swofty.classic-seasons)"
+            )
+        };
+        assert_eq!(at(30, 457), Some(line(30)));
+        assert_eq!(at(60, 457), None);
+        assert_eq!(at(90, 457), Some(line(90)));
+        assert_eq!(at(120, 457), None);
+        assert_eq!(at(150, 457), Some(line(150)));
+        assert!(at(180, 460).is_some());
+        let lines = (7..=40).filter_map(|n| at(n * 30, 460)).count();
+        assert_eq!(lines, 17, "one a minute over 17 silent minutes");
     }
 }
