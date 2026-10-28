@@ -108,7 +108,7 @@ The 1.5 core accepts the last eight (`session.end`, `lap`, `flag`, `state`, `scr
 - **Loading:** an older DLL has no `SwoftyAddonRegister`, and it loads at the stage its manifest says.
 - **Mixins:** chains, priorities, load order and the conflict rules don't change.
 - **Manifests:** every `swofty.json` field keeps its meaning, and `schema_version` stays 1.
-- **Builds:** 1.6 records never change what the launcher builds: the core applies them in the game. A profile of older addons builds to the same game files, with the same build hash. Players aren't forced to rebuild.
+- **Builds:** 1.6 records never change what the launcher builds: the core applies them in the game. A profile of older addons builds to the same game files. Only the core's own files and its version stamp differ, as with every launcher update, so the first Play after updating rebuilds once.
 - **Database room:** the core applies the database edits of build operations first and counts them on their own. 1.6 records are admitted against the room that's left. A 1.6 addon over that room is refused, and never removes an edit an older addon made.
 
 ## Hook points can't drop an older addon
@@ -133,7 +133,7 @@ tools/compat/run.sh
     download it
     build a profile with only it (plus its requirements) on the 1.5 core  -> files-1.5/, build.json
     build the same profile on the 1.6 core                                 -> files-1.6/, build.json
-    compare: the game files byte for byte, and the build hash
+    compare: the game files byte for byte, apart from the core's own files and version stamp
     start each build in the Wine harness to the main menu                  -> loader-1.5.log, loader-1.6.log
     compare: the DLLs loaded, the dropped DLLs (none new), the mixin chains (identical apart from
              hook points, which only appear with a subscriber), each addon's start lines
