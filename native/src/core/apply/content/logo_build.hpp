@@ -159,11 +159,18 @@ inline bool build(const Env &env, const std::vector<Want> &wants, Result &out)
                     continue;
                 }
                 s.bc7 = stock.data.substr(size_t(at - names.begin()) * shape.slice_bytes(), shape.slice_bytes());
-            } else if (!logo_array::slice_from_rgba(shape, reinterpret_cast<const uint8_t *>(w->rgba.data()), w->width, w->height, s.bc7, why)) {
-                out.lines.push_back("team.logo: " + w->key + " in " + array + ": " + why);
-                out.refused++;
-                seen.erase(w->key);
-                continue;
+            } else {
+                bool scaled = false;
+                if (!logo_array::slice_from_rgba(shape, reinterpret_cast<const uint8_t *>(w->rgba.data()), w->width, w->height, s.bc7,
+                                                 why, &scaled)) {
+                    out.lines.push_back("team.logo: " + w->key + " in " + array + ": " + why);
+                    out.refused++;
+                    seen.erase(w->key);
+                    continue;
+                }
+                if (scaled)
+                    out.lines.push_back("team.logo: " + w->key + " scaled " + std::to_string(w->width) + "x" + std::to_string(w->height) +
+                                        " -> " + std::to_string(shape.width) + "x" + std::to_string(shape.height) + " for " + array);
             }
             add.push_back(std::move(s));
             used.push_back(w);
