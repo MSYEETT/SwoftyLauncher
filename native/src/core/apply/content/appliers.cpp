@@ -6,6 +6,7 @@
 #include "../ids.hpp"
 #include "boot.hpp"
 #include "gvdb.hpp"
+#include "logos.hpp"
 #include "teams.hpp"
 #include "../../career_ops/teams_plan.hpp"
 #include "../../registry/table.hpp"
@@ -354,32 +355,15 @@ void apply_logos(Expansion &x, Report &report)
 {
     Live &live_teams = live();
     live_teams.manifest = x.logos;
-    std::map<std::string, std::pair<int, int>> per_array;
-    int missing = 0, aliases = 0;
-    for (auto &l : x.logos) {
-        if (!l.stock.empty()) {
-            aliases++;
-            report.lines.push_back("team.logo " + l.id + ": " + l.context + " of " + l.team + " is the stock key " + l.stock +
-                                   " in " + l.array + "; no resolver redirect is built yet");
-            continue;
-        }
-        uint64_t size = 0;
-        bool found = runtime::file_size(runtime::under_swofty("addons/" + l.addon + "/" + l.file), &size) && size;
-        if (!found) {
-            missing++;
-            report.refused++;
-            report.lines.push_back("team.logo " + l.id + ": " + l.context + " image " + l.file + " is not in swofty/addons/" +
-                                   l.addon + "/");
-            continue;
-        }
-        per_array[l.array].first++;
-    }
-    for (auto &[array, n] : per_array)
-        report.lines.push_back("team.logo: " + std::to_string(n.first) + " image(s) for " + array +
-                               "; the texture array is not grown by this core yet, so the key shows no slice");
-    if (!x.logos.empty())
-        report.lines.push_back("team.logo: " + std::to_string(x.logos.size()) + " logo slot(s) planned, " +
-                               std::to_string(missing) + " image(s) missing, " + std::to_string(aliases) + " stock alias(es)");
+    if (x.logos.empty())
+        return;
+    LogoReport made;
+    deliver_logos(x.logos, made);
+    for (auto &l : made.lines)
+        report.lines.push_back(l);
+    report.refused += made.refused;
+    report.lines.push_back("team.logo: " + std::to_string(x.logos.size()) + " logo slot(s) planned, " + std::to_string(made.built) +
+                           " slice(s) built, " + std::to_string(made.refused) + " refused");
 }
 
 void set_up_dresser()
