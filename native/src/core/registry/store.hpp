@@ -141,6 +141,9 @@ public:
 
     int add(const std::string &addon, const std::string &registry, const std::string &key, const Value &value,
             std::string *id, const std::string &source = {});
+    int put_older(const std::string &addon, const std::string &registry, const std::string &key, const Value *value,
+                  const std::string &source);
+    std::vector<std::string> layer_targets(const std::string &registry);
     int variant(const std::string &addon, const std::string &registry, const std::string &key, const std::string &base,
                 const Change &change, std::string *id, const std::string &source = {});
     int provide_fn(const std::string &addon, const std::string &registry, SwoftyProvideFn fn, SwoftyListFn list,

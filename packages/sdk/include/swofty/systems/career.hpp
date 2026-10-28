@@ -31,6 +31,8 @@ enum class AfterLast { market, hold, end };
 SWOFTY_ENUM(AfterLast, market, hold, end)
 enum class ChangeKind { swap, stand_in, move, replace };
 SWOFTY_ENUM(ChangeKind, swap, stand_in, move, replace)
+enum class Careers { driver, my_team, both };
+SWOFTY_ENUM(Careers, driver, my_team, both)
 
 struct ModeRecord {
     static constexpr Version version{1, 0};
@@ -52,9 +54,19 @@ struct Content {
     Ref<Content> model;
     Ref<Calendar> calendar;
     AfterLast after_last = AfterLast::market;
+    Text title;
+    Text description;
+    std::string data_group;
+    std::string suffix;
+    std::string save_container;
+    int car_group = -1;
+    int badge = 0;
+    std::string entitlement;
+    Careers careers = Careers::driver;
     json::Value extra;
 };
-SWOFTY_RECORD(Content, mode, tile, model, calendar, after_last)
+SWOFTY_RECORD(Content, mode, tile, model, calendar, after_last, title, description, data_group, suffix, save_container,
+              car_group, badge, entitlement, careers)
 inline Registry<Content> contents{"career.content", {.applies = Applies::boot}};
 
 struct SeasonTeam {
@@ -127,15 +139,24 @@ SWOFTY_RECORD(RndDepartment, name, colour, icon, cost_scale)
 SWOFTY_RECORD_REGISTRY(RndDepartment, "career.rnd.department")
 inline Registry<RndDepartment> rnd_departments{"career.rnd.department", {.applies = Applies::content}};
 
+struct CharacterSwap {
+    std::string character;
+    std::string with;
+};
+SWOFTY_RECORD(CharacterSwap, character, with)
+
 struct Character {
     static constexpr Version version{1, 0};
     Ref<Character> replaces;
     Text first_name, last_name;
     Path portrait;
     std::vector<std::string> mute;
+    std::string data_group;
+    Keyed<CharacterSwap, &CharacterSwap::character> swaps;
+    std::map<std::string, std::map<std::string, std::string>> strings;
     json::Value extra;
 };
-SWOFTY_RECORD(Character, replaces, first_name, last_name, portrait, mute)
+SWOFTY_RECORD(Character, replaces, first_name, last_name, portrait, mute, data_group, swaps, strings)
 SWOFTY_RECORD_REGISTRY(Character, "career.character")
 inline Registry<Character> characters{"career.character", {.applies = Applies::content}};
 
@@ -231,14 +252,46 @@ struct WizardStep {
 };
 SWOFTY_RECORD(WizardStep, route, title, options)
 
+struct WizardRoute {
+    std::string from;
+    std::string to;
+};
+SWOFTY_RECORD(WizardRoute, from, to)
+
+struct WizardSwap {
+    int at = 0;
+    int with = 0;
+};
+SWOFTY_RECORD(WizardSwap, at, with)
+
 struct Wizard {
     static constexpr Version version{1, 0};
     Ref<Content> content;
     std::vector<WizardStep> steps;
+    std::string data_group;
+    bool starts_in_f1 = false;
+    Keyed<WizardRoute, &WizardRoute::from> tile_routes;
+    Keyed<WizardSwap, &WizardSwap::at> replace_steps;
+    Keyed<WizardSwap, &WizardSwap::at> force_options;
+    Keyed<WizardRoute, &WizardRoute::from> confirm_routes;
+    std::vector<std::string> hide_driver_tabs;
     json::Value extra;
 };
-SWOFTY_RECORD(Wizard, content, steps)
+SWOFTY_RECORD(Wizard, content, steps, data_group, starts_in_f1, tile_routes, replace_steps, force_options, confirm_routes,
+              hide_driver_tabs)
 inline Registry<Wizard> wizards{"career.wizard", {.applies = Applies::content}};
+
+struct HubTab {
+    static constexpr Version version{1, 0};
+    std::string name;
+    std::string title;
+    std::string data_group;
+    std::vector<std::string> options;
+    json::Value extra;
+};
+SWOFTY_RECORD(HubTab, name, title, data_group, options)
+SWOFTY_RECORD_REGISTRY(HubTab, "hub.tab")
+inline Registry<HubTab> hub_tabs{"hub.tab", {.applies = Applies::read}};
 
 namespace events {
 

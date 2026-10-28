@@ -20,12 +20,28 @@ const PATH_DEF: &str = "#/$defs/path";
 /// The current schema of each core registry that has one.
 const SCHEMAS: &[(&str, &str)] = &[
     (
+        "addon.option",
+        include_str!("../../../sdk/std/registries/addon.option/1.0.json"),
+    ),
+    (
+        "career.character",
+        include_str!("../../../sdk/std/registries/career.character/1.0.json"),
+    ),
+    (
+        "career.content",
+        include_str!("../../../sdk/std/registries/career.content/1.0.json"),
+    ),
+    (
         "career.driver_ratings",
         include_str!("../../../sdk/std/registries/career.driver_ratings/1.0.json"),
     ),
     (
         "career.season",
         include_str!("../../../sdk/std/registries/career.season/1.0.json"),
+    ),
+    (
+        "career.wizard",
+        include_str!("../../../sdk/std/registries/career.wizard/1.0.json"),
     ),
     (
         "content.package",
@@ -66,6 +82,18 @@ const SCHEMAS: &[(&str, &str)] = &[
     (
         "helmet",
         include_str!("../../../sdk/std/registries/helmet/1.0.json"),
+    ),
+    (
+        "hub.tab",
+        include_str!("../../../sdk/std/registries/hub.tab/1.0.json"),
+    ),
+    (
+        "lang.string",
+        include_str!("../../../sdk/std/registries/lang.string/1.0.json"),
+    ),
+    (
+        "livery",
+        include_str!("../../../sdk/std/registries/livery/1.0.json"),
     ),
     ("suit", include_str!("../../../sdk/std/registries/suit/1.0.json")),
     (
