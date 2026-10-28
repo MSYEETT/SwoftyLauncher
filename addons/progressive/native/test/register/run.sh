@@ -21,7 +21,7 @@ ADDON=$REPO/addons/progressive
 OUT=${PG_TEST_DIR:-${TMPDIR:-/tmp}/progressive-test}/register
 rm -rf "$OUT/records" "$OUT/empty" "$OUT/mutated"
 mkdir -p "$OUT/empty" "$OUT/mutated"
-export ZIG_GLOBAL_CACHE_DIR=$OUT/zig-cache ZIG_LOCAL_CACHE_DIR=$OUT/zig-cache
+export ZIG_GLOBAL_CACHE_DIR=${ZIG_GLOBAL_CACHE_DIR:-$OUT/zig-cache} ZIG_LOCAL_CACHE_DIR=${ZIG_LOCAL_CACHE_DIR:-$OUT/zig-cache}
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 
 "${PIN[@]}" "${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness \
@@ -63,13 +63,14 @@ write("rating", lambda y: y["ratings"]["years"]["2019"]["lewis_hamilton"].__seti
 write("seat", lambda y: y["seasons"]["2017"]["teams"][3]["drivers"][1].__setitem__("driver", "jenson_button"))
 write("change", lambda y: y["seasons"]["2016"]["changes"][2].__setitem__("circuit", "sakhir"))
 write("pool", lambda y: y["pool"][0]["looks"]["2018"].__setitem__("stat_id", 1))
-write("notes", lambda y: y["notes"].pop("filler"))
+write("pace", lambda y: y["ratings"]["years"]["2023"]["lando_norris"].__setitem__("pace", y["ratings"]["years"]["2023"]["lando_norris"]["pace"] + 0.1))
+write("kind", lambda y: y["seasons"]["2016"]["changes"][0].__setitem__("kind", "replace"))
 write("calendar", lambda y: y["seasons"]["2024"]["calendar"].pop())
 EOF
-for m in rating seat change pool notes calendar; do
+for m in rating pace seat change kind pool calendar; do
     if python3 compare.py "$OUT/captured.json" "$OUT/mutated/$m.json" "$OUT/mutated/records-$m" >"$OUT/mutated/$m.txt"; then
         echo "FAIL compare.py accepted years.json with one $m value changed"
         exit 1
     fi
 done
-echo "compare: rejects years.json with one rating, seat, change, pool, notes or calendar value changed"
+echo "compare: rejects years.json with one rating, pace, seat, change, kind, pool or calendar value changed"

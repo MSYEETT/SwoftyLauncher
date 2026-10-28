@@ -378,6 +378,11 @@ jobs:
         run: native/test/run_schema_test.sh
       - name: Standard library 1.6 headers compile test
         run: native/test/run_sdk_headers_test.sh
+      - name: Progressive registration test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: addons/progressive/native/test/register/run.sh
       - name: Overlay draw-list unit test
         run: native/test/run_hud_test.sh
       - name: Shader look unit test
