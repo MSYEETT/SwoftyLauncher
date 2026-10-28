@@ -286,6 +286,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "Overview and limits", link: "/std/systems/", icon: "file" },
               { text: "Seasons and GP/TT content", link: "/std/content", icon: "file" },
               { text: "Cars", link: "/std/systems/cars", icon: "file" },
+              { text: "Car physics and handling", link: "/std/systems/car-physics", icon: "file" },
               { text: "Liveries", link: "/std/systems/liveries", icon: "file" },
               { text: "Teams", link: "/std/systems/teams", icon: "file" },
               { text: "Drivers", link: "/std/systems/drivers", icon: "file" },
