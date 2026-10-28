@@ -299,8 +299,9 @@ fn denied(e: anyhow::Error, game: &Path) -> anyhow::Error {
     }
     anyhow::anyhow!(
         "{e}. Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, \
-         or move F1 25 to a folder outside Program Files",
-        game.display()
+         or move F1 25 to a folder outside Program Files{}",
+        game.display(),
+        swofty_core::copies::move_hint(swofty_core::install::Source::detect(game))
     )
 }
 
