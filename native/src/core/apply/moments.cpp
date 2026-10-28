@@ -501,6 +501,13 @@ void career_loaded(const char *key, unsigned mode)
     scheduler().career_loaded(key ? key : "", mode_name(mode), group);
 }
 
+void career_renamed(const char *from, const char *to)
+{
+    attach();
+    ids::store().forget_career(from ? from : "");
+    map_for_career(to ? to : "");
+}
+
 void career_unloaded()
 {
     attach();

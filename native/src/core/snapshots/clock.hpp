@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -150,6 +151,11 @@ inline std::string career_id(const std::string &mode, uint64_t slot_id, uint64_t
     return mode + ":" + std::to_string(slot_id);
 }
 
+// A new career's id until its save slot exists: <mode>:new<n>, replaced by career_id at the first save.
+inline std::string provisional_id(const std::string &mode, unsigned n) { return mode + ":new" + std::to_string(n); }
+
+inline bool is_provisional(const std::string &id) { return id.find(":new") != std::string::npos && id.find(':') != std::string::npos; }
+
 // The bytes an entry of body bytes adds to the profile save: its root child (name length byte, name, bag
 // type id, body) less the one the save already held.
 inline long long entry_growth(size_t name, size_t body, bool had, size_t had_body)
@@ -173,11 +179,29 @@ public:
         return fresh;
     }
 
-    void unloaded() { pending_new_ = false; }
+    void unloaded()
+    {
+        pending_new_ = false;
+        queued_.reset();
+    }
 
     Moment hub(const Season &s, const YearMap &map)
     {
         Moment m;
+        if (queued_ && !s.career.empty()) {
+            Queued q = *queued_;
+            queued_.reset();
+            Season qs = s;
+            qs.index = q.index;
+            Report r = report(q.caller, qs, q.year, map, m);
+            if (r == Report::ok) {
+                m.lines.insert(m.lines.begin(), "[registry] career " + s.career + " now has an id; the queued career::report_season(" +
+                                                    std::to_string(q.year) + ", " + std::to_string(q.index) + ") from " +
+                                                    q.caller + " is replayed");
+                return m;
+            }
+            m.fire = false;
+        }
         if (s.career.empty() || s.index < 0)
             return m;
         std::string head = "[registry] career " + s.career + " season index " + std::to_string(s.index);
@@ -219,7 +243,11 @@ public:
         std::string head = "[registry] career::report_season(" + std::to_string(year) + ", " +
                            std::to_string(s.index) + ") from " + (caller.empty() ? std::string("an unknown module") : caller);
         if (s.career.empty()) {
-            m.lines.push_back(head + ": late (no career is loaded)");
+            bool queue = !s.owner.empty() && caller == s.owner && year >= FIRST_YEAR && year <= LAST_YEAR && s.index >= 0;
+            if (queue)
+                queued_ = Queued{caller, year, s.index};
+            m.lines.push_back(head + ": late (no career is loaded)" +
+                              (queue ? "; queued until the career has an id (the next idle Team HQ replays it)" : ""));
             return Report::late;
         }
         if (year < FIRST_YEAR || year > LAST_YEAR || s.index < 0) {
@@ -256,7 +284,29 @@ public:
         return Report::ok;
     }
 
+    void rename(const std::string &from, const std::string &to)
+    {
+        if (from.empty() || to.empty() || from == to)
+            return;
+        std::set<std::pair<std::string, int>> moved;
+        for (auto &[c, y] : started_)
+            moved.insert({c == from ? to : c, y});
+        started_ = std::move(moved);
+        if (auto r = reported_.find(from); r != reported_.end()) {
+            int index = r->second;
+            reported_.erase(r);
+            reported_[to] = index;
+        }
+    }
+
+    bool queued() const { return queued_.has_value(); }
+
 private:
+    struct Queued {
+        std::string caller;
+        int year = 0, index = 0;
+    };
+    std::optional<Queued> queued_;
     Started started_fn_;
     std::set<std::pair<std::string, int>> started_;
     std::map<std::string, int> reported_;

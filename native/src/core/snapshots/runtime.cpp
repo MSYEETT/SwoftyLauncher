@@ -64,6 +64,8 @@ uint64_t seen_id = 0, seen_guid = 0;
 bool seen = false;
 std::string committed_key, committed_id;
 unsigned committed_mode = 0;
+bool committed_provisional = false;
+unsigned provisional_count = 0;
 
 snap::Book &book() { return *the_book; }
 
@@ -141,14 +143,21 @@ void refresh_slot()
     {
         std::lock_guard g(slot_mu);
         uint64_t id = 0, guid = 0;
-        if (committed_id.empty() || committed_id == committed_key || !current_slot(slot_manager, id, guid))
+        if (committed_id.empty() || (committed_id == committed_key && !committed_provisional) ||
+            !current_slot(slot_manager, id, guid))
             return;
         to = slot_career_id(loaded_data_group(), committed_mode, id, guid);
         if (to == committed_id)
             return;
         from = committed_id;
         committed_id = to;
+        committed_provisional = false;
     }
+    {
+        std::lock_guard g(clock_mu);
+        the_clock.rename(from, to);
+    }
+    swofty_core::apply::moments::career_renamed(from.c_str(), to.c_str());
     bool moved = book().active() == from && book().rename(from, to);
     hk::update_facts([&](hk::Facts &f) {
         if (f.career && f.career->id == from)
@@ -486,11 +495,21 @@ std::string snapshots_career_loaded(const char *key, unsigned mode)
         slot_manager = 0;
     committed_key = k;
     committed_mode = mode;
-    committed_id = have ? slot_career_id(group, mode, id, guid) : k;
+    committed_provisional = !have && k.empty();
+    committed_id = have ? slot_career_id(group, mode, id, guid)
+                   : committed_provisional
+                       ? sn::provisional_id(sn::mode_part(std::string(), group, mode == SWOFTY_CAREER_MY_TEAM ? "my_team" : "driver_career"),
+                                            ++provisional_count)
+                       : k;
     seen = false;
     if (have)
         swofty::log("[registry] career id %s (save slot %llu, guid %016llx; the career tracker's key '%s')",
                     committed_id.c_str(), (unsigned long long)id, (unsigned long long)guid, k.c_str());
+    else if (committed_provisional)
+        swofty::log("[registry] career id %s: no save slot was selected before this load (a new career's slot is read "
+                    "at its first save); the career runs under this provisional id until then, so career.season.start "
+                    "and career::report_season work in its first session",
+                    committed_id.c_str());
     else
         swofty::log("[registry] career id '%s': no save slot was selected before this load (a new career's slot is "
                     "read at its first save)",

@@ -20,6 +20,7 @@ void status(const std::string &addon, const std::string &line);
 void career_loaded(const char *key, unsigned mode);
 void career_unloaded();
 void career_season(int year);
+void career_renamed(const char *from, const char *to);
 void box_picked(const char *entrant_list);
 void box_picked(const char *entrant_list, const void *mode_context);
 void session_load(const char *source);

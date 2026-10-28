@@ -522,6 +522,39 @@ static void clock_tests()
            "nobody reports a career no addon owns");
     r = clock.report("swofty.progressive", sn::Season{}, 2016, pg, m);
     expect(r == sn::Report::late, "a report with no career loaded is late");
+    {
+        sn::Clock fresh;
+        sn::Season none{"", "f1_career_progressive", "swofty.progressive", 0, false, ""};
+        r = fresh.report("swofty.progressive", none, 2016, pg, m);
+        expect(r == sn::Report::late && !m.fire && fresh.queued() && said(m, "queued until the career has an id"),
+               "a new career's report with no id yet is late and queued");
+        sn::Season idle{"", "f1_career_progressive", "swofty.progressive", 0, true, ""};
+        m = fresh.hub(idle, pg);
+        expect(!m.fire && fresh.queued(), "a Team HQ with no id replays nothing");
+        sn::Season committed{"f1_career_progressive_save:new1", "f1_career_progressive", "swofty.progressive", 0, true, ""};
+        m = fresh.hub(committed, pg);
+        expect(m.fire && m.year == 2016 && m.index == 0 && !fresh.queued() && said(m, "queued career::report_season(2016, 0)"),
+               "the queued report fires career.season.start once the id exists");
+        m = fresh.hub(committed, pg);
+        expect(!m.fire, "and only once");
+        r = fresh.report("swofty.progressive", committed, 2016, pg, m);
+        expect(r == sn::Report::ok && !m.fire && said(m, "already started"), "the owner's retry afterwards starts nothing again");
+        fresh.rename("f1_career_progressive_save:new1", "f1_career_progressive_save:7");
+        sn::Season slot = committed;
+        slot.career = "f1_career_progressive_save:7";
+        r = fresh.report("swofty.progressive", slot, 2016, pg, m);
+        expect(r == sn::Report::ok && !m.fire && said(m, "already started"), "the slot id learnt at the first save keeps the season started");
+        sn::Clock other;
+        r = other.report("tails.whatif", none, 2016, pg, m);
+        expect(!other.queued(), "only the owner's report is queued");
+        r = other.report("swofty.progressive", none, 1900, pg, m);
+        expect(!other.queued(), "nor an invalid year");
+        r = other.report("swofty.progressive", none, 2016, pg, m);
+        other.unloaded();
+        expect(!other.queued(), "an unloaded career drops the queue");
+        expect(sn::is_provisional(sn::provisional_id("x.driver_career", 3)) && !sn::is_provisional(sn::career_id("x", 3, 0xaa)),
+               "provisional ids are told apart from slot ids");
+    }
     r = clock.report("swofty.progressive", p, 1900, pg, m);
     expect(r == sn::Report::invalid, "a year out of range is invalid");
     r = clock.report("swofty.progressive", p, 2016, pg, m);
