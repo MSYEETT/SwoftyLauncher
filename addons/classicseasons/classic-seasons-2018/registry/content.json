@@ -24,7 +24,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 80
   },
   "cs_2018_mercedes": {
    "donor": "game/f1_2025",
@@ -32,7 +33,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 81
   },
   "cs_2018_ferrari": {
    "donor": "game/f1_2025",
@@ -40,7 +42,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 82
   },
   "cs_2018_redbull": {
    "donor": "game/f1_2025",
@@ -48,7 +51,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 83
   },
   "cs_2018_lotus": {
    "donor": "game/f1_2025",
@@ -56,7 +60,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 84
   },
   "cs_2018_haas": {
    "donor": "game/f1_2025",
@@ -64,7 +69,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 85
   },
   "cs_2018_mclaren": {
    "donor": "game/f1_2025",
@@ -72,7 +78,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 86
   },
   "cs_2018_force_india": {
    "donor": "game/f1_2025",
@@ -80,7 +87,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 87
   },
   "cs_2018_sauber": {
    "donor": "game/f1_2025",
@@ -88,7 +96,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 88
   },
   "cs_2018_toro_rosso": {
    "donor": "game/f1_2025",
@@ -96,7 +105,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 89
   },
   "cs_2018_williams": {
    "donor": "game/f1_2025",
@@ -104,7 +114,8 @@
    "driver_animation_set": "cs_2018",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2018_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 90
   }
  },
  "vehicle": {
@@ -113,6 +124,7 @@
    "donor": "game/mercedes_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.04,
+   "stat_id": 530,
    "package": "swofty.classic-seasons-2018/cs_2018_mercedes",
    "ai": {
     "asset_filename": "redbull"
@@ -126,6 +138,7 @@
    "donor": "game/ferrari_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.03,
+   "stat_id": 531,
    "package": "swofty.classic-seasons-2018/cs_2018_ferrari",
    "ai": {
     "asset_filename": "mclaren"
@@ -139,6 +152,7 @@
    "donor": "game/redbull_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.02,
+   "stat_id": 532,
    "package": "swofty.classic-seasons-2018/cs_2018_redbull",
    "ai": {
     "asset_filename": "ferrari"
@@ -152,6 +166,7 @@
    "donor": "game/lotus_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 1.0,
+   "stat_id": 533,
    "package": "swofty.classic-seasons-2018/cs_2018_lotus",
    "ai": {
     "asset_filename": "haas"
@@ -165,6 +180,7 @@
    "donor": "game/haas_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.01,
+   "stat_id": 534,
    "package": "swofty.classic-seasons-2018/cs_2018_haas",
    "ai": {
     "asset_filename": "mercedes"
@@ -178,6 +194,7 @@
    "donor": "game/mclaren_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.96,
+   "stat_id": 535,
    "package": "swofty.classic-seasons-2018/cs_2018_mclaren",
    "ai": {
     "asset_filename": "lotus"
@@ -191,6 +208,7 @@
    "donor": "game/force_india_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.99,
+   "stat_id": 536,
    "package": "swofty.classic-seasons-2018/cs_2018_force_india",
    "ai": {
     "asset_filename": "williams"
@@ -204,6 +222,7 @@
    "donor": "game/sauber_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.98,
+   "stat_id": 537,
    "package": "swofty.classic-seasons-2018/cs_2018_sauber",
    "ai": {
     "asset_filename": "force_india"
@@ -217,6 +236,7 @@
    "donor": "game/toro_rosso_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.97,
+   "stat_id": 538,
    "package": "swofty.classic-seasons-2018/cs_2018_toro_rosso",
    "ai": {
     "asset_filename": "sauber"
@@ -230,6 +250,7 @@
    "donor": "game/williams_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.95,
+   "stat_id": 539,
    "package": "swofty.classic-seasons-2018/cs_2018_williams",
    "ai": {
     "asset_filename": "toro_rosso"
@@ -416,8 +437,10 @@
      ]
     }
    ],
-   "stat_id": 17,
+   "stat_id": 107,
    "database": {
+    "entrant_list": "cs_f1_2018",
+    "scenario_stat_id": 17,
     "entrant_list_from": "f1_2025",
     "entrant_list_set": {
      "leaderboard": "classic",

@@ -24,7 +24,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 112
   },
   "cs_2021_mercedes": {
    "donor": "game/f1_2025",
@@ -32,7 +33,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 113
   },
   "cs_2021_redbull": {
    "donor": "game/f1_2025",
@@ -40,7 +42,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 114
   },
   "cs_2021_ferrari": {
    "donor": "game/f1_2025",
@@ -48,7 +51,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 115
   },
   "cs_2021_mclaren": {
    "donor": "game/f1_2025",
@@ -56,7 +60,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 116
   },
   "cs_2021_lotus": {
    "donor": "game/f1_2025",
@@ -64,7 +69,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 117
   },
   "cs_2021_toro_rosso": {
    "donor": "game/f1_2025",
@@ -72,7 +78,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 118
   },
   "cs_2021_williams": {
    "donor": "game/f1_2025",
@@ -80,7 +87,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 119
   },
   "cs_2021_haas": {
    "donor": "game/f1_2025",
@@ -88,7 +96,8 @@
    "driver_animation_set": "cs_2021",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2021_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 120
   }
  },
  "vehicle": {
@@ -97,6 +106,7 @@
    "donor": "game/mercedes_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.04,
+   "stat_id": 560,
    "package": "swofty.classic-seasons-2021/cs_2021_mercedes",
    "ai": {
     "asset_filename": "redbull"
@@ -110,6 +120,7 @@
    "donor": "game/redbull_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.03,
+   "stat_id": 561,
    "package": "swofty.classic-seasons-2021/cs_2021_redbull",
    "ai": {
     "asset_filename": "mclaren"
@@ -123,6 +134,7 @@
    "donor": "game/ferrari_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.01,
+   "stat_id": 562,
    "package": "swofty.classic-seasons-2021/cs_2021_ferrari",
    "ai": {
     "asset_filename": "mercedes"
@@ -136,6 +148,7 @@
    "donor": "game/mclaren_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 1.0,
+   "stat_id": 563,
    "package": "swofty.classic-seasons-2021/cs_2021_mclaren",
    "ai": {
     "asset_filename": "haas"
@@ -149,6 +162,7 @@
    "donor": "game/lotus_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.99,
+   "stat_id": 564,
    "package": "swofty.classic-seasons-2021/cs_2021_lotus",
    "ai": {
     "asset_filename": "williams"
@@ -162,6 +176,7 @@
    "donor": "game/toro_rosso_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.02,
+   "stat_id": 565,
    "package": "swofty.classic-seasons-2021/cs_2021_toro_rosso",
    "ai": {
     "asset_filename": "ferrari"
@@ -175,6 +190,7 @@
    "donor": "game/force_india_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.98,
+   "stat_id": 566,
    "package": "swofty.classic-seasons-2021/cs_2021",
    "engine_sound": "swofty.classic-seasons-2021/mercedes",
    "audio_switch": "f1_M_Aston_martin",
@@ -185,6 +201,7 @@
    "donor": "game/williams_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.96,
+   "stat_id": 567,
    "package": "swofty.classic-seasons-2021/cs_2021_williams",
    "ai": {
     "asset_filename": "lotus"
@@ -198,6 +215,7 @@
    "donor": "game/sauber_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.97,
+   "stat_id": 568,
    "package": "swofty.classic-seasons-2021/cs_2021",
    "engine_sound": "swofty.classic-seasons-2021/ferrari",
    "audio_switch": "f1_M_Sauber",
@@ -208,6 +226,7 @@
    "donor": "game/haas_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.95,
+   "stat_id": 569,
    "package": "swofty.classic-seasons-2021/cs_2021_haas",
    "ai": {
     "asset_filename": "toro_rosso"
@@ -394,8 +413,10 @@
      ]
     }
    ],
-   "stat_id": 20,
+   "stat_id": 110,
    "database": {
+    "entrant_list": "cs_f1_2021",
+    "scenario_stat_id": 20,
     "entrant_list_from": "f1_2025",
     "entrant_list_set": {
      "leaderboard": "classic",

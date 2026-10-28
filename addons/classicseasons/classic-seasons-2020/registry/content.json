@@ -24,7 +24,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 102
   },
   "cs_2020_mercedes": {
    "donor": "game/f1_2025",
@@ -32,7 +33,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 103
   },
   "cs_2020_redbull": {
    "donor": "game/f1_2025",
@@ -40,7 +42,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 104
   },
   "cs_2020_mclaren": {
    "donor": "game/f1_2025",
@@ -48,7 +51,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 105
   },
   "cs_2020_force_india": {
    "donor": "game/f1_2025",
@@ -56,7 +60,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 106
   },
   "cs_2020_lotus": {
    "donor": "game/f1_2025",
@@ -64,7 +69,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 107
   },
   "cs_2020_ferrari": {
    "donor": "game/f1_2025",
@@ -72,7 +78,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 108
   },
   "cs_2020_toro_rosso": {
    "donor": "game/f1_2025",
@@ -80,7 +87,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 109
   },
   "cs_2020_haas": {
    "donor": "game/f1_2025",
@@ -88,7 +96,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 110
   },
   "cs_2020_williams": {
    "donor": "game/f1_2025",
@@ -96,7 +105,8 @@
    "driver_animation_set": "cs_2020",
    "halo": true,
    "setups_from": "game/f1_2025",
-   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material"
+   "blob_shadow_decal": "eaid://cs_2020_vehicle_package/shared/ao/materials/blobshadowdecal.material",
+   "stat_id": 111
   }
  },
  "vehicle": {
@@ -105,6 +115,7 @@
    "donor": "game/mercedes_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.04,
+   "stat_id": 550,
    "package": "swofty.classic-seasons-2020/cs_2020_mercedes",
    "ai": {
     "asset_filename": "redbull"
@@ -118,6 +129,7 @@
    "donor": "game/redbull_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.03,
+   "stat_id": 551,
    "package": "swofty.classic-seasons-2020/cs_2020_redbull",
    "ai": {
     "asset_filename": "mclaren"
@@ -131,6 +143,7 @@
    "donor": "game/mclaren_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 1.0,
+   "stat_id": 552,
    "package": "swofty.classic-seasons-2020/cs_2020_mclaren",
    "ai": {
     "asset_filename": "haas"
@@ -144,6 +157,7 @@
    "donor": "game/force_india_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.02,
+   "stat_id": 553,
    "package": "swofty.classic-seasons-2020/cs_2020_force_india",
    "ai": {
     "asset_filename": "ferrari"
@@ -157,6 +171,7 @@
    "donor": "game/lotus_2025",
    "performance_tier": 0,
    "tyre_wear_scale": 1.01,
+   "stat_id": 554,
    "package": "swofty.classic-seasons-2020/cs_2020_lotus",
    "ai": {
     "asset_filename": "mercedes"
@@ -170,6 +185,7 @@
    "donor": "game/ferrari_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.98,
+   "stat_id": 555,
    "package": "swofty.classic-seasons-2020/cs_2020_ferrari",
    "ai": {
     "asset_filename": "force_india"
@@ -183,6 +199,7 @@
    "donor": "game/toro_rosso_2025",
    "performance_tier": 1,
    "tyre_wear_scale": 0.99,
+   "stat_id": 556,
    "package": "swofty.classic-seasons-2020/cs_2020_toro_rosso",
    "ai": {
     "asset_filename": "williams"
@@ -196,6 +213,7 @@
    "donor": "game/sauber_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.97,
+   "stat_id": 557,
    "package": "swofty.classic-seasons-2020/cs_2020",
    "engine_sound": "swofty.classic-seasons-2020/ferrari",
    "audio_switch": "F1_m_Sauber",
@@ -206,6 +224,7 @@
    "donor": "game/haas_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.95,
+   "stat_id": 558,
    "package": "swofty.classic-seasons-2020/cs_2020_haas",
    "ai": {
     "asset_filename": "toro_rosso"
@@ -219,6 +238,7 @@
    "donor": "game/williams_2025",
    "performance_tier": 2,
    "tyre_wear_scale": 0.96,
+   "stat_id": 559,
    "package": "swofty.classic-seasons-2020/cs_2020_williams",
    "ai": {
     "asset_filename": "lotus"
@@ -405,8 +425,10 @@
      ]
     }
    ],
-   "stat_id": 19,
+   "stat_id": 109,
    "database": {
+    "entrant_list": "cs_f1_2020",
+    "scenario_stat_id": 19,
     "entrant_list_from": "f1_2025",
     "entrant_list_set": {
      "leaderboard": "classic",
