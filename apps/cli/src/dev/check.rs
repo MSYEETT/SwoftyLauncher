@@ -227,38 +227,71 @@ fn validate_data(sdk: &Option<PathBuf>, folder: &Path, files: &[PathBuf], r: &mu
         r.warn("the data files weren't checked: dev check needs python3 and the SDK's tools/std/validate.py");
         return;
     };
+    let names: Vec<String> = files
+        .iter()
+        .filter_map(|f| f.file_name())
+        .map(|n| format!("registry/{}", n.to_string_lossy()))
+        .collect();
     let out = Command::new(py)
         .arg(sdk.join("tools/std/validate.py"))
         .arg("--repo")
         .arg(sdk)
         .arg("--data")
-        .args(files)
+        .args(&names)
         .current_dir(folder)
         .output();
     let Ok(out) = out else {
         r.warn("the data files weren't checked: validate.py didn't start");
         return;
     };
-    let text = String::from_utf8_lossy(&out.stdout);
-    let mut current_failed = false;
-    for line in text.lines() {
-        let shown = line.replace(&format!("{}/", folder.display()), "");
-        if let Some(rest) = shown.strip_prefix("ok  ") {
-            r.ok(rest.trim().to_owned());
-            current_failed = false;
-        } else if let Some(rest) = shown.strip_prefix("FAIL") {
-            r.error(rest.trim().to_owned());
-            current_failed = true;
-        } else if current_failed && !shown.trim().is_empty() {
-            r.lines.push(format!("    {}", shown.trim()));
-        }
-    }
-    if !out.status.success() && r.errors == 0 {
+    let before = r.errors;
+    validate_report(&String::from_utf8_lossy(&out.stdout), &names, r);
+    if !out.status.success() && r.errors == before {
         r.error(format!(
             "validate.py failed: {}",
             String::from_utf8_lossy(&out.stderr).trim()
         ));
     }
+}
+
+fn validate_report(text: &str, names: &[String], r: &mut Report) {
+    let mut current_failed = false;
+    for line in text.lines() {
+        let (ok, rest) = if let Some(rest) = line.strip_prefix("ok  ") {
+            (true, rest)
+        } else if let Some(rest) = line.strip_prefix("FAIL") {
+            (false, rest)
+        } else {
+            if current_failed && !line.trim().is_empty() {
+                r.lines.push(format!("    {}", line.trim()));
+            }
+            continue;
+        };
+        let rest = rest.trim();
+        let (path, checked) = match rest.rfind(" (") {
+            Some(at) if rest.ends_with(')') => rest.split_at(at),
+            _ => (rest, ""),
+        };
+        let shown = format!("{}{checked}", shown_path(path, names));
+        current_failed = !ok;
+        if ok {
+            r.ok(shown);
+        } else {
+            r.error(shown);
+        }
+    }
+}
+
+fn shown_path(reported: &str, names: &[String]) -> String {
+    let norm = reported.trim().replace('\\', "/").to_lowercase();
+    names
+        .iter()
+        .find(|n| {
+            let n = n.to_lowercase();
+            norm == n || norm.ends_with(&format!("/{n}"))
+        })
+        .cloned()
+        .unwrap_or_else(|| reported.trim().replace('\\', "/"))
 }
 
 #[cfg(test)]
@@ -279,6 +312,48 @@ mod tests {
             format!(r#"{{"schema_version":1,"id":"{id}","name":"X","version":"1.0.0","author":"t","kind":["native"],"compat":{{"game":"f1_25"}}}}"#),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn validate_paths_show_as_registry_files_on_every_os() {
+        let names = vec![
+            "registry/layers.json".to_owned(),
+            "registry/bad-layers.json".to_owned(),
+        ];
+        assert_eq!(
+            shown_path(
+                r"C:\Users\RUNNER~1\AppData\Local\Temp\x\mod.esp\registry\layers.json",
+                &names
+            ),
+            "registry/layers.json"
+        );
+        assert_eq!(
+            shown_path(r"c:\users\runneradmin\x\MOD.ESP\Registry\Bad-Layers.json", &names),
+            "registry/bad-layers.json"
+        );
+        assert_eq!(
+            shown_path("/tmp/x/mod.esp/registry/layers.json", &names),
+            "registry/layers.json"
+        );
+        assert_eq!(shown_path("registry/layers.json", &names), "registry/layers.json");
+        assert_eq!(shown_path(r"registry\other.json", &names), "registry/other.json");
+        let mut r = Report::default();
+        validate_report(
+            "ok    C:\\Users\\RUNNER~1\\T\\mod.esp\\registry\\layers.json (1.0)\n\
+             FAIL  C:\\Users\\RUNNER~1\\T\\mod.esp\\registry\\bad-layers.json (1.0)\n\
+             \x20       1.0 /vehicle/game~1ferrari_2025/tyre_wear_scale: not a number\n",
+            &names,
+            &mut r,
+        );
+        assert_eq!(
+            r.lines,
+            [
+                "ok: registry/layers.json (1.0)",
+                "error: registry/bad-layers.json (1.0)",
+                "    1.0 /vehicle/game~1ferrari_2025/tyre_wear_scale: not a number"
+            ]
+        );
+        assert_eq!(r.errors, 1);
     }
 
     #[test]
