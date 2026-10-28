@@ -73,6 +73,17 @@ void when_code_ready(const char *what, void (*fn)());
 void stage_catch_up();
 }
 
+namespace swofty_core::hooks {
+const SwoftyHooks *table();
+void window_stage();
+void drop_module(void *module);
+}
+
+namespace swofty_core::services {
+const SwoftyServices *table();
+void report_missing();
+}
+
 namespace {
 
 static_assert(sizeof(SwoftyContext) == sizeof(safetyhook::Context64));
@@ -1804,6 +1815,7 @@ void drop_module(HMODULE m)
 {
     runtime::events_drop_module(m);
     runtime::career_start_drop_module(m);
+    swofty_core::hooks::drop_module(m);
 }
 
 /* An SDK addon's init fails when a binding it wants is deferred, so it is called again once code decrypts;
@@ -2050,6 +2062,41 @@ std::string core_code_owner(uintptr_t addr)
     return {};
 }
 
+/* Standard library 1.6 game hook points: the addon whose raw overwrite targets a function, and what
+   already sits on a function's first bytes when a point installs while the game runs. */
+namespace runtime {
+
+std::string mixin_overwrite_on(const std::string &binding, uintptr_t at)
+{
+    std::lock_guard<std::recursive_mutex> c(commit_lock);
+    for (auto &a : addons)
+        if (a.active && !a.core)
+            for (auto &m : a.mixins)
+                if ((m.kind & SWOFTY_MIXIN_OVERWRITE) && (m.target == binding || (at && m.addr == at)))
+                    return a.name;
+    return {};
+}
+
+std::string mixin_occupying(uintptr_t at)
+{
+    std::lock_guard<std::recursive_mutex> c(commit_lock);
+    for (size_t i = 0; i < inline_hooks.size(); i++)
+        if (inline_hooks[i].target_address() == at)
+            return "the wrap on " + inline_names[i];
+    for (auto &m : mid_hooks)
+        if (m.target_address() >= at && m.target_address() < at + 5)
+            return "a mid-hook";
+    for (auto &w : written)
+        if (w.first < at + 5 && at < w.first + w.second.size())
+            return "patched bytes";
+    for (auto &h : held)
+        if (h.addr < at + 5 && at < h.addr + h.span)
+            return "a mixin installed at the early stage";
+    return {};
+}
+
+}
+
 extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
 {
     api = a;
@@ -2154,6 +2201,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreAttach(SwoftyApi *a)
     a->characters = runtime::characters_table();
     a->career_wizard = runtime::wizard_table();
     a->era = runtime::era_table();
+    a->hooks = swofty_core::hooks::table();
+    a->services = swofty_core::services::table();
     a->version = SWOFTY_API_VERSION;
     add_core_sets(runtime::career_mixins());
     exe_sha = exe_sha256(exe, caches(dir) + L"exe-sha256.tsv");
@@ -2241,5 +2290,11 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
     save_scan_cache();
     if (pending() && runtime::load_stage() != "early")
         start_retries();
+    static bool std16_window;
+    if (!std16_window && (from || runtime::load_stage() != "early")) {
+        std16_window = true;
+        swofty_core::hooks::window_stage();
+        swofty_core::services::report_missing();
+    }
     return (int)active;
 }
