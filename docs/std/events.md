@@ -150,6 +150,9 @@ game
    ├─ session.penalty.issue        cancel
    ├─ session.car.status           notify    retired, disqualified, terminal damage
    ├─ session.player.control       cancel    who drives the player's car
+   ├─ car.controllers.rebuilt      notify    a flashback or Return to Garage rebuilt a car's controllers
+   ├─ ai.controller.update         cancel    each AI car's throttle, brake and steering, every frame
+   ├─ hud.spectator.visible        modify    whether the spectator HUD shows
    ├─ session.finish               notify
    ├─ session.grid.group_result    cancel    a session group's result, which sets a grid
    ├─ session.results.finalise     notify    the session's results are final

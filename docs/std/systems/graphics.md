@@ -181,6 +181,48 @@ events::on<graphics::events::SettingRead>().before([](graphics::events::SettingR
 graphics::set_setting("rainSplashes", 0);
 ```
 
+## The spectator camera
+
+The game has a spectator mode: a director that follows any driver with a broadcast or TV pod camera, and its own HUD. Addons can turn it on in a single-player session, pick who it follows and with which camera, and keep its HUD up while it follows another car.
+
+```cpp
+namespace swofty::spectator {
+
+enum class Camera : int32_t { tv_pod = 1, broadcast = 2 };
+
+Result set_active(bool on);                    // the director and its HUD
+Result follow(live::Car car);                  // the director moves to this car
+Result set_camera(Camera camera);
+struct View { live::Car following; Camera camera; };
+std::optional<View> current();                 // what the director shows now
+
+namespace events {
+
+struct HudVisible {                            // the game decides whether the spectator HUD shows: before
+    static constexpr const char *point = "hud.spectator.visible";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    live::Car following;
+    bool visible;                              // set true to keep the HUD up
+};
+
+} // namespace events
+} // namespace swofty::spectator
+```
+
+```cpp
+// a director in an offline race: follow a car with the broadcast camera, HUD always on
+spectator::set_active(true);
+spectator::follow(car);                        // a cars::live::Car from cars::live::cars()
+spectator::set_camera(spectator::Camera::broadcast);
+
+events::on<spectator::events::HudVisible>().before([](spectator::events::HudVisible &h, const events::Context &) {
+    h.visible = true;
+});
+```
+
+The game hides the spectator HUD while the director follows a car other than the player's; `hud.spectator.visible` is where an addon keeps it.
+
 ## Replays and telemetry
 
 Planned, with no header yet:
@@ -191,6 +233,7 @@ Planned, with no header yet:
 ## Readiness and limits
 
 - **Looks and passes: ready** (shipped). They sit outside the KB. The core hooks D3D12 and DXGI by vtable.
+- **The spectator camera: needs reverse engineering.** `SpectatorDirector::setActive`, the requested and current driver (+0xDC, +0xD6) and camera type (+0xE0, +0xD8), the UI flag `session.spectator_mode.active` and the HUD visibility write come from addon developers; the KB has none of them yet.
 - **`render.present` runs every frame.** A look is graded into the LUT once when it changes, not per frame. A `Present` handler should only read state it already has.
 - **Settings: ready.** The hardware-setting sites are L2 (16 bool and 12 int), used by one addon.
 - **Replays and telemetry: partial.** `Sess_Recordable_Register` is L2; the rest is L1. UDP holds 22 cars; the live per-wheel values are unverified.

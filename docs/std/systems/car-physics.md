@@ -118,7 +118,7 @@ The core logs each build:
 
 ## Changing a car live
 
-`cars::live` gives you each car on track during a session: its index, its vehicle record, its team and driver, and its parts. Writes take effect on the car's next physics step. The core decodes and encodes the game's scrambled values, recomputes anything the game derives from the value you changed, and puts your value back if the game rebuilds the car.
+`cars::live` gives you each car on track during a session: its index, its vehicle record, its team and driver, and its parts. `car.control()` reads who drives it, human or AI, and its controller flags, fresh on every call (see [Who drives a car](./sessions#who-drives-a-car)). Writes take effect on the car's next physics step. The core decodes and encodes the game's scrambled values, recomputes anything the game derives from the value you changed, and puts your value back if the game rebuilds the car.
 
 A per-team pace slider:
 

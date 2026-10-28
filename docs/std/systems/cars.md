@@ -180,6 +180,13 @@ struct Reset {                                     // the game re-read a car's p
     bool upgrade;                                  // true after an R&D upgrade replay
 };
 
+struct ControllersRebuilt {                        // a flashback or Return to Garage rebuilt the car's controllers: after
+    static constexpr const char *point = "car.controllers.rebuilt";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    live::Car car;
+};
+
 struct PartsRegister {                             // Car_FrontWing_Init: after
     static constexpr const char *point = "car.parts.register";
     static constexpr uint32_t version = 1;

@@ -243,6 +243,45 @@ ai::difficulty.add("progressive", {
 });
 ```
 
+## The AI controller each frame
+
+Every frame, each AI car's controller decides its throttle, brake and steering. `ai.controller.update` runs around that decision, so several addons can shape the AI's inputs without cloning the controller's vtable or chaining each other by hand. AI Racing Tweaks and AI Drive both change these inputs today.
+
+```cpp
+namespace swofty::ai::events {
+
+struct ControllerUpdate {                      // the AI controller's update, every frame for each AI car
+    static constexpr const char *point = "ai.controller.update";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    int32_t vehicle;                           // the car's vehicle index
+    float throttle;                            // 0 to 1
+    float brake;                               // 0 to 1
+    float steering;                            // -1 to 1
+    live::Car car() const;                     // the car, for reads
+};
+
+} // namespace swofty::ai::events
+```
+
+```cpp
+// cap the AI's braking in races, after the game decides
+events::on<ai::events::ControllerUpdate>().when(events::session_type({ events::SessionType::race }))
+    .after([](ai::events::ControllerUpdate &u, const events::Context &) { u.brake = std::min(u.brake, 0.9f); });
+
+// drive the player's car with your own controller while the AI controls it
+events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpdate &u, const events::Context &) {
+    if (!my_driver::owns(u.vehicle))
+        return false;                          // the game's controller decides
+    my_driver::drive(u);                       // fills throttle, brake and steering
+    return true;
+});
+```
+
+- **Phases:** a `before` handler sees the car before the game decides. A `replace` handler can decide instead of the game and returns true when it did. An `after` handler sees and changes the inputs the game wrote. Handlers run by priority, then load order.
+- **Every frame:** the point runs for every AI car each frame, so it dispatches directly with no context table, and handlers must be cheap. With no subscriber the core installs nothing.
+- **One hook per controller class.** The core hooks the class's vtable once, so addons stop cloning it per controller. An addon made for 1.5 that clones a controller's vtable keeps working as it does today: its clone calls the game's code directly, outside the point, until the addon moves to the point.
+
 ## Events and operations
 
 ```cpp
@@ -260,6 +299,7 @@ ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], ai::track_p
 - **Events: partial.** The loaders (`Sess_Load_VehicleAiConfig`, `Ai_Resolve_GeneralSettings`, `Sess_Build_AiSystem`) are L2. The decision code is L1 or unexplored.
 - **Unknown:** where the 0 to 110 difficulty slider scales the controllers (so `ai::difficulty` has nothing to apply yet), the grip index source, and the AI path builder.
 - **When a changed config applies needs reverse engineering.** The game parses the configs in a startup loop (`Sess_Startup_VehicleAiLoop`) into a map keyed by stat id. The core applies a changed config at the next session load. Whether the game rereads that map for a later session is unverified; if it doesn't, a change applies from the next game start. The same goes for a career season that moves a team to another year's car.
+- **`ai.controller.update`: needs reverse engineering.** Slot 1 of the AI controller's vtable writes the inputs into the record at `[controller+8]`: throttle at +0xC, steering at +0x14 and brake at +0x18. The vehicle index is at `controller+0x18`. Addon developers found these; the KB doesn't have them yet, and every controller class needs checking.
 - **Baked tables cap pace.** A car faster than its baked set gets nothing from more grip. Physics changes must keep the car inside the baked envelope.
 - **A missing AI folder hangs the load.** The core refuses a track pack whose folder isn't there. A box offers a track only where every car in it has AI data (see [Tracks](./tracks)).
 - **The AI table holds 30 cars.**

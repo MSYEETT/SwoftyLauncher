@@ -375,6 +375,59 @@ sessions::safety_car.layer(sessions::safety_car["game/default"], [](sessions::Sa
 });
 ```
 
+## Who drives a car
+
+Each car has a set of controllers: a human one, an AI one, and flags such as the pit-lane flag. The game switches a car between them when the player retires, when a session is simulated and in the pit lane. After a flashback or a Return to Garage it rebuilds the set, so a pointer kept from before then points at freed memory. The core reads the set fresh every time and applies changes only between rebuilds.
+
+```cpp
+namespace swofty::sessions {
+
+enum class Control : int32_t { human, ai };
+
+struct ControlState {                          // read fresh each time; never keep it across frames
+    Control mode;
+    uint32_t flags;                            // the game's controller flags
+    bool pit_lane() const;
+};
+
+Result set_control(live::Car car, Control mode);   // applied at the next safe moment, never during a rebuild
+
+namespace events {
+
+struct PlayerControl {                         // Game_Set_VehicleController: before, replace and after
+    static constexpr const char *point = "session.player.control";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    live::Car car;
+    Control from, to;
+    int32_t reason;                            // the game's reason for the switch
+};
+
+} // namespace events
+} // namespace swofty::sessions
+```
+
+```cpp
+// hand the player's car to the AI, then back
+sessions::set_control(player, sessions::Control::ai);
+sessions::set_control(player, sessions::Control::human);
+
+// keep the player in control in the pit lane
+events::on<sessions::events::PlayerControl>().replace([](sessions::events::PlayerControl &c, const events::Context &) {
+    auto state = c.car.control();
+    return c.to == sessions::Control::ai && state && state->pit_lane();   // true: the switch doesn't happen
+});
+
+// drop anything kept about a car's controllers when the game rebuilds them
+events::on<cars::events::ControllersRebuilt>().after([](const cars::events::ControllersRebuilt &r, const events::Context &) {
+    my_addon::forget(r.car);
+});
+```
+
+- **`car.control()`** returns the mode and flags, or nothing while the car's controllers are being rebuilt.
+- **`sessions::set_control`** works on any car. On the player's car it fires `session.player.control` like the game's own switches.
+- **`car.controllers.rebuilt`** fires after a flashback or a Return to Garage has rebuilt a car's controllers (see [Cars](./cars)).
+
 ## Events and operations
 
 ```cpp
@@ -401,6 +454,7 @@ sessions::issue_penalty(car, sessions::PenaltyKind::grid, 3.0f);
 - **Ready:** the entrant, grid, result and safety car handlers are L2, used by Custom Grid Size and F1 1990.
 - **Partial:** points and penalties. The data is ready, and the runtime code is L1. A box's points apply through the standings lookup, which still needs reverse engineering, and a box's DRS through `session.drs.allowed` (see [Power units](./power-units)). Until then those two come from the setup mode.
 - **Unknown:** flags and red flags, the knockout cut writer, red-flag restarts, penalty decision thresholds at run time, the difficulty preset selector.
+- **Who drives a car:** `Game_Set_VehicleController` and its reason codes are L2 with an independent verify. The controller set (human controller at +0x20, AI controller at +0x28, flags at +0x30, mode = dword[+0x10] ^ dword[+0x18]) and the rebuild after a flashback or Return to Garage need reverse engineering.
 - **Grid:** 32 vehicle slots, a 27-car clamp at session enter, an AI table of 30, a wheel map that rehashes at the 26th car, replay holders sized for 22 to 24 cars. `sessions::grids` refuses a size the game can't hold, naming the limit.
 - **Grid size is one boot setting per install.** The track worlds that hold the grid are picked once at boot for every box, and each box and mode is clamped to that size.
 - **Points** are whole numbers in arrays of 23, padded to the grid size. 1990's half points are rounded.
