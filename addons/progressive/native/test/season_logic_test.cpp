@@ -432,6 +432,26 @@ bool released(const season::Plan &p, const std::string &driver)
     return std::find(p.releases.begin(), p.releases.end(), id(driver)) != p.releases.end();
 }
 
+void new_teams_are_named_only_by_a_team_label()
+{
+    EXPECT(!season::names_new_teams(g_data, 2017));
+    season::Data d = g_data;
+    int cadillac = slot_of("gm_cadillac_26");
+    int mercedes = slot_of("mercedes_26");
+    season::Year &y = d.years[2017];
+    y.teams[mercedes].team_id = d.slots[mercedes].team;
+    EXPECT(!season::names_new_teams(d, 2017));
+    y.teams[mercedes].team_id = "team_2012_lotus";
+    EXPECT(season::names_new_teams(d, 2017));
+    EXPECT(!season::names_new_teams(d, 2018));
+    season::Plan p;
+    p.year = 2017;
+    p.closed[cadillac] = true;
+    EXPECT(season::season_team(d, p, mercedes) == "team_2012_lotus");
+    EXPECT(season::season_team(d, p, slot_of("ferrari_26")) == d.slots[slot_of("ferrari_26")].team);
+    EXPECT(season::season_team(d, p, cadillac).empty());
+}
+
 void ten_team_years_close_slot_11()
 {
     auto rows = career("lando_norris");
@@ -586,6 +606,7 @@ int main(int argc, char **argv)
     player_added_as_a_third_race_seat();
     empty_team_filled_from_free_agents();
     follow_player_left_on_his_2026_team_with_another_car();
+    new_teams_are_named_only_by_a_team_label();
     ten_team_years_close_slot_11();
     ten_team_years_keep_the_players_slot();
     ten_team_years_bring_cadillac_back_in_2026();

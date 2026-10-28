@@ -84,7 +84,7 @@ struct DevPoint {
 
 struct Team {
     int slot = 0;
-    std::string kind, name, lang, vehicle;
+    std::string kind, name, lang, vehicle, team_id;
     int vehicle_stat = -1;
     double gap_pct = -1;
     std::vector<SeatDriver> drivers;
@@ -204,6 +204,7 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
             Team &o = yr.teams[i];
             o.slot = i + 1;
             o.kind = t["kind"].str();
+            o.team_id = t["team"].str();
             o.name = t["name"].str();
             o.lang = t["lang"].str();
             o.vehicle = t["vehicle"]["label"].str();
@@ -366,6 +367,25 @@ struct Plan {
     bool player_moves = false;
     std::array<bool, kSlots> closed{};
 };
+
+inline bool names_new_teams(const Data &d, int year)
+{
+    const Year *y = d.year(clamp_year(year));
+    if (!y)
+        return false;
+    for (int i = 0; i < kSlots; ++i)
+        if (!y->teams[i].team_id.empty() && y->teams[i].team_id != d.slots[i].team)
+            return true;
+    return false;
+}
+
+inline std::string season_team(const Data &d, const Plan &p, int slot)
+{
+    const Year *y = d.year(clamp_year(p.year));
+    if (!y || slot < 0 || slot >= kSlots || p.closed[slot])
+        return std::string();
+    return y->teams[slot].team_id.empty() ? d.slots[slot].team : y->teams[slot].team_id;
+}
 
 inline bool no_team(const Data &d, int year, int slot)
 {

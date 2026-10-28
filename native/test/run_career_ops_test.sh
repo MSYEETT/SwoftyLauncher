@@ -12,6 +12,9 @@ mkdir -p "$OUT"
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness -o "$OUT/lineup_plan_test" \
     career_ops/lineup_plan_test.cpp
 "$OUT/lineup_plan_test"
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness -o "$OUT/teams_plan_test" \
+    career_ops/teams_plan_test.cpp
+"$OUT/teams_plan_test"
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness \
     -Wno-missing-designated-field-initializers -I../../packages/sdk/include -o "$OUT/sdk_ops_test" career_ops/sdk_ops_test.cpp
 "$OUT/sdk_ops_test"
