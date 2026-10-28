@@ -76097,6 +76097,444 @@
    "used_by": [
     "native/src/core/testagent/agent.cpp"
    ]
+  },
+  {
+   "id": "session.ai_controller",
+   "section": ".xtls",
+   "pattern": "48 89 C3 48 85 C0 74 5A 4C 8B 36 48 8D 05",
+   "match": "0x143896a82",
+   "anchor": "0xe",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0xb",
+    "len": 7
+   },
+   "target": "0x145882150",
+   "kind": "data",
+   "names": [
+    "vt_Sess_AiController"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.human_controller",
+   "section": ".xtls",
+   "pattern": "48 8B 6E 38 48 8D 05 ?? ?? ?? ?? 49 89 06",
+   "match": "0x1438969f7",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x4",
+    "len": 7
+   },
+   "target": "0x145882170",
+   "kind": "data",
+   "names": [
+    "vt_Sess_HumanController"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system",
+   "section": ".xtls",
+   "pattern": "48 8D 05 ?? ?? ?? ?? 48 89 06 48 8D 05 ?? ?? ?? ?? 48 89 46 20 48 89 7E 28 48 8B 07",
+   "match": "0x143897fc3",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x1458824a0",
+   "kind": "data",
+   "names": [
+    "vt_Sess_ControllerSystem"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_destroy_sets",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 83 EC 20 48 89 CE 4C 8B 71 30",
+   "match": "0x143899f30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143899f30",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_DestroySets"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_apply_inputs",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 53 48 83 EC 48 C5 F8 29 74 24 30 80 B9 64 03 00 00 00",
+   "match": "0x14389a120",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389a120",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_ApplyInputs"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.controller_system_write_flags",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 20 48 8B 79 10 48 8B 59 18 48 39 DF 74 5C",
+   "match": "0x14389ce30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389ce30",
+   "kind": "func_start",
+   "names": [
+    "Sess_ControllerSystem_WriteFlags"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_active",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 83 EC 70 89 D3",
+   "match": "0x142e18650",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18650",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetActive"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_update",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 50 80 B9 D1 00 00 00 00",
+   "match": "0x142e18dd0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18dd0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_Update"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_request_driver",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 48 80 B9 D1 00 00 00 00",
+   "match": "0x142e19950",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e19950",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_RequestDriver"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_apply_request",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 89 CE 0F B6 99 DC 00 00 00",
+   "match": "0x142e1a0f0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e1a0f0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_ApplyRequest"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_current",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 78 44 89 C7 89 D3 48 89 CE 88 91 D6 00 00 00",
+   "match": "0x142e19d50",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e19d50",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetCurrent"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_director_set_ui_flag_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 44 D0 D4 E9 ?? ?? ?? ?? 5B E9",
+   "match": "0x142e18d10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e18d10",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorDirector_SetUiFlag_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_hide",
+   "section": ".xtls",
+   "pattern": "48 83 EC 38 8B 05 ?? ?? ?? ?? 8B 0D",
+   "match": "0x141c237e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c237e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_Hide"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_show",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 48 89 CE 8B 05 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 65 48 8B 14 25 58 00 00 00 48 8B 0C CA 3B 81 04 00 00 00 0F 8F ?? ?? ?? ?? 8B 05 ?? ?? ?? ?? A8 40 0F 84 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 01 0F 85 ?? ?? ?? ?? B9 D4 00 00 00 48 8D 15 ?? ?? ?? ?? 66 2E 0F 1F 84 00 00 00 00 00",
+   "match": "0x141c247a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c247a0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_Show"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.hud_on_spectator_hud_visibility",
+   "section": ".xtls",
+   "pattern": "48 83 EC 28 44 0F B6 42 10 BA 04 00 00 00",
+   "match": "0x141a36940",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a36940",
+   "kind": "func_start",
+   "names": [
+    "Sess_Hud_OnSpectatorHudVisibility"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.hud_set_visibility_bit",
+   "section": ".xtls",
+   "pattern": "56 57 55 53 48 83 EC 28 44 89 C3 89 D7 48 89 CE 45 84 C0 74 08",
+   "match": "0x141a39bc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a39bc0",
+   "kind": "func_start",
+   "names": [
+    "Sess_Hud_SetVisibilityBit"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_handle_command",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 30 48 8B 02 48 85 C0 0F 84 ?? ?? ?? ?? 48 89 CE 8B 00 3D 1B E0 82 D8",
+   "match": "0x141c244e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c244e0",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_HandleCommand"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.spectator_hud_on_activated",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 68 48 89 CB 48 81 C1 C0 09 00 00",
+   "match": "0x141c20e60",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c20e60",
+   "kind": "func_start",
+   "names": [
+    "Sess_SpectatorHud_OnActivated"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-ai",
+     "how": "static"
+    }
+   ],
+   "used_by": []
   }
  ]
 }
