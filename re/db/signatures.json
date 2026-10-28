@@ -75357,6 +75357,32 @@
    "used_by": [
     "native/src/core/save_splice.cpp"
    ]
+  },
+  {
+   "id": "game.car_setup_session_fuel_load",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 55 53 48 83 EC 48 C5 F8 29 74 24 30 48 89 CF",
+   "match": "0x140b78000",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140b78000",
+   "kind": "func_start",
+   "names": [
+    "Game_CarSetup_SessionFuelLoad"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w19-hooks",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/hooks/game_points.cpp"
+   ]
   }
  ]
 }

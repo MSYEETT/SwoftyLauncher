@@ -18,6 +18,7 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/tracks.hpp>
 
 #include "sdk_payloads.h"
 

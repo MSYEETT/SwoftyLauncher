@@ -260,6 +260,31 @@ struct AddActivity {
     bool player;
 };
 
+struct ContractDecide {
+    static constexpr const char *point = "career.contract.decide";
+    static constexpr uint32_t version = 1;
+    static constexpr uint32_t negotiate = 0x5e3c3c2d;
+    static constexpr uint32_t ends_this_season = 0xd2985448;
+    static constexpr uint32_t next = 0x7c9b1ec4;
+    uint32_t size, payload_version;
+    void *state;
+    uint32_t link;
+};
+
+struct ContractSign {
+    static constexpr const char *point = "career.contract.sign";
+    static constexpr uint32_t version = 1;
+    static constexpr uint32_t work_out_replaced = 0x3fff0000;
+    uint32_t size, payload_version;
+    void *contracts;
+    void *contract;
+    uint32_t driver;
+    uint32_t replaced;
+    uint32_t team;
+    uint8_t type;
+    bool notify;
+};
+
 struct StandingsRebuild {
     static constexpr const char *point = "career.standings.rebuild";
     static constexpr uint32_t version = 1;

@@ -146,6 +146,7 @@ Table &the_table()
         };
         auto *t = new Table(std::move(p));
         t->declare_core();
+        declare_game_points(*t);
         return t;
     }();
     return *t;
