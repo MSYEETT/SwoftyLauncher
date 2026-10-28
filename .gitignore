@@ -5,6 +5,7 @@ node_modules/
 coverage/
 *.log
 !re/tools/tests/fixtures/**/*.log
+!re/traces/**/*.log
 .DS_Store
 __pycache__/
 .venv/
