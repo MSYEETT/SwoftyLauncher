@@ -248,11 +248,6 @@ pub struct SpectatorDirector {
 }
 
 #[repr(C)]
-pub struct TeamRecord {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct TodCurveBinding {
     _opaque: [u8; 0],
 }
@@ -1758,6 +1753,48 @@ pub struct StatInfo {
 const _: () = assert!(core::mem::offset_of!(StatInfo, stat_id) == 0x8);
 const _: () = assert!(core::mem::offset_of!(StatInfo, weight) == 0x130);
 const _: () = assert!(core::mem::offset_of!(StatInfo, default_value) == 0x134);
+
+#[repr(C)]
+pub struct TeamRecord {
+    _pad_0x0: [u8; 0xb0],
+    pub display_name: *mut c_char,
+    _pad_0xb8: [u8; 0x90],
+    pub display_name_code: *mut c_char,
+    _pad_0x150: [u8; 0x90],
+    pub display_name_short: *mut c_char,
+    _pad_0x1e8: [u8; 0x90],
+    pub display_name_super_short: *mut c_char,
+    _pad_0x280: [u8; 0x90],
+    pub livery_name: *mut c_char,
+    _pad_0x318: [u8; 0x90],
+    pub team_base: *mut c_char,
+    _pad_0x3b0: [u8; 0x128],
+    pub timing_tower_texture_path: *mut c_char,
+    _pad_0x4e0: [u8; 0x84],
+    pub primary_colour: i32,
+    pub secondary_colour: i32,
+    pub tertiary_colour: i32,
+    pub team_wear_primary_colour: i32,
+    pub team_wear_secondary_colour: i32,
+    pub team_wear_tertiary_colour: i32,
+    pub ui_team_colour: i32,
+    _pad_0x580: [u8; 0x1e8],
+}
+const _: () = assert!(core::mem::offset_of!(TeamRecord, display_name) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, display_name_code) == 0x148);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, display_name_short) == 0x1e0);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, display_name_super_short) == 0x278);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, livery_name) == 0x310);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, team_base) == 0x3a8);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, timing_tower_texture_path) == 0x4d8);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, primary_colour) == 0x564);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, secondary_colour) == 0x568);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, tertiary_colour) == 0x56c);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, team_wear_primary_colour) == 0x570);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, team_wear_secondary_colour) == 0x574);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, team_wear_tertiary_colour) == 0x578);
+const _: () = assert!(core::mem::offset_of!(TeamRecord, ui_team_colour) == 0x57c);
+const _: () = assert!(core::mem::size_of::<TeamRecord>() == 0x768);
 
 #[repr(C)]
 pub struct TeamRenownData {
@@ -4896,6 +4933,26 @@ pub mod bindings {
     pub const site_Sess_InGameSessionCompleteAiCall: Binding = Binding {
         id: "site_Sess_InGameSessionCompleteAiCall",
         kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Team_LoadInsertCall: Binding = Binding {
+        id: "site_Team_LoadInsertCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Team_LoadInserted: Binding = Binding {
+        id: "site_Team_LoadInserted",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Team_SessionCarBadgeLabel: Binding = Binding {
+        id: "site_Team_SessionCarBadgeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Team_TimingPillBadgeLabel: Binding = Binding {
+        id: "site_Team_TimingPillBadgeLabel",
+        kind: "site",
         status: Status::Experimental,
     };
     pub const vt_Career_BankTransactionMessage: Binding = Binding {
