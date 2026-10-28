@@ -123,11 +123,15 @@ SWOFTY_ADDON()
     "career.season": [ "swofty.progressive/2016", "swofty.progressive/2017", "...", "swofty.progressive/2025" ]
   },
   "providers": [ "career.driver_ratings" ],
-  "needs": [ { "record": "track:venue/sochi", "policy": "optional" } ]
+  "needs": [
+    { "record": "track:venue/sochi", "policy": "optional" },
+    { "record": "vehicle:swofty.classic-seasons-2016/ferrari", "or": [ "vehicle:mod.f1-2016/ferrari" ], "policy": "required" }
+  ]
 }
 ```
 
 - **What it records:** every id the code registers, with its label, what each record provides (a track's venue), and every reference the code uses, required or optional.
+- **Fallbacks:** a reference written `a|b` (`Ref::or_else`) is one entry: `record` is the first choice and `or` lists the others. Any one of them being there meets it.
 - **Who reads it:** the launcher, for the check before Play and the importer's **Applies to** picker, and the Addon Browser, to answer "which addon provides `venue/sochi`" and install it.
 - **What it isn't:** nothing is applied from it. The game runs `SWOFTY_REGISTER` and applies everything live.
 - **Options:** an edit that reads an option is recorded with the option's default.
