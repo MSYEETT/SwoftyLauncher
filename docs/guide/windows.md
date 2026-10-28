@@ -34,7 +34,7 @@ With F1 25 on both Steam and the EA app, select the game name next to the cover 
 4. On your first launch, select **Accept and launch** in the **Modded play runs offline** dialog. For why modded play runs offline, see [Offline play](/reference/safety).
 5. The first launch after the setup can take 5 to 8 minutes. Don't press Play in Steam or the EA app while it runs.
 
-You'll see **Launching…** on the button, then **Stop** while the game runs. If Steam is closed, the launcher starts it and waits for it to sign in first; see [Steam](/reference/launch#steam). When you want to play vanilla, launch through Steam as usual.
+You'll see **Launching…** on the button, then **Stop** while the game runs. While Swofty builds your mods or copies them into the game folder, the button shows **Building…** and the bar beside it shows how far it got. **Cancel** stops the build after the file it is on and puts the game files back; your profile and addons stay as they are, and the next Play builds again. Addons in a running build can't be updated or removed until it finishes. If Steam is closed, the launcher starts it and waits for it to sign in first; see [Steam](/reference/launch#steam). When you want to play vanilla, launch through Steam as usual.
 
 To follow the logs as you play, select the arrow next to **Play** and choose **Play with console**, or run `swofty run` from a terminal.
 
@@ -43,6 +43,7 @@ To follow the logs as you play, select the arrow next to **Play** and choose **P
 An antivirus such as Windows Defender can delete, quarantine or block the launcher's `version.dll` and its other DLLs, and F1 25 would then run without mods.
 
 - Before the game starts, the launcher checks that the files it put in the game folder are still there. If one is missing or changed, F1 25 is not started: the game folder goes back to vanilla and a **Your antivirus removed mod files** dialog names the files.
+- When `swofty.exe` is gone from the launcher's `bin` folder, **Play** shows **Could not launch F1 25** with how to restore it from quarantine, which folder to exclude, and to reinstall the launcher if it isn't there.
 - When the launcher's own `loader` folder is gone from its install, F1 25 is not started and a **Swofty Launcher's loader folder is missing** dialog says to reinstall the launcher. Your addons and settings are kept.
 - Once the game runs, the launcher checks that the mods loaded. If they did not, a **Mods did not load** dialog appears, and the game keeps running without mods.
 
@@ -61,6 +62,7 @@ When the mods did not load and `version.dll` is still in the game folder, the la
 - the DLL load policies on `F1_25.exe`, such as Exploit protection's Code integrity guard
 - Exploit protection's program settings for `F1_25.exe` (`MitigationOptions`, `MitigationAuditOptions` or `EAFModules` under its Image File Execution Options)
 - the compatibility settings on `F1_25.exe` (its **Compatibility** tab, for you and for all users), and the compatibility shims Windows loaded into the game (`AcLayers.dll` and the like)
+- the compatibility settings on the programs that start the game (`EADesktop.exe`, `EALauncher.exe`, `swofty-launcher.exe` and the offline play stub), and the compatibility shims in the running EA app. When the game has shims and `F1_25.exe` has no setting, the advice names the program they came from
 - whether `version.dll` is listed under KnownDLLs, and whether Smart App Control is on
 - Code Integrity and Microsoft Defender events since the game started
 - the antivirus registered with Windows, and programs that hook into games, such as Medal or RivaTuner, among the game's modules

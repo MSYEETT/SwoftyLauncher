@@ -1486,6 +1486,7 @@ impl Shell {
         match guarded(|| edits.copy_row(&catalog, &table, &field, from.as_deref(), &to)) {
             Ok(()) => self.db_changed(None, true, cx),
             Err(e) => {
+                crate::app_log::action("db editor: copy a row").failed(&e);
                 self.db.toasts.push(Notification::error(e));
                 cx.notify();
             }
@@ -1627,6 +1628,7 @@ impl Shell {
                 self.db_changed(None, true, cx);
             }
             Err(e) => {
+                crate::app_log::action("db editor: change rows").failed(&e);
                 self.db.toasts.push(Notification::error(e));
                 cx.notify();
             }
@@ -1768,10 +1770,15 @@ impl Shell {
                 };
                 self.db_leave(then, window, cx);
             }
-            Err(e) => window.push_notification(
-                Notification::error(e).title(format!("Could not import {file}")),
-                cx,
-            ),
+            Err(e) => {
+                crate::app_log::action("db editor: import")
+                    .file(std::path::Path::new(&file))
+                    .failed(&e);
+                window.push_notification(
+                    Notification::error(e).title(format!("Could not import {file}")),
+                    cx,
+                )
+            }
         }
     }
 

@@ -7,6 +7,7 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::app_control::Block;
+use swofty_core::busy::Busy;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY, Source};
 use swofty_core::launch;
@@ -172,7 +173,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             settle(store, &g, &mut wrapper, None, false);
             return Err(err);
         }
-        if silence.of(&wrapper.log) > wrapper.timeout {
+        if silence.of(&wrapper.log, &store.root) > wrapper.timeout {
             match &wrapper.child {
                 Some(_) => bail!(
                     "the wrapper has not started the game and has written nothing for {} min; it is still running, \
@@ -1244,10 +1245,13 @@ impl Wrapper {
     }
 }
 
-/// How long the wrapper's log has gone without growing: an install of a
-/// large profile takes minutes, and says how far it got as it goes.
+/// How long the wrapper has gone without a sign of progress: its log
+/// growing, or the heartbeat of a build it runs in `state/build.json`. An
+/// install of a large profile takes minutes, and one step can run for more
+/// than ten.
 struct Silence {
     len: u64,
+    beat: Option<SystemTime>,
     since: Instant,
 }
 
@@ -1255,18 +1259,21 @@ impl Silence {
     fn new() -> Self {
         Self {
             len: 0,
+            beat: None,
             since: Instant::now(),
         }
     }
 
-    fn of(&mut self, log: &Path) -> Duration {
+    fn of(&mut self, log: &Path, data: &Path) -> Duration {
         let len = std::fs::metadata(log).map_or(0, |m| m.len());
-        if len != self.len {
-            *self = Self {
-                len,
-                since: Instant::now(),
-            };
+        let beat = std::fs::metadata(Busy::path(data))
+            .and_then(|m| m.modified())
+            .ok();
+        if len != self.len || (beat.is_some() && beat != self.beat && Busy::live(data).is_some()) {
+            self.since = Instant::now();
         }
+        self.len = len;
+        self.beat = beat;
         self.since.elapsed()
     }
 }
@@ -2324,15 +2331,59 @@ mod tests {
     #[test]
     fn the_wait_for_the_wrapper_counts_from_its_last_output() {
         let log = temp_log("silence");
+        let data = log.ancestors().nth(2).unwrap().to_path_buf();
         std::fs::create_dir_all(log.parent().unwrap()).unwrap();
         let mut silence = Silence::new();
         std::thread::sleep(Duration::from_millis(30));
-        assert!(silence.of(&log) >= Duration::from_millis(30));
+        assert!(silence.of(&log, &data) >= Duration::from_millis(30));
         std::fs::write(&log, "[info] installing: 2000 of 7977 file(s) copied\n").unwrap();
-        assert!(silence.of(&log) < Duration::from_millis(30));
+        assert!(silence.of(&log, &data) < Duration::from_millis(30));
         std::thread::sleep(Duration::from_millis(30));
-        assert!(silence.of(&log) >= Duration::from_millis(30));
-        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+        assert!(silence.of(&log, &data) >= Duration::from_millis(30));
+        std::fs::remove_dir_all(&data).ok();
+    }
+
+    fn beat(data: &Path, secs: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(Busy::path(data))
+            .unwrap()
+            .set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(secs))
+            .unwrap();
+    }
+
+    #[test]
+    fn a_live_build_that_keeps_its_heartbeat_is_not_silence() {
+        let log = temp_log("building");
+        let data = log.ancestors().nth(2).unwrap().to_path_buf();
+        std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+        std::fs::write(&log, "[info] build: still working after 60 s\n").unwrap();
+        let build = Busy {
+            pid: std::process::id().wrapping_add(1),
+            ..Busy::new("default", vec!["swofty.classic-seasons".into()])
+        };
+        build.write(&data).unwrap();
+        let lock = SessionLock::try_acquire(&data).unwrap().unwrap();
+        let mut silence = Silence::new();
+        silence.of(&log, &data);
+        std::thread::sleep(Duration::from_millis(30));
+        beat(&data, 1_000);
+        assert!(
+            silence.of(&log, &data) < Duration::from_millis(30),
+            "the heartbeat moved"
+        );
+        std::thread::sleep(Duration::from_millis(30));
+        assert!(
+            silence.of(&log, &data) >= Duration::from_millis(30),
+            "a build whose heartbeat stopped is silent"
+        );
+        drop(lock);
+        beat(&data, 2_000);
+        assert!(
+            silence.of(&log, &data) >= Duration::from_millis(30),
+            "a build file left by a process that ended is silent"
+        );
+        std::fs::remove_dir_all(&data).ok();
     }
 
     #[test]

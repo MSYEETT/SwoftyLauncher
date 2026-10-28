@@ -105,10 +105,13 @@ pub enum Cause {
     ExploitProtection { path: String },
     /// The game holds another version.dll, and compatibility settings are on
     /// for F1_25.exe or Windows loaded its compatibility shims into it.
+    /// `from`: the program that started the game with them.
     CompatLayer {
         path: String,
         layers: Vec<String>,
         shims: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from: Option<Carrier>,
     },
     /// The game holds another version.dll, and an antivirus other than
     /// Microsoft Defender is on.
@@ -119,6 +122,32 @@ pub enum Cause {
     /// Windows denied the session a look inside the game process, and no
     /// block event or other antivirus explains the miss.
     Unreadable,
+}
+
+/// A program that hands compatibility layers on to the game it starts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Carrier {
+    /// Its file name, such as EADesktop.exe.
+    pub name: String,
+    /// Its path, as the setting stores it or as it runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exe: Option<String>,
+    /// The settings on it, as `<layers> (for this user|for all users)`;
+    /// empty when it runs with shims and has no setting of its own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<String>,
+}
+
+impl Carrier {
+    fn ea_app(&self) -> bool {
+        [crate::ea_app::PROCESS, crate::ea_app::LAUNCHER_EXE]
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(&self.name))
+    }
+
+    fn launcher(&self) -> bool {
+        self.name.eq_ignore_ascii_case("swofty-launcher.exe")
+    }
 }
 
 impl Cause {
@@ -154,14 +183,30 @@ impl Cause {
                 "the game loaded {path} instead of the game folder's {PROXY}, and F1_25.exe has its own Exploit \
                  protection settings in Windows Security, the most likely reason"
             ),
-            Self::CompatLayer { path, layers, shims } => {
-                let why = if layers.is_empty() {
-                    format!("Windows applied compatibility shims to it ({})", shims.join(", "))
-                } else {
-                    format!(
+            Self::CompatLayer {
+                path,
+                layers,
+                shims,
+                from,
+            } => {
+                let why = match from {
+                    _ if !layers.is_empty() => format!(
                         "compatibility settings are on for F1_25.exe ({})",
                         layers.join(", ")
-                    )
+                    ),
+                    Some(c) if c.layers.is_empty() => format!(
+                        "Windows applied compatibility shims to it ({}), passed on from {}, which runs with them too",
+                        shims.join(", "),
+                        c.name
+                    ),
+                    Some(c) => format!(
+                        "Windows applied compatibility shims to it ({}), passed on from the compatibility settings \
+                         on {} ({})",
+                        shims.join(", "),
+                        c.name,
+                        c.layers.join(", ")
+                    ),
+                    None => format!("Windows applied compatibility shims to it ({})", shims.join(", ")),
                 };
                 format!(
                     "the game loaded {path} instead of the game folder's {PROXY}, and {why}, the most likely reason"
@@ -217,12 +262,45 @@ impl Cause {
                  control > Exploit protection settings > Program settings, remove every F1_25.exe entry, restart \
                  the PC, then launch again."
                 .to_owned(),
-            Self::CompatLayer { .. } => format!(
-                "To fix it, close F1 25, right-click F1_25.exe in the game folder ({}), open Properties > \
-                 Compatibility and untick everything, then select Change settings for all users and untick \
-                 everything there too, then launch again.",
-                game.display()
-            ),
+            Self::CompatLayer { layers, from, .. } => {
+                const UNTICK: &str = "open Properties > Compatibility and untick everything, then select Change \
+                     settings for all users and untick everything there too";
+                const QUIT_EA: &str = "fully quit the EA app (right-click its icon in the system tray > Exit)";
+                let at = |c: &Carrier| c.exe.as_ref().map(|e| format!(" ({e})")).unwrap_or_default();
+                match from {
+                    _ if !layers.is_empty() => format!(
+                        "To fix it, close F1 25, right-click F1_25.exe in the game folder ({}), {UNTICK}, then \
+                         launch again.",
+                        game.display()
+                    ),
+                    Some(c) if c.layers.is_empty() => format!(
+                        "To fix it, close F1 25, {QUIT_EA}, then press Play in Swofty Launcher without starting \
+                         the EA app first. If mods still don't load, right-click {}{}, {UNTICK}.",
+                        c.name,
+                        at(c)
+                    ),
+                    Some(c) if c.launcher() => format!(
+                        "To fix it, close F1 25 and Swofty Launcher, {QUIT_EA}, right-click {}{}, {UNTICK}, then \
+                         start Swofty Launcher and launch again.",
+                        c.name,
+                        at(c)
+                    ),
+                    Some(c) if c.ea_app() => format!(
+                        "To fix it, close F1 25, {QUIT_EA}, right-click {}{}, {UNTICK}, then launch again.",
+                        c.name,
+                        at(c)
+                    ),
+                    Some(c) => format!(
+                        "To fix it, close F1 25, right-click {}{}, {UNTICK}, then launch again.",
+                        c.name,
+                        at(c)
+                    ),
+                    None => "To fix it, close F1 25, fully quit the EA app or Steam (right-click its icon in the \
+                         system tray > Exit), then press Play in Swofty Launcher without starting them first. If \
+                         mods still don't load, press Send Logs to Developers and ask in the support Discord."
+                        .to_owned(),
+                }
+            }
             Self::Antivirus { names, .. } => format!(
                 "To fix it, close F1 25, open {}, restore or allow {PROXY} and F1_25.exe if it blocked them, add \
                  exclusions for the game folder ({}) and the launcher folder, and turn off its DLL or behaviour \
@@ -904,6 +982,7 @@ mod tests {
                 path: system(),
                 layers: vec!["~ WIN8RTM (for this user)".into()],
                 shims: vec!["AcLayers.dll".into()],
+                from: None,
             },
         );
         assert!(
@@ -917,11 +996,67 @@ mod tests {
                 path: system(),
                 layers: Vec::new(),
                 shims: vec!["AcLayers.dll".into()],
+                from: None,
             },
         );
         assert!(
-            shims.contains("Windows applied compatibility shims to it (AcLayers.dll)"),
+            shims.contains("Windows applied compatibility shims to it (AcLayers.dll)")
+                && shims.contains("fully quit the EA app or Steam")
+                && !shims.contains("right-click F1_25.exe"),
             "{shims}"
+        );
+        const EA: &str = r"C:\Program Files\Electronic Arts\EA Desktop\EA Desktop\EADesktop.exe";
+        let shimmed = |from: Carrier| Cause::CompatLayer {
+            path: system(),
+            layers: Vec::new(),
+            shims: vec!["AcLayers.DLL".into(), "AcGenral.DLL".into()],
+            from: Some(from),
+        };
+        let ea = text(
+            &mut r,
+            shimmed(Carrier {
+                name: "EADesktop.exe".into(),
+                exe: Some(EA.into()),
+                layers: vec!["~ RUNASADMIN (for all users)".into()],
+            }),
+        );
+        assert!(
+            ea.contains(
+                "Windows applied compatibility shims to it (AcLayers.DLL, AcGenral.DLL), passed on from the \
+                 compatibility settings on EADesktop.exe (~ RUNASADMIN (for all users))"
+            ) && ea.contains(&format!(
+                "fully quit the EA app (right-click its icon in the system tray > Exit), right-click EADesktop.exe \
+                 ({EA}), open Properties > Compatibility and untick everything"
+            )) && ea.contains("Change settings for all users")
+                && !ea.contains("F1_25.exe in the game folder"),
+            "{ea}"
+        );
+        let running = text(
+            &mut r,
+            shimmed(Carrier {
+                name: "EADesktop.exe".into(),
+                exe: Some(EA.into()),
+                layers: Vec::new(),
+            }),
+        );
+        assert!(
+            running.contains("passed on from EADesktop.exe, which runs with them too")
+                && running.contains("then press Play in Swofty Launcher without starting the EA app first"),
+            "{running}"
+        );
+        let launcher = text(
+            &mut r,
+            shimmed(Carrier {
+                name: "swofty-launcher.exe".into(),
+                exe: Some(r"C:\Swofty\swofty-launcher.exe".into()),
+                layers: vec!["~ WIN7RTM (for this user)".into()],
+            }),
+        );
+        assert!(
+            launcher.contains("close F1 25 and Swofty Launcher")
+                && launcher.contains(r"right-click swofty-launcher.exe (C:\Swofty\swofty-launcher.exe)")
+                && launcher.contains("then start Swofty Launcher and launch again"),
+            "{launcher}"
         );
         let av = text(
             &mut r,

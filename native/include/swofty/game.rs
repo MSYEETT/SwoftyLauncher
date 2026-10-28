@@ -73,7 +73,17 @@ pub struct NeStr {
 }
 
 #[repr(C)]
+pub struct RedFlagSystem {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct RnDDepartmentConfig {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
+pub struct TodCurveBinding {
     _opaque: [u8; 0],
 }
 
@@ -1967,9 +1977,41 @@ pub type Game_EntrantsUi_OnCharacterListLoaded_t =
     unsafe extern "C" fn(ctx: *mut c_void, message: *const c_void) -> i64;
 pub type Game_F1WorldActivityContainer_SelectEntrantList_t =
     unsafe extern "C" fn(container: *mut c_void, entrant_list: *const c_char);
+pub type Game_Get_ModelNodeId_t = unsafe extern "C" fn(name: *const c_char) -> u32;
+pub type Game_Handle_GarageCrewEvent_Thunk_t =
+    unsafe extern "C" fn(cars: *mut *mut c_void, event: *mut c_void) -> u64;
+pub type Game_Handle_SpecGarageCrewEvent_Thunk_t =
+    unsafe extern "C" fn(self_: *mut c_void, event: *mut c_void) -> u64;
 pub type Game_Network_CategoryOptionUsing_t = unsafe extern "C" fn(self_: *mut c_void);
+pub type Game_Network_SendingRedFlagVehicleStatusUpdate_t =
+    unsafe extern "C" fn(red_flag_state: *mut c_void, dt: *const f64);
 pub type Game_OptionsStore_FindOption_t =
     unsafe extern "C" fn(map: *mut c_void, name: *mut *const c_char) -> u64;
+pub type Game_PitLane_MoveDownSpline_t = unsafe extern "C" fn(
+    pitlane: *mut c_void,
+    car: u8,
+    teleport_req: *mut c_void,
+    alt_spline: bool,
+    dt: f32,
+    p6: bool,
+    blend: bool,
+    p8: bool,
+    p9: bool,
+);
+pub type Game_Place_Vehicle_t = unsafe extern "C" fn(
+    teleport_req: *mut c_void,
+    tag: *const c_char,
+    priority: c_int,
+    mtx44_a: *const f32,
+    mtx44_b: *const f32,
+    dt: f32,
+    flags: u32,
+);
+pub type Game_PracticeTrackAcclimatisation_RefreshState_t = unsafe extern "C" fn(self_: *mut c_void);
+pub type Game_Predict_StrategyWetness_t =
+    unsafe extern "C" fn(self_: *mut c_void, window3: *const f32) -> f32;
+pub type Game_RaceMarshalSystem_Update_t = unsafe extern "C" fn(system: *mut c_void, dt: *mut f64);
+pub type Game_RaceStrategyVm_Populate_t = unsafe extern "C" fn(vm: *mut c_void);
 pub type Game_Refresh_PerformanceComparison_t = unsafe extern "C" fn(comparison: *mut c_void);
 pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
@@ -1989,11 +2031,30 @@ pub type Game_SaveData_SerialiseContainer_t = unsafe extern "C" fn(
     groups: u64,
 ) -> *mut c_int;
 pub type Game_SaveData_WriteBag_t = unsafe extern "C" fn(codec: *mut NeBagCodec, bag: *mut c_void) -> c_int;
+pub type Game_SceneManagerSpawn_SpawnScene_t = unsafe extern "C" fn(
+    mgr: *mut c_void,
+    opts: *const u8,
+    scene: *mut c_void,
+    mtx44: *const f32,
+    ov_a: *mut c_void,
+    ov_b: *mut c_void,
+    p7: u64,
+) -> *mut c_void;
 pub type Game_SeasonLength_ApplyPreset_t = unsafe extern "C" fn(component: *mut c_void, preset: u8);
 pub type Game_SeasonLength_PushCalendarEntry_t =
     unsafe extern "C" fn(calendar: *mut c_void, entry: *const c_void) -> u64;
+pub type Game_Set_VehicleController_Thunk_t =
+    unsafe extern "C" fn(system: *mut c_void, vehicle: u64, ai: u32, flag: i32);
 pub type Game_SpeechSystem_PostLine_t =
     unsafe extern "C" fn(speech: *mut c_void, line: *mut c_void, retrigger: u8);
+pub type Game_Teleport_Vehicle_t = unsafe extern "C" fn(
+    car: *mut c_void,
+    name: *const c_char,
+    prev_mtx: *mut f32,
+    new_mtx: *mut f32,
+    dt: f32,
+    flags: u32,
+);
 pub type Gdb_Lookup_Key_t = unsafe extern "C" fn(path: *const c_char) -> *mut *mut c_void;
 pub type Ne_Compare_StringNoCase_t = unsafe extern "C" fn(a: *const c_char, b: *const c_char) -> i32;
 pub type Ne_Detach_ChildNode_t = unsafe extern "C" fn(parent: *mut c_void, child: *mut c_void) -> c_int;
@@ -2021,12 +2082,38 @@ pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
 pub type Sess_Find_GroupRowPosition_t =
     unsafe extern "C" fn(weekend: *mut c_void, result: *mut c_void, driver_key: u32) -> *mut i32;
+pub type Sess_FormationLap_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
 pub type Sess_GameWeatherSystem_SetupSession_t =
     unsafe extern "C" fn(ws: *mut c_void, settings: *mut c_void, config: *mut c_void);
 pub type Sess_GameWeatherSystem_UpdateRandomSeed_t =
     unsafe extern "C" fn(ws: *mut c_void, seed: u32, weekend: u32);
+pub type Sess_Get_PlayerVehicleIndex_t = unsafe extern "C" fn(ctx: *mut c_void, local_player: c_int) -> u8;
+pub type Sess_GridRundown_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
+pub type Sess_InGamePQ_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
+pub type Sess_InGame_UpdateBase_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
+pub type Sess_Invalidate_Lap_Thunk_t =
+    unsafe extern "C" fn(rules: *mut c_void, vehicle: u32, reason: u32, mode: c_char);
+pub type Sess_Issue_DriveThrough_t = unsafe extern "C" fn(rules: *mut c_void, incident: *mut u8, reason: u32);
+pub type Sess_Issue_TimePenalty_t =
+    unsafe extern "C" fn(rules: *mut c_void, incident: *mut u8, reason: u32, seconds: u32);
+pub type Sess_Issue_Warning_t = unsafe extern "C" fn(rules: *mut c_void, incident: *mut u8, reason: u32);
+pub type Sess_PreRaceToRace_Update_t = unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_PreRace_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
 pub type Sess_Record_GroupTimes_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, entries: *mut c_void);
+pub type Sess_RedFlagRaceStrategy_Enter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
+pub type Sess_RedFlagRaceStrategy_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_SafetyCarTether_UpdateProgress_t = unsafe extern "C" fn(tether_entry: *mut c_void);
+pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry: *mut c_void, gap: f32);
+pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
+pub type Sess_Set_SafetyCarDeploymentType_t =
+    unsafe extern "C" fn(sc_state: *mut c_void, sc_deployment_msg: *const c_void);
 pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     tod_owner: *mut c_void,
     types: *const u8,
@@ -2460,13 +2547,78 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_Get_ModelNodeId: Binding = Binding {
+        id: "Game_Get_ModelNodeId",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Handle_GarageCrewEvent_Thunk: Binding = Binding {
+        id: "Game_Handle_GarageCrewEvent_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Handle_SpecGarageCrewEvent_Thunk: Binding = Binding {
+        id: "Game_Handle_SpecGarageCrewEvent_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_Network_CategoryOptionUsing: Binding = Binding {
         id: "Game_Network_CategoryOptionUsing",
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_Network_SendingRedFlagVehicleStatusUpdate: Binding = Binding {
+        id: "Game_Network_SendingRedFlagVehicleStatusUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_OptionsStore_FindOption: Binding = Binding {
         id: "Game_OptionsStore_FindOption",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_PitLane_MoveDownSpline: Binding = Binding {
+        id: "Game_PitLane_MoveDownSpline",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_PitLane_VehicleEnteringInternal: Binding = Binding {
+        id: "Game_PitLane_VehicleEnteringInternal",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Pitlane_Multiplayer_teleportToGarage: Binding = Binding {
+        id: "Game_Pitlane_Multiplayer_teleportToGarage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Pitlane_SetVehicleStatus: Binding = Binding {
+        id: "Game_Pitlane_SetVehicleStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Place_Vehicle: Binding = Binding {
+        id: "Game_Place_Vehicle",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_PracticeTrackAcclimatisation_RefreshState: Binding = Binding {
+        id: "Game_PracticeTrackAcclimatisation_RefreshState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Predict_StrategyWetness: Binding = Binding {
+        id: "Game_Predict_StrategyWetness",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_RaceMarshalSystem_Update: Binding = Binding {
+        id: "Game_RaceMarshalSystem_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_RaceStrategyVm_Populate: Binding = Binding {
+        id: "Game_RaceStrategyVm_Populate",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2500,6 +2652,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Game_SceneManagerSpawn_SpawnScene: Binding = Binding {
+        id: "Game_SceneManagerSpawn_SpawnScene",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_SeasonLength_ApplyPreset: Binding = Binding {
         id: "Game_SeasonLength_ApplyPreset",
         kind: "func",
@@ -2510,8 +2667,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_Set_VehicleController_Thunk: Binding = Binding {
+        id: "Game_Set_VehicleController_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_SpeechSystem_PostLine: Binding = Binding {
         id: "Game_SpeechSystem_PostLine",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_Teleport_Vehicle: Binding = Binding {
+        id: "Game_Teleport_Vehicle",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2590,6 +2757,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Flow_ParseXml: Binding = Binding {
+        id: "Sess_Flow_ParseXml",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FormationLap_Update: Binding = Binding {
+        id: "Sess_FormationLap_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_GameWeatherSystem_SetupSession: Binding = Binding {
         id: "Sess_GameWeatherSystem_SetupSession",
         kind: "func",
@@ -2600,8 +2777,93 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Get_PlayerVehicleIndex: Binding = Binding {
+        id: "Sess_Get_PlayerVehicleIndex",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_GridRundown_Update: Binding = Binding {
+        id: "Sess_GridRundown_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_InGamePQ_Update: Binding = Binding {
+        id: "Sess_InGamePQ_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_InGame_UpdateBase: Binding = Binding {
+        id: "Sess_InGame_UpdateBase",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Invalidate_Lap_Thunk: Binding = Binding {
+        id: "Sess_Invalidate_Lap_Thunk",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Issue_DriveThrough: Binding = Binding {
+        id: "Sess_Issue_DriveThrough",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Issue_TimePenalty: Binding = Binding {
+        id: "Sess_Issue_TimePenalty",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Issue_Warning: Binding = Binding {
+        id: "Sess_Issue_Warning",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreRaceToRace_Update: Binding = Binding {
+        id: "Sess_PreRaceToRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreRace_Update: Binding = Binding {
+        id: "Sess_PreRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Record_GroupTimes: Binding = Binding {
         id: "Sess_Record_GroupTimes",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagRaceStrategy_Enter: Binding = Binding {
+        id: "Sess_RedFlagRaceStrategy_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagRaceStrategy_Update: Binding = Binding {
+        id: "Sess_RedFlagRaceStrategy_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_Disqualify: Binding = Binding {
+        id: "Sess_Rules_Disqualify",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCarTether_UpdateProgress: Binding = Binding {
+        id: "Sess_SafetyCarTether_UpdateProgress",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCarTether_UpdateTarget: Binding = Binding {
+        id: "Sess_SafetyCarTether_UpdateTarget",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ScDebrisAccumulator_Update: Binding = Binding {
+        id: "Sess_ScDebrisAccumulator_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
+        id: "Sess_Set_SafetyCarDeploymentType",
         kind: "func",
         status: Status::Experimental,
     };
@@ -2720,8 +2982,28 @@ pub mod bindings {
         kind: "data",
         status: Status::Experimental,
     };
+    pub const g_Game_RaceStartSystem: Binding = Binding {
+        id: "g_Game_RaceStartSystem",
+        kind: "data",
+        status: Status::Experimental,
+    };
     pub const g_Game_Root: Binding = Binding {
         id: "g_Game_Root",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_TrackLength: Binding = Binding {
+        id: "g_Game_TrackLength",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_VehicleRecordManager: Binding = Binding {
+        id: "g_Game_VehicleRecordManager",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_VehicleStateRoot: Binding = Binding {
+        id: "g_Game_VehicleStateRoot",
         kind: "data",
         status: Status::Experimental,
     };
@@ -3945,6 +4227,16 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Sess_InGamePlayerFinishedAiCall: Binding = Binding {
+        id: "site_Sess_InGamePlayerFinishedAiCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
+    pub const site_Sess_InGameSessionCompleteAiCall: Binding = Binding {
+        id: "site_Sess_InGameSessionCompleteAiCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
     pub const vt_Career_BankTransactionMessage: Binding = Binding {
         id: "vt_Career_BankTransactionMessage",
         kind: "vtable",
@@ -4037,6 +4329,21 @@ pub mod bindings {
     };
     pub const vt_Game_TrackListComponent: Binding = Binding {
         id: "vt_Game_TrackListComponent",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScCanReturn: Binding = Binding {
+        id: "vt_Sess_ScCanReturn",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScRaceLapsRemaining: Binding = Binding {
+        id: "vt_Sess_ScRaceLapsRemaining",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScTriggerRedFlag: Binding = Binding {
+        id: "vt_Sess_ScTriggerRedFlag",
         kind: "vtable",
         status: Status::Experimental,
     };

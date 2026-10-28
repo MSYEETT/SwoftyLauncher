@@ -13,6 +13,7 @@ use gpui_kit::component::slider::SliderState;
 use gpui_kit::component::{Disableable, Icon, Sizable, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::busy::Busy;
 use swofty_core::crash::StartFailure;
 use swofty_core::install::Source;
 use swofty_core::launch;
@@ -93,6 +94,7 @@ pub enum PlayState {
     Elsewhere(Owner),
     Checking,
     Crashed(SessionRecord),
+    Building,
 }
 
 pub struct Shell {
@@ -127,6 +129,8 @@ pub struct Shell {
     pub(crate) blocked_seen: f64,
     pub(crate) launch_failed_seen: f64,
     pub(crate) restoring: bool,
+    pub(crate) build: Option<Busy>,
+    pub(crate) cancelling: bool,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
@@ -155,6 +159,7 @@ pub struct Shell {
     /// a long table draws only the rows in view.
     pub(crate) table_tops: Rc<std::cell::RefCell<HashMap<String, f32>>>,
     pub(crate) cell: Option<crate::blocks::CellEdit>,
+    pub(crate) colour: Option<crate::blocks::ColourEdit>,
     pub(crate) pending_cells: HashMap<String, String>,
     pub(crate) content_width: f32,
     pub(crate) short: bool,
@@ -503,6 +508,8 @@ impl Shell {
             blocked_seen,
             launch_failed_seen,
             restoring: false,
+            build: None,
+            cancelling: false,
             sliders: HashMap::new(),
             requests: None,
             console: None,
@@ -526,6 +533,7 @@ impl Shell {
             section_scrolls: HashMap::new(),
             table_tops: Rc::default(),
             cell: None,
+            colour: None,
             pending_cells: HashMap::new(),
             content_width: 900.,
             short: false,
@@ -591,6 +599,7 @@ impl Shell {
         let mut config = self.store.config();
         config.console = self.console.is_some();
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         cx.notify();
@@ -656,6 +665,7 @@ impl Shell {
         if let Some(found) = probe.install {
             let changed = !self.detected || self.install != found.active || self.copies != found.all;
             self.install = found.active;
+            crate::app_log::set_game(self.install.as_ref().map(|i| i.dir.as_path()));
             self.copies = found.all;
             self.missing_copies = found.missing;
             self.detected = true;
@@ -668,6 +678,15 @@ impl Shell {
         } else if probe.merged {
             self.reload(cx);
         }
+        if self.cancelling && probe.busy.is_none() && self.build.is_some() {
+            self.cancelling = false;
+            window.push_notification(
+                Notification::info("The game files are back as they were. Press Play to build again.")
+                    .title("Build cancelled"),
+                cx,
+            );
+        }
+        self.build = probe.busy;
         self.processes = probe.processes;
         self.attribute();
         if let Some(launch) = self.launch.as_mut() {
@@ -701,7 +720,8 @@ impl Shell {
                             b.files.len()
                         ),
                         None => failed.unwrap_or_else(|| launch.failure()),
-                    });
+                    })
+                    .filter(|n| !n.contains(swofty_core::busy::CANCELLED));
                 }
                 self.launch = None;
             }
@@ -792,6 +812,9 @@ impl Shell {
     pub(crate) fn play_state(&self) -> PlayState {
         if self.owners.contains(&Owner::Active) {
             return PlayState::Running;
+        }
+        if self.build.is_some() {
+            return PlayState::Building;
         }
         if let Some(launch) = &self.launch {
             return if launch.saw_game {
@@ -934,6 +957,7 @@ impl Shell {
         let mut config = self.store.config();
         config.launch.start_store = on;
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.start_store = config.launch.start_store;
@@ -945,11 +969,13 @@ impl Shell {
         let mut config = self.store.config();
         swofty_core::copies::set_active(&mut config, &dir);
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
             return;
         }
         if let Some(copy) = self.copies.iter().find(|c| c.dir == dir) {
             self.install = Some(copy.clone());
+            crate::app_log::set_game(Some(&copy.dir));
         }
         self.attribute();
         self.notice = None;
@@ -961,6 +987,7 @@ impl Shell {
         let mut config = self.store.config();
         config.set_launch_mode(&self.library.profile.name, mode);
         if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.vr_profiles = config.vr_profiles;
@@ -983,6 +1010,7 @@ impl Shell {
                 .show_cancel(true)
                 .on_ok(move |_, window, cx| {
                     if let Err(e) = swofty_core::offline::record_accept(&store.root) {
+                        crate::app_log::action("accept offline play").failed(&e);
                         window.push_notification(Notification::error(e.to_string()), cx);
                         return false;
                     }
@@ -1011,7 +1039,10 @@ impl Shell {
                 match result {
                     Ok(text) => window
                         .push_notification(Notification::success(text).title("Game folder restored"), cx),
-                    Err(e) => window.push_notification(Notification::error(e).title("Restore failed"), cx),
+                    Err(e) => {
+                        crate::app_log::action("restore the game folder").failed(&e);
+                        window.push_notification(Notification::error(e).title("Restore failed"), cx)
+                    }
                 }
                 cx.notify();
             })
@@ -1019,6 +1050,39 @@ impl Shell {
         })
         .detach();
         cx.notify();
+    }
+
+    pub(crate) fn cancel_build(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let data = self.store.root.clone();
+        let this = cx.entity().downgrade();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (data, this) = (data.clone(), this.clone());
+            alert
+                .title("Cancel the build?")
+                .description(
+                    "Swofty stops after the file it is on and puts the game files back. \
+                     Your profile and addons stay as they are, and the next Play builds again.",
+                )
+                .ok_text("Cancel build")
+                .cancel_text("Keep building")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    match swofty_core::busy::request_cancel(&data) {
+                        Ok(()) => {
+                            this.update(cx, |s, cx| {
+                                s.cancelling = true;
+                                cx.notify();
+                            })
+                            .ok();
+                        }
+                        Err(e) => {
+                            crate::app_log::action("cancel the build").failed(&e);
+                            window.push_notification(Notification::error(e.to_string()), cx)
+                        }
+                    }
+                    true
+                })
+        });
     }
 
     pub(crate) fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1036,6 +1100,7 @@ impl Shell {
                 .on_ok(move |_, window, cx| {
                     swofty_core::session::request_stop(&data);
                     if let Err(e) = stop_game_in(&dir) {
+                        crate::app_log::action("stop f1 25").failed(&e);
                         window.push_notification(Notification::error(e.to_string()), cx);
                     }
                     true
@@ -1123,6 +1188,7 @@ impl Shell {
                                 .ok();
                         }
                         Err(e) => {
+                            crate::app_log::action("remove addon").addon(&id).failed(&e);
                             window.push_notification(Notification::error(e.to_string()), cx);
                         }
                     }
@@ -1138,6 +1204,7 @@ impl Shell {
         f: impl FnOnce(&mut swofty_core::profile::Profile) -> swofty_core::Result<()>,
     ) {
         if let Err(e) = self.store.update_profile(&self.library.profile.name, f) {
+            crate::app_log::action("change the profile").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.reload(cx);
@@ -1145,6 +1212,7 @@ impl Shell {
 
     pub(crate) fn switch_profile(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
         if let Err(e) = self.store.set_active_profile(name) {
+            crate::app_log::action("switch profile").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.reload(cx);
@@ -1224,8 +1292,13 @@ impl Shell {
                             .detach();
                     })
             });
-            let (input, shell, store, action) =
-                (input.clone(), shell.clone(), store.clone(), prompt.action.clone());
+            let (input, shell, store, action, title) = (
+                input.clone(),
+                shell.clone(),
+                store.clone(),
+                prompt.action.clone(),
+                prompt.title,
+            );
             alert
                 .width(px(560.))
                 .title(prompt.title)
@@ -1253,6 +1326,9 @@ impl Shell {
                             true
                         }
                         Err(e) => {
+                            crate::app_log::action(title)
+                                .file(std::path::Path::new(&value))
+                                .failed(&e);
                             window.push_notification(Notification::error(e), cx);
                             false
                         }

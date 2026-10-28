@@ -35,11 +35,22 @@ The game's getter (`Career_Get_DriverStatValue`, component vtable +0x280) comput
 - Clamp bounds come from the component (vtable +0x268 / +0x270).
 - The op computes every non-curve term as the game getter's raw value minus the curve value, so the
   team attribute term is included, and it reads the result back through the getter.
+- The Driver Career player: `DriverCareerPlayerDriverStatisticsComponent` overrides vtable +0x280
+  (0x14113e260). The override takes the value above unclamped and unrounded for each driver in its
+  0xf8-byte list at +0x458 (driver key at +8), turns it into points through the 8-byte table at +0x3c8
+  (one entry per rating, linear between entries), adds that driver's points for the statistic (a map
+  in the list entry, float at +4 of its 0x18-byte slot), clamps the sum to the entries of the rating
+  bounds (+0x3a8 / +0x3ac) and turns it back into a rating. Drivers outside the list get the value
+  above. In a reported career, raising the player's experience curve value by 27 raised his
+  experience by 19, and a curve value of 14 still read 51.
 
 `drivers.ratings.set` edits the curve the getter is using right now (or `dynamicLevel` for a dynamic
 statistic): it rewrites the curve's point values in place, keeps the point count and x positions,
 and rebuilds the curve's 65-entry lookup table and cached end value with the game's own curve
-evaluator (`Career_Eval_Curve`), exactly as the game's curve loader (`Career_Parse_CurveString`) does. Nothing else changes: no checksum, no patch state. The save
+evaluator (`Career_Eval_Curve`), exactly as the game's curve loader (`Career_Parse_CurveString`) does. When the read-back after that write is more than 0.5 from
+the target (the Driver Career player), the op bisects the edit with the getter: the flat curve value
+(0..1), the shift (-1..1) or the `dynamicLevel` (0..100), every set written at each step, until the
+value is within 0.5 of the target. Nothing else changes: no checksum, no patch state. The save
 already stores both curves and `dynamicLevel`, so the edit persists with the next save. A later EA
 ratings patch replaces it only if the player accepts that patch.
 
@@ -163,9 +174,10 @@ Args:
 - `expect` (object, optional): statistic → the `value` the launcher showed. If the live value differs
   the op fails with `stale` and changes nothing.
 - The player's own driver: allowed. In Driver Career the player's statistics go through the subclass
-  getter (vtable +0x280 override), which may read the player's attribute sets (`playerAttributeSets`,
-  XP perks) instead of the curve. If the read-back does not show the target the op rolls back and
-  fails with `write_failed`, so the player's driver is never left half-edited.
+  getter (vtable +0x280 override, see How a rating is made), so the op searches the curve value or
+  level that reads back as the target. A target below the value a zero curve gives (or above the value
+  a full curve gives) fails with `out_of_range`, which names the lowest (or highest) value that can be
+  set; the op rolls back first, so the player's driver is never left half-edited.
 - Safety: before writing, the op records every other driver's value for the touched statistics; after
   writing, any change on another driver rolls the edit back and fails with `write_failed`. Every
   statistic set of the driver is written (the default set and each context-aware set), so the value
@@ -178,9 +190,10 @@ Result `before` / `after`:
 ```
 
 Errors (`error` is `"<code>: <detail>"`): `no_component`, `bad_args`, `unknown_driver`,
-`unknown_stat`, `bad_value`, `stale`, `write_failed` (the curve is empty or not writable, the
-read-back did not show the target, or another driver's value moved; every write of the op is rolled
-back first).
+`unknown_stat`, `bad_value`, `stale`, `out_of_range` (no curve value or level reads back as the
+target; the detail names the nearest value that can be set), `write_failed` (the curve is empty or not
+writable, the read-back did not show the target, or another driver's value moved). Every write of the
+op is rolled back first.
 
 Undo: yes. Undo is `drivers.ratings.set` with the `before` values and `"mode": "restore"`, which writes
 back the exact point values from before the edit (the plugin keeps the old points of the last 64 curve
@@ -650,6 +663,7 @@ Status: implemented; needs in-game proof (T008).
 | `Career_Eval_Curve` | 0x1445075d0 | L2, sig `career.eval_curve` | curve value at `progress`, lookup-table rebuild |
 | `Career_Get_CareerLengthDays_Thunk` | 0x14111dd30 | L2, sig `career.get_career_length_days_thunk` | career length in minutes, divisor of the clock for `progress` |
 | `Career_Get_DriverStatValue` | 0x141140ee0 | L2, no sig | called through the component vtable +0x280 (never by address) |
+| `Career_Get_PlayerDriverStatValue` | 0x14113e260 | L1, no sig | the Driver Career player's override of vtable +0x280, called through the vtable (never by address) |
 | `Career_Get_DriverStatBase_Thunk` | 0x1411471f0 | L2, no sig | evidence for the curve choice and the dynamic-stat rule |
 | `Career_Parse_CurveString` | 0x141157100 | L2, no sig | evidence for the lookup-table rebuild |
 | `Career_Serialise_DriverContractList` | 0x140da5610 | L2, no sig | evidence for the contract record layout |
