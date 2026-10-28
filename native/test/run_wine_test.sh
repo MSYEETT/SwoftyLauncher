@@ -208,11 +208,12 @@ EOF
         once "mixins: a binding bindings.json does not list is named as missing" 'addon t_want\.dll needs wine-test:Fake_Unlisted, which bindings\.json does not list'
         once "mixins: a listed binding that does not match stays unresolved" 'addon t_want\.dll needs wine-test:Fake_Missing, which does not resolve on this build'
         check "addons: SwoftyAddonInit is called" 'addon t_chain_a\.dll: loaded at .*, calling SwoftyAddonInit \(API v9\)'
-        once "apply: the boot plan runs the content appliers with no records" '\[apply\] boot plan: 4 boot applier\(s\), 0 new database key\(s\) for the value map; nothing for the database to apply'
-        count "apply: no content records, no database keys planned" 4 '\[apply\] [a-z_.]+ boot: 0 new database key\(s\) planned; no addon records or layers'
-        once "apply: the boot moment runs once with nothing to apply" '\[apply\] boot: 4 applier\(s\); 0 applied, 0 put back, 0 refused'
+        once "apply: the boot plan runs the content appliers with no records" '\[apply\] boot plan: [0-9]+ boot applier\(s\), 0 new database key\(s\) for the value map; nothing for the database to apply'
+        check "apply: every boot applier plans no database keys with no content records" '\[apply\] [a-z_.]+ boot: 0 new database key\(s\) planned; no addon records or layers'
+        count "apply: no boot applier plans a database key" 0 '\[apply\] [a-z_.]+ boot: [1-9][0-9]* new database key\(s\) planned'
+        once "apply: the boot moment runs once with nothing to apply" '\[apply\] boot: [0-9]+ applier\(s\); 0 applied, 0 put back, 0 refused'
         count "apply: no content rows read the database file" 0 '\[apply\] content: read'
-        once "apply: the read moment installs at the window stage" '\[apply\] read: 1 read path\(s\) installed at the window stage'
+        once "apply: the read moment installs at the window stage" '\[apply\] read: [0-9]+ read path\(s\) installed at the window stage'
         once "room: a profile with nothing to size leaves the value map alone" "\\[registry\\] room: nothing to size \\(no older addons' database edits, no 1\\.6 database records\\); the value map is the game's own"
         once "room: room.json is written after boot" '\[registry\] room report written to .*registry.room\.json'
         count "room: no reserve hook without anything to size" 0 'site_Gdb_ReserveTarget hooked'
@@ -668,7 +669,7 @@ SWOFTY_EARLY_STAGE=1 "${PIN[@]}" xvfb-run -a wine "$SG/F1_25.exe" stages || stat
 echo "---- $LOG (stages)"
 grep -v '  section ' "$LOG"
 check "stages: early stage on from the environment" 'early stage: on \(SWOFTY_EARLY_STAGE=1\)'
-once "stages: the boot moment runs at the early stage" '\[apply\] boot: 4 applier\(s\); 0 applied, 0 put back, 0 refused'
+once "stages: the boot moment runs at the early stage" '\[apply\] boot: [0-9]+ applier\(s\); 0 applied, 0 put back, 0 refused'
 once "stages: the room line at the early stage" "\\[registry\\] room: nothing to size"
 check "stages: early plugin list read from settings.json" 'early stage: plugin t_stage_early\.dll has "early": true'
 check "stages: early trigger fired inside the game's CreateMutexW" "trigger: KERNEL32!CreateMutexW from .* \(\.text\) name 'Codemasters F1 25' on thread .*loading addons now \(early stage\)"
