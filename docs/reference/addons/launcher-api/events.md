@@ -54,6 +54,7 @@ plugin    {"id":5,"result":{"notice":"Imported okayama.exmod"}}
 { "picked": { "id": "pick", "paths": ["/home/you/okayama.exmod"] } }
 { "submit": { "form": "finance", "values": { "cash": 15000000 }, "changed": ["cash"] } }
 { "submit": { "form": "drivers", "row": "ver", "values": { "pace": 96 }, "changed": ["pace"] } }
+{ "submit": { "form": "teams", "row": "ferrari", "values": { "colour": "#00A19C" }, "changed": ["colour"] } }
 { "search": { "id": "drivers", "query": "ver" } }
 { "tab": { "id": "page", "tab": "drivers" } }
 { "startup": {} }
@@ -64,7 +65,7 @@ plugin    {"id":5,"result":{"notice":"Imported okayama.exmod"}}
 - **`choose`**: a choice control.
 - **`move`**: **Move up** or **Move down** in a `reorder` list.
 - **`picked`**: the paths a `pick` button's file picker returned.
-- **`submit`** *(1.0.10)*: a form's **Apply**, a live field, or an edited table cell ([Forms](./forms), [Tables](./tables)). A table cell adds `"row"`. A switch cell *(1.5.8)* sends `true` or `false`.
+- **`submit`** *(1.0.10)*: a form's **Apply**, a live field, or an edited table cell ([Forms](./forms), [Tables](./tables)). A table cell adds `"row"`. A switch cell *(1.5.8)* sends `true` or `false`. A colour field or cell *(1.5.25)* sends `"#RRGGBB"` ([Colour fields](./forms#colour-fields)).
 - **`search`** *(1.0.10)*: a search box that asks for events ([Search](./tables#search)).
 - **`tab`** *(1.0.10)*: a tab click ([Tabs](./blocks#tabs)).
 - **`startup`** *(1.3.0)*: once per launcher start, to the first section of an addon whose manifest sets `launcher.startup`.
