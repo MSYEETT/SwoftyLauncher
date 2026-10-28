@@ -378,7 +378,7 @@ inline const char *career_step_name(CareerStep s)
 }
 
 struct CareerTimes {
-    uint64_t title = 120000, route = 30000, tile = 30000, card = 30000, team_hq = 180000, advance = 60000,
+    uint64_t title = 15000, route = 30000, tile = 30000, card = 30000, team_hq = 180000, advance = 60000,
              hub = 300000, session = 120000, retry = 500;
 };
 
