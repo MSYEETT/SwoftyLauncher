@@ -150,6 +150,7 @@ public:
     std::string origin(const std::string &registry, const std::string &id, const std::string &pointer);
     std::vector<std::string> list(const std::string &registry, const std::string &prefix);
     std::vector<std::string> tag_members(const std::string &registry, const std::string &tag);
+    std::vector<std::string> chain(const std::string &registry, const std::string &id);
     std::vector<std::string> registries() const;
     std::vector<Refusal> refusals();
     std::vector<Conflict> conflicts();
