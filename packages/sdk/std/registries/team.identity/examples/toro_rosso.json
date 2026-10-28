@@ -3,6 +3,9 @@
     "toro_rosso": {
       "donor": "game/tororosso",
       "constructor": "constructor/toro_rosso",
+      "provides": [
+        "constructor/toro_rosso"
+      ],
       "names": {
         "title": "lng_cs_team_17_toro_rosso",
         "code": "STR"

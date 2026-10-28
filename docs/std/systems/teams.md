@@ -47,6 +47,7 @@ struct Names {
 struct Identity {                                  // one entrants.teams row
     Ref<Identity> donor;                           // the row it copies, all 30 keys with story_info (new teams)
     Ref<Constructor> constructor;                  // the real team it is; empty: a fictional team
+    std::vector<Ref<Constructor>> provides;        // the constructor/ ids this team provides (shared ids)
     Names names;                                   // the team's names
     Colours colours;                               // the team's colours
     std::optional<Colours> wear;                   // team_wear_*: empty follows colours (the kit follows primary)
@@ -186,6 +187,7 @@ A new team copies a stock row. The core copies every key, `story_info` included,
 auto toro_rosso = teams::identities.add("toro_rosso", {
     .donor = teams::identities["game/tororosso"],
     .constructor = teams::constructors["constructor/toro_rosso"],
+    .provides = { teams::constructors["constructor/toro_rosso"] },
     .names = { .title = Text::key("lng_cs_team_17_toro_rosso"), .code = "STR" },
     .colours = { .menu = 0xFF0A1E3C, .primary = 0xFF0A1E3C, .secondary = 0xFFC8102E },
     .livery_name = "cs17_toro_rosso",
@@ -197,6 +199,8 @@ teams::pit_times.add("toro_rosso", { .team = toro_rosso, .from = teams::pit_time
 ## Real teams
 
 A `constructor/` id works as a team reference: `teams::identities["constructor/toro_rosso"]` resolves to the last enabled team in load order that is that constructor. Career addons and line-ups name constructors, not one pack's keys, and they work with whichever pack provides the team. Each pack's team is still its own row with its own stat id.
+
+A team says which constructor ids it provides in `provides`. The stock rows of the game's real teams provide their own ids (`game/williams` provides `constructor/williams`), so a pack's team that provides the same id wins by coming later in load order. When two enabled addons provide the same id, the core logs it and the conflicts report lists the loser (see [Shared ids](/std/providers#shared-ids)).
 
 ```cpp
 // a 2017 season slot that takes Toro Rosso from whichever 2017 pack provides it

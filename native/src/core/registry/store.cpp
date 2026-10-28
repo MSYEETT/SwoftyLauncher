@@ -450,6 +450,8 @@ Def parse_schema(const std::string &name, const Value &schema)
         def.provides = std::string((*sh)["provides"].as_string());
         def.resolved = std::string((*sh)["resolved"].as_string());
         def.shared_prefix = std::string((*sh)["prefix"].as_string());
+        if (def.shared_prefix.empty())
+            def.shared_prefix = name.substr(name.find_last_of('.') + 1);
     }
     schema_walk(schema, schema, "", def, 0);
     def.schema = swofty::json::dump(schema);

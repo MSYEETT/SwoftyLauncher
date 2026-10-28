@@ -24,6 +24,15 @@
       ],
       "x-ref": "team.constructor"
     },
+    "provides": {
+      "description": "The constructor/ ids this team provides: the last enabled provider in load order is what a reference to the id resolves to. A stock team provides its real team's id.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^constructor/[a-z0-9_]+$"
+      },
+      "uniqueItems": true
+    },
     "names": {
       "$ref": "#/$defs/names"
     },

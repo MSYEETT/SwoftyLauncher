@@ -5,7 +5,12 @@
   "x-version": "1.0",
   "x-applies": "boot",
   "x-snapshot": false,
-  "description": "teams::Constructor: a real Formula 1 team. The core owns the constructor/ ids; team is resolved to the last enabled team in load order that is this constructor.",
+  "x-shared": {
+    "provider_registry": "team.identity",
+    "provides": "/provides",
+    "resolved": "/team"
+  },
+  "description": "teams::Constructor: a real Formula 1 team. The ids are the core's shared ids (constructor/<key>): a team.identity record lists the ids it provides, and team is the last enabled provider in load order (null when none).",
   "type": "object",
   "properties": {
     "name": {
@@ -17,7 +22,7 @@
       "pattern": "^[a-z0-9_]+$"
     },
     "team": {
-      "description": "Resolved by the core.",
+      "description": "Resolved by the core: the last enabled team.identity in load order whose provides lists this id.",
       "type": [
         "string",
         "null"

@@ -30,6 +30,7 @@ The registry keywords, at the top level:
 - `x-version`: the record struct's `version`, `"<major>.<minor>"`.
 - `x-applies`: `RegistryOptions::applies`: `boot`, `content`, `session` or `read`.
 - `x-snapshot`: `RegistryOptions::snapshot`. `x-snapshot-budget`: `snapshot_budget` in bytes, present when `x-snapshot` is true.
+- `x-shared`: a registry of shared ids (`team.constructor` holds `constructor/<key>`): `provider_registry` is the registry whose records provide them, `provides` the pointer of the list of ids in those records, `resolved` the pointer in the shared record that holds the winning provider's id (the last enabled provider in load order).
 - `x-adapter`: on the first file of a later major, `"<name>@<previous major>"`, the adapter that converts between them. No 1.6.0 registry has a second major.
 
 The field keywords:
