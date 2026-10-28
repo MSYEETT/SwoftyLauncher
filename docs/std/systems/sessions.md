@@ -44,9 +44,9 @@ namespace swofty::sessions {
 enum class Session : uint8_t {                 // the game's session id enum (0..18)
     practice_1 = 1, practice_2, practice_3,
     qualifying_1 = 5, qualifying_2, qualifying_3,
-    qualifying_s = 9,                          // one-shot qualifying
+    qualifying_one_shot = 9,                          // one-shot qualifying
     sprint_shootout_1 = 10, sprint_shootout_2, sprint_shootout_3,
-    sprint_shootout_s,                         // one-shot sprint shootout
+    sprint_shootout_one_shot,                         // one-shot sprint shootout
     race = 15, race_2, race_3,
     time_trial,
 };
@@ -241,10 +241,10 @@ SWOFTY_REGISTER
 
     auto weekend = sessions::formats.add("two_qualifying", { .groups = {
         { .type = GroupType::practice,   .sessions = { Session::practice_1, Session::practice_2 } },
-        { .type = GroupType::qualifying, .sessions = { Session::sprint_shootout_s }, .label = "lng_f1990_qualifying_1" },
-        { .type = GroupType::qualifying, .sessions = { Session::qualifying_s },      .label = "lng_f1990_qualifying_2" },
+        { .type = GroupType::qualifying, .sessions = { Session::sprint_shootout_one_shot }, .label = "lng_f1990_qualifying_1" },
+        { .type = GroupType::qualifying, .sessions = { Session::qualifying_one_shot },      .label = "lng_f1990_qualifying_2" },
         { .type = GroupType::race,       .sessions = { Session::race },
-          .grid = sessions::best_of({ Session::sprint_shootout_s, Session::qualifying_s }),
+          .grid = sessions::best_of({ Session::sprint_shootout_one_shot, Session::qualifying_one_shot }),
           .standings = points },
     } });
 
@@ -283,9 +283,9 @@ SWOFTY_ADDON()
   "session.weekend_format": {
     "two_qualifying": { "groups": [
       { "type": "practice",   "sessions": ["practice_1", "practice_2"] },
-      { "type": "qualifying", "sessions": ["sprint_shootout_s"], "label": "lng_f1990_qualifying_1" },
-      { "type": "qualifying", "sessions": ["qualifying_s"],      "label": "lng_f1990_qualifying_2" },
-      { "type": "race", "sessions": ["race"], "grid": { "best_of": ["sprint_shootout_s", "qualifying_s"] },
+      { "type": "qualifying", "sessions": ["sprint_shootout_one_shot"], "label": "lng_f1990_qualifying_1" },
+      { "type": "qualifying", "sessions": ["qualifying_one_shot"],      "label": "lng_f1990_qualifying_2" },
+      { "type": "race", "sessions": ["race"], "grid": { "best_of": ["sprint_shootout_one_shot", "qualifying_one_shot"] },
         "standings": "swofty.f1-1990/f1_1990_race" }
     ] }
   },
@@ -309,7 +309,7 @@ SWOFTY_ADDON()
 [registry] stat ids: session.mode swofty.f1-1990/f1_1990 -> 16 (pool 5, 7, 16-31)
 [registry] applied at boot: session.mode 1 (280 keys from game/f1_26), session.weekend_format 1, session.points 1 (padded to 26),
            session.grid 1 (26 entrants, option cars) (412 database records)
-[events] session.grid.build in setup mode swofty.f1-1990/f1_1990: grid rule best_of(sprint_shootout_s, qualifying_s) by the core
+[events] session.grid.build in setup mode swofty.f1-1990/f1_1990: grid rule best_of(sprint_shootout_one_shot, qualifying_one_shot) by the core
 [events] career.standings.rebuild in swofty.f1-1990/f1_career_1990: 1 after handler (swofty.f1-1990)
 ```
 

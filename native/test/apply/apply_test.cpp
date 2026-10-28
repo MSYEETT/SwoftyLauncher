@@ -416,9 +416,9 @@ void test_facts()
     is(5, false, "qualifying", "qualifying_1");
     is(6, false, "qualifying", "qualifying_2");
     is(7, false, "qualifying", "qualifying_3");
-    is(9, false, "qualifying", "qualifying_s");
+    is(9, false, "qualifying", "qualifying_one_shot");
     is(10, true, "qualifying", "sprint_shootout_1");
-    is(14, true, "qualifying", "sprint_shootout_s");
+    is(14, true, "qualifying", "sprint_shootout_one_shot");
     is(15, false, "race", "race");
     is(15, true, "sprint", "sprint");
     is(16, true, "race", "race_2");
