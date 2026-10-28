@@ -758,6 +758,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     let mut head_puts = crate::heads::Puts::default();
     let mut outputs = BTreeMap::new();
     let replaced = replaced_operations(&std16, loader_dir().as_deref());
+    let mut left_to_core = false;
     for id in &resolved.order {
         let m = &addons[id];
         let mut out = OutputBuilder::default();
@@ -792,6 +793,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 continue;
             }
             if replaced.get(id.as_str()).is_some_and(|r| r.replaces(rel)) {
+                left_to_core = true;
                 hasher.update(format!("replaced {rel};"));
                 built.lines.push(format!(
                     "registry: {}: {rel} is applied by the core from the addon's registry records",
@@ -921,6 +923,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         outputs.insert(id.clone(), out.finish());
     }
+    // The core applies registry records at boot only when it loads at the early stage.
+    runtime.assets.early_stage |= left_to_core;
     if head_puts.pending() {
         let path = original(&store.root, game, GVDB);
         let stock = crate::heads::labels(&Gvdb::parse(&std::fs::read(&path).map_err(io_err(&path))?)?);

@@ -348,7 +348,7 @@ Classic Seasons 2017 registers its cars, packages and season in `registry/conten
 registry: F1 2017 GP/TT Addon: db/records.json is applied by the core from the addon's registry records
 ```
 
-- **When a file is left out:** the core in the launcher's loader applies data-file records (its `features.json` lists `registry_rows`), and the addon has data files in `registry/`. Otherwise the launcher builds the file.
+- **When a file is left out:** the core in the launcher's loader applies data-file records (its `features.json` lists `registry_rows`), and the addon has data files in `registry/`. Otherwise the launcher builds the file. A build that leaves a file out loads the core at the early stage (`"early_stage": true` in `swofty/assets.json`), where it applies the records before the game reads its database.
 - **The same rows:** the records make the rows the file makes, with the same labels and stat ids. Classic Seasons pins each record's `stat_id` to the id its row has in 0.6.4. Careers saved with 0.6.4 load with the same ids.
 - **Paths** are the ones `swofty.json`'s `operations` lists, compared without a leading `./`.
 
