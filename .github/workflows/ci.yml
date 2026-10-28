@@ -25,6 +25,7 @@ jobs:
       native: ${{ github.event_name != 'pull_request' || steps.filter.outputs.native == 'true' }}
       swofty-ui: ${{ github.event_name != 'pull_request' || steps.filter.outputs.swofty-ui == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
+      compat: ${{ github.event_name != 'pull_request' || steps.filter.outputs.compat == 'true' }}
     steps:
       - id: filter
         if: github.event_name == 'pull_request'
@@ -90,6 +91,9 @@ jobs:
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
+            compat:
+              - *always
+              - tools/compat/**
 
   rust:
     name: Rust (${{ matrix.os }})
@@ -176,6 +180,18 @@ jobs:
           path: dist/swofty-ui/swofty-ui*
           if-no-files-found: error
           retention-days: 14
+
+  # The gate needs a game folder; its comparison logic runs here against a fake swofty.
+  compat:
+    name: Compatibility gate tool
+    needs: changes
+    if: needs.changes.outputs.compat == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s tools/compat/tests -t tools/compat
 
   # The rust job lints the installer on both systems; this job builds the release binary people test.
   installer:
