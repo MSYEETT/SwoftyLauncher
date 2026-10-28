@@ -37,17 +37,23 @@ std::map<std::string, std::vector<std::string>> status_lines;
 std::atomic<bool> loaded_from_flow{false};
 std::mutex ids_mu;
 
+std::wstring registry_root()
+{
+    const std::wstring &state = runtime::state_root();
+    return (state.empty() ? runtime::swofty_root() : state) + L"registry";
+}
+
 std::string registry_dir()
 {
-    std::wstring w = runtime::swofty_root();
-    while (!w.empty() && (w.back() == L'\\' || w.back() == L'/'))
-        w.pop_back();
-    w += L"\\registry";
-    int n = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string out(n > 0 ? n - 1 : 0, '\0');
-    if (n > 1)
-        WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, out.data(), n, nullptr, nullptr);
-    return out;
+    return runtime::narrow(registry_root());
+}
+
+void make_registry_dir()
+{
+    std::wstring w = registry_root();
+    for (size_t i = w.find_first_of(L"\\/", 3); i != std::wstring::npos; i = w.find_first_of(L"\\/", i + 1))
+        CreateDirectoryW(w.substr(0, i).c_str(), nullptr);
+    CreateDirectoryW(w.c_str(), nullptr);
 }
 
 std::string today()
@@ -62,27 +68,35 @@ std::string today()
 
 bool write_file(const std::string &path, const std::string &text)
 {
-    CreateDirectoryA(registry_dir().c_str(), nullptr);
-    std::string tmp = path + ".tmp";
-    FILE *f = std::fopen(tmp.c_str(), "wb");
-    if (!f)
-        return false;
-    bool ok = std::fwrite(text.data(), 1, text.size(), f) == text.size();
-    ok = std::fclose(f) == 0 && ok;
-    std::remove(path.c_str());
-    return ok && std::rename(tmp.c_str(), path.c_str()) == 0;
+    make_registry_dir();
+    return runtime::write_file(runtime::wide(path), text);
 }
 
 std::string read_file(const std::string &path)
 {
-    std::string out;
-    if (FILE *f = std::fopen(path.c_str(), "rb")) {
-        char b[65536];
-        for (size_t n; (n = std::fread(b, 1, sizeof b, f));)
-            out.append(b, n);
-        std::fclose(f);
+    return runtime::read_file(runtime::wide(path), size_t(256) << 20);
+}
+
+void migrate_ids()
+{
+    if (runtime::state_root().empty())
+        return;
+    std::wstring old = runtime::swofty_root() + L"registry\\ids.json", now = registry_root() + L"\\ids.json";
+    uint64_t size = 0;
+    if (runtime::file_size(now, &size) || !runtime::file_size(old, &size))
+        return;
+    std::string text = runtime::read_file(old, size_t(256) << 20);
+    if (text.empty()) {
+        swofty::log("[registry] stat ids: ids.json in the game folder could not be read; it is not moved");
+        return;
     }
-    return out;
+    make_registry_dir();
+    if (!runtime::write_file(now, text)) {
+        swofty::log("[registry] stat ids: ids.json could not be moved to %s", runtime::narrow(now).c_str());
+        return;
+    }
+    DeleteFileW(old.c_str());
+    swofty::log("[registry] stat ids: moved ids.json from the game folder to %s", runtime::narrow(now).c_str());
 }
 
 void save_ids()
@@ -398,6 +412,7 @@ void attach()
         Scheduler &s = scheduler();
         s.set_log([](const std::string &line) { swofty::log("%s", line.c_str()); });
         s.set_facts(facts);
+        migrate_ids();
         std::string text = read_file(registry_dir() + "\\ids.json");
         std::string why;
         if (!text.empty() && !ids::store().load(text, &why))
@@ -538,7 +553,7 @@ void window()
 int write_reports(const char *when)
 {
     save_ids();
-    CreateDirectoryA(registry_dir().c_str(), nullptr);
+    make_registry_dir();
     int r = reg::write_reports(registry_dir(), extend);
     swofty::log("[registry] effective.json and conflicts.json %s (%s)", r == SWOFTY_ASSET_OK ? "written" : "NOT written",
                 when ? when : "");
