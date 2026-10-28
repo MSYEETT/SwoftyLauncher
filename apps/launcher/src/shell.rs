@@ -883,6 +883,10 @@ impl Shell {
         self.blocked_seen = game::blocked_at(&self.store.root).unwrap_or(0.0);
         self.dismissed = self.session.as_ref().map(|s| s.dir.clone());
         self.note_lonely_bases(window, cx);
+        if !self.registry_check(window, cx) {
+            cx.notify();
+            return;
+        }
         if let Some(d) = swofty_core::known_problems::outdated_exe(install.version().as_deref()) {
             window.push_notification(Notification::warning(d.text()).title(d.title).autohide(false), cx);
         }
@@ -905,6 +909,65 @@ impl Shell {
             }
         }
         cx.notify();
+    }
+
+    /// The 1.6 dependency check before Play, as the build runs it: a stop shows as an error and
+    /// Play doesn't start; warnings and hints show as notifications and Play goes on. Before a
+    /// vanilla session it names the careers that use addons. Returns whether Play goes on.
+    fn registry_check(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        use swofty_core::stdlib::deps::{self, Level};
+        let (Ok(profile), Ok(installed)) = (
+            self.store.profile(&self.library.profile.name),
+            self.store.addons(),
+        ) else {
+            return true;
+        };
+        if profile.is_vanilla() {
+            let game = self.install.as_ref().map(|i| i.dir.clone());
+            let careers =
+                swofty_core::stdlib::careers::sync(&self.store.root, game.as_deref()).unwrap_or_default();
+            let using = careers.iter().filter(|c| !c.addons.is_empty()).count();
+            if using > 0 {
+                let text = match using {
+                    1 => format!(
+                        "1 career uses addons; loading it in {} can lose its progress.",
+                        swofty_core::profile::VANILLA
+                    ),
+                    n => format!(
+                        "{n} careers use addons; loading them in {} can lose their progress.",
+                        swofty_core::profile::VANILLA
+                    ),
+                };
+                window.push_notification(
+                    Notification::warning(text)
+                        .title("Careers that need addons")
+                        .autohide(false),
+                    cx,
+                );
+            }
+            return true;
+        }
+        let Ok(plan) = swofty_core::resolver::resolve(&profile, &installed) else {
+            return true;
+        };
+        let all = deps::read_all(&self.store, &installed);
+        let report = deps::for_order(&profile.name, &plan.order, &installed, &all);
+        for f in &report.findings {
+            let body = f.detail.join(" ");
+            let n = match f.level {
+                Level::Stop => Notification::error(body).autohide(false),
+                Level::Warn => Notification::warning(body).autohide(false),
+                Level::Hint => Notification::info(body),
+            };
+            window.push_notification(n.title(f.headline.clone()), cx);
+        }
+        match report.stop_text() {
+            Some(stop) => {
+                self.notice = Some(stop);
+                false
+            }
+            None => true,
+        }
     }
 
     /// A base addon on with none of the addons that build on it, such as

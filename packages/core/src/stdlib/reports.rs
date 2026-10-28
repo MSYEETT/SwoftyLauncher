@@ -107,6 +107,20 @@ impl Conflict {
         }
     }
 
+    /// The addons the entry is about.
+    pub fn addons(&self) -> Vec<&str> {
+        match self {
+            Self::Field { addons, .. } => addons.iter().map(String::as_str).collect(),
+            Self::InvalidLayer { addon, .. } | Self::HandlerFaulted { addon, .. } => vec![addon.as_str()],
+            Self::HookUnavailable {
+                holder, subscribers, ..
+            } => std::iter::once(holder.as_str())
+                .chain(subscribers.iter().map(String::as_str))
+                .collect(),
+            Self::Other { addon, .. } => addon.iter().map(String::as_str).collect(),
+        }
+    }
+
     /// One line for the conflicts view, with addon names from `name`.
     pub fn line(&self, name: &dyn Fn(&str) -> String) -> String {
         match self {
