@@ -1,6 +1,6 @@
 ---
 title: Forms
-description: The form block of a launcher plugin page - number, slider, text, select and toggle fields, the Apply button, live forms and the submit event.
+description: The form block of a launcher plugin page - number, slider, text, select, toggle and colour fields, the Apply button, live forms and the submit event.
 ---
 
 # Forms
@@ -12,21 +12,26 @@ description: The form block of a launcher plugin page - number, slider, text, se
 The template's **Settings** card, and the handler that saves it:
 
 ```rust [src/main.rs]
-json!({ "form": { "id": "settings", "columns": 2, "fields": [
-    { "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } },
-    { "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } },
-    { "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } },
-    { "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
-        { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } },
-    { "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }
-] } })
+let mut fields = vec![
+    json!({ "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } }),
+    json!({ "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } }),
+    json!({ "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } }),
+    json!({ "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
+        { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } }),
+    json!({ "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }),
+];
+// a colour field needs launcher 1.5.25: self.colours is set from hello's launcher version
+if self.colours {
+    fields.push(json!({ "colour": { "id": "colour", "label": "Team colour", "value": d["colour"] } }));
+}
+json!({ "form": { "id": "settings", "columns": 2, "fields": fields } })
 ```
 
 ```rust [src/main.rs]
 if let Some(submit) = event.get("submit") {
     let values = &submit["values"];
     if submit["form"] == "settings" {
-        for key in ["budget", "speed", "name", "mode", "lock"] {
+        for key in ["budget", "speed", "name", "mode", "lock", "colour"] {
             if let Some(v) = values.get(key) {
                 d[key] = v.clone();
             }
@@ -41,7 +46,7 @@ if let Some(submit) = event.get("submit") {
 **Apply** with only the budget changed:
 
 ```json
-{ "submit": { "form": "settings", "values": { "budget": 150, "name": "Example Racing", "speed": 40, "mode": "dry", "lock": false }, "changed": ["budget"] } }
+{ "submit": { "form": "settings", "values": { "budget": 150, "name": "Example Racing", "speed": 40, "mode": "dry", "lock": false, "colour": "#8B7FD6" }, "changed": ["budget"] } }
 ```
 
 ## The form
@@ -67,6 +72,7 @@ Every field takes `id` *(required: its key in `values`)*, `label`, `help` (a mut
 { "text": { "id": "name", "label": "Team name", "value": "Swofty Racing", "placeholder": "Team name", "max_len": 32 } }
 { "select": { "id": "weather", "label": "Weather", "value": "dry", "options": [ { "value": "dry", "label": "Dry" }, { "value": "wet", "label": "Heavy rain" } ] } }
 { "toggle": { "id": "lock", "label": "Lock budget", "value": false } }
+{ "colour": { "id": "livery", "label": "Livery colour", "value": "#E10600" } }
 ```
 
 ```text
@@ -75,6 +81,7 @@ slider   value, min (default 0), max (default 100), step (default 1), unit   sen
 text     value, placeholder, max_len                                         sends a string
 select   value, options, search (1.0.12)                                     sends the chosen option's value
 toggle   value                                                               sends true or false
+colour   1.5.25: value, hex (default true)                                   sends "#RRGGBB", or null without a value
 ```
 
 ### number and slider
@@ -101,11 +108,33 @@ toggle   value                                                               sen
 - **Images** *(1.0.12)*: a `{ value, label }` option can carry `"image"`, the absolute path of a PNG or JPEG under your plugin's `cache_dir` or `data_dir`. The menu shows it as a thumbnail before the label, and the closed field shows the picked option's thumbnail. When some options have an image, the others get an empty square. A path outside those two folders shows no image. The launcher caches an image by its path, so write changed content under a new file name. An older launcher ignores `image`.
 - **Search** *(1.0.12)*: `"search": true` puts a search box at the top of the list. Typing filters the options to those whose label contains the text, ignoring case. The field still shows the current value while you search. An older launcher ignores `search` and shows the full list.
 
+### colour {#colour-fields}
+
+*Launcher 1.5.25.* A `colour` field shows a round dot of the colour, followed by its hex unless `"hex": false`. A field without a value shows an empty dot and `None`.
+
+```json
+{ "colour": { "id": "livery", "label": "Livery colour", "value": "#E10600" } }
+{ "colour": { "id": "accent", "label": "Accent", "value": "#00A19C", "hex": false } }
+```
+
+```json
+{ "submit": { "form": "team", "values": { "livery": "#E10600", "accent": "#00A19C" }, "changed": ["livery"] } }
+```
+
+- `value` takes `#RRGGBB` or `#RGB`, with or without `#`, in upper or lower case.
+- The field sends the colour as `#RRGGBB` in upper case, and `null` while it has no value.
+- Clicking the field opens a picker under it: a square for saturation and brightness with a handle to drag, a hue strip, a hex box and R, G and B boxes. They stay in sync, and the field shows the colour as it changes.
+- Enter, a click outside the picker or a second click on the field commits the colour. Escape puts the previous colour back.
+- One picker is open at a time, and it stays inside the window.
+- A committed colour waits for **Apply** like any other field, and a `live` form sends it at once.
+- A table cell takes a colour too ([Colour cells](./tables#colour-cells)).
+- An older launcher fails a view that holds a `colour` field or cell. Set `"compat": { "launcher": ">=1.5.25" }` in `swofty.json`, or check `launcher` in `hello` and fall back ([Versions](../launcher-api#versions)).
+
 ## How a form behaves
 
 - Edits stay in the form until you press **Apply**. Apply turns on once a field differs from the view; **Reset** beside it puts the view's values back.
 - Apply fires one `submit` event. `values` holds every field; `changed` lists the fields that differ from the view, in field order.
-- In a `live` form, a field is committed by Enter or leaving it (number, text), releasing it (slider), picking an option (select) or flipping it (toggle). Its event holds only that field, in both `values` and `changed`:
+- In a `live` form, a field is committed by Enter or leaving it (number, text), releasing it (slider), picking an option (select), flipping it (toggle) or committing the picker (colour). Its event holds only that field, in both `values` and `changed`:
 
 ```json
 { "submit": { "form": "driver:rai", "values": { "on": false }, "changed": ["on"] } }
