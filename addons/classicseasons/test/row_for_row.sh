@@ -136,4 +136,22 @@ echo "== ${YEARS[0]}-$YEAR: launcher 1.6 plus the core's rows against 0.6.x, row
 LABELS=(--by-label entrants.vehicles.vehicle_N --by-label entrants.vehicles.vehicle_packages.vehicle_package_N
         --by-label audio.audio_bundle_settings.audio_bundle_settings_N --by-label car_setup.presets.vehicle_package_setups_N)
 python3 "$CS/test/rows.py" "$W/data-a" "$W/core.json" "${LABELS[@]}" --show 40 || status=1
+echo "== ${YEARS[0]}-$YEAR: the liveries' records put the archives the 1.5 operations put"
+python3 - "$CS" "$W/core.summary.json" "${YEARS[@]}" <<'PY' || status=1
+import json, sys
+from pathlib import Path
+cs, summary, years = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text()), sys.argv[3:]
+lines = " ".join(summary["lines"].get("livery", []))
+bad = 0
+for y in years:
+    f = cs / f"classic-seasons-{y}" / "assets" / "liveries.json"
+    if not f.exists():
+        print(f"{y}: no liveries.json; the season's cars stay on the 1.5 operations")
+        continue
+    targets = [o["target"] for o in json.loads(f.read_text())["ops"] if o["op"] == "file.put"]
+    missing = [t for t in targets if f"({t})" not in lines]
+    print(f"{y}: {len(targets) - len(missing)} of {len(targets)} archives are put by the records" + (f"; missing {missing[:3]}" if missing else ""))
+    bad += bool(missing)
+raise SystemExit(1 if bad else 0)
+PY
 exit $status

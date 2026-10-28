@@ -1,5 +1,6 @@
 {
  "replaced_operations": [
-  "db/records.json"
+  "db/records.json",
+  "assets/liveries.json"
  ]
 }

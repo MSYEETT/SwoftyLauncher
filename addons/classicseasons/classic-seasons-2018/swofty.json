@@ -37,6 +37,7 @@
   "assets": [
    "lang/season.json",
    "assets/cars.json",
+   "assets/liveries.json",
    "assets/sounds.json"
   ]
  }

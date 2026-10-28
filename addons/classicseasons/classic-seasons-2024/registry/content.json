@@ -91,7 +91,8 @@
    "package": "swofty.classic-seasons-2024/cs_2024",
    "engine_sound": "swofty.classic-seasons-2024/honda",
    "audio_switch": "F1_m_rEd_bull",
-   "audio_from": "f1_m_red_bull"
+   "audio_from": "f1_m_red_bull",
+   "livery": "swofty.classic-seasons-2024/redbull"
   },
   "mclaren": {
    "label": "cs24_mclaren",
@@ -102,7 +103,8 @@
    "package": "swofty.classic-seasons-2024/cs_2024",
    "engine_sound": "swofty.classic-seasons-2024/mercedes",
    "audio_switch": "F1_m_mClaren",
-   "audio_from": "f1_m_mclaren"
+   "audio_from": "f1_m_mclaren",
+   "livery": "swofty.classic-seasons-2024/mclaren"
   },
   "ferrari": {
    "label": "cs24_ferrari",
@@ -113,7 +115,8 @@
    "package": "swofty.classic-seasons-2024/cs_2024",
    "engine_sound": "swofty.classic-seasons-2024/ferrari",
    "audio_switch": "F1_m_fErrari",
-   "audio_from": "f1_m_ferrari"
+   "audio_from": "f1_m_ferrari",
+   "livery": "swofty.classic-seasons-2024/ferrari"
   },
   "mercedes": {
    "label": "cs24_mercedes",
@@ -124,7 +127,8 @@
    "package": "swofty.classic-seasons-2024/cs_2024",
    "engine_sound": "swofty.classic-seasons-2024/mercedes",
    "audio_switch": "F1_m_mErcedes",
-   "audio_from": "f1_m_mercedes"
+   "audio_from": "f1_m_mercedes",
+   "livery": "swofty.classic-seasons-2024/mercedes"
   },
   "force_india": {
    "label": "cs24_force_india",
@@ -138,7 +142,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2024/mercedes",
    "audio_switch": "F1_m_aSton_martin",
-   "audio_from": "f1_m_aston_martin"
+   "audio_from": "f1_m_aston_martin",
+   "livery": "swofty.classic-seasons-2024/force_india"
   },
   "lotus": {
    "label": "cs24_lotus",
@@ -149,7 +154,8 @@
    "package": "swofty.classic-seasons-2024/cs_2024",
    "engine_sound": "swofty.classic-seasons-2024/renault",
    "audio_switch": "F1_m_aLpine",
-   "audio_from": "f1_m_alpine"
+   "audio_from": "f1_m_alpine",
+   "livery": "swofty.classic-seasons-2024/lotus"
   },
   "williams": {
    "label": "cs24_williams",
@@ -163,7 +169,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2024/mercedes",
    "audio_switch": "F1_m_wIlliams",
-   "audio_from": "f1_m_williams"
+   "audio_from": "f1_m_williams",
+   "livery": "swofty.classic-seasons-2024/williams"
   },
   "toro_rosso": {
    "label": "cs24_toro_rosso",
@@ -177,7 +184,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2024/honda",
    "audio_switch": "F1_m_rB",
-   "audio_from": "f1_m_rb"
+   "audio_from": "f1_m_rb",
+   "livery": "swofty.classic-seasons-2024/toro_rosso"
   },
   "sauber": {
    "label": "cs24_sauber",
@@ -191,7 +199,8 @@
    },
    "engine_sound": "swofty.classic-seasons-2024/ferrari",
    "audio_switch": "F1_m_sAuber",
-   "audio_from": "f1_m_sauber"
+   "audio_from": "f1_m_sauber",
+   "livery": "swofty.classic-seasons-2024/sauber"
   },
   "haas": {
    "label": "cs24_haas",
@@ -205,7 +214,50 @@
    },
    "engine_sound": "swofty.classic-seasons-2024/ferrari",
    "audio_switch": "F1_m_hAas",
-   "audio_from": "f1_m_haas"
+   "audio_from": "f1_m_haas",
+   "livery": "swofty.classic-seasons-2024/haas"
+  }
+ },
+ "livery": {
+  "redbull": {
+   "vehicle": "swofty.classic-seasons-2024/redbull",
+   "archive": "cars/teams/redbull/wep/redbull.erp"
+  },
+  "mclaren": {
+   "vehicle": "swofty.classic-seasons-2024/mclaren",
+   "archive": "cars/teams/mclaren/wep/mclaren.erp"
+  },
+  "ferrari": {
+   "vehicle": "swofty.classic-seasons-2024/ferrari",
+   "archive": "cars/teams/ferrari/wep/ferrari.erp"
+  },
+  "mercedes": {
+   "vehicle": "swofty.classic-seasons-2024/mercedes",
+   "archive": "cars/teams/mercedes/wep/mercedes.erp"
+  },
+  "force_india": {
+   "vehicle": "swofty.classic-seasons-2024/force_india",
+   "archive": "cars/teams/force_india/wep/force_india.erp"
+  },
+  "lotus": {
+   "vehicle": "swofty.classic-seasons-2024/lotus",
+   "archive": "cars/teams/lotus/wep/lotus.erp"
+  },
+  "williams": {
+   "vehicle": "swofty.classic-seasons-2024/williams",
+   "archive": "cars/teams/williams/wep/williams.erp"
+  },
+  "toro_rosso": {
+   "vehicle": "swofty.classic-seasons-2024/toro_rosso",
+   "archive": "cars/teams/toro_rosso/wep/toro_rosso.erp"
+  },
+  "sauber": {
+   "vehicle": "swofty.classic-seasons-2024/sauber",
+   "archive": "cars/teams/sauber/wep/sauber.erp"
+  },
+  "haas": {
+   "vehicle": "swofty.classic-seasons-2024/haas",
+   "archive": "cars/teams/haas/wep/haas.erp"
   }
  },
  "content.package": {

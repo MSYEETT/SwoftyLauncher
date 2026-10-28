@@ -218,7 +218,7 @@ static void variant_tests(const std::string &regs)
     st.set_order({"swofty.classic-seasons-2017", "mod.esp"});
     st.set_validator(&registry::schema_validator());
     const SwoftyRegistry *t = registry::table();
-    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "content.package", "era.box"}) {
+    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"}) {
         std::string schema = slurp(regs + "/" + name + "/1.0.json");
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }
@@ -263,7 +263,7 @@ static void variant_tests(const std::string &regs)
         auto r = db.base()(content::gvdb::fnv64(path));
         return r ? std::optional<std::string>(r->text) : std::nullopt;
     };
-    for (auto &scan : content::scan_pools(text))
+    for (auto &scan : content::scan_all_pools(text))
         ids.define_pool(scan.registry, {{{scan.lo, scan.hi}}});
     for (auto &p : pins)
         ids.pin(p.registry, p.id, p.stat_id, "test");
@@ -348,9 +348,75 @@ static void variant_tests(const std::string &regs)
           "with the first addon left out, the next one's rows start at the table's next index");
 }
 
+static void livery_tests()
+{
+    std::map<std::string, std::string> db = {
+        {std::string(content::VEHICLES) + "[_metadata_=cs17_mercedes].vehicle_package", "cs_2017_mercedes"},
+        {std::string(content::VEHICLES) + "[_metadata_=mercedes_2025].vehicle_package", "f1_2025_mercedes"},
+        {std::string(content::PACKAGES) + "[_metadata_=cs_2017_mercedes].resource_path", "cs_2017_vehicle_package/teams/mercedes/wep/mercedes"},
+        {std::string(content::PACKAGES) + "[_metadata_=f1_2025_mercedes].resource_path", "f1_2025_vehicle_package/teams/mercedes/wep/mercedes"},
+        {std::string(content::SE_LIVERIES) + "._se_livery_instancecount_", "1"},
+        {std::string(content::SE_LIVERIES) + ".se_livery_0.id", "9"},
+        {std::string(content::SE_LIVERIES) + ".se_livery_0._metadata_", "mercedes_2025_bw"},
+        {std::string(content::SE_LIVERIES) + ".se_livery_0.compatible_vehicle", "cs17_mercedes"},
+        {"unlockable_content.unlockable_items.unlockable_item_list_0.folder_0._unlockable_se_livery_instancecount_", "1"},
+        {"unlockable_content.unlockable_items.unlockable_item_list_0.folder_0.unlockable_se_livery_0._metadata_", "bw"},
+        {"unlockable_content.unlockable_items.unlockable_item_list_0.folder_0.unlockable_se_livery_0.statId", "700"},
+    };
+    content::Read read = [&](const std::string &p) -> std::optional<std::string> {
+        auto it = db.find(p);
+        return it == db.end() ? std::nullopt : std::optional<std::string>(it->second);
+    };
+    std::map<std::string, Value> recs = {
+        {"mod.a/car", Value::object({{"label", "cs17_mercedes"}, {"donor", "game/mercedes_2025"}})}};
+    content::Lookup lookup = [&](const std::string &reg, const std::string &id) -> const Value * {
+        auto it = recs.find(id);
+        return reg == "vehicle" && it != recs.end() ? &it->second : nullptr;
+    };
+    content::StatIds stat = [](const std::string &, const std::string &, int64_t pin) -> int64_t { return pin >= 0 ? pin : 10; };
+
+    content::Plan plan;
+    Value look = Value::object({{"vehicle", "mod.a/car"}, {"archive", "cars/mercedes.erp"}, {"textures", "tex/"}});
+    content::lower_livery("mod.a/look", look, {"mod.a/car"}, lookup, read, plan, stat);
+    check(plan.groups.size() == 1 && plan.groups[0].erp == "2025_asset_groups/cs_2017_vehicle_package/teams/mercedes/wep/mercedes.erp",
+          "a livery's archive is routed over the car's own wep archive");
+    check(plan.groups[0].tmpl == "asset_groups/f1_2025_vehicle_package/teams/mercedes/wep/mercedes.assetgroup" &&
+              plan.groups[0].common.size() == 2 &&
+              plan.groups[0].common[0] == "2025_asset_groups/cs_2017_vehicle_package/teams/common.erp",
+          "its asset group copies the donor's and lists the package's common archive first");
+    check(plan.folders.size() == 1 && plan.folders[0].game_dir == "cs_2017_vehicle_package/teams/mercedes/textures/",
+          "its textures folder is routed over the car's textures folder");
+    check(plan.ops.size() == 0 && !plan.refused, "a plain livery writes no database rows");
+
+    content::Plan none;
+    content::lower_livery("mod.a/look", look, {}, lookup, read, none, stat);
+    check(none.groups.empty() && none.folders.empty(), "a livery no car wears applies nothing");
+
+    content::Plan special;
+    Value sp = Value::object({{"vehicle", "mod.a/car"}, {"archive", "cars/mercedes.erp"}, {"special", true},
+                              {"suffix", "auto"}, {"picker_name", "lng_x"}, {"unlock", "owned"}});
+    int slot = 0;
+    content::lower_livery("mod.a/sp", sp, {}, lookup, read, special, stat, &slot);
+    check(special.ops.size() == 2 && special.owned.size() == 1 && special.owned[0].label == "cs17_mercedes_sp",
+          "a special livery adds its se_livery row and unlock row and is reported owned");
+    check(special.groups.size() == 1 && special.groups[0].erp == "2025_asset_groups/cs_2017_vehicle_package/teams/mercedes/wep/mercedes_lx01.erp",
+          "its archive takes the next wep slot");
+    std::string ops = swofty::json::dump(special.ops);
+    check(ops.find("\"wep_override\"") != std::string::npos && ops.find("_lx01") != std::string::npos &&
+              ops.find("mercedes_2025_bw") != std::string::npos,
+          "the se_livery row is copied from the car's stock special livery with the slot as its wep override");
+
+    content::Plan missing;
+    Value bad = Value::object({{"vehicle", "mod.a/car"}, {"archive", "a.erp"}});
+    recs["mod.a/car"] = Value::object({{"label", "nope"}});
+    content::lower_livery("mod.a/look", bad, {"mod.a/car"}, lookup, read, missing, stat);
+    check(missing.groups.empty() && missing.refused == 1, "a car without a vehicle row in the game database refuses the livery");
+}
+
 int main(int argc, char **argv)
 {
     engine_tests();
+    livery_tests();
     if (argc > 1)
         variant_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");

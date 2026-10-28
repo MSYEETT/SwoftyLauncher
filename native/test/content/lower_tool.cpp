@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     st.set_validator(&registry::schema_validator());
     st.set_log([](const std::string &l) { std::cerr << l << "\n"; });
     const SwoftyRegistry *t = registry::table();
-    const char *names[] = {"engine_sound", "vehicle.package", "vehicle", "content.package", "era.box"};
+    const char *names[] = {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"};
     for (const char *name : names) {
         std::string schema = slurp(regs + "/" + name + "/1.0.json");
         t->declare(name, SwoftyText{schema.data(), schema.size()});
@@ -81,6 +81,8 @@ int main(int argc, char **argv)
                 apply::content::lower_vehicle_package(id, *rec, plan);
             else if (n == "vehicle")
                 apply::content::lower_vehicle(id, *rec, lookup, source, plan);
+            else if (n == "livery")
+                ;
             else if (n == "content.package")
                 apply::content::lower_package(id, *rec, lookup, plan);
             else
