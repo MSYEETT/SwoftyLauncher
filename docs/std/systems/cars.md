@@ -141,11 +141,13 @@ struct UpgradesFit {                               // Car_Fit_UpgradesToRating: 
     static constexpr const char *point = "car.upgrades.fit";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;                                       // the live car
-    Ref<Vehicle> vehicle;                          // its record
-    Department department;                         // the department whose data is fitted
+    int32_t car;                                   // the live car
+    const char *vehicle_id;                        // its record
+    Department department;                         // the department whose data is fitted (int32_t)
     float driver_stat;                             // the driver stat the fit reads
     float rating;                                  // the achieved rating; before handlers may change it
+
+    Ref<Vehicle> vehicle() const;
 };
 
 struct VtfRead {                                   // the Car_Read_<Section> readers: before
@@ -153,10 +155,14 @@ struct VtfRead {                                   // the Car_Read_<Section> rea
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
     live::Car car;                                 // the car being built: its index, vehicle, team and driver
-    std::string_view section;                      // "F1WingDamage"
-    std::string_view field;                        // the field's name
-    std::string_view upgrade;                      // the radUpgrade block being applied, or empty for the base values
+    const char *section_str;                       // "F1WingDamage"
+    const char *field_str;                         // the field's name
+    const char *upgrade_str;                       // the radUpgrade block being applied, or "" for the base values
     float value;                                   // in clear, before the game obfuscates it
+
+    std::string_view section() const;
+    std::string_view field() const;
+    std::string_view upgrade() const;
 };
 
 struct Built {                                     // a car's parts were read from its handling file: after
@@ -178,10 +184,14 @@ struct PartsRegister {                             // Car_FrontWing_Init: after
     static constexpr const char *point = "car.parts.register";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;
-    Ref<Vehicle> vehicle;
+    int32_t car;
+    const char *vehicle_id;
     void *front_wing;                              // the game's front wing component
-    std::function<Result(const Part &)> add;       // register one detachable part
+    int32_t (*add_fn)(void *user, const char *node, float detach_at, bool debris);
+    void *user;
+
+    Ref<Vehicle> vehicle() const;
+    Result add(const Part &part) const;            // register one detachable part
 };
 
 }
@@ -469,7 +479,7 @@ SWOFTY_REGISTER
 SWOFTY_ON_LOAD
 {
     events::on<cars::events::PartsRegister>().after([](cars::events::PartsRegister &p, const events::Context &) {
-        if (auto parts = cars::parts.get(cars::parts[p.vehicle.id()]))
+        if (auto parts = cars::parts.get(cars::parts[p.vehicle().id()]))
             for (const auto &part : parts->parts)
                 p.add(part);
     });
@@ -499,7 +509,7 @@ events::on<cars::events::UpgradesFit>().before([](cars::events::UpgradesFit &f, 
 
 // car.vtf.read: change a value as the game reads it for one car, in clear
 events::on<cars::events::VtfRead>().before([](cars::events::VtfRead &r, const events::Context &) {
-    if (r.section == "F1WingDamage" && r.car.team().id() == "game/haas")
+    if (r.section() == "F1WingDamage" && r.car.team().id() == "game/haas")
         r.value *= 0.9f;
 });
 

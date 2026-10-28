@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <swofty_api.h>
 
+#include "sdk_payloads.h"
+
 _Static_assert(SWOFTY_API_VERSION == 9, "API version 9");
 _Static_assert(offsetof(SwoftyApi, era) == 168, "era stays where version 8 put it");
 _Static_assert(offsetof(SwoftyApi, registry) == 176, "registry appended after era");
@@ -20,6 +22,12 @@ _Static_assert(sizeof(SwoftyLayerDesc) == 128, "layer descriptor layout");
 _Static_assert(sizeof(SwoftyText) == 16, "text layout");
 _Static_assert(SWOFTY_TOO_SMALL == 4 && SWOFTY_SCOPE_CAREER == 2 && SWOFTY_PHASE_AFTER == 2, "codes");
 
+#define SWOFTY_C_SIZE(C, ns, T, n) _Static_assert(sizeof(C) == n, #C " size");
+SWOFTY_EV_PAYLOADS(SWOFTY_C_SIZE)
+#define SWOFTY_C_FIELD(C, ns, T, f, off) _Static_assert(offsetof(C, f) == off, #C "." #f " offset");
+SWOFTY_EV_FIELDS(SWOFTY_C_FIELD)
+_Static_assert(sizeof(SwoftyEvCar) == 16 && offsetof(SwoftyEvCar, handle) == 8, "car handle layout");
+
 static int phase_count(void) { return SWOFTY_PHASE_BEFORE + SWOFTY_PHASE_REPLACE + SWOFTY_PHASE_AFTER; }
 
 int main(void)
@@ -30,7 +38,8 @@ int main(void)
     SwoftyCoreServicesFn s = 0;
     SwoftyAddonRegisterFn reg = 0;
     api.version = SWOFTY_API_VERSION;
-    if (api.registry || api.hooks || api.services || r || h || s || reg || phase_count() != 3)
+    SwoftyEvBundleResolve b = {sizeof b, 1, 4, "game/williams_2026", "williams", "game/williams_2026", 0, 0};
+    if (api.registry || api.hooks || api.services || r || h || s || reg || phase_count() != 3 || b.size != 56)
         return 1;
     printf("sdk_api_c_test: ok\n");
     return 0;

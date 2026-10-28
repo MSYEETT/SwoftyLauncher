@@ -96,9 +96,15 @@ inline const char *name(Result r)
 // Standard library 1.6: typed events with a context and scopes. An event is a hook point: on<E>() attaches
 // a before, replace or after handler to E::point, and the core calls it only where every selector given
 // to in() and when() matches. The handler gets the payload and the moment's Context. On a core without
-// the hooks table every call returns unavailable and fire() returns true (nothing replaced it).
+// the hooks table every call returns unavailable and fire() returns true (nothing replaced it). A payload
+// crosses between the core and addons built with other compilers, so its fields are C types only: record
+// ids and text are const char * (valid for the handler call), callbacks are C function pointers with a
+// user pointer, and the C++ forms (Ref<T>, std::string_view, Result) are member functions.
 
 namespace swofty::detail {
+
+template <class T> Ref<T> payload_ref(const char *id) { return id && *id ? Ref<T>(std::string_view(id)) : Ref<T>(); }
+inline std::string_view payload_str(const char *s) { return s ? std::string_view(s) : std::string_view(); }
 
 inline const SwoftyHooks *hooks_table()
 {
@@ -166,7 +172,7 @@ struct SessionView {
 };
 SWOFTY_RECORD(SessionView, type, session, group, track, weather, laps, setup_mode)
 
-SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, online, story, f1_world)
+SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, story, f1_world)
 SWOFTY_ENUM(SessionType, practice, qualifying, race, sprint, time_trial)
 
 class Context {

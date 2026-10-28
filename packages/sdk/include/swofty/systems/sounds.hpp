@@ -42,10 +42,23 @@ struct BundleResolve {
     static constexpr const char *point = "audio.bundle.resolve";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int car;
-    Ref<cars::Vehicle> vehicle;
-    std::string_view switch_name;
-    Ref<EngineSound> engine_sound;
+    int32_t car;
+    const char *vehicle_id;
+    const char *switch_name_str;
+    const char *engine_sound_id;
+    int32_t (*set_engine_sound_fn)(void *user, const char *id);
+    void *user;
+
+    Ref<cars::Vehicle> vehicle() const { return swofty::detail::payload_ref<cars::Vehicle>(vehicle_id); }
+    std::string_view switch_name() const { return swofty::detail::payload_str(switch_name_str); }
+    Ref<EngineSound> engine_sound() const { return swofty::detail::payload_ref<EngineSound>(engine_sound_id); }
+    Result set_engine_sound(const Ref<EngineSound> &sound)
+    {
+        if (!set_engine_sound_fn)
+            return Result::unavailable;
+        std::string id(sound.id());
+        return swofty::detail::result(set_engine_sound_fn(user, id.c_str()));
+    }
 };
 
 }

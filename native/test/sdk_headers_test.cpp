@@ -1,9 +1,13 @@
 // Compiles every standard library 1.6 header and instantiates its templates. Built for x86_64-windows-gnu
 // (compile and link) and for the host (run): with no core, every call reports unavailable and nothing
 // crashes; records round-trip through their JSON form; schemas carry the registry keywords.
+#include <bit>
 #include <cassert>
+#include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <string>
+#include <type_traits>
 
 #include <swofty/events.hpp>
 #include <swofty/hooks.hpp>
@@ -14,6 +18,8 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
+
+#include "sdk_payloads.h"
 
 #if defined(_WIN32)
 #include <swofty/assets.hpp>
@@ -28,6 +34,19 @@
 #include <swofty/storage.hpp>
 #include <swofty/telemetry.hpp>
 #endif
+
+#define SWOFTY_CPP_SIZE(C, ns, T, n)                                                                                   \
+    static_assert(std::is_standard_layout_v<swofty::ns::events::T> && std::is_trivially_copyable_v<swofty::ns::events::T>, \
+                  #T " is standard layout and trivially copyable");                                                    \
+    static_assert(sizeof(swofty::ns::events::T) == n && sizeof(C) == n, #T " size matches " #C);                       \
+    static_assert(alignof(swofty::ns::events::T) == alignof(C), #T " alignment matches " #C);
+SWOFTY_EV_PAYLOADS(SWOFTY_CPP_SIZE)
+#define SWOFTY_CPP_FIELD(C, ns, T, f, off)                                                                             \
+    static_assert(offsetof(swofty::ns::events::T, f) == off && offsetof(C, f) == off, #T "." #f " offset matches " #C);
+SWOFTY_EV_FIELDS(SWOFTY_CPP_FIELD)
+static_assert(std::is_standard_layout_v<swofty::cars::live::Car> && std::is_trivially_copyable_v<swofty::cars::live::Car> &&
+              sizeof(swofty::cars::live::Car) == sizeof(SwoftyEvCar) && alignof(swofty::cars::live::Car) == alignof(SwoftyEvCar));
+static_assert(std::is_same_v<std::underlying_type_t<swofty::cars::Department>, int32_t>);
 
 using namespace swofty;
 
@@ -167,6 +186,64 @@ static void unavailable_without_core()
     CHECK(detail::run_register(nullptr) == 1);
 }
 
+static std::string added_node;
+static float added_at;
+
+static int32_t add_part(void *user, const char *node, float detach_at, bool debris)
+{
+    added_node = node;
+    added_at = detach_at;
+    return debris && user ? SWOFTY_ASSET_OK : SWOFTY_ASSET_INVALID;
+}
+
+static std::string chosen_sound;
+
+static int32_t set_sound(void *user, const char *id)
+{
+    chosen_sound = id;
+    static_cast<sounds::events::BundleResolve *>(user)->engine_sound_id = chosen_sound.c_str();
+    return SWOFTY_ASSET_OK;
+}
+
+static void payload_accessors()
+{
+    int wing = 0;
+    cars::live::Car car(4, &wing);
+    SwoftyEvCar c = std::bit_cast<SwoftyEvCar>(car);
+    CHECK(c.index == 4 && c.handle == &wing && car.handle() == &wing);
+
+    cars::events::VtfRead r{sizeof r, 1, car, "F1WingDamage", "DamageScale", nullptr, 1.5f};
+    CHECK(r.section() == "F1WingDamage" && r.field() == "DamageScale" && r.upgrade().empty() && r.car.index() == 4);
+    SwoftyEvVtfRead rc;
+    std::memcpy(&rc, &r, sizeof rc);
+    CHECK(std::strcmp(rc.section_str, "F1WingDamage") == 0 && rc.car.index == 4 && rc.value == 1.5f);
+
+    cars::events::UpgradesFit f{};
+    CHECK(f.vehicle().empty());
+    f.vehicle_id = "game/haas_2026";
+    f.department = cars::Department::aero;
+    CHECK(f.vehicle() == cars::vehicles["game/haas_2026"] && f.vehicle().id() == "game/haas_2026");
+
+    cars::events::PartsRegister p{};
+    CHECK(p.add({.node = "mirror_l"}) == Result::unavailable);
+    p.add_fn = &add_part;
+    p.user = &wing;
+    CHECK(p.add({.node = "mirror_l", .detach_at = 0.6f}) == Result::ok && added_node == "mirror_l" && added_at == 0.6f);
+    CHECK(p.add({.node = "mirror_r", .debris = false}) == Result::invalid);
+
+    sounds::events::BundleResolve b{sizeof b, 1, 4, "game/williams_2026", "williams", "game/williams_2026", nullptr, nullptr};
+    CHECK(b.vehicle().id() == "game/williams_2026" && b.switch_name() == "williams");
+    CHECK(b.set_engine_sound(sounds::engine_sounds["mod.esp/v10_screamer"]) == Result::unavailable);
+    b.set_engine_sound_fn = &set_sound;
+    b.user = &b;
+    CHECK(b.set_engine_sound(sounds::engine_sounds["mod.esp/v10_screamer"]) == Result::ok &&
+          b.engine_sound().id() == "mod.esp/v10_screamer");
+
+    career::events::SeasonStart s{sizeof s, 1, 2017, 1};
+    SwoftyEvSeasonStart sc = std::bit_cast<SwoftyEvSeasonStart>(s);
+    CHECK(sc.year == 2017 && sc.season_index == 1);
+}
+
 static void round_trip()
 {
     career::Season s{
@@ -250,6 +327,7 @@ static void schemas()
 int main()
 {
     unavailable_without_core();
+    payload_accessors();
     round_trip();
     schemas();
     if (failures) {
