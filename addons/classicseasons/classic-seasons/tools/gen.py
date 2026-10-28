@@ -291,6 +291,55 @@ def own_helmet(driver):
     raise SystemExit(f"{driver}: no period helmet, stock helmet or design in data/helmets.json")
 
 
+def package_ops(records, label, resource_path, shared, animation, halo):
+    blob = f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material"
+    records["vehicle.package"][label] = {"donor": "game/f1_2025", "resource_path": resource_path,
+                                         "driver_animation_set": animation, "halo": halo,
+                                         "setups_from": "game/f1_2025", "blob_shadow_decal": blob}
+    return [{"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
+             "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
+             "set": {"_metadata_": label, "resource_path": resource_path, "blob_shadow_decal": blob,
+                     "driver_animation_set": animation, "has_cockpit_halo": str(halo)}},
+            {"op": "add-row", "table": "car_setup.presets",
+             "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]",
+             "set": {"_metadata_": f"{label}_vehicle_package"}}]
+
+
+def vehicle_record(own, donor, row, car):
+    record = {"label": row["_metadata_"], "donor": f"game/{donor}", "performance_tier": int(row["performance_tier"]),
+              "tyre_wear_scale": float(row["tyre_wear_scale"])}
+    if "vehicle_package" in row:
+        record["package"] = f"{own}/{row['vehicle_package']}"
+    if "asset_filename" in row:
+        record["ai"] = {"asset_filename": row["asset_filename"]}
+    if car:
+        record.update(engine_sound=f"{own}/{car['maker']}", audio_switch=car["label"], audio_from=car["donor"])
+    return record
+
+
+def driver_ref(driver):
+    return f"swofty.classic-seasons/{driver}" if driver in DATA["new_drivers"] else f"game/{driver}"
+
+
+def package_record(own, season, year, list_label, standings, wide, index):
+    teams = []
+    for team in season["teams"]:
+        key = team.get("key", team["folder"])
+        teams.append({"key": key, "team": None, "vehicle": f"{own}/{key}",
+                      "drivers": [{"driver": driver_ref(driver), "number": number,
+                                   "look": None} for driver, number in team["drivers"]]})
+    looks = {f"{team.get('key', team['folder'])}/{driver}": look_label(year, team.get("key", team["folder"]), driver)
+             for team in season["teams"] for driver, _ in team["drivers"]}
+    rows = {"leaderboard": "classic", "previous_season_driver_standings": ""}
+    if wide:
+        rows.update(season="season_2025", ui_path="f1_2023")
+    return {"title": f"lng_cs_f1_{year}", "entrant_list": list_label, "season": year, "teams": teams,
+            "stat_id": SCENARIO_STAT_BASE + index,
+            "database": {"entrant_list_from": "f1_2026" if wide else "f1_2025", "entrant_list_set": rows,
+                         "standings": standings, "standings_from": "f1_teams_2026" if wide else "f1_teams_2024",
+                         "entrant_prefix": f"cs{year}-", "looks": looks, "content_sets": list(CONTENT_SETS)}}
+
+
 def season_manifest(core, year, assets):
     return {
         "schema_version": 1,
@@ -306,7 +355,7 @@ def season_manifest(core, year, assets):
         "kind": ["database", "files"],
         "compat": {**core["compat"], "launcher": SEASON_LAUNCHER},
         "requires": core["requires"] + [{"id": core["id"], "version": f">={SEASON_CORE}"}],
-        "operations": {"database": ["db/season.json"], "assets": ["lang/season.json", *assets]},
+        "operations": {"database": ["db/season.json", "db/records.json"], "assets": ["lang/season.json", *assets]},
     }
 
 
@@ -368,15 +417,24 @@ def build():
         yy = year % 100
         list_label = f"cs_f1_{year}"
         standings = f"cs_f1_teams_{year}"
-        ops, text = [], []
-        seasons.append((year, ops, text))
+        ops, text, covered = [], [], []
+        own = f"swofty.classic-seasons-{year}"
+        records = {"engine_sound": {}, "vehicle.package": {}, "vehicle": {}, "content.package": {}, "era.box": {}}
+        seasons.append((year, ops, text, covered, records))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
         for m in sounds(year):
-            ops.append({"op": "add-row", "table": "audio.audio_bundle_settings",
-                        "from": f"{AUDIO_BUNDLES}[_metadata_={m['maker']}_2025]",
-                        "set": {"_metadata_": m["name"], "bundle_name": m["name"]}})
+            covered.append({"op": "add-row", "table": "audio.audio_bundle_settings",
+                            "from": f"{AUDIO_BUNDLES}[_metadata_={m['maker']}_2025]",
+                            "set": {"_metadata_": m["name"], "bundle_name": m["name"]}})
+            records["engine_sound"][m["maker"]] = {"bundle": f"sounds/{m['name']}.bdl",
+                                                   "settings_from": f"game/{m['maker']}_2025"}
+        audio = {}
         for car in sound_cars(year):
-            ops += [{"op": "put-record", **record} for record in car["records"]]
+            covered.extend({"op": "put-record", **record} for record in car["records"])
+            audio[car["key"]] = car
+            if car["maker"] not in records["engine_sound"]:
+                records["engine_sound"][car["maker"]] = {"bundle": {"stock": f"audio/2025/bundles/{car['bundle']}.bdl"},
+                                                         "settings_from": f"game/{car['bundle']}"}
         cars = built(year)
         if cars:
             pkg = f"cs_{year}_vehicle_package"
@@ -388,26 +446,12 @@ def build():
                             "from": "entrants.animation.driver_animation_sets.driver_animation_set[_metadata_=f1_2025]",
                             "set": {"_metadata_": animation, "in_car_asset_group":
                                     f"[ANIMATION_PACKAGE]/scenes/incardriver/cs{yy:02d}/incardriver_f1"}})
-            ops.append({"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
-                        "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
-                        "set": {"_metadata_": f"cs_{year}", "resource_path": f"{pkg}/teams/[FILENAME]/wep/[FILENAME]",
-                                "blob_shadow_decal": f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
-                                "driver_animation_set": animation,
-                                "has_cockpit_halo": str(season.get("halo", True))}})
-            ops.append({"op": "add-row", "table": "car_setup.presets",
-                        "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]", "set": {"_metadata_": pkg}})
+            covered += package_ops(records, f"cs_{year}", f"{pkg}/teams/[FILENAME]/wep/[FILENAME]", shared, animation,
+                                   season.get("halo", True))
             if cars.get("extra"):
                 extra = extra_package(year)
-                ops.append({"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
-                            "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
-                            "set": {"_metadata_": f"cx_{year}",
-                                    "resource_path": f"{extra}/teams/[FILENAME]/wep/[FILENAME]",
-                                    "blob_shadow_decal": f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
-                                    "driver_animation_set": animation,
-                                    "has_cockpit_halo": str(season.get("halo", True))}})
-                ops.append({"op": "add-row", "table": "car_setup.presets",
-                            "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]",
-                            "set": {"_metadata_": extra}})
+                covered += package_ops(records, f"cx_{year}", f"{extra}/teams/[FILENAME]/wep/[FILENAME]", shared,
+                                       animation, season.get("halo", True))
 
         for team in season["teams"]:
             folder = team["folder"]
@@ -434,21 +478,13 @@ def build():
                 vehicle["vehicle_package"] = f"cx_{year}" if "car" in team else f"cs_{year}"
                 slot = aislots.assign(year)[key]
                 if slot != folder:
-                    own = f"cs_{year}_{key}"
                     archive = extra_package(year) if "car" in team else pkg
-                    ops.append({"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
-                                "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
-                                "set": {"_metadata_": own, "resource_path": f"{archive}/teams/{folder}/wep/{folder}",
-                                        "blob_shadow_decal":
-                                            f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material",
-                                        "driver_animation_set": animation,
-                                        "has_cockpit_halo": str(season.get("halo", True))}})
-                    ops.append({"op": "add-row", "table": "car_setup.presets",
-                                "from": f"{SETUP_PRESETS}[_metadata_=f1_2025_vehicle_package]",
-                                "set": {"_metadata_": f"{own}_vehicle_package"}})
-                    vehicle.update(vehicle_package=own, asset_filename=slot)
-            ops.append({"op": "add-row", "table": "entrants.vehicles",
-                        "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
+                    covered += package_ops(records, f"cs_{year}_{key}", f"{archive}/teams/{folder}/wep/{folder}",
+                                           shared, animation, season.get("halo", True))
+                    vehicle.update(vehicle_package=f"cs_{year}_{key}", asset_filename=slot)
+            covered.append({"op": "add-row", "table": "entrants.vehicles",
+                            "from": f"entrants.vehicles.vehicle[_metadata_={stock['vehicle']}]", "set": vehicle})
+            records["vehicle"][key] = vehicle_record(own, stock["vehicle"], vehicle, audio.get(key))
 
             for position, (driver, number) in enumerate(team["drivers"]):
                 seat, helmet, suit_look, gloves = placeholder_look(folder, position, driver, year)
@@ -467,18 +503,18 @@ def build():
                                     "linked_driver_stat_id": driver, "available": "False",
                                     "stat_id": str(look_stat)}})
                 look_stat += 1
-                ops.append({"op": "add-row", "table": "entrants.entrant_lists.entrants",
-                            "from": "entrants.entrant_lists.entrants.entrant[_metadata_=max_verstappen]",
-                            "set": {"_metadata_": f"cs{year}-{driver}", "driver": driver,
-                                    "driver_customisation": look, "car_number": str(number)}})
+                covered.append({"op": "add-row", "table": "entrants.entrant_lists.entrants",
+                                "from": "entrants.entrant_lists.entrants.entrant[_metadata_=max_verstappen]",
+                                "set": {"_metadata_": f"cs{year}-{driver}", "driver": driver,
+                                        "driver_customisation": look, "car_number": str(number)}})
 
         grid = sum(len(team["drivers"]) for team in season["teams"])
         wide = grid > 20
-        ops.append({"op": "add-row", "table": "entrants.standings",
+        covered.append({"op": "add-row", "table": "entrants.standings",
                     "from": f"entrants.standings.standings[_metadata_={'f1_teams_2026' if wide else 'f1_teams_2024'}]",
                     "set": {"_metadata_": standings}})
         for position, team in enumerate(season["teams"]):
-            ops.append({"op": "set", "select": f"entrants.standings.standings[_metadata_={standings}].team_reference_{position}",
+            covered.append({"op": "set", "select": f"entrants.standings.standings[_metadata_={standings}].team_reference_{position}",
                         "field": "team", "value": team_label(year, team.get("key", team["folder"]))})
 
         # Time Trial's stock F1 2025 box loads the cars of every available list on the f1 leaderboard, which with
@@ -488,9 +524,9 @@ def build():
                         "leaderboard": "classic"}
         if wide:
             entrant_list.update(season="season_2025", ui_path="f1_2023")
-            ops.append({"op": "set", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": "max_entrants",
+            covered.append({"op": "set", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": "max_entrants",
                         "value": str(grid)})
-        ops.append({"op": "add-row", "table": "entrants.entrant_lists",
+        covered.append({"op": "add-row", "table": "entrants.entrant_lists",
                     "from": f"entrants.entrant_lists.entrant_list[_metadata_={'f1_2026' if wide else 'f1_2025'}]",
                     "set": entrant_list})
         slot = 0
@@ -502,30 +538,35 @@ def build():
                                      ("vehicle", label), ("entrant_reference", f"cs{year}-{driver}"),
                                      ("team_position", str(position)), ("car_number", "255"),
                                      ("driver", ""), ("driver_customisation", "")):
-                    ops.append({"op": "set", "select": row, "field": field, "value": value})
+                    covered.append({"op": "set", "select": row, "field": field, "value": value})
                 slot += 1
         if slot != (22 if wide else 20):
             raise SystemExit(f"{year}: {slot} entrants, the f1_2025 list has 20 and the f1_2026 list 22")
 
-        ops.append({"op": "add-row", "table": "game_setup.scenarios",
+        covered.append({"op": "add-row", "table": "game_setup.scenarios",
                     "from": "game_setup.scenarios.scenario[_metadata_=f1]",
                     "set": {"_metadata_": list_label, "display_name": f"lng_cs_f1_{year}",
                             "entrant_list": list_label, "game_setup_mode": HOST_MODE,
                             "statId": str(SCENARIO_STAT_BASE + index)}})
-        ops.append({"op": "add-row", "table": CATEGORY, "from": f"{CATEGORY}.value[_metadata_=f1_2025]",
+        covered.append({"op": "add-row", "table": CATEGORY, "from": f"{CATEGORY}.value[_metadata_=f1_2025]",
                     "set": {"_metadata_": list_label, "game_value": list_label, "loc_tag": f"lng_cs_f1_{year}"}})
         for field in ("entrant_lists", "selectable_entrant_lists"):
-            ops.append({"op": "list-append", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": field,
+            covered.append({"op": "list-append", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": field,
                         "value": list_label})
         for content_set in CONTENT_SETS:
-            ops.append({"op": "list-append",
+            covered.append({"op": "list-append",
                         "select": f"content_sets.content_set[_metadata_={content_set}].available_entrant_lists_0",
                         "field": "entrant_lists", "value": list_label})
+
+        records["content.package"][f"f1_{year}"] = package_record(own, season, year, list_label, standings, wide, index)
+        records["era.box"][f"f1_{year}"] = {"package": f"{own}/f1_{year}",
+                                            "image": f"#overrides.home_screen.tiles_solo_6x6[{list_label}]",
+                                            "order": year}
 
     fields = {"game_setup.scenarios.scenario": SCENARIO_FIELDS, "entrants.drivers.driver": DRIVER_FIELDS,
               CATEGORY + ".value": CATEGORY_FIELDS}
     core_ops += [design_row(driver) for driver in DESIGNS if driver in designs]
-    items = check_item_ids([("core", core_ops)] + [(str(year), ops) for year, ops, _ in seasons])
+    items = check_item_ids([("core", core_ops)] + [(str(year), ops + covered) for year, ops, _, covered, _ in seasons])
     write_json(ROOT / "db" / "core.json",
                {"schema_version": 1, "fields": {**fields, **(ITEM_FIELDS if made or season_helmets or DESIGNS else {})},
                 "ops": core_ops})
@@ -540,20 +581,20 @@ def build():
         core["operations"]["assets"] = core_assets
         (ROOT / "swofty.json").write_text(json.dumps(core, indent=2, ensure_ascii=False) + "\n")
     write_json(ROOT / "lang" / "core.json", {"schema_version": 1, "ops": core_text})
-    write_native_seasons([year for year, _, _ in seasons])
+    write_native_seasons([year for year, *_ in seasons])
     print(f"core: {len(core_ops)} db ops, {len(core_text)} strings, looks {LOOK_STAT_BASE}..{look_stat - 1}, "
           f"{len(made)} real suits, suit ids {REAL_SUIT_IDS.start}..{TRANSFER_SUIT_IDS.stop - 1}, {items} item rows with "
           f"unique ids")
-    for year, ops, text in seasons:
+    for year, ops, text, covered, records in seasons:
         folder = year_dir(year)
         assets = ["assets/cars.json"] + (["assets/suits.json"] if suits(year) else []) + \
             (["assets/sounds.json"] if sounds(year) else [])
         write_json(folder / "swofty.json", season_manifest(core, year, assets))
-        write_json(folder / "db" / "season.json",
-                   {"schema_version": 1, "fields": {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS,
-                                                    **(ITEM_FIELDS if suits(year) else {}),
-                                                    **({AUDIO_BUNDLES: AUDIO_BUNDLE_FIELDS} if sounds(year) else {})},
-                    "ops": ops})
+        season_fields = {**fields, SETUP_PRESETS: SETUP_PRESET_FIELDS, **(ITEM_FIELDS if suits(year) else {}),
+                         **({AUDIO_BUNDLES: AUDIO_BUNDLE_FIELDS} if sounds(year) else {})}
+        write_json(folder / "db" / "season.json", {"schema_version": 1, "fields": season_fields, "ops": ops})
+        write_json(folder / "db" / "records.json", {"schema_version": 1, "fields": season_fields, "ops": covered})
+        write_json(folder / "registry" / "content.json", {k: v for k, v in records.items() if v})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\nsounds/\n")
         cars = built(year)
@@ -570,7 +611,8 @@ def build():
         elif (folder / "assets" / "sounds.json").exists():
             (folder / "assets" / "sounds.json").unlink()
         adds = sum(1 for o in ops if o["op"] == "add-row")
-        print(f"{year}: {len(ops)} db ops ({adds} add-row), {len(text)} strings, cars {'built' if cars else 'missing'}, "
+        print(f"{year}: {len(ops)} db ops ({adds} add-row) and {len(covered)} from {sum(map(len, records.values()))} "
+              f"records, {len(text)} strings, cars {'built' if cars else 'missing'}, "
               f"{len(suits(year))} suits, {len(sounds(year))} sound bundles")
 
 
