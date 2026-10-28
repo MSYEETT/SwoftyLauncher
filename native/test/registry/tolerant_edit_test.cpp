@@ -7,6 +7,10 @@
 
 using namespace swofty;
 
+// Mirrors packages/sdk/include/swofty/systems/career.hpp: the record struct carries `extra` for fields from a
+// newer minor, its nested Keyed element struct (SeasonTeam) doesn't. versioning.md's own example adds
+// SeasonTeam::reserve in 1.1 and promises a DLL built against 1.0 "never loses it".
+
 namespace v11 {
 struct Team {
     int slot = 0;
@@ -18,6 +22,7 @@ struct Season {
     static constexpr Version version{1, 1};
     int year = 0;
     Keyed<Team, &Team::slot> teams;
+    json::Value extra;
 };
 SWOFTY_RECORD(Season, year, teams)
 inline Registry<Season> seasons{"test.season"};
@@ -33,6 +38,7 @@ struct Season {
     static constexpr Version version{1, 0};
     int year = 0;
     Keyed<Team, &Team::slot> teams;
+    json::Value extra;
 };
 SWOFTY_RECORD(Season, year, teams)
 inline Registry<Season> seasons{"test.season"};
