@@ -10,10 +10,7 @@ import sys
 
 # Files allowed to differ (by the end of their path), each with the reason. A listed file that no longer
 # differs is reported, so the entry can go.
-INTENDED = {
-    "career.season/examples/must-fail/record-key-with-namespace.json":
-        "1.6 allows '/' in a record's key (2017/game/lewis_hamilton); validate.py still refuses it",
-}
+INTENDED = {}
 
 
 def intended(f):
