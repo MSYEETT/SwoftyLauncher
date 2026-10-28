@@ -100,6 +100,10 @@ namespace swofty::career {
 Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
 Result set_car_number(Ref<drivers::Identity> driver, int number);
 }
+// swofty/systems/drivers.hpp
+namespace swofty::drivers {
+Result set_look(Ref<Identity> driver, Ref<Look> look);                 // table version 6: the driver wears the look in Driver Career
+}
 // swofty/systems/teams.hpp
 namespace swofty::teams {
 Result set_logo(Ref<Identity> team, Ref<Logo> logo);     // career operations table version 5

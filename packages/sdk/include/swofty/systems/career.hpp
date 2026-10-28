@@ -8,6 +8,7 @@
 #include <swofty/career.hpp>
 #include <swofty/events.hpp>
 #include <swofty/registry.hpp>
+#include <swofty/systems/career_ops.hpp>
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/forward.hpp>
@@ -369,25 +370,6 @@ struct ApplyReport {
     size_t changed = 0, unchanged = 0, refused = 0;
     std::vector<std::string> refusals;
 };
-
-namespace detail {
-
-inline Result ops_result(int r)
-{
-    return r == SWOFTY_ASSET_OK ? Result::ok
-           : r == SWOFTY_ASSET_LATE ? Result::late
-           : r == SWOFTY_ASSET_UNAVAILABLE ? Result::unavailable
-           : r == SWOFTY_REFUSED ? Result::refused
-                                           : Result::invalid;
-}
-
-inline bool stat_of(const SwoftyCareerOps *t, const Ref<drivers::Identity> &d, uint32_t &out)
-{
-    std::string id(d.id());
-    return !id.empty() && t->driver_stat(id.c_str(), &out) == SWOFTY_ASSET_OK;
-}
-
-}
 
 // The core's career operations (swofty_api.h SwoftyCareerOps, the core export SwoftyCoreCareerOps). On a core
 // without them every call returns unavailable.

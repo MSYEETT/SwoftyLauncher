@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <swofty/events.hpp>
 #include <swofty/registry.hpp>
+#include <swofty/systems/career_ops.hpp>
 #include <swofty/systems/forward.hpp>
 #include <swofty/systems/wearables.hpp>
 
@@ -11,8 +12,8 @@
 // names a donor, the stock row whose every key it copies; a variant of a stock driver copies its base's
 // row the same way. A person/ id works as a driver reference and resolves to the last enabled driver in
 // load order that is that person. The core refuses an identity without a look. What a row holds that this
-// header doesn't name is kept in the record's `extra`. set_look returns unavailable until the core
-// implements it.
+// header doesn't name is kept in the record's `extra`. set_look calls the core's career operations (table
+// version 6) and returns unavailable on a core without it; it refuses an empty look.
 
 namespace swofty::drivers {
 
@@ -106,7 +107,25 @@ inline Registry<Head> heads{"driver.head", {.applies = Applies::boot}};
 inline Registry<Look> looks{"driver.look", {.applies = Applies::boot}};
 inline Registry<Stats> stats{"driver.stats", {.applies = Applies::boot}};
 
-inline Result set_look(Ref<Identity>, Ref<Look>) { return Result::unavailable; }
+inline Result set_look(Ref<Identity> driver, Ref<Look> look)
+{
+    auto t = career::detail::live_ops();
+    if (!t || t->version < 6 || !t->set_look)
+        return Result::unavailable;
+    std::string d(driver.id()), l(look.id());
+    if (d.empty() || l.empty())
+        return Result::invalid;
+    switch (career::detail::ops_result(t->set_look(d.c_str(), l.c_str()))) {
+    case career::Result::ok:
+        return Result::ok;
+    case career::Result::late:
+        return Result::late;
+    case career::Result::unavailable:
+        return Result::unavailable;
+    default:
+        return Result::invalid;
+    }
+}
 
 }
 

@@ -4,6 +4,7 @@ launcher's packages/core/src/activation/row_keys.txt.gz (the same lines: `@shape
 table). Run it after that file changes."""
 
 import gzip
+import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -13,6 +14,11 @@ ROOTS = ["audio.audio_bundle_settings.audio_bundle_settings_N", "car_setup.prese
          "entrants.standings.standings_N", "entrants.vehicles.vehicle_N",
          "entrants.vehicles.vehicle_packages.vehicle_package_N", "game_setup.scenarios.scenario_N",
          "options_system.options.multiplayer.options_folder_N.option_N.value_N",
+         "customisation.custom_avatar.helmets.Helmet_N", "customisation.custom_avatar.suits.Suit_N",
+         "customisation.custom_avatar.gloves.Gloves_N", "entrants.animation.driver_heads.driver_head_N",
+         "entrants.driver_customisations.folder_N", "entrants.team_customisation.team_customisation_for_year_N",
+         "entrants.drivers.driver_N", "driver_statistics.driver_statistics.DriverStatisticsHolder_N",
+         "engine_management.driver_wear_rates.driver_wear_rate_N",
          "entrants.teams.team_N", "pit_lane.pit_times.team_pit_times_N", "bank.initial_team_cash.InitialTeamCash_N",
          "showroom.teams_history.team_history_N"]
 CATALOG = HERE.parents[4] / "tools" / "gamedb" / "catalog" / "keys.tsv.gz"
@@ -43,6 +49,12 @@ def catalogued():
     return out
 
 
+EXTRA = {
+    "entrants.drivers.driver_N": (HERE.parents[4] / "addons" / "classicseasons" / "classic-seasons-2019" / "db" / "season.json",
+                                  "entrants.drivers.driver"),
+}
+
+
 def main():
     shapes, current = {}, None
     for line in gzip.decompress(SOURCE.read_bytes()).decode().splitlines():
@@ -52,6 +64,9 @@ def main():
             current = shapes.setdefault(line[1:], [])
         elif current is not None:
             current.append(line)
+    for shape, (path, table) in EXTRA.items():
+        listed = json.loads(path.read_text())["fields"][table]
+        shapes[shape] += [k for k in listed if k not in shapes[shape]]
     shapes.update(catalogued())
     keep = sorted(s for s in shapes if any(s == r or s.startswith(r + ".") for r in ROOTS + CATALOGUED))
     missing = [r for r in ROOTS if r not in shapes]

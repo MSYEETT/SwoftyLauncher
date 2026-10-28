@@ -181,7 +181,7 @@ The core exports `SwoftyCoreCareerOps`. The table isn't a `SwoftyApi` field: `sw
 
 ```c
 typedef struct SwoftyCareerOps {
-    uint32_t version;                                                          /* 2 */
+    uint32_t version;                                                          /* 6 */
     int (*available)(void);
     int (*driver_stat)(const char *driver_ref, uint32_t *out);                 /* "game/<label>", "person/<label>" */
     int (*set_slots)(const char *data_group, const uint32_t *team_stats, size_t count);
@@ -189,6 +189,12 @@ typedef struct SwoftyCareerOps {
     int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
     int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
     int (*report_season)(int32_t year, int32_t season_index);                  /* version 2 */
+    int (*apply_teams)(SwoftyText request_json, char *report, size_t cap, size_t *len);   /* version 3 */
+    int (*set_seat)(SwoftyText request_json, char *report, size_t cap, size_t *len);      /* version 4 */
+    int (*set_car_number)(uint32_t driver_stat, int32_t number, uint32_t flags);
+    int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_logo)(const char *team_id, const char *logo_id);                 /* version 5 */
+    int (*set_look)(const char *driver_ref, const char *look_ref);             /* version 6 */
 } SwoftyCareerOps;
 
 enum { SWOFTY_REFUSED = 5 };

@@ -142,7 +142,9 @@ void define_pools(Database &d, std::vector<std::string> &lines, std::map<std::st
     };
     for (auto &scan : scan_all_pools(text)) {
         ids::Pool pool;
-        if (scan.lo <= scan.hi)
+        if (!scan.holes.empty())
+            pool.ranges = scan.holes;
+        else if (scan.lo <= scan.hi)
             pool.ranges.push_back({scan.lo, scan.hi});
         ids::store().define_pool(scan.registry, pool);
         lines.push_back("stat-id pool for " + scan.registry + ": " +
@@ -280,12 +282,15 @@ void count_outcome(const files::Outcome &o, Report &report, std::set<std::string
         report.lines.push_back(o.conflict);
 }
 
-void apply_liveries(Expansion &x, Report &report)
+void apply_liveries(Expansion &x, Report &report, const std::string &registry)
 {
     std::set<std::string> paths;
+    bool livery = registry == "livery";
     for (auto &g : x.groups) {
+        if (g.registry != registry)
+            continue;
         std::string addon = g.addon;
-        count_outcome(files::redirect(g.erp, addon, g.file, "livery", g.id, "boot"), report, paths);
+        count_outcome(files::redirect(g.erp, addon, g.file, registry, g.id, "boot"), report, paths);
         if (g.erp.find("_lx") == std::string::npos && in_game_folder(g.erp))
             continue;
         ::json::Value e;
@@ -309,11 +314,13 @@ void apply_liveries(Expansion &x, Report &report)
         if (!g.tmpl.empty())
             e.o.push_back({"template", str(g.tmpl)});
         int rc = runtime::group_add(e);
-        report.lines.push_back("livery " + g.id + ": asset group " + g.group + (rc == SWOFTY_ASSET_OK ? " registered" : " not registered"));
+        report.lines.push_back(registry + " " + g.id + ": asset group " + g.group + (rc == SWOFTY_ASSET_OK ? " registered" : " not registered"));
         if (rc != SWOFTY_ASSET_OK)
             report.refused++;
     }
     for (auto &f : x.folders) {
+        if (!livery)
+            break;
         std::filesystem::path dir(runtime::under_swofty("addons/" + f.addon + "/" + f.file));
         std::error_code ec;
         std::size_t n = 0;
@@ -328,7 +335,7 @@ void apply_liveries(Expansion &x, Report &report)
             report.lines.push_back("livery " + f.id + ": " + f.file + " holds no files; no texture redirected");
     }
     for (auto &o : x.owned)
-        if (o.owned)
+        if (livery && o.owned)
             runtime::own_item(djb2("eSELivery" + o.label), addon_of(o.id), o.label);
     std::map<std::string, int> routed;
     for (auto &p : paths) {
@@ -338,7 +345,7 @@ void apply_liveries(Expansion &x, Report &report)
     }
     std::string summary;
     for (auto &[addon, n] : routed)
-        summary += (summary.empty() ? "" : ", ") + std::to_string(n) + " livery file" + (n == 1 ? "" : "s") + " redirected to " + addon;
+        summary += (summary.empty() ? "" : ", ") + std::to_string(n) + (livery ? " livery file" : " archive") + (n == 1 ? "" : "s") + " redirected to " + addon;
     if (!summary.empty())
         report.summary = report.summary.empty() ? summary : report.summary + "; " + summary;
 }
@@ -456,8 +463,10 @@ public:
             report.lines.push_back(l);
         if (std::string_view(registry_) == "engine_sound")
             redirect_bundles(st, x, report);
-        if (std::string_view(registry_) == "livery")
-            apply_liveries(x, report);
+        if (std::string_view(registry_) == "livery" || std::string_view(registry_) == "helmet" ||
+            std::string_view(registry_) == "suit" || std::string_view(registry_) == "gloves" ||
+            std::string_view(registry_) == "driver.head")
+            apply_liveries(x, report, registry_);
         if (std::string_view(registry_) == "team.identity")
             apply_logos(x, report);
         if (staged) {

@@ -435,6 +435,17 @@ class Resolver:
         r = self.w.regs.get(regname)
         if r is None:
             return True
+        if rid.startswith('person/') and regname == 'driver.person':
+            key = rid[len('person/'):]
+            sub = Resolver(self.w, r, set())
+            return any(i.rsplit('/', 1)[-1] == key for i in sub.listed_ids(r))
+        if rid.startswith('person/') and regname == 'driver.identity':
+            sub = Resolver(self.w, r, set())
+            for i in sub.listed_ids(r):
+                v = sub.basev(i)
+                if isinstance(v, dict) and v.get('person') == rid:
+                    return True
+            return False
         return self.exists(r, rid)
 
     def pick(self, regname, text):

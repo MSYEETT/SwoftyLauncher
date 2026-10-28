@@ -811,6 +811,26 @@ struct Engine {
         }
         if (id.rfind("game/", 0) == 0 && !g->stock && !g->def.shared)
             return true;
+        if (id.rfind("person/", 0) == 0 && registry == "driver.person") {
+            std::string key = id.substr(7);
+            for (auto &rid : provider_records(*g)) {
+                auto slash = rid.rfind('/');
+                if (rid.substr(slash == std::string::npos ? 0 : slash + 1) == key && exists(*g, rid))
+                    return true;
+            }
+            return false;
+        }
+        if (id.rfind("person/", 0) == 0 && registry == "driver.identity") {
+            Engine ge(s, *g, g->eval.dropped);
+            for (auto &rid : provider_records(*g)) {
+                if (!ge.exists(*g, rid))
+                    continue;
+                Value b = ge.basev(rid);
+                if (b["person"].is_string() && b["person"].as_string() == id)
+                    return true;
+            }
+            return false;
+        }
         return exists(*g, id);
     }
 
