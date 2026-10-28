@@ -15,13 +15,17 @@
 #include <vector>
 
 #include "lineup_plan.hpp"
+#include "number_plan.hpp"
+#include "seat_plan.hpp"
 #include "stats.hpp"
+#include "track_fuel.hpp"
 
 std::string settings_addon(const void *from, std::string &dll);
 
 // The core's career operations (standard library 1.6, SwoftyCareerOps): apply_lineup, set_driver_ratings and
-// swap_drivers, and (table version 2) report_season, which the career snapshots answer
-// (snapshots/runtime.cpp). The line-up executor is Progressive Career's season batch (addons/progressive/native/src/
+// swap_drivers, (table version 2) report_season, which the career snapshots answer (snapshots/runtime.cpp), and
+// (table version 4) set_seat, which runs one seat change through apply_lineup's executor, set_car_number (Career
+// Mode Editor's drivers.number.set) and set_track_fuel (track_fuel.cpp). The line-up executor is Progressive Career's season batch (addons/progressive/native/src/
 // season.cpp apply(), seats.cpp) moved into the core: one batch of entrant writes through the Driver Career
 // sequence, read back and written back on a mismatch, the seated drivers' contracts, numbers and one
 // finalise. Every binding resolves when an operation first needs it; a missing one makes the operation
@@ -1296,9 +1300,252 @@ int api_report_season(int32_t year, int32_t season_index)
     return runtime::snapshots_report_season(who, year, season_index);
 }
 
+std::string caller(const void *from)
+{
+    std::string dll, who = settings_addon(from, dll);
+    return who.empty() ? (dll.empty() ? std::string("an unknown module") : dll) : who;
+}
+
+std::string loaded_data_group()
+{
+    char group[128] = {};
+    if (auto t = runtime::career_content_table(); t && t->data_group && t->data_group(nullptr, group, sizeof group) == SWOFTY_ASSET_OK)
+        return group;
+    return {};
+}
+
+int api_set_seat(SwoftyText request, char *out, size_t cap, size_t *len)
+{
+    Report rep;
+    std::string summary, head = "set_seat";
+    int r = SWOFTY_ASSET_OK;
+    json::Value j;
+    std::string text = request.data ? std::string(request.data, request.size) : std::string();
+    career_ops::seat::Plan sp;
+    labels();
+    if (!on_flow_thread()) {
+        rep.result = "failed";
+        summary = "late: called off the flow thread";
+        r = SWOFTY_ASSET_LATE;
+    } else if (!json::parse(text, j) || j.type != json::Value::Obj) {
+        rep.result = "refused";
+        summary = "the request is not a JSON object";
+        r = SWOFTY_ASSET_INVALID;
+    } else {
+        int driver = number(j["driver"]), team = number(j["team"]), slot = number(j["slot"]), seat = number(j["seat"]);
+        std::string group;
+        if (team < 0 && slot >= 1) {
+            group = loaded_data_group();
+            std::lock_guard<std::mutex> l(g_lock);
+            auto it = g_slots.find(group);
+            if (it != g_slots.end() && static_cast<size_t>(slot) <= it->second.size())
+                team = static_cast<int>(it->second[slot - 1]);
+        }
+        head = "set_seat " + (driver >= 0 ? driver_name(static_cast<uint32_t>(driver)) : std::string("?")) + " -> " +
+               (team >= 0 ? seat_text(static_cast<uint32_t>(team), seat) : "slot " + std::to_string(slot) + " seat " + std::to_string(seat + 1));
+        std::string missing;
+        uintptr_t e = 0;
+        std::vector<Row> rows;
+        if (driver < 0 || driver >= 0x3fff) {
+            rep.result = "refused";
+            summary = "\"driver\" must be a driver stat id 0..16382";
+            r = SWOFTY_ASSET_INVALID;
+        } else if (team < 0) {
+            rep.result = "refused";
+            summary = slot >= 1 ? "slot " + std::to_string(slot) + " is not in the slot table of data group " +
+                                      (group.empty() ? std::string("(none loaded)") : group)
+                                : std::string("the request names neither \"team\" nor \"slot\"");
+            r = SWOFTY_ASSET_INVALID;
+        } else if (!lineup_bound(missing)) {
+            rep.result = "failed";
+            summary = "unavailable: binding(s) not resolved: " + missing;
+            r = SWOFTY_ASSET_UNAVAILABLE;
+        } else if (!(e = entity()) || !entrant_rows(e, rows)) {
+            rep.result = "failed";
+            summary = "no career entity or its entrant rows are unreadable";
+            r = SWOFTY_ASSET_LATE;
+        } else {
+            sp = career_ops::seat::plan(plan_rows(rows), static_cast<uint32_t>(driver), team, seat);
+            if (!sp.refusal.empty()) {
+                rep.result = "refused";
+                rep.refusals.push_back(sp.refusal);
+                rep.refused = 1;
+                summary = "refused: " + sp.refusal;
+                r = SWOFTY_ASSET_INVALID;
+            } else if (sp.unchanged) {
+                rep.unchanged = 1;
+                summary = "already on that seat";
+            } else {
+                Lineup l;
+                l.why = "set_seat";
+                l.player_team = sp.player_team;
+                l.moves.push_back({sp.driver, sp.team, sp.seat, number(j["car"]), sp.holder, -1});
+                if (sp.what == career_ops::seat::Holder::swapped)
+                    l.moves.push_back({static_cast<uint32_t>(sp.holder), sp.from_team, sp.from_seat, -1, static_cast<int>(sp.driver), -1});
+                else if (sp.what == career_ops::seat::Holder::released)
+                    l.releases.push_back(static_cast<uint32_t>(sp.holder));
+                r = execute(l, rep, summary);
+                rep.changed = r == SWOFTY_ASSET_OK ? 1 : 0;
+            }
+        }
+    }
+    swofty::log("[career-ops] %s: %s", head.c_str(), summary.c_str());
+    if (rep.result == "ok" && r != SWOFTY_ASSET_OK)
+        rep.result = "failed";
+    std::string body = rep.json();
+    body.insert(body.size() - 1, ",\"holder\":" + quote(career_ops::seat::name(sp.what)));
+    int w = put(body, out, cap, len);
+    return w == SWOFTY_TOO_SMALL && r == SWOFTY_ASSET_OK ? SWOFTY_TOO_SMALL : r;
+}
+
+constexpr uintptr_t kVtCurrentWeekendOf = 0xa8;
+constexpr uintptr_t kWeekendRowsBegin = 0x20;
+constexpr uintptr_t kWeekendRowsEnd = 0x28;
+
+using CurrentWeekendFn = uintptr_t (*)(void *registry);
+
+uintptr_t weekend_row(uintptr_t e, const EntrantRecord &row)
+{
+    uintptr_t registry = e + offsetof(g::CareerEntity, component_registry);
+    uintptr_t vt = rdv<uintptr_t>(registry);
+    uintptr_t fn = vt ? rdv<uintptr_t>(vt + kVtCurrentWeekendOf) : 0;
+    if (!mem::in_image(fn))
+        return 0;
+    uintptr_t weekend = reinterpret_cast<CurrentWeekendFn>(fn)(reinterpret_cast<void *>(registry));
+    uintptr_t b = weekend ? rdv<uintptr_t>(weekend + kWeekendRowsBegin) : 0;
+    uintptr_t en = weekend ? rdv<uintptr_t>(weekend + kWeekendRowsEnd) : 0;
+    if (!b || en < b || (en - b) % sizeof(EntrantRecord) || (en - b) / sizeof(EntrantRecord) > kMaxEntrants)
+        return 0;
+    for (uintptr_t p = b; p < en; p += sizeof(EntrantRecord)) {
+        uint32_t v = rdv<uint32_t>(p + offsetof(EntrantRecord, ordinal_flags));
+        bool want_human = row.ordinal_flags & kHumanBit;
+        if (want_human ? (v & kHumanBit) != 0 : !(v & kHumanBit) && v == row.ordinal_flags)
+            return driver_of(rdv<EntrantRecord>(p)) == driver_of(row) ? p : 0;
+    }
+    return 0;
+}
+
+bool write_number(uintptr_t e, const Row &row, uint8_t n, bool &weekend)
+{
+    weekend = false;
+    auto set = reinterpret_cast<g::Career_Set_EntrantData_Thunk_t *>(bind("Career_Set_EntrantData_Thunk"));
+    if (!set || entity_busy(e) || (!human(row.rec) && !unique_identity(e, row)))
+        return false;
+    uint8_t id[kIdentitySize];
+    std::memcpy(id, &row.rec, kIdentitySize);
+    EntrantWriteData d = own_data(row);
+    set(reinterpret_cast<void *>(e), id, reinterpret_cast<const uint32_t *>(&d), row.rec.team_position, n);
+    if (uintptr_t w = weekend_row(e, row.rec); w && writable(w + offsetof(EntrantRecord, car_number), 1)) {
+        *reinterpret_cast<uint8_t *>(w + offsetof(EntrantRecord, car_number)) = n;
+        weekend = true;
+    }
+    return true;
+}
+
+std::string number_text(uint8_t n)
+{
+    return n == kNoNumber ? std::string("none") : "#" + std::to_string(n);
+}
+
+int api_set_car_number(uint32_t driver, int32_t want_number, uint32_t flags)
+{
+    labels();
+    std::string head = "set_car_number " + driver_name(driver) + " #" + std::to_string(want_number) +
+                       ((flags & SWOFTY_NUMBER_SWAP) ? " (swap)" : "");
+    std::string summary;
+    int r = SWOFTY_ASSET_OK;
+    uintptr_t e = 0;
+    std::vector<Row> rows;
+    if (!on_flow_thread()) {
+        summary = "late: called off the flow thread";
+        r = SWOFTY_ASSET_LATE;
+    } else if (driver >= 0x3fff || (flags & ~uint32_t(SWOFTY_NUMBER_SWAP))) {
+        summary = "a driver stat id 0..16382 and flags 0 or SWOFTY_NUMBER_SWAP are needed";
+        r = SWOFTY_ASSET_INVALID;
+    } else if (!bind("Career_Set_EntrantData_Thunk")) {
+        summary = "unavailable: binding(s) not resolved: Career_Set_EntrantData_Thunk";
+        r = SWOFTY_ASSET_UNAVAILABLE;
+    } else if (!(e = entity()) || !entrant_rows(e, rows)) {
+        summary = "no career entity or its entrant rows are unreadable";
+        r = SWOFTY_ASSET_LATE;
+    } else if (entity_busy(e)) {
+        summary = "the game is in the middle of an entrant update";
+        r = SWOFTY_ASSET_LATE;
+    } else {
+        std::vector<career_ops::numbers::Row> view;
+        size_t humans = 0;
+        for (auto &row : rows) {
+            view.push_back({driver_of(row.rec), row.rec.car_number, !teamless(row.rec)});
+            humans += human(row.rec);
+        }
+        int idx = row_index(rows, driver);
+        uint32_t key = idx >= 0 ? driver_of(rows[idx].rec) : driver << 16;
+        career_ops::numbers::Plan np = career_ops::numbers::plan(view, key, want_number, flags & SWOFTY_NUMBER_SWAP);
+        if (np.error != career_ops::numbers::Error::none) {
+            summary = "refused: " + np.why;
+            r = np.error == career_ops::numbers::Error::taken ? SWOFTY_REFUSED : SWOFTY_ASSET_INVALID;
+        } else if (np.unchanged) {
+            summary = "already " + number_text(rows[np.row].rec.car_number);
+        } else {
+            Row row = rows[np.row];
+            const Row *holder = np.swap_with >= 0 ? &rows[np.swap_with] : nullptr;
+            Row other = holder ? *holder : Row{};
+            uint8_t had = row.rec.car_number, want = static_cast<uint8_t>(want_number);
+            bool unique = true;
+            for (const Row *x : {&row, holder ? &other : nullptr})
+                if (x && (human(x->rec) ? humans != 1 : !unique_identity(e, *x)))
+                    unique = false;
+            if (!unique) {
+                summary = "refused: an entrant row's identity is not unique in the line-up; nothing written";
+                r = SWOFTY_ASSET_INVALID;
+            } else {
+                bool week_a = false, week_b = false;
+                bool ok = write_number(e, row, want, week_a);
+                ok = ok && (!holder || write_number(e, other, had, week_b));
+                std::vector<Row> now;
+                ok = ok && entrant_rows(e, now) && now.size() == rows.size();
+                for (size_t i = 0; ok && i < rows.size(); ++i) {
+                    EntrantRecord expect = rows[i].rec;
+                    if (rows[i].at == row.at)
+                        expect.car_number = want;
+                    else if (holder && rows[i].at == other.at)
+                        expect.car_number = had;
+                    ok = now[i].at == rows[i].at && std::memcmp(&now[i].rec, &expect, sizeof expect) == 0;
+                }
+                if (!ok) {
+                    bool wa, wb;
+                    bool back = (!holder || write_number(e, other, want, wb)) && write_number(e, row, had, wa);
+                    summary = std::string("FAILED: the entrant rows did not read back with the new number; ") +
+                              (back ? "restored the old numbers" : "COULD NOT restore every row, RELOAD THE SAVE without saving");
+                    r = SWOFTY_ASSET_INVALID;
+                } else {
+                    summary = number_text(had) + " -> " + number_text(want) +
+                              (holder ? "; " + driver_name(stat_of(driver_of(other.rec))) + " " + number_text(want) + " -> " +
+                                            number_text(had)
+                                      : std::string()) +
+                              " (weekend row " + (week_a && (!holder || week_b) ? "updated" : "not found") + "; " +
+                              std::to_string(rows.size() - (holder ? 2 : 1)) + " other row(s) unchanged)";
+                }
+            }
+        }
+    }
+    swofty::log("[career-ops] %s: %s", head.c_str(), summary.c_str());
+    return r;
+}
+
+int api_set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len)
+{
+    std::string who = caller(__builtin_return_address(0));
+    if (!on_flow_thread()) {
+        swofty::log("[career-ops] set_track_fuel from %s: late: called off the flow thread", who.c_str());
+        return SWOFTY_ASSET_LATE;
+    }
+    return career_ops::set_track_fuel(who, request, out, cap, len);
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
-    api_swap_drivers,          api_report_season,
+    api_swap_drivers,          api_report_season, nullptr,      api_set_seat,  api_set_car_number, api_set_track_fuel,
 };
 
 void setup()
@@ -1307,6 +1554,7 @@ void setup()
     uint32_t token = 0;
     if (ev && ev->on_frame)
         ev->on_frame(frame, nullptr, &token);
+    career_ops::track_fuel_setup();
 }
 
 }
