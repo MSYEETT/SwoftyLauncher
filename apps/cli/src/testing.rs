@@ -1097,7 +1097,8 @@ impl Harness<'_> {
             self.drop_profile(sandboxed, &profile, &mut br);
             return (br, reports);
         }
-        let needs_agent = sandboxed || runnable.iter().any(|&i| b.tests[i].needs_agent());
+        let tests_need_agent = sandboxed || runnable.iter().any(|&i| b.tests[i].needs_agent());
+        let needs_agent = tests_need_agent || b.env.kind == Kind::Boot;
         let mut agent = match needs_agent {
             false => None,
             true => match self.open_run(b, index, &dir, sandboxed) {
@@ -1242,11 +1243,19 @@ impl Harness<'_> {
             }
             std::thread::sleep(self.times.poll);
         };
+        let mut dropped_agent = false;
         let ready = ready.and_then(|()| match agent.as_mut() {
             None => Ok(()),
             Some(a) => {
                 let left = self.times.start.saturating_sub(started.elapsed());
-                a.hello(left, self.times.poll, &mut *run)?;
+                match a.hello(left, self.times.poll, &mut *run) {
+                    Err(why) if !tests_need_agent => {
+                        br.notes.push(format!("no test agent for this boot batch: {why}"));
+                        dropped_agent = true;
+                        return Ok(());
+                    }
+                    other => other?,
+                }
                 self.env_routes(&b.env, a, &mut *run)?;
                 self.env_career(
                     &b.env,
@@ -1256,6 +1265,9 @@ impl Harness<'_> {
                 )
             }
         });
+        if dropped_agent {
+            self.close_run(agent.take(), &mut br);
+        }
         match &ready {
             Err(why) => {
                 br.error = Some(why.clone());
@@ -1814,7 +1826,16 @@ impl Harness<'_> {
             .map(|r| r.iter().filter_map(Value::as_str).map(str::to_owned).collect())
             .unwrap_or_default();
         for r in routes {
-            let reply = a.call("route", json!({ "route": r }), self.times.step, &self.times, run)?;
+            let started = Instant::now();
+            let reply = loop {
+                let reply = a.call("route", json!({ "route": r }), self.times.step, &self.times, run)?;
+                let not_yet =
+                    reply.outcome == Outcome::Unavailable && reply.text().contains("no home view model");
+                if !not_yet || started.elapsed() >= self.times.step * 6 {
+                    break reply;
+                }
+                std::thread::sleep(self.times.poll.max(Duration::from_millis(500)));
+            };
             if reply.outcome != Outcome::Ok {
                 return Err(format!("route {r}: {}", reply.text()));
             }
