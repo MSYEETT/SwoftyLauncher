@@ -1207,7 +1207,27 @@ template <class T> struct SchemaOf<Ref<T>> {
     static void write(Writer &w) { schema_ref<T>(w); }
 };
 template <class T> struct SchemaOf<std::optional<T>> {
-    static void write(Writer &w) { SchemaOf<T>::write(w); }
+    static void write(Writer &w)
+    {
+        Writer inner;
+        SchemaOf<T>::write(inner);
+        std::string_view s = inner.out;
+        constexpr std::string_view head = "{\"type\":\"";
+        if (s.starts_with(head) && s.find("\"enum\"") == std::string_view::npos && s.find("\"null\"") == std::string_view::npos) {
+            auto end = s.find('"', head.size());
+            w.raw(s.substr(0, head.size() - 1));
+            w.raw("[\"");
+            w.raw(s.substr(head.size(), end - head.size()));
+            w.raw("\",\"null\"]");
+            w.raw(s.substr(end + 1));
+        } else if (s.find("\"null\"") != std::string_view::npos && s.starts_with("{\"type\":[")) {
+            w.raw(s);
+        } else {
+            w.raw("{\"oneOf\":[{\"type\":\"null\"},");
+            w.raw(s);
+            w.raw("]}");
+        }
+    }
 };
 template <class T> struct SchemaOf<std::vector<T>> {
     static void write(Writer &w)
