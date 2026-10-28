@@ -62,6 +62,7 @@ struct Box {
 
 struct LogoImage {
     std::string array, key, file, stock, context, addon, id, team;
+    bool fallback = false;
 };
 
 struct Plan {

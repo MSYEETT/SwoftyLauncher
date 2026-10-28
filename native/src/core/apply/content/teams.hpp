@@ -360,17 +360,19 @@ inline std::string stock_key(const Value &logo, const char *context)
     return v.is_object() && v["stock"].is_string() ? std::string(v["stock"].as_string()) : std::string();
 }
 
-inline void lower_logo_images(const std::string &team, const std::string &logo_id, const Value &logo,
-                              const std::string &tower_key, Plan &plan)
+inline void lower_logo_images(const std::string &team, const std::string &donor, const std::string &logo_id,
+                              const Value *logo, const std::string &tower_key, Plan &plan)
 {
     std::string addon = addon_of(logo_id);
     std::set<std::string> taken;
+    std::set<std::string> fell_back;
     for (const char *context : LOGO_CONTEXTS) {
-        const Value &v = logo["images"][context];
-        if (!v.is_string() && !(v.is_object() && v["stock"].is_string()))
-            continue;
+        const Value *v = logo ? &(*logo)["images"][context] : nullptr;
+        bool own = v && (v->is_string() || (v->is_object() && (*v)["stock"].is_string()));
         for (auto &a : logo_arrays(context)) {
-            if (a.tower && !v.is_string())
+            if (a.tower && !(own && v->is_string()))
+                continue;
+            if (!own && (a.tower || donor.empty()))
                 continue;
             std::string key = a.tower ? tower_key : team;
             if (!taken.insert(std::string(a.array) + "|" + key).second)
@@ -382,10 +384,15 @@ inline void lower_logo_images(const std::string &team, const std::string &logo_i
             img.addon = addon;
             img.id = logo_id;
             img.team = team;
-            if (v.is_string())
-                img.file = std::string(v.as_string());
+            if (!own) {
+                img.stock = donor;
+                img.fallback = true;
+                if (fell_back.insert(context).second)
+                    plan.lines.push_back("team.logo: " + team + " uses " + donor + "'s " + context + " logo");
+            } else if (v->is_string())
+                img.file = std::string(v->as_string());
             else
-                img.stock = std::string(v["stock"].as_string());
+                img.stock = std::string((*v)["stock"].as_string());
             plan.logos.push_back(std::move(img));
         }
     }
@@ -466,8 +473,7 @@ inline void lower_team(const std::string &id, const Value &rec, const Lookup &lo
     if (rec["logo"].is_string() && !logo)
         plan.lines.push_back("team.identity " + id + ": its logo " + std::string(rec["logo"].as_string()) +
                              " is not a team.logo record; no logo");
-    if (logo)
-        lower_logo_images(label, std::string(rec["logo"].as_string()), *logo, tower_key, plan);
+    lower_logo_images(label, donor, rec["logo"].is_string() ? std::string(rec["logo"].as_string()) : id, logo, tower_key, plan);
     for (auto &f : skipped)
         plan.lines.push_back("team.identity " + id + ": " + donor + " has no " + f + "; left out");
     plan.lines.push_back("team.identity " + id + ": row " + label + " from " + donor +

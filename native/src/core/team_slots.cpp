@@ -16,11 +16,14 @@
 
 // The loaded team records (re/db/subsystems/teams.md#team-record). Sess_Load_Teams stores each available
 // entrants.teams row as a 0x768-byte TeamRecord in a stat-id indexed slot vector through
-// Team_Insert_RecordByStatId, set 0 being the database set. site_Team_LoadInsertCall sees the vector (rcx) and the
-// stack record whose key is stat_id << 16 | set (rdx); site_Team_LoadInserted sees the stored record (rax). The
-// core keeps the set 0 vector and reads a slot's record through it when asked, so a reloaded set is never read
-// through a stale pointer, and tells the team applier about every record the loader stores so a team it has
-// dressed is dressed again. Nothing the game computes is changed here.
+// Team_Insert_RecordByStatId. Sess_Load_Teams (0x142469440) only walks the entrants.teams rows when its set argument
+// (bpl) is 0, the database set: for any other set it builds an empty slot vector and posts its message
+// (0x1424695af test bpl,bpl / jne 0x14246ca8c), so the insert call fires for the database set alone and the record
+// key, stat_id << 16, needs no set byte. site_Team_LoadInsertCall sees the vector (rcx) and the stack record
+// (rdx); site_Team_LoadInserted sees the stored record (rax). The core keeps the latest vector and reads a slot's
+// record through it when asked, so a reloaded set is never read through a stale pointer, and tells the team applier
+// about every record the loader stores so a team it has dressed is dressed again. Nothing the game computes is
+// changed here.
 //
 // SWOFTY_TEAM_SLOTS=0 turns it off.
 
@@ -56,19 +59,19 @@ void insert_call(SwoftyContext *c)
         return;
     }
     last_key = key;
-    if (team_slots::key_of(key).set == 0)
+    if (team_slots::database_key(key))
         database_set = c->rcx;
 }
 
 void inserted(SwoftyContext *c)
 {
     uint32_t key = last_key;
-    if (key == 0xffffffffu || team_slots::key_of(key).set != 0 || !c->rax)
+    if (key == 0xffffffffu || !team_slots::database_key(key) || !c->rax)
         return;
     int n = ++stored;
     if (n == 1)
         swofty::log("[teams] the game stored its first database team record (stat id %u); loaded team records can be reached",
-                    unsigned(team_slots::key_of(key).stat));
+                    unsigned(team_slots::stat_of(key)));
     if (!mem::readable(c->rax, RECORD_SIZE))
         return;
     std::function<void(uint16_t, uint8_t *)> h;
@@ -77,7 +80,7 @@ void inserted(SwoftyContext *c)
         h = inserted_hook();
     }
     if (h)
-        h(team_slots::key_of(key).stat, reinterpret_cast<uint8_t *>(c->rax));
+        h(team_slots::stat_of(key), reinterpret_cast<uint8_t *>(c->rax));
 }
 
 }
