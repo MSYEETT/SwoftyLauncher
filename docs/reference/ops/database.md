@@ -174,7 +174,7 @@ warning: My Mod: 12 removal(s) of database records the tracks add skipped; the g
 
 The game crashes on any key it reads that is missing; see [Missing keys](/reference/gamedb/reading#missing-keys). A build that removes a stock record writes the database into `gamedatabases.2025.bin` instead of editing it at runtime. **Export game files (.zip)** in the DB Editor skips the same removals and lists them.
 
-### Keeping the game's entrant lists
+### Renamed and removed entrant lists
 
 The game looks up its entrant lists (`entrants.entrant_lists`) by name. A database mod made from an older game version's database renames or removes a list that the newer version added:
 
@@ -183,16 +183,10 @@ The game looks up its entrant lists (`entrants.entrant_lists`) by name. A databa
 { "op": "set", "select": "entrants.entrant_lists.entrant_list[_metadata_=f2_2026]", "field": "_metadata_", "value": "f2_2025" }
 ```
 
-When an addon's ops rename one of the stock lists, remove it, or lower `_entrant_list_instancecount_` so the list is past the count, the build puts the list back:
-
-- The stock list is added back as a new row, with its stock keys and `stat_id`.
-- A count the addon lowers goes back up.
-- A list name the addon takes out of a content set's `available_entrant_lists`, or an entrant setup mode's `entrant_lists` or `selectable_entrant_lists`, goes back in.
-
-The build warns once per addon:
+When an addon's ops rename one of the stock lists, remove it, lower `_entrant_list_instancecount_` so the list is past the count, or take a list name out of a content set's `available_entrant_lists` or an entrant setup mode's `entrant_lists` or `selectable_entrant_lists`, the build applies the ops as written. It warns once per addon:
 
 ```text
-warning: My Mod: kept the entrant list(s) f2_2026 that it renames or removes; the game crashes when a list it looks up by name is missing
+warning: My Mod: renames or removes the entrant list(s) f2_2026; F2 menus may crash with it
 ```
 
 ### remove-row
