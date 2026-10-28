@@ -1985,6 +1985,8 @@ pub type Game_Handle_SpecGarageCrewEvent_Thunk_t =
 pub type Game_Network_CategoryOptionUsing_t = unsafe extern "C" fn(self_: *mut c_void);
 pub type Game_Network_SendingRedFlagVehicleStatusUpdate_t =
     unsafe extern "C" fn(red_flag_state: *mut c_void, dt: *const f64);
+pub type Game_Network_SetScenario_t =
+    unsafe extern "C" fn(session: *mut c_void, stat_id: u8, spec: *const c_void);
 pub type Game_OptionsStore_FindOption_t =
     unsafe extern "C" fn(map: *mut c_void, name: *mut *const c_char) -> u64;
 pub type Game_PitLane_MoveDownSpline_t = unsafe extern "C" fn(
@@ -2572,6 +2574,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_Network_SetScenario: Binding = Binding {
+        id: "Game_Network_SetScenario",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_OptionsStore_FindOption: Binding = Binding {
         id: "Game_OptionsStore_FindOption",
         kind: "func",
@@ -2989,6 +2996,11 @@ pub mod bindings {
     };
     pub const g_Game_Root: Binding = Binding {
         id: "g_Game_Root",
+        kind: "data",
+        status: Status::Experimental,
+    };
+    pub const g_Game_Scenarios: Binding = Binding {
+        id: "g_Game_Scenarios",
         kind: "data",
         status: Status::Experimental,
     };

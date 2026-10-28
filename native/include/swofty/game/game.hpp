@@ -211,6 +211,8 @@ using Game_Network_CategoryOptionUsing_t = void(void *self);
 inline constexpr fn<"Game_Network_CategoryOptionUsing", Game_Network_CategoryOptionUsing_t> Game_Network_CategoryOptionUsing{}; // L2 experimental
 using Game_Network_SendingRedFlagVehicleStatusUpdate_t = void(void *red_flag_state, const double *dt);
 inline constexpr fn<"Game_Network_SendingRedFlagVehicleStatusUpdate", Game_Network_SendingRedFlagVehicleStatusUpdate_t> Game_Network_SendingRedFlagVehicleStatusUpdate{}; // L2 experimental
+using Game_Network_SetScenario_t = void(void *session, uint8_t stat_id, const void *spec);
+inline constexpr fn<"Game_Network_SetScenario", Game_Network_SetScenario_t> Game_Network_SetScenario{}; // L2 experimental
 using Game_OptionsStore_FindOption_t = uint64_t(void *map, const char **name);
 inline constexpr fn<"Game_OptionsStore_FindOption", Game_OptionsStore_FindOption_t> Game_OptionsStore_FindOption{}; // L2 experimental
 using Game_PitLane_MoveDownSpline_t = void(void *pitlane, uint8_t car, void *teleport_req, bool alt_spline, float dt, bool p6, bool blend, bool p8, bool p9);
@@ -258,6 +260,7 @@ inline constexpr data<"g_Game_MessageBus", void *> g_Game_MessageBus{}; // L2 ex
 inline constexpr data<"g_Game_OptionsStore", void *> g_Game_OptionsStore{}; // L2 experimental
 inline constexpr data<"g_Game_RaceStartSystem", void*> g_Game_RaceStartSystem{}; // L2 experimental
 inline constexpr data<"g_Game_Root", void *> g_Game_Root{}; // L2 experimental
+inline constexpr data<"g_Game_Scenarios", void *> g_Game_Scenarios{}; // L2 experimental
 inline constexpr data<"g_Game_TrackLength", float> g_Game_TrackLength{}; // L2 experimental
 inline constexpr data<"g_Game_VehicleRecordManager", void *> g_Game_VehicleRecordManager{}; // L2 experimental
 inline constexpr data<"g_Game_VehicleStateRoot", void *> g_Game_VehicleStateRoot{}; // L2 experimental

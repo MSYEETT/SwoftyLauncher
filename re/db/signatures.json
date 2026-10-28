@@ -74726,6 +74726,61 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "game.network_set_scenario",
+   "section": ".xtls",
+   "pattern": "0F B6 16 48 89 F9 4D 89 E0 E8 ?? ?? ?? ?? 48 83 C6 50 4C 39 EE",
+   "match": "0x14315e570",
+   "anchor": "0xa",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x9"
+   },
+   "target": "0x1430913f0",
+   "kind": "call",
+   "names": [
+    "Game_Network_SetScenario"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "carcat-scenario",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
+  },
+  {
+   "id": "game.scenarios_global",
+   "section": ".xtls",
+   "pattern": "48 8B 05 ?? ?? ?? ?? 48 8B 70 68 4C 8B 68 70 4C 39 EE",
+   "match": "0x14315e522",
+   "anchor": "0x3",
+   "resolve": {
+    "kind": "riprel",
+    "insn": "0x0",
+    "len": 7
+   },
+   "target": "0x146079b28",
+   "kind": "data",
+   "names": [
+    "g_Game_Scenarios"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "carcat-scenario",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/car_category.cpp"
+   ]
   }
  ]
 }
