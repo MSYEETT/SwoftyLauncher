@@ -7,6 +7,10 @@ cabin
 engine
 era
 exhaust
+@bank.initial_team_cash.InitialTeamCash_N
+_metadata_
+cash
+team
 @car_setup.presets.vehicle_package_setups_N
 _metadata_
 ai.balanced.ballast
@@ -241,10 +245,10 @@ player.balanced.front_right_tyre_pressure
 player.balanced.front_right_tyre_pressure_inter
 player.balanced.front_right_tyre_pressure_wet
 player.balanced.front_suspension
-player.balanced.front_suspension_height
+playe)keys",
+    R"keys(r.balanced.front_suspension_height
 player.balanced.front_toe
-pl)keys",
-    R"keys(ayer.balanced.front_wing
+player.balanced.front_wing
 player.balanced.fuel_load
 player.balanced.mid_corner
 player.balanced.off_throttle
@@ -430,6 +434,19 @@ player.med_speed.rear_suspension
 player.med_speed.rear_suspension_height
 player.med_speed.rear_toe
 player.med_speed.rear_wing
+@career.my_team_renown_and_form.MyTeamRenownAndFormDataGroup_N.initial_renown_and_form.InitialTeamRenownAndForm_N
+_metadata_
+form_points
+renown_points
+team
+@career.my_team_sponsors.MyTeamSponsorsDataGroup_N.team_primary_sponsors.team_primary_sponsor_N
+_metadata_
+primary_sponsor
+team
+@driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements.TeamDriverRatingRangeRequirement_N
+_metadata_
+rating_range
+team
 @entrants.entrant_lists.entrant_list_N
 +entrant
 +vehicle_package_override
@@ -457,7 +474,8 @@ entrant_reference
 team
 team_position
 vehicle
-vehicle_customisation
+vehicle_cu)keys",
+    R"keys(stomisation
 @entrants.entrant_lists.entrant_list_N.vehicle_package_override_N
 _metadata_
 override_vehicle_package
@@ -479,14 +497,46 @@ vehicle_customisation
 _driver_reference_instancecount_
 _metadata_
 _team_reference_instancecount_
-@entrants.standings.standings_N.)keys",
-    R"keys(driver_reference_N
+@entrants.standings.standings_N.driver_reference_N
 _metadata_
 driver
 driver_customisation
 @entrants.standings.standings_N.team_reference_N
 _metadata_
 team
+@entrants.teams.team_N
++story_info
+_metadata_
+_story_info_instancecount_
+animation_set
+audio_id
+available
+display_name
+display_name_code
+display_name_short
+display_name_super_short
+expression_label
+livery_name
+nationality
+prestige
+primary_colour
+secondary_colour
+show_custom_badge_in_UI
+show_team_badge
+stat_id
+team_base
+team_boss
+team_colour_valid
+team_wear_primary_colour
+team_wear_secondary_colour
+team_wear_tertiary_colour
+tertiary_colour
+timing_tower_texture_path
+ui_team_colour
+@entrants.teams.team_N.story_info_N
+_metadata_
+description
+hashtag
 @entrants.vehicles.vehicle_N
 _metadata_
 ai_vehicle_config.allow_to_pass.allow_to_pass_gap
@@ -599,7 +649,8 @@ ai_vehicle_config.lost_control.spin_angle_intiate_ratio
 ai_vehicle_config.lost_control.spin_cancel_time
 ai_vehicle_config.lost_control.spin_continue_angle
 ai_vehicle_config.lost_control.spin_initiate_angle
-ai_vehicle_config.lost_control.spun_angle_to_max_steering_angle_ratio
+ai_vehicle)keys",
+    R"keys(_config.lost_control.spun_angle_to_max_steering_angle_ratio
 ai_vehicle_config.lost_control.unspun_angle_to_max_steering_angle_ratio
 ai_vehicle_config.merge_rates.corner_radius_merge_rage_graph
 ai_vehicle_config.merge_rates.near_corner_merge_rate_graph
@@ -613,8 +664,7 @@ ai_vehicle_config.merge_rates.steering_heat_map.max_merge_rate_for_drafting_huma
 ai_vehicle_config.merge_rates.steering_heat_map.space_seeking_merge_rate
 ai_vehicle_config.merge_rates.track_edge_proximity_merge_rate_graph
 ai_vehicle_config.merge_rates.vehicle_heat_map.blocking_ending_merge_rate
-ai_vehicle_config.merge_rates.vehicle_heat_map.bl)keys",
-    R"keys(ocking_starting_merge_rate
+ai_vehicle_config.merge_rates.vehicle_heat_map.blocking_starting_merge_rate
 ai_vehicle_config.merge_rates.vehicle_heat_map.celebration_merge_rate
 ai_vehicle_config.merge_rates.vehicle_heat_map.max_merge_rate
 ai_vehicle_config.merge_rates.vehicle_heat_map.max_merge_rate_for_Side_Swipe
@@ -748,7 +798,8 @@ ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficul
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_low_characteristic_mapping
-ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.low_difficulty_high_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.low_difficulty_hig)keys",
+    R"keys(h_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.low_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.brake_off_time.characteristic
 ai_vehicle_package_config.driver_parameter_maps.brake_off_time.high_difficulty_high_characteristic_mapping
@@ -758,8 +809,7 @@ ai_vehicle_package_config.driver_parameter_maps.brake_off_time.low_difficulty_lo
 ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.high_difficulty_low_characteristic_mapping
-ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.low_difficu)keys",
-    R"keys(lty_high_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.low_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.braking_distance_factor.low_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.corner_curvature_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.corner_curvature_factor.high_difficulty_high_characteristic_mapping
@@ -811,6 +861,18 @@ resource_path
 resource_path_specialisation
 stat_id
 tyre_compounds_asset_group
+@facilities.facilities.Facilities_N.team_developments.TeamDevelopment_N
+_metadata_
+installed
+purchased
+shutdown
+team
++date
+@facilities.facilities.Facilities_N.team_developments.TeamDevelopment_N.date_N
+_metadata_
+day
+month
+year
 @game_setup.scenarios.scenario_N
 _metadata_
 display_name
@@ -827,5 +889,29 @@ game_value
 is_default
 loc_tag
 loc_tag_alternate
-vr_is_default)keys",
+vr_is_default
+@pit_lane.pit_times.team_pit_times_N
+_metadata_
+max_pit_time
+max_pit_time_fully_upgraded
+min_pit_time
+min_pit_time_fully_upgraded
+team
+@recognition.RecognitionDataGroup_N.team_modifiers.TeamModifier_N
+_metadata_
+ai_weighting
+team
+team_comparison_driver
+weightings
+@showroom.teams_history.team_history_N
+_metadata_
+addon_content
+audio_vo_name
+camera_sequence
+drivers
+history
+poles
+team
+team_name
+wins)keys",
 };
