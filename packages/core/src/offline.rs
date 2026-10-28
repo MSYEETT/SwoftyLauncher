@@ -963,6 +963,14 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
                             }
                         }
                         (Err(err), _) | (_, Err(err)) => failures.push(err.to_string()),
+                        _ if launcher && matches!(ea_signed(from), Ok(Some(true))) => match set_aside(dir, to) {
+                            Ok(keep) => done.push(format!(
+                                "{} was replaced by the EA app; kept EA's file and set the older backup aside at {}",
+                                e.from,
+                                keep.display()
+                            )),
+                            Err(err) => failures.push(err.to_string()),
+                        },
                         _ => failures.push(format!("{}: already exists; left as is", e.from)),
                     }
                     continue;
@@ -1774,6 +1782,23 @@ mod tests {
             std::fs::write(&file, bytes).unwrap();
             assert_eq!(ea_signed(&file).unwrap(), want);
         }
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn restore_keeps_a_newer_launcher_the_ea_app_put_back() {
+        let d = temp("restore-ea-newer");
+        let (journal, launcher, parked, _) = staged(&d);
+        let repaired = program(Some("Electronic Arts"), "a newer launcher");
+        std::fs::write(&launcher, &repaired).unwrap();
+        let done = restore(&journal, false).unwrap();
+        assert!(
+            done.iter().any(|l| l.contains("was replaced by the EA app")),
+            "{done:?}"
+        );
+        assert_eq!(std::fs::read(&launcher).unwrap(), repaired);
+        assert!(!parked.exists());
+        assert_eq!(recovered(&d.join("game")), vec![b"genuine".to_vec()]);
         std::fs::remove_dir_all(&d).ok();
     }
 
