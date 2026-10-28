@@ -62,6 +62,10 @@ impl Fixture {
     }
 
     fn room(&self, body: &str) {
+        write(&self.store.root.join("registry/room.json"), body);
+    }
+
+    fn legacy_room(&self, body: &str) {
         write(&self.game.dir.join("swofty/registry/room.json"), body);
     }
 }
@@ -165,4 +169,32 @@ fn an_unsized_boot_that_ran_out_of_room_pads_the_next_database_file() {
     let sized = build(&f.store, "default", &f.game).unwrap();
     let db = Gvdb::parse(&std::fs::read(&sized.plan.data[GVDB]).unwrap()).unwrap();
     assert_eq!(db.records.len(), 3);
+}
+
+#[test]
+fn the_room_report_is_read_from_the_data_folder_first_and_the_game_folder_after() {
+    let f = Fixture::new("room-places");
+    f.addon("a.x", "X", "1.0.0", LAPS, Some("{}"));
+    let ran_out = r#"{ "version": 1, "presize": "unavailable", "registry": { "asked_keys": 200000,
+                       "addons": { "a.x": { "asked": 200000, "applied": 90000 } } } }"#;
+    let fine = r#"{ "version": 1, "presize": "applied", "registry": { "asked_keys": 200000 } }"#;
+    let records = |f: &Fixture| {
+        let built = build(&f.store, "default", &f.game).unwrap();
+        Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap())
+            .unwrap()
+            .records
+            .len()
+    };
+    f.legacy_room(ran_out);
+    assert_eq!(
+        records(&f),
+        swofty_core::stdlib::room::PAD_2_21,
+        "an old core's report counts"
+    );
+    f.room(fine);
+    assert_eq!(
+        records(&f),
+        3,
+        "the data folder's report wins over the game folder's"
+    );
 }

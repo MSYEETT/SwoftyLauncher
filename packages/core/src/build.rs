@@ -1050,7 +1050,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         .any(|s| resolved.order.contains(&s.id) && s.is_std())
         .then(|| {
             crate::stdlib::room::asked(
-                crate::stdlib::reports::Room::read(&game.dir).as_ref(),
+                crate::stdlib::reports::Room::read(&store.root, Some(&game.dir)).as_ref(),
                 profile,
                 &resolved.order,
             )
