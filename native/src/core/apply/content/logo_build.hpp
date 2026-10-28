@@ -28,6 +28,7 @@ struct Want {
     std::string array, key, donor;
     std::string rgba;
     uint32_t width = 0, height = 0;
+    bool fallback = false;
 };
 
 struct Env {
@@ -150,8 +151,10 @@ inline bool build(const Env &env, const std::vector<Want> &wants, Result &out)
             if (!w->donor.empty()) {
                 auto at = std::find(names.begin(), names.end(), w->donor);
                 if (at == names.end()) {
-                    out.lines.push_back("team.logo: " + array + " has no stock key " + w->donor + " for " + w->key);
-                    out.refused++;
+                    out.lines.push_back("team.logo: " + array + " has no stock key " + w->donor + " for " + w->key +
+                                        (w->fallback ? "; the donor fallback is left out" : ""));
+                    if (!w->fallback)
+                        out.refused++;
                     seen.erase(w->key);
                     continue;
                 }

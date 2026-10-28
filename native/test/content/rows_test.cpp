@@ -614,6 +614,25 @@ static void team_tests(const std::string &regs)
         ts |= l.array == "team_logos.driver_career_2024_team_select" && l.key == "plain_team" && l.file == "logos/ts.png";
     }
     check(hud && ds && ts && !hub_alias, "logo images: the hud array by the timing tower key, the label arrays by the label, driver select wins over hub");
+    auto fell = [&](const char *team, const char *array) {
+        for (auto &l : x.logos)
+            if (l.team == team && l.array == array && l.fallback)
+                return l.stock + "|" + l.key + "|" + l.context;
+        return std::string();
+    };
+    check(fell("plain_team", "teams.driver_select_team_logos") == "mercedes|plain_team|driver_select" &&
+              fell("plain_team", "teams.badges_broadcast") == "mercedes|plain_team|broadcast" &&
+              fell("plain_team", "team_logos.driver_career_2024_team_select").empty(),
+          "a context with no image falls back to the donor's stock slice; the context with an image does not");
+    check(fell("plain_team", "osd.timing_tower.team_badges_hud").empty() && fell("plain_team", "osd.timing_tower.team_badges_broadcast").empty(),
+          "the timing tower arrays are not given a fallback (the row keeps its donor's badge key)");
+    check(fell("toro_rosso_2017", "team_logos.driver_career_2024_team_select") == "tororosso|toro_rosso_2017|team_select" &&
+              fell("toro_rosso_2017", "teams.driver_select_team_logos").empty(),
+          "a team with some images falls back only for the contexts it lacks");
+    int said = 0;
+    for (auto &l : x.lines["team.identity"])
+        said += l == "team.logo: plain_team uses mercedes's driver_select logo";
+    check(said == 1, "the fallback is logged once per team and context");
     std::map<std::string, Value> keep;
     auto lookup = content::own_lookup(st, keep);
     auto refs = content::refs_of(st, lookup);
@@ -724,8 +743,9 @@ static void slot_tests()
     check(team_slots::record_in(vector, 4, read) == 0 && team_slots::record_in(0, 3, read) == 0, "a stat id past the vector's end has none");
     mem[vector + 0x10] = entries + 4 * 0x10 + 3;
     check(team_slots::record_in(vector, 3, read) == 0, "a vector whose size is not a whole number of entries is not read");
-    auto k = team_slots::key_of((600u << 16) | 1u);
-    check(k.stat == 600 && k.set == 1 && team_slots::key_of(3u << 16).set == 0, "the key carries the stat id in its high word and the set in its low byte");
+    check(team_slots::stat_of(600u << 16) == 600 && team_slots::stat_of(3u << 16) == 3, "the key carries the stat id in its high word");
+    check(team_slots::database_key(600u << 16) && team_slots::database_key(0), "a loader key has no set byte: the low word is zero");
+    check(!team_slots::database_key((600u << 16) | 1u), "a key with a set or flag byte set is not a database loader key");
 }
 
 int main(int argc, char **argv)
