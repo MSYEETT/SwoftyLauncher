@@ -105,6 +105,7 @@ if [[ -n ${BASE_REF:-} ]]; then
 fi
 build b16 "$CLI16" "$LOADER16" split
 args=()
+[[ -f $CS/classic-seasons/registry/drivers.json ]] && args+=("swofty.classic-seasons" "$CS/classic-seasons/registry/drivers.json")
 for y in "${YEARS[@]}"; do args+=("swofty.classic-seasons-$y" "$CS/classic-seasons-$y/registry/content.json"); done
 "$TOOL" --registries "$REPO/packages/sdk/std/registries" --db "$STOCK" --edits "$(overlay b16)swofty/assets.json" \
     --out "$W/core.json" --summary "$W/core.summary.json" "${args[@]}" > "$W/core.log" 2>&1 || { cat "$W/core.log"; exit 1; }
