@@ -332,7 +332,7 @@ career.season                                  <- registry
   swofty.progressive/2016                      <- record id: <addon id>/<key>
   swofty.progressive/2017                      { data_group: "f1_career_progressive", year: 2017, teams: [...] }
 career.driver_ratings
-  swofty.progressive/2017/max_verstappen       { driver: "game/max_verstappen", experience: 74, ... }
+  swofty.progressive/2017/game/max_verstappen       { driver: "game/max_verstappen", experience: 74, ... }
 engine_sound
   game/ferrari_2025                            <- the core's record of the stock game
 track.venue

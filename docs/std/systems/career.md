@@ -72,7 +72,12 @@ struct SeasonTeam {
 };
 SWOFTY_RECORD(SeasonTeam, slot, team, seats)
 
-enum class ChangeKind { swap, stand_in };
+enum class ChangeKind {
+    swap,       // the two drivers exchange seats
+    stand_in,   // `in` drives until `until_round`, then `out` returns
+    move,       // `in` was on the grid in another seat and moves to this one
+    replace,    // `in` takes the seat for the rest of the season; `out` leaves the grid
+};
 
 struct SeasonChange {
     int round = 0, slot = 0, seat = 0;         // from this round on, this seat
@@ -113,7 +118,7 @@ inline Registry<Calendar> calendars{"career.calendar", { .applies = Applies::boo
 struct DriverRatings {
     Ref<Season> season;
     Ref<drivers::Identity> driver;
-    int experience, racecraft, awareness, pace;   // 0..100
+    float experience, racecraft, awareness, pace;   // 0..100, one decimal
 };
 SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, pace)
 inline Registry<DriverRatings> ratings{"career.driver_ratings", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};

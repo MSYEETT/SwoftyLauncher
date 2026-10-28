@@ -163,6 +163,6 @@ Tests always run on a copy of a fixture in a separate save folder. They never re
 
 ## Running tests
 
-- One game runs at a time on a machine, so tests queue for it. `swofty test run` waits for the game to be free, and with `--take-over` it closes a running game first.
+- One game runs at a time on a machine, so tests queue for it. `swofty test run` waits up to 30 minutes for the game to be free (`--wait 0` doesn't wait), and with `--take-over` it closes a running game first.
 - Every run uses its own launcher profile with only the addons the tests name, and puts the game folder back afterwards.
-- The report is JSON and JUnit, with logs, frames and the values sampled. The exit code is 0 when everything passed, 1 when a test failed, and 2 when the game couldn't be started.
+- The report is JSON and JUnit, with logs, frames and the values sampled. The exit code is 0 when everything passed, 1 when a test failed, 2 when the game couldn't be started and 3 when the game was still busy after the wait.
