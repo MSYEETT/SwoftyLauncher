@@ -453,7 +453,7 @@ EOF
     fi
     count "$mode: no SDK calls, no api lines" 0 '\[assets\] api:'
     if [[ $ITEMS && $req ]]; then
-        once "items: owned_items summary" '\[items\] settings\.json: 1 mod item\(s\) to report as owned'
+        once "items: owned_items summary" '\[items\] 1 mod item\(s\) to report as owned'
         once "items: key without 0x skipped" "\\[items\\] skipping owned_items entry key 'f01d03c7'"
         once "items: ownership check hooked" '\[items\] ownership check hooked at base\+0x[0-9a-f]+'
         once "items: mod key logged once" '\[items\] reporting mod item 0xf01d03c7 \(se_livery 22, rmdesigns\.alphatauri-orlen-livery\) as owned'
