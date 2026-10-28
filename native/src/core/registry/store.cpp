@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <thread>
+#include <tuple>
 
 namespace swofty_core::registry {
 
@@ -1430,6 +1431,15 @@ void Store::Impl::evaluate(Reg &r)
         }
     }
     tl_computing = prev;
+    std::sort(ev.refusals.begin(), ev.refusals.end(), [](const Refusal &a, const Refusal &b) {
+        return std::tie(a.addon, a.registry, a.id, a.op, a.reason) < std::tie(b.addon, b.registry, b.id, b.op, b.reason);
+    });
+    ev.refusals.erase(std::unique(ev.refusals.begin(), ev.refusals.end(),
+                                  [](const Refusal &a, const Refusal &b) {
+                                      return std::tie(a.addon, a.registry, a.id, a.op, a.reason) ==
+                                             std::tie(b.addon, b.registry, b.id, b.op, b.reason);
+                                  }),
+                      ev.refusals.end());
     r.eval = std::move(ev);
 }
 
