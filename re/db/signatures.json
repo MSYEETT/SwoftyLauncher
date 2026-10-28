@@ -74775,6 +74775,87 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "car.fuel_mode_set_call_net",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 01 75 7E B8 8E 00 00 00",
+   "match": "0x14324b7c1",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14324b7c1",
+   "kind": "mid",
+   "expect": "E8 DA 2E 44 01",
+   "names": [
+    "site_Car_FuelModeSetCallNet"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
+  },
+  {
+   "id": "car.fuel_mode_set_call_pose",
+   "section": ".xtls",
+   "pattern": "41 5D 41 5E 41 5F C3 E8 ?? ?? ?? ?? E9",
+   "match": "0x14389bbec",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389bbf3",
+   "kind": "mid",
+   "expect": "E8 A8 2A DF 00",
+   "names": [
+    "site_Car_FuelModeSetCallPose"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
+  },
+  {
+   "id": "car.fuel_mode_set_call_tyre_damage",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 49 8B 8F A8 05 00 00",
+   "match": "0x14470e082",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14470e082",
+   "kind": "mid",
+   "expect": "E8 19 06 F8 FF",
+   "names": [
+    "site_Car_FuelModeSetCallTyreDamage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "car-trace",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "re/tests/T123.trace.json"
+   ]
   }
  ]
 }
