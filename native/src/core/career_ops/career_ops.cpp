@@ -1316,7 +1316,6 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
                 my_team = st.mode == SWOFTY_CAREER_MY_TEAM;
         }
         ct::Table table = ct::build_table(std::move(all), my_team);
-        tp = ct::plan_season(table, cur);
         std::vector<uint32_t> slot_teams;
         bool have_slots = false;
         {
@@ -1327,6 +1326,16 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
                 slot_teams = it->second;
             }
         }
+        if (have_slots && labels()) {
+            std::vector<std::string> physical;
+            std::lock_guard<std::mutex> l(g_lock);
+            for (uint32_t stat : slot_teams) {
+                auto name = g_labels.team_by_stat.find(stat);
+                physical.push_back(name == g_labels.team_by_stat.end() ? std::string() : name->second);
+            }
+            ct::anchor_rows(table, physical);
+        }
+        tp = ct::plan_season(table, cur);
         std::string missing;
         uintptr_t e = 0;
         std::vector<Row> rows;
@@ -1408,15 +1417,28 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
                 rep.refusals.insert(rep.refusals.end(), closing.refusals.begin(), closing.refusals.end());
                 rep.refused = rep.refusals.size();
                 for (auto &a : tp.actions) {
-                    if (a.kind == ct::Kind::open && ct::dresser())
-                        ct::dresser()(group.c_str(), a.slot, a.row.c_str(), a.row.c_str());
-                    if (a.kind != ct::Kind::dressed)
+                    if (a.kind == ct::Kind::closed)
                         continue;
-                    if (ct::dresser() && ct::dresser()(group.c_str(), a.slot, a.row.c_str(), a.team.c_str()))
+                    int64_t row_stat = static_cast<int64_t>(slot_teams[static_cast<size_t>(a.slot - 1)]);
+                    std::string row = ct::identity_id(a.row);
+                    if (a.kind == ct::Kind::open) {
+                        if (ct::dresser())
+                            ct::dresser()(group.c_str(), a.slot, row.c_str(), row.c_str(), row_stat);
+                        continue;
+                    }
+                    std::string team = ct::identity_id(a.team);
+                    if (ct::dresser() && ct::dresser()(group.c_str(), a.slot, row.c_str(), team.c_str(), row_stat)) {
                         ++dressed;
-                    else
+                        swofty::log("[career-ops] apply_teams slot %d: team row %s (stat id %lld) is dressed as %s", a.slot, a.row.c_str(),
+                                    static_cast<long long>(row_stat), team.c_str());
+                    } else {
                         ++dress_pending;
+                        rep.refusals.push_back("slot " + std::to_string(a.slot) + ": team row " + a.row + " (stat id " +
+                                               std::to_string(row_stat) + ") could not be dressed as " + team +
+                                               " yet: the loaded team record or the identity is not reachable");
+                    }
                 }
+                rep.refused = rep.refusals.size();
                 Report run;
                 r = execute(l, run, summary);
                 rep.result = run.result;
