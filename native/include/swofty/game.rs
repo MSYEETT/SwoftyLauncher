@@ -228,6 +228,11 @@ pub struct RnDDepartmentConfig {
 }
 
 #[repr(C)]
+pub struct TeamRecord {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct TodCurveBinding {
     _opaque: [u8; 0],
 }

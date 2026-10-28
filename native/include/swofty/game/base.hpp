@@ -145,6 +145,7 @@ struct StandingsResult;
 struct StandingsRound;
 struct StandingsSession;
 struct StatInfo;
+struct TeamRecord;
 struct TeamRenownData;
 struct Tile;
 struct TileEntry;
