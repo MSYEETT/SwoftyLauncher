@@ -502,6 +502,7 @@ struct Store::Impl {
     std::condition_variable_any loaded;
     bool (*is_flow)() = nullptr;
     std::map<std::pair<std::string, std::string>, std::optional<Value>> option_reads;
+    std::set<std::string> unchecked;
 
     bool read_option(const std::string &addon, const std::string &id, Value &out)
     {
@@ -684,8 +685,12 @@ struct Engine {
     bool resolves(const std::string &registry, const std::string &id)
     {
         Reg *g = other(registry);
-        if (!g)
+        if (!g) {
+            if (s.unchecked.insert(registry).second)
+                s.note("[registry] " + r.def.name + ": references into " + registry +
+                       " are not checked (nothing declares that registry)");
             return true;
+        }
         if (id.rfind("game/", 0) == 0 && !g->stock && !g->def.shared)
             return true;
         return exists(*g, id);

@@ -20,5 +20,6 @@ public:
 };
 
 Validator &default_validator();
+Validator &schema_validator();
 
 }

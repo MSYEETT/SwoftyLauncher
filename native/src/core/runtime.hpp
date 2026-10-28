@@ -126,6 +126,8 @@ void career_content_commit();
 void career_content_tick();
 void hub_tick();
 const SwoftyEra *era_table();
+const SwoftyRegistry *registry_table();
+int registry_write_reports();
 std::vector<CoreMixins> era_mixins();
 void era_commit();
 std::vector<CoreMixins> car_category_mixins();
