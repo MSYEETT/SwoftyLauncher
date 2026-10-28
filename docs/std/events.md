@@ -302,19 +302,21 @@ A policy can only narrow who runs, and only a little:
 
 ## When a handler faults
 
-The core calls every handler inside a guard that catches access violations and C++ exceptions. What happens next depends on the phase:
+The core calls every handler inside a guard that catches access violations and C++ exceptions. A C++ exception from a handler is caught in your DLL by the SDK's entry function and handed to the guard with its `what()` text, so it never unwinds into the core. What happens next depends on the phase:
 
 - **An `after` handler** is isolated. The core logs the fault with the addon, the event and the phase, detaches that handler for the rest of the session, and lists it in `conflicts.json`. The game carries on, and the addon's tile in ADDON SETTINGS and in the launcher shows a status line.
 - **A `before` or `replace` handler** crashes the game. The crash report's first line names the addon, the event and the phase.
 
 ```text
-[events] session.lap: after handler from someone.lapticker faulted (access violation at lapticker.dll+0x1a2f);
+[events] after handler from someone.lapticker faulted on session.lap (access violation at lapticker.dll+0x1a2f);
+         handler detached for this session
+[events] after handler from someone.lapticker faulted on session.lap (C++ exception: stoi from lapticker.dll+0x2b40);
          handler detached for this session
 ```
 
 ```text
-Crash in swofty.career-editor's replace handler on career.contract.decide
-  access violation at career_editor.dll+0x4c18
+Swofty crash report: Crash in swofty.career-editor's replace handler on career.contract.decide
+  (access violation at career_editor.dll+0x4c18)
 ```
 
 Game hook points follow the same rule (see [Hooks](/std/hooks#when-a-handler-faults)).

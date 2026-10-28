@@ -30,6 +30,7 @@ void window_stage();
 void drop_module(void *module);
 void bridge_legacy(const char *event, int64_t a, int64_t b, const void *data);
 std::vector<FaultRecord> faults();
+std::string describe_fault(unsigned long code, uintptr_t at, const char *what);
 
 template <class E> bool fire(E &payload, std::shared_ptr<const Facts> facts = nullptr)
 {

@@ -2,9 +2,14 @@
 
 #include <swofty/mixin.hpp>
 
+#include "../hooks/guard.hpp"
 #include "services.hpp"
 
 std::string settings_addon(const void *from, std::string &dll);
+
+namespace swofty_core::hooks {
+std::string describe_fault(unsigned long code, uintptr_t at, const char *what);
+}
 
 namespace swofty_core::services {
 namespace {
@@ -25,7 +30,14 @@ std::string caller(const void *from)
 
 Registry &registry()
 {
-    static Registry r([](const std::string &s) { swofty::log("%s", s.c_str()); });
+    static Registry r([](const std::string &s) { swofty::log("%s", s.c_str()); },
+                      [](SwoftyServiceFn fn, void *user, const void *table, size_t size, uint32_t version, std::string *what) {
+                          hooks::guard::Seen seen{0, 0, {}};
+                          if (hooks::guard::isolated_service(fn, user, table, size, version, &seen))
+                              return true;
+                          *what = hooks::describe_fault(seen.code, seen.at, seen.what);
+                          return false;
+                      });
     return r;
 }
 

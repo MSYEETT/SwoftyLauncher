@@ -34,20 +34,25 @@ inline Result attach(const char *point, uint32_t phase, int32_t priority, Swofty
 
 template <class P> int before_entry(void *user, SwoftyHookCall *call)
 {
-    (*static_cast<std::function<void(P &)> *>(user))(*static_cast<P *>(call->payload));
-    return 0;
+    return swofty::detail::guarded_entry([&] {
+        (*static_cast<std::function<void(P &)> *>(user))(*static_cast<P *>(call->payload));
+        return 0;
+    });
 }
 
 template <class P> int replace_entry(void *user, SwoftyHookCall *call)
 {
-    return (*static_cast<std::function<bool(P &)> *>(user))(*static_cast<P *>(call->payload)) ? 1 : 0;
+    return swofty::detail::guarded_entry(
+        [&] { return (*static_cast<std::function<bool(P &)> *>(user))(*static_cast<P *>(call->payload)) ? 1 : 0; });
 }
 
 template <class P> int after_entry(void *user, SwoftyHookCall *call)
 {
-    Outcome o{call->replaced != 0};
-    (*static_cast<std::function<void(const P &, const Outcome &)> *>(user))(*static_cast<const P *>(call->payload), o);
-    return 0;
+    return swofty::detail::guarded_entry([&] {
+        Outcome o{call->replaced != 0};
+        (*static_cast<std::function<void(const P &, const Outcome &)> *>(user))(*static_cast<const P *>(call->payload), o);
+        return 0;
+    });
 }
 
 }
