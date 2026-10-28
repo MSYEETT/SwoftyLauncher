@@ -18,6 +18,14 @@ pub const LAYERS_KEY: &str = r"Software\Microsoft\Windows NT\CurrentVersion\AppC
 /// the anti-cheat launcher's slot.
 pub const SESSION_EXES: &[&str] = &[GAME_EXE, "EAAntiCheat.GameServiceLauncher.exe"];
 
+/// The programs that start F1 25, wherever they are installed. Windows hands
+/// a program's compatibility layers on to the programs it starts.
+pub const STARTERS: &[&str] = &[
+    crate::ea_app::PROCESS,
+    crate::ea_app::LAUNCHER_EXE,
+    "swofty-launcher.exe",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AdminLayer {
     pub all_users: bool,
@@ -117,15 +125,66 @@ pub fn layers(exe: &Path) -> Vec<AdminLayer> {
 }
 
 fn layer_settings(exe: &Path, keep: fn(&str) -> bool) -> Vec<AdminLayer> {
+    listings()
+        .into_iter()
+        .flat_map(|(listing, all_users)| matching_with(&listing, all_users, exe, keep))
+        .collect()
+}
+
+/// The per-user and all-users `reg query` listings of [`LAYERS_KEY`].
+fn listings() -> Vec<(String, bool)> {
     [("HKCU", false), ("HKLM", true)]
         .into_iter()
         .filter_map(|(hive, all_users)| {
             let key = format!(r"{hive}\{LAYERS_KEY}");
-            let listing = windows_tool("reg", &["query", &key, "/reg:64"])?;
-            Some(matching_with(&listing, all_users, exe, keep))
+            Some((windows_tool("reg", &["query", &key, "/reg:64"])?, all_users))
         })
-        .flatten()
         .collect()
+}
+
+/// The compatibility settings on the programs that start the game in `game`:
+/// [`STARTERS`], and the session launcher in the game folder.
+pub fn starter_layers(game: &Path) -> Vec<AdminLayer> {
+    starter_layers_in(&listings(), game)
+}
+
+/// [`starter_layers`] from the listings given, in [`STARTERS`] order with the
+/// session launcher last, per user first.
+pub fn starter_layers_in(listings: &[(String, bool)], game: &Path) -> Vec<AdminLayer> {
+    let stub = game.join(SESSION_EXES[1]);
+    let mut found: Vec<AdminLayer> = listings
+        .iter()
+        .flat_map(|(listing, all_users)| {
+            parse_reg_query(listing)
+                .into_iter()
+                .filter(|(_, data)| has_layers(data))
+                .filter_map(|(stored, layers)| {
+                    let file = stored.rsplit(['\\', '/']).next().unwrap_or(&stored);
+                    let name = STARTERS
+                        .iter()
+                        .find(|n| n.eq_ignore_ascii_case(file))
+                        .map(|n| (*n).to_owned())
+                        .or_else(|| {
+                            same_file(Path::new(&stored), &stub).then(|| SESSION_EXES[1].to_owned())
+                        })?;
+                    Some(AdminLayer {
+                        all_users: *all_users,
+                        name,
+                        exe: stored,
+                        layers,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let rank = |l: &AdminLayer| {
+        STARTERS
+            .iter()
+            .position(|n| *n == l.name)
+            .unwrap_or(STARTERS.len())
+    };
+    found.sort_by_key(|l| (rank(l), l.all_users));
+    found
 }
 
 /// True when this process runs with a high (or system) integrity level.
@@ -527,6 +586,45 @@ mod tests {
         assert_eq!(other[0].layers, "~ HIGHDPIAWARE");
         assert!(matching(LISTING, false, Path::new(r"C:\Games\Other\other.exe")).is_empty());
         assert!(matching_with(LISTING, false, Path::new(r"C:\Games\Empty\empty.exe"), has_layers).is_empty());
+    }
+
+    #[test]
+    fn finds_the_layers_on_the_programs_that_start_the_game() {
+        let game = Path::new(r"E:\Games\F1 25");
+        let user = concat!(
+            "\r\n",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers\r\n",
+            "    C:\\Tools\\Swofty Launcher\\swofty-launcher.exe    REG_SZ    ~ WIN8RTM\r\n",
+            "    E:\\Games\\F1 25\\F1_25.exe    REG_SZ    ~ HIGHDPIAWARE\r\n",
+            "    D:\\Battlefield\\EAAntiCheat.GameServiceLauncher.exe    REG_SZ    ~ RUNASADMIN\r\n",
+            "    e:\\games\\f1 25\\eaanticheat.gameservicelauncher.exe    REG_SZ    WIN7RTM\r\n",
+            "    C:\\Other\\EADesktop.exe.bak    REG_SZ    ~ RUNASADMIN\r\n",
+            "    C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EALauncher.exe    REG_SZ    ~\r\n",
+        );
+        let machine = concat!(
+            "\r\n",
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers\r\n",
+            "    C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\eadesktop.exe    REG_SZ    ~ RUNASADMIN\r\n",
+        );
+        let found = starter_layers_in(&[(user.into(), false), (machine.into(), true)], game);
+        let seen: Vec<(&str, &str, bool)> = found
+            .iter()
+            .map(|l| (l.name.as_str(), l.layers.as_str(), l.all_users))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("EADesktop.exe", "~ RUNASADMIN", true),
+                ("swofty-launcher.exe", "~ WIN8RTM", false),
+                ("EAAntiCheat.GameServiceLauncher.exe", "WIN7RTM", false),
+            ]
+        );
+        assert_eq!(
+            found[0].exe,
+            r"C:\Program Files\Electronic Arts\EA Desktop\EA Desktop\eadesktop.exe"
+        );
+        assert!(starter_layers_in(&[(LISTING.into(), false)], game).is_empty());
+        assert!(starter_layers_in(&[], game).is_empty());
     }
 
     #[test]

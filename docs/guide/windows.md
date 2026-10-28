@@ -61,6 +61,7 @@ When the mods did not load and `version.dll` is still in the game folder, the la
 - the DLL load policies on `F1_25.exe`, such as Exploit protection's Code integrity guard
 - Exploit protection's program settings for `F1_25.exe` (`MitigationOptions`, `MitigationAuditOptions` or `EAFModules` under its Image File Execution Options)
 - the compatibility settings on `F1_25.exe` (its **Compatibility** tab, for you and for all users), and the compatibility shims Windows loaded into the game (`AcLayers.dll` and the like)
+- the compatibility settings on the programs that start the game (`EADesktop.exe`, `EALauncher.exe`, `swofty-launcher.exe` and the offline play stub), and the compatibility shims in the running EA app. When the game has shims and `F1_25.exe` has no setting, the advice names the program they came from
 - whether `version.dll` is listed under KnownDLLs, and whether Smart App Control is on
 - Code Integrity and Microsoft Defender events since the game started
 - the antivirus registered with Windows, and programs that hook into games, such as Medal or RivaTuner, among the game's modules
