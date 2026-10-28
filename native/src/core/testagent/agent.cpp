@@ -303,6 +303,8 @@ void title_nodes(uint8_t *state)
             view = *reinterpret_cast<void **>(static_cast<uint8_t *>(b) + 0x198);
     }
     title_view = view ? 1 : 2;
+    if (!view)
+        return;
     uint8_t *sync = state + INTRO_SYNC;
     const uint8_t one = 1;
     for (size_t off : {SYNC_REQUEST, SYNC_UI}) {
