@@ -90,6 +90,8 @@ Tests with the same environment share one game start, so a suite of twenty caree
 { "kind": "time_trial", "box": "mod.season-2008/f1_2008", "track": "venue/albert_park", "car": "mod.season-2008/ferrari" }
 ```
 
+`route` and `career` are experimental and not working in 1.6.0; `grand_prix` and `time_trial` are planned.
+
 In a `benchmark` race the AI drives every car, including the player's. For a test that needs the player's controls, such as the MFD or DRS, a step drives the car with the virtual pad.
 
 ## Steps
@@ -214,17 +216,18 @@ Outside the shell, `swofty test fixture capture <name>` captures the last test r
 { "kind": "career", "fixture": "fixtures/progressive-2018-r10", "at": "team_hq", "slot": 2 }
 ```
 
-`at` is `team_hq` (the default), `weekend_hub` or `session`. `slot` picks the career by its save slot when the fixture holds more than one; without it the newest is continued. `session` isn't available yet: the step from the garage to the track still needs reverse engineering.
+`at` is `team_hq` (the default), `weekend_hub` or `session`. `slot` picks the career by its save slot when the fixture holds more than one; without it the newest is continued. `session` isn't available.
 
-`career load`, `advance` and `save now` work only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused.
+`career load`, `advance` and `save now` are experimental and not working in 1.6.0. They run only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused.
 
 Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud: if the launcher can't make sure of that for your game's build, the test doesn't start.
 
 ## What runs today
 
-- **Runs:** `none`, `boot`, `benchmark`, `route` (routes from the home screen) and `career` (to `team_hq` and `weekend_hub`, on the Steam build where the core's bindings for the exe resolve).
+- **Runs in game:** `none`, `boot` and `benchmark`. The title screen is passed by the virtual pad after 15 seconds, and a `boot` run reaches the main menu with every addon loaded.
+- **Save sandbox:** runs. Loading a fixture profile and saving three times in the sandbox leaves the player's saves unchanged.
+- **Experimental, not working in 1.6.0:** the `route` environment, the `career` environment, and the agent commands `route`, `career load`, `advance`, `save now` and `title`. They reach the front end but not the home screen.
 - **Planned, not runnable:** `grand_prix` and `time_trial` environments. `swofty test plan` lists them as "needs session setup inside the game's screens". A `career` environment with `"at": "session"` answers `unavailable`.
-- **Needs an in-game run:** the title pass (`title`) and the virtual pad. If the agent can't pass the title, the CLI presses the pad.
 - **Steps and checks the launcher reads itself** (`wait`, and the `log`, `event`, `no_crash` and `perf` checks) work from the session's `loader.log`. Steps that read or write the running game (`read`, `sample`, `set`, `pad`, `capture`, and the `value` and `series` checks) go through the test agent in the game.
 
 ## Running tests
