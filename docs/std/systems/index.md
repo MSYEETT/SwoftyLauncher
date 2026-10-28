@@ -66,7 +66,7 @@ inline Registry<Logo> logos{"team.logo", { .applies = Applies::read }};   // on 
 
 Files reach the game in one of two ways:
 
-- **Archives** (worlds, cars, heads, helmets, liveries, VTFs) are listed in the game's asset manifest, which the game parses once at boot. The core adds and changes the manifest's groups at that parse. The game then reads the files from the addon's folder, or from overlay archives the core builds at boot. They stay fixed until the next game start.
+- **Archives** (worlds, cars, heads, helmets, liveries, VTFs) are listed in the game's asset manifest, which the game parses once at boot. The core adds and changes the manifest's groups at that parse. The game then reads the files from the addon's folder, or from overlay archives the core builds at boot. They stay fixed until the next game start. Handling values are the exception: the game reads each car's parts from its VTF when the car is built, and the core applies handling layers there (see [Car physics and handling](/std/systems/car-physics)).
 - **Loose files the game opens by path** (engine bundles, language files) are redirected when the game opens them: the game reads the addon's own file instead. The redirect is the core's `file` feature, which is still marked unstable.
 
 An addon can also register and layer while the game runs, from `SWOFTY_ON_LOAD` or an event. The change takes effect at the next moment the game reads that data, and the core says when. Data the game reads at boot is the exception. It never reaches the database from outside `SWOFTY_REGISTER`, and the core refuses it:

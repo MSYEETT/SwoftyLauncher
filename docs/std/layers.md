@@ -413,11 +413,11 @@ SWOFTY_ADDON()
 </template>
 </Split>
 
-The new value takes effect the next time the game reads that data: at once for registries read on demand, at the next session load for session data, and at the next game start for boot data such as handling.
+The new value takes effect the next time the game reads that data: at once for registries read on demand, at the next session load for session data such as handling, and at the next game start for boot data.
 
 ```text
 [registry] option damage of william09leo.heavier-damage-realism changed: heavy -> brutal;
-           1 selector layer on vehicle.handling re-runs, applies from the next game start
+           1 selector layer on vehicle.handling re-runs, applies from the next session load
 ```
 
 ## Precedence

@@ -64,18 +64,28 @@ struct Vehicle {                                   // one entrants.vehicles row
     StatId stat_id = StatId::automatic;            // vehicle ids run to 538
 };
 
-struct WingDamage {                                // F1WingDamage
-    float break_threshold;                         // the impact that breaks the front wing
-    float detach_threshold;                        // the impact that takes it off
+struct WingDamage {                                // F1WingDamage, read on every front wing impact
+    float speed_threshold;                         // impacts below this do nothing (stock 3)
+    float damage_scale;                            // damage per unit of impact (stock 0.0001)
+    float chassis_damage_multiple;                 // share of a body hit that reaches the wing (stock 0.3)
+    float side_detach_scale;                       // damage at which one side breaks off (stock 0.5)
+    float full_detach_scale;                       // damage at which the wing comes off (stock 1)
 };
 
-struct SuspensionDamage {                          // F1SuspensionDamage
-    float break_threshold;                         // the impact that bends a corner
-    float wheel_detach_threshold;                  // the impact that takes a wheel off
+struct SuspensionDamage {                          // F1SuspensionDamage, read on every impact
+    float speed_threshold;                         // stock 7
+    float front_damage_scale, rear_damage_scale;   // stock 0.001, 0.0001
+    float wheel_detach_scale;                      // stock 1
+    float parts_detach_scale;                      // the game raises it to at least 1.5 x wheel_detach_scale
+    float linear_fracture_limit, angular_fracture_limit;   // stock 50, 30
 };
 
-struct Chassis { float mass; float com_z; };       // mass in kg (2025 cars: 798-813), centre of mass height
-struct CoreAero { float downforce_scale; float drag_scale; };
+struct Chassis { float mass, moi_x, moi_y, moi_z, com_y, com_z; };   // mass in kg (2025 cars: 798-813)
+struct F1Aero {                                    // F1Aero (the rest: see Car physics and handling)
+    float front_coeff_lift_multiplier, rear_coeff_lift_multiplier;
+    float body_drag_coeff_min, body_drag_coeff_max;
+};
+struct CoreAero { bool slip_streaming, slip_stream_while_braking; };
 
 struct Handling {                                  // one VTF, decoded; edits change fields, the core re-encodes it
     Ref<Handling> from;                            // start from another car's VTF, then edit
@@ -83,6 +93,7 @@ struct Handling {                                  // one VTF, decoded; edits ch
     Class cls = Class::f1;                         // the car's class; "class" in data files
     float damage_scale = 1.0f;                     // scales every *_damage threshold at once
     Chassis chassis;                               // Chassis
+    F1Aero f1_aero;                                // F1Aero
     CoreAero core_aero;                            // CoreAero
     WingDamage wing_damage;                        // F1WingDamage
     SuspensionDamage suspension_damage;            // F1SuspensionDamage
@@ -90,8 +101,8 @@ struct Handling {                                  // one VTF, decoded; edits ch
     BodyDamage body_damage;                        // F1BodyDamage
     Tyres tyres;                                   // the tyre thermal and wear fields
     std::vector<RadUpgrade> rad_upgrades;          // the radUpgrade* blocks R&D fits
-    // Engine, GearBox, FuelTank, FuelECU, BrakeECU, Steering, F1Aero, Differential, SuspensionSystem,
-    // F1Tuning, F1Assists, Turbo, EnergyRecoverySystem, F1Plank: every section, typed the same way
+    // Engine, GearBox, FuelTank, FuelECU, BrakeECU, Steering, Differential, SuspensionSystem, F1Tuning,
+    // F1Assists, Turbo, EnergyRecoverySystem, F1Plank: every section, typed the same way (Car physics and handling)
 };
 
 struct DamageLevel {                               // one damage.damage_levels row
@@ -115,12 +126,12 @@ struct Parts { Ref<Vehicle> vehicle; std::vector<Part> parts; };
 
 inline Registry<Vehicle> vehicles{"vehicle", { .applies = Applies::boot }};
 inline Registry<Package> packages{"vehicle.package", { .applies = Applies::boot }};
-inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::boot }};   // written into the car archives at boot
+inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::session }};   // applied to each car as it's built, at every session load
 inline Registry<DamageModel> damage_models{"vehicle.damage_model", { .applies = Applies::boot }};
 inline Registry<Parts> parts{"vehicle.parts", { .applies = Applies::read }};
 
-Result set_attribute(int car, Attribute attribute, float value);     // a live car's R&D attribute
 Result reset_upgrades(int car);                                      // undo the last fitted upgrade
+// the cars on track, live: cars::live (Car physics and handling)
 
 }
 
@@ -141,10 +152,26 @@ struct VtfRead {                                   // the Car_Read_<Section> rea
     static constexpr const char *point = "car.vtf.read";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    Ref<Vehicle> vehicle;
+    live::Car car;                                 // the car being built: its index, vehicle, team and driver
     std::string_view section;                      // "F1WingDamage"
     std::string_view field;                        // the field's name
+    std::string_view upgrade;                      // the radUpgrade block being applied, or empty for the base values
     float value;                                   // in clear, before the game obfuscates it
+};
+
+struct Built {                                     // a car's parts were read from its handling file: after
+    static constexpr const char *point = "car.built";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    live::Car car;
+};
+
+struct Reset {                                     // the game re-read a car's parts (a rebuild or an upgrade replay): after
+    static constexpr const char *point = "car.reset";
+    static constexpr uint32_t version = 1;
+    uint32_t size, payload_version;
+    live::Car car;
+    bool upgrade;                                  // true after an R&D upgrade replay
 };
 
 struct PartsRegister {                             // Car_FrontWing_Init: after
@@ -170,8 +197,8 @@ struct PartsRegister {                             // Car_FrontWing_Init: after
 Heavier Damage makes wings and suspension break harder on every car, and gives the 2026 cars the Realism Overhaul's performance.
 
 - **A selector picks the cars:** every handling record in the core's `c/f1_cars` tag, which holds the stock F1, 2026 and My Team cars, and any car another addon adds to it. A tag is a shared, named set of records that any addon can add to. It reaches every year's cars, not only the base.
-- **Two option-bound edits** read `wing_damage` and `suspension_damage`. When the player changes one, the change applies from the next game start.
-- **No VTF files ship.** The core writes the edited fields into each car's VTF.
+- **Two option-bound edits** read `wing_damage` and `suspension_damage`. When the player changes one, every car built from the next session load gets it, with no restart.
+- **No VTF files ship.** The core applies the edited fields to each car as the game builds it.
 - **R&D Tyres** changes the tyre fields and the `radUpgrade*` blocks of the same 91 cars' VTFs. Each addon edits only its own fields, and both apply.
 
 <template #example>
@@ -186,18 +213,21 @@ using namespace swofty;
 
 namespace {
 
-cars::WingDamage wing(const std::string &level)
+// how much harder than stock each level is: damage per hit, and how early parts come off
+float harder(const std::string &level) { return level == "light" ? 1.2f : level == "heavy" ? 2.0f : 1.5f; }
+
+void wing(cars::WingDamage &w, float k)
 {
-    if (level == "light") return { .break_threshold = 0.85f, .detach_threshold = 0.90f };
-    if (level == "heavy") return { .break_threshold = 0.45f, .detach_threshold = 0.55f };
-    return { .break_threshold = 0.65f, .detach_threshold = 0.75f };       // normal (recommended)
+    w.damage_scale *= k;
+    w.full_detach_scale /= k;
+    w.side_detach_scale /= k;
 }
 
-cars::SuspensionDamage suspension(const std::string &level)
+void suspension(cars::SuspensionDamage &s, float k)
 {
-    if (level == "light") return { .break_threshold = 0.85f, .wheel_detach_threshold = 0.95f };
-    if (level == "heavy") return { .break_threshold = 0.50f, .wheel_detach_threshold = 0.60f };
-    return { .break_threshold = 0.70f, .wheel_detach_threshold = 0.80f };
+    s.front_damage_scale *= k;
+    s.rear_damage_scale *= k;
+    s.wheel_detach_scale /= k;
 }
 
 }
@@ -210,20 +240,22 @@ SWOFTY_REGISTER
     cars::handling.layer(f1_cars, [](cars::Handling &h) {
         auto level = option<std::string>("wing_damage");          // re-runs when the player changes it
         if (level != "stock")
-            h.wing_damage = wing(level);
+            wing(h.wing_damage, harder(level));
     });
 
     cars::handling.layer(f1_cars, [](cars::Handling &h) {
         auto level = option<std::string>("suspension_damage");
         if (level != "stock")
-            h.suspension_damage = suspension(level);
+            suspension(h.suspension_damage, harder(level));
     });
 
     // the 2026 Career Realism Overhaul's performance, 2026 cars only
     cars::handling.layer(where<cars::Handling>([](const cars::Handling &h) { return h.cls == cars::Class::f1_26; }),
                          [](cars::Handling &h) {
-                             h.core_aero.downforce_scale *= 0.97f;
-                             h.core_aero.drag_scale *= 1.02f;
+                             h.f1_aero.front_coeff_lift_multiplier *= 0.97f;
+                             h.f1_aero.rear_coeff_lift_multiplier *= 0.97f;
+                             h.f1_aero.body_drag_coeff_min *= 1.02f;
+                             h.f1_aero.body_drag_coeff_max *= 1.02f;
                          });
 }
 
@@ -239,15 +271,15 @@ SWOFTY_ADDON()
   "vehicle.handling": {
     "$select": [
       { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "light" },
-        "patch": { "wing_damage": { "break_threshold": 0.85, "detach_threshold": 0.90 } } },
+        "patch": { "wing_damage": { "damage_scale": 0.00012, "side_detach_scale": 0.42, "full_detach_scale": 0.83 } } },
       { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "normal" },
-        "patch": { "wing_damage": { "break_threshold": 0.65, "detach_threshold": 0.75 } } },
+        "patch": { "wing_damage": { "damage_scale": 0.00015, "side_detach_scale": 0.33, "full_detach_scale": 0.67 } } },
       { "tag": "c/f1_cars", "when": { "option": "wing_damage", "is": "heavy" },
-        "patch": { "wing_damage": { "break_threshold": 0.45, "detach_threshold": 0.55 } } },
+        "patch": { "wing_damage": { "damage_scale": 0.0002, "side_detach_scale": 0.25, "full_detach_scale": 0.5 } } },
       { "tag": "c/f1_cars", "when": { "option": "suspension_damage", "is": "normal" },
-        "patch": { "suspension_damage": { "break_threshold": 0.70, "wheel_detach_threshold": 0.80 } } },
+        "patch": { "suspension_damage": { "front_damage_scale": 0.0015, "rear_damage_scale": 0.00015, "wheel_detach_scale": 0.67 } } },
       { "where": { "class": "f1_26" },
-        "patch": { "core_aero": { "downforce_scale": 0.97, "drag_scale": 1.02 } } }
+        "patch": { "f1_aero": { "front_coeff_lift_multiplier": 0.97, "rear_coeff_lift_multiplier": 0.97 } } }
     ]
   }
 }
@@ -264,12 +296,12 @@ A data patch sets values and can't scale them. The 2026 patch sets the result ou
 [registry] register: william09leo.heavier-damage-realism (heavier_damage.dll) 3 layers on vehicle.handling (early stage, 0.2 ms)
 [registry] vehicle.handling: selector tag c/f1_cars from william09leo.heavier-damage-realism matches 171 records
            (91 game/, 80 swofty.classic-seasons-*)
-[registry] vehicle.handling game/ferrari_2026: edit by william09leo.heavier-damage-realism changed /wing_damage/break_threshold,
-           /wing_damage/detach_threshold (option wing_damage=normal)
+[registry] vehicle.handling game/ferrari_2026: edit by william09leo.heavier-damage-realism changed /wing_damage/damage_scale,
+           /wing_damage/side_detach_scale, /wing_damage/full_detach_scale (option wing_damage=normal)
 [registry] vehicle.handling game/ferrari_2026: 2 addons, no field contested (swofty.rnd-tyres-thermal: /tyres, /rad_upgrades;
-           william09leo.heavier-damage-realism: /wing_damage, /suspension_damage, /core_aero)
-[registry] applied at boot: vehicle.handling 171 (171 handling files in overlay archives)
-[registry] option william09leo.heavier-damage-realism/wing_damage: normal -> heavy; vehicle.handling applies from the next game start
+           william09leo.heavier-damage-realism: /wing_damage, /suspension_damage, /f1_aero)
+[cars] built vehicle 0 (game/ferrari_2026, team game/ferrari, driver game/charles_leclerc): 23 parts, 3 layers
+[registry] option william09leo.heavier-damage-realism/wing_damage: normal -> heavy; vehicle.handling applies from the next session load
 ```
 
 The options are declared in `swofty.json`:
@@ -293,7 +325,7 @@ Classic Seasons 2017 adds the 2017 Ferrari: a package, then a vehicle on it. The
 - **The core copies every key of the base rows,** and writes the setup preset row for the new package folder from `setups_from`. Without one, the AI's setups ground the car.
 - **A field the variant sets beats layers on its base.** The 2017 car sets its own `livery`, so a drop-in livery for the 2025 Ferrari doesn't reach it (see [Liveries](/std/systems/liveries)).
 - **The car has its own model,** the 2017 mesh. A livery fits a car by its model. Liveries painted for the 2025 Ferrari can't be put on the 2017 car.
-- **Its pace is protected.** The handling's `chassis` and `core_aero` recreate the 2017 pecking order. Another addon's selector skips protected fields, unless the player turns on "Also change year packs" for that addon. A layer on this record itself still competes by load order.
+- **Its pace is protected.** The handling's `chassis` and `f1_aero` recreate the 2017 pecking order. Another addon's selector skips protected fields, unless the player turns on "Also change year packs" for that addon. A layer on this record itself still competes by load order.
 - The core allocates both stat ids. `engine_sound` and `livery` are [sounds](/std/systems/sounds) and [liveries](/std/systems/liveries) records. Both apply at boot, before the database loads.
 
 <template #example>
@@ -318,9 +350,10 @@ SWOFTY_REGISTER
 
     auto handling = cars::handling.variant("ferrari", cars::handling["game/ferrari_2025"], [](cars::Handling &h) {
         h.chassis.mass = 728.0f;
-        h.core_aero.downforce_scale = 0.92f;
+        h.f1_aero.front_coeff_lift_multiplier = 0.92f;
+        h.f1_aero.rear_coeff_lift_multiplier = 0.92f;
     });
-    cars::handling.protect(handling, { "chassis", "core_aero" });     // the 2017 pecking order
+    cars::handling.protect(handling, { "chassis", "f1_aero" });       // the 2017 pecking order
 
     // a variant of the stock car: every field it doesn't set, and every layer on game/ferrari_2025, flows in
     cars::vehicles.variant("ferrari", cars::vehicles["game/ferrari_2025"], [=](cars::Vehicle &v) {
@@ -348,7 +381,7 @@ SWOFTY_REGISTER
   },
   "vehicle.handling": {
     "ferrari": { "extends": "game/ferrari_2025", "chassis": { "mass": 728 },
-                 "core_aero": { "downforce_scale": 0.92 }, "$protect": ["chassis", "core_aero"] }
+                 "f1_aero": { "front_coeff_lift_multiplier": 0.92, "rear_coeff_lift_multiplier": 0.92 }, "$protect": ["chassis", "f1_aero"] }
   },
   "vehicle": {
     "ferrari": {
@@ -370,7 +403,7 @@ SWOFTY_REGISTER
 ```text
 [registry] stat ids: vehicle swofty.classic-seasons-2017/ferrari -> 515 (pool to 538)
 [registry] vehicle.package swofty.classic-seasons-2017/cs_2017_ferrari: setup presets from game/f1_2025 (1 row, 421 keys)
-[registry] vehicle.handling swofty.classic-seasons-2017/ferrari: selector from someone.realism-pack skipped /core_aero
+[registry] vehicle.handling swofty.classic-seasons-2017/ferrari: selector from someone.realism-pack skipped /f1_aero
            (protected by swofty.classic-seasons-2017; "Also change year packs" is off)
 [registry] applied at boot: vehicle.package 1, vehicle 1 (2 rows, 3 database records)
 ```
@@ -454,7 +487,9 @@ SWOFTY_ADDON()
 [events] car.parts.register (car 4, game/mclaren_2026): 1 after handler; 3 parts added (vmknolle.parts-detach)
 ```
 
-## Upgrades and handling at load
+## Upgrades and handling as a car is built
+
+An R&D upgrade is a `radUpgrade*` block in the handling file, read on top of the car's values and scaled by the development progress. [Car physics and handling](/std/systems/car-physics#r-d-upgrades) has the operators and the stock blocks. Changing a car on track during a session is `cars::live`, on the same page.
 
 ```cpp
 // car.upgrades.fit: cap the rating an upgrade reaches
@@ -462,29 +497,22 @@ events::on<cars::events::UpgradesFit>().before([](cars::events::UpgradesFit &f, 
     f.rating = std::min(f.rating, 0.95f);
 });
 
-// car.vtf.read: change a field as the game reads it, in clear
+// car.vtf.read: change a value as the game reads it for one car, in clear
 events::on<cars::events::VtfRead>().before([](cars::events::VtfRead &r, const events::Context &) {
-    if (r.section == "F1WingDamage")
+    if (r.section == "F1WingDamage" && r.car.team().id() == "game/haas")
         r.value *= 0.9f;
 });
-```
 
-```cpp
 cars::reset_upgrades(car);                                        // Car_Reset_LastFittedUpgrade
-cars::set_attribute(car, cars::Attribute::engine_power, 1.02f);   // unavailable until the attribute map is traced
-```
-
-```text
-[ops] cars::set_attribute: unavailable (site_Car_AttrArrayIter is L1; needs the L3 attribute map)
 ```
 
 ## Readiness and limits
 
 - **Records: ready.** The VTF round trip is proven on 74 of 74 files.
-- **Events and operations: partial.** `car.upgrades.fit` and `reset_upgrades` are L2 (`Car_Fit_UpgradesToRating`, `Car_Reset_LastFittedUpgrade`). The `Car_Read_<Section>` readers and `Car_FrontWing_Init` are L1.
-- **Handling applies at boot.** The VTF sits in the team's `wep` archive, which the game lists in its asset manifest at boot, and the core's overlay archives are fixed from then until the next game start. Changing handling for one session needs `car.vtf.read` at L2, or the archive swap per group load, and both need reverse engineering.
-- **Live physics values are XOR-obfuscated.** `car.vtf.read` hands a handler the value in clear.
-- **Unknown:** the attribute-name to element-index map (`set_attribute` needs an L3 trace at `site_Car_AttrArrayIter`), the damage writers and when the game reads them, and handling write-back while a car is live.
+- **Events and operations: partial.** `car.upgrades.fit` and `reset_upgrades` are L2 (`Car_Fit_UpgradesToRating`, `Car_Reset_LastFittedUpgrade`). The `Car_Read_<Section>` readers, the car build and the reset path are L2; in-game traces confirm when each runs.
+- **Handling applies as each car is built.** The game parses a handling file once, then reads each car's parts from it when the car is built, at every session load, and again when it rebuilds a car. The core applies handling layers at that read, so an option change reaches the next session with no restart.
+- **Live physics values are XOR-obfuscated.** `car.vtf.read` and `cars::live` hand you the value in clear, and the core encodes your writes.
+- **Unknown:** who sets the per-car damage switches (CarLive +0x130), the tyre temperature model, and compound switching.
 - **Setup presets are side data,** found by package folder. The core writes the row with the package. A missing row grounds the AI's setups, and a `_metadata_`-only row crashes session load.
 - **AI data** is found by `ai_package_folder/asset_filename`. `AiSlot` maps an added car onto a stock slot.
 - **A car is registered** only when it's available and an entrant list names it.

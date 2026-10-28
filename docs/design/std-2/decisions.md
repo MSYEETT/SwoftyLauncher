@@ -161,6 +161,7 @@ These were decided from the reviews and are going into the pages:
 - **Failures and naming:**
   - A faulting `after` handler is isolated and logged. A faulting `before` or `replace` handler crashes the game with the addon named.
   - An addon can keep its old id as an alias after a rename, when the Browser author is the same.
+- **Car handling** (from the car-struct reverse engineering, PR #441): handling applies as each car is built, at every session load, so an option change reaches the next race without a restart. `cars::live` changes a car already on track, with the core handling the game's scrambled values, its derived values and its rebuilds. R&D upgrades are the handling file's `radUpgrade*` blocks.
 - **Unchanged from 1.5:**
   - Raw overwrites on catalogued hook points follow the 1.5 rule for every addon: nothing is restricted.
   - Grid size stays one boot setting per install for 1.6.0, and each box is clamped to it.

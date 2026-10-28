@@ -71,7 +71,7 @@ Every system makes the same choice in code: change what every year shares, set a
 
 ### Cars
 
-A car's model, livery, sound, power unit and handling are fields on its `cars::Vehicle` record. Handling applies when the game starts.
+A car's model, livery, sound, power unit and handling are fields on its `cars::Vehicle` record. Handling applies as each car is built, at every session load, and `cars::live` changes a car already on track (see [Car physics and handling](/std/systems/car-physics)).
 
 ```cpp
 // Every year that uses the stock McLaren: layer the base record.
