@@ -118,7 +118,7 @@ slot 1: game/fernando_alonso and game/valtteri_bottas
 slot 4: game/lewis_hamilton and game/stoffel_vandoorne
 ```
 
-A career freezes each season's line-up, ratings and rules when that season starts. A change to the 2017 grid reaches a running career when it gets to 2017, and a season that has already started keeps what it froze (see [Career snapshots](/std/scopes#career-snapshots)).
+A career freezes each season's line-up, ratings and rules when that season starts. A change to the 2017 grid reaches a running career when it gets to 2017, and a season that has already started keeps what it froze (see [Career snapshots](/std/scopes#career-snapshots)). The save default is dry in 1.6.0: the snapshot is built and sized but written into the save only with `SWOFTY_REGISTRY_SAVE=on`.
 
 ## A base someone else builds on
 

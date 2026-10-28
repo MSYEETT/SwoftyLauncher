@@ -136,6 +136,8 @@ With no career loaded, the layer is refused with `late`:
 
 A career freezes its history season by season. When a season starts, the core takes the records that season uses from every **snapshot registry**, a registry declared with `.snapshot = true`, and keeps them in the career's save entry. That frozen copy is the **snapshot**. `career.season` (line-ups) and `career.driver_ratings` (ratings) are snapshot registries, and so are the rules registries such as `tyre.rules`.
 
+In 1.6.0 the save default is dry: the core builds the snapshot and logs its size, and writes it into the save only with `SWOFTY_REGISTRY_SAVE=on` (see [Career](/std/systems/career)). With the default, a career reads every registry live.
+
 Progressive's 2016 career shows what reaches it and what doesn't:
 
 - **When the career is created,** the box each season uses (`career::Season::box`) is chosen and fixed for the career.

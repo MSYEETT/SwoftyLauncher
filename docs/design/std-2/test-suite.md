@@ -88,11 +88,12 @@ The sandbox is a core feature at the save device's start (`Ne_SaveSystem2Win_Sta
 
 ## What ships in 1.6.0
 
-- **The CLI:** `swofty test plan`, `run`, `shell` and `fixture capture|list|check`. Environments `none`, `boot`, `benchmark`, `route` and `career` (`team_hq`, `weekend_hub`); `grand_prix` and `time_trial` parse and are listed as needing session setup. The test file schema is in [Testing your addon](/std/testing#the-test-file).
-- **The test agent** (`native/src/core/testagent`): the mailbox, `route`, `skip`, `advance`, `ai_drives_player`, `read`, `set`, `sample`, `pad`, `capture`, `save`, `career load` and `title`. Test DLLs written with `swofty/test.hpp` load only in a test run.
-- **The save sandbox** (`native/src/core/save_sandbox.cpp`): the Steam remote-storage proxy, fail-closed on any doubt, and the fixture store.
+- **The CLI:** `swofty test plan`, `run`, `shell` and `fixture capture|list|check`. Environments `none`, `boot` and `benchmark` run in game. `route` and `career` (`team_hq`, `weekend_hub`) are experimental and not working in 1.6.0; `grand_prix` and `time_trial` parse and are listed as needing session setup. The test file schema is in [Testing your addon](/std/testing#the-test-file).
+- **The test agent** (`native/src/core/testagent`): the mailbox, `ai_drives_player`, `read`, `set`, `sample`, `pad`, `capture` and `skip` work. `route`, `career load`, `advance`, `save now` and `title` are experimental and not working in 1.6.0. Test DLLs written with `swofty/test.hpp` load only in a test run.
+- **Title screen:** the CLI waits 15 seconds for the agent to pass it, then presses the virtual pad.
+- **The save sandbox** (`native/src/core/save_sandbox.cpp`): runs in game. The Steam remote-storage proxy is fail-closed on any doubt. A profile load and three saves ran with the player's saves unchanged. Measured: the 0-entry snapshot case of the property-bag pool; the 64 KB and 256 KB cases are not measured. The fixture store is host-tested.
+- **Snapshots:** the registry save default is dry in 1.6.0.
 - **Checked only in the host tests** (no game run): the CLI's flow against a fake game and a fake agent, the run folder and token contract, the sandbox decision logic and the fixture check.
-- **Needs in-game runs:** the title pass, the pad, `career load` through the resume card, `advance`, `save now`, and the sandbox arming on the Steam build. The environment `career` with `at: session` answers `unavailable`.
 
 ## Build order
 
