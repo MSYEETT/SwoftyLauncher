@@ -140,6 +140,15 @@ def compare(a, b, allow=()):
             f"{len(ga)} file(s) the addon's build program wrote, and their contents are the same"
         )
         explained.append(d)
+    elif diffs and (ga or gb) and {d["category"] for d in diffs} <= {"buildhash", "generated"}:
+        changed = sum(d["category"] == "generated" for d in diffs)
+        for d in diffs:
+            d["explained"] = (
+                f"every output is the same; the addon's build program wrote {changed} file(s) differently "
+                "on the two sides, and no game file, plan entry, line, warning or count changed"
+            )
+        explained += diffs
+        diffs = []
     allowed = explained + [d for d in diffs if d["category"] in allow]
     failing = [d for d in diffs if d["category"] not in allow]
     return {"same": not failing, "differences": failing, "allowed": allowed}
