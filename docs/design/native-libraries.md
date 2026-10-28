@@ -32,6 +32,7 @@ profile lists it under `experimental_features` in its `swofty.json`.
 | `overlay` | experimental | Overlay / draw |
 | `telemetry` | experimental | Telemetry |
 | `shaders` | experimental | Shader looks ([Shader packs](/reference/addons/shader-packs)) |
+| `postfx` | experimental | Post-process passes ([Post-process passes](/reference/addons/postfx)) |
 
 ## Threads
 

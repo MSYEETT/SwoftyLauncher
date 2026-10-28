@@ -394,6 +394,7 @@ def _main(argv):
                     f.write(write25(m25))
             else:
                 e.set_frag(r, 0, write25(m25))
+                r.unk = struct.pack('<I', 2) + r.unk[4:]
             print(r.name, 'defaulted', notes['defaulted'], 'dropped', notes['dropped'])
         if cmd == 'convert-erp':
             if '--drop-samplers' in argv:

@@ -60,6 +60,7 @@ pub struct Names<'a> {
     pub fields: &'a BTreeMap<String, Vec<String>>,
     pub keys: &'a RowKeys,
     pub stock: Option<&'a HashSet<u64>>,
+    pub tracks: Option<&'a HashSet<u64>>,
 }
 
 impl FieldNames for Names<'_> {
@@ -73,6 +74,10 @@ impl FieldNames for Names<'_> {
 
     fn stock(&self, key: u64) -> bool {
         self.stock.is_some_and(|s| s.contains(&key))
+    }
+
+    fn track(&self, key: u64) -> bool {
+        self.tracks.is_some_and(|s| s.contains(&key))
     }
 }
 

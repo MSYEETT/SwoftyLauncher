@@ -642,7 +642,7 @@ fn roll_back(done: &[Swap]) {
 pub fn apply(new: &Path, root: &Path, backup: &Path) -> Result<()> {
     let files = crate::builtin::loader_files(new)?;
     let mut stale: Vec<String> = Vec::new();
-    for sub in ["loader", "addons"] {
+    for sub in ["loader", "addons", crate::postfx::DXC_DIR] {
         let dir = root.join(sub);
         if dir.is_dir() {
             stale.extend(
@@ -948,8 +948,10 @@ mod tests {
         write(&root.join("loader/stale.dll"), "stale");
         write(&root.join("addons/gone.swoftyaddon"), "gone");
         write(&root.join("addons/kept.swoftyaddon"), "kept v1");
+        write(&root.join("dxc/lib/libold.so"), "old dxc");
         write(&root.join("bin/user-note.txt"), "mine");
         release_tree(&new, "v2");
+        write(&new.join("dxc/bin").join(exe("dxc")), "dxc v2");
         write(&new.join("share/applications/a.desktop"), "desktop v2");
         write(&new.join("addons/kept.swoftyaddon"), "kept v2");
         apply(&new, &root, &dir.join("old")).unwrap();
@@ -966,6 +968,8 @@ mod tests {
         assert!(!root.join("loader/stale.dll").exists());
         assert!(!root.join("addons/gone.swoftyaddon").exists());
         assert_eq!(read(&root.join("addons/kept.swoftyaddon")), "kept v2");
+        assert_eq!(read(&root.join("dxc/bin").join(exe("dxc"))), "dxc v2");
+        assert!(!root.join("dxc/lib/libold.so").exists());
         assert_eq!(read(&root.join("bin/user-note.txt")), "mine");
         assert!(Install::locate(&root.join("bin").join(exe("swofty"))).is_ok());
         std::fs::remove_dir_all(&dir).ok();

@@ -24,8 +24,9 @@ use crate::blocks::{At, search_id};
 use crate::game::Install;
 use crate::library::{AddonIcon, SectionItem, plural};
 use crate::pages::{GUTTER, badge, chevron, fact, label, monogram, names, stat, tag, tile};
+use crate::scroll::SmoothScroll;
 use crate::shell::{Page, Shell};
-use crate::theme::{Palette, ScrollArea};
+use crate::theme::Palette;
 
 pub(crate) type Shared = Arc<Mutex<Option<(f32, String)>>>;
 
@@ -403,6 +404,7 @@ impl Shell {
                 self.show_addon(shown.id(), cx);
             }
             Err(e) => {
+                crate::app_log::action("addon action").addon(addon).failed(&e);
                 window.push_notification(Notification::error(e), cx);
                 cx.notify();
             }
@@ -721,26 +723,48 @@ impl Shell {
                     .unwrap_or_else(|| div().into_any_element());
                 self.empty(section_icon, title.clone(), text.clone(), action, p)
             }
-            Body::Blocks(blocks) => v_flex()
-                .flex_1()
-                .min_h_0()
-                .scroll_y(SharedString::from(format!("section-{addon}-{id}")))
-                .px(px(GUTTER))
-                .pt(px(4.))
-                .pb(px(24.))
-                .gap(px(16.))
-                .children(blocks.iter().map(|b| {
-                    let at = At {
-                        addon: &addon,
-                        section: &id,
-                        width,
-                        nested: false,
-                        fill: false,
-                    };
-                    self.block_at(at, b, p, cx)
-                }))
-                .children(footer.take())
-                .into_any_element(),
+            // The wheel glides, as on the Addons and Addon Browser pages.
+            Body::Blocks(blocks) => {
+                let (scroll, smooth) = self
+                    .section_scrolls
+                    .entry(format!("{addon}/{id}"))
+                    .or_insert_with(|| (ScrollHandle::new(), SmoothScroll::default()))
+                    .clone();
+                let body = v_flex()
+                    .flex_none()
+                    .px(px(GUTTER))
+                    .pt(px(4.))
+                    .pb(px(24.))
+                    .gap(px(16.))
+                    .children(blocks.iter().map(|b| {
+                        let at = At {
+                            addon: &addon,
+                            section: &id,
+                            width,
+                            nested: false,
+                            fill: false,
+                        };
+                        self.block_at(at, b, p, cx)
+                    }))
+                    .children(footer.take());
+                div()
+                    .relative()
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
+                    .child(
+                        div()
+                            .id(SharedString::from(format!("section-{addon}-{id}")))
+                            .size_full()
+                            .flex()
+                            .flex_col()
+                            .overflow_y_scroll()
+                            .track_scroll(&scroll)
+                            .child(body),
+                    )
+                    .child(smooth.overlay(&scroll, cx))
+                    .into_any_element()
+            }
         };
         v_flex()
             .size_full()
@@ -1360,7 +1384,10 @@ fn import_all(
                     for result in store.install_addons(&path) {
                         match result {
                             Ok(m) => done.push(format!("Installed {} {}", m.name, m.version)),
-                            Err(e) => failed.push(format!("{}: {e}", file_name(&path))),
+                            Err(e) => {
+                                crate::app_log::action("install addon").file(&path).failed(&e);
+                                failed.push(format!("{}: {e}", file_name(&path)))
+                            }
                         }
                     }
                 }
@@ -1377,7 +1404,13 @@ fn import_all(
                 });
                 match result {
                     Ok(lines) => done.extend(lines),
-                    Err(e) => failed.push(e),
+                    Err(e) => {
+                        crate::app_log::action("import")
+                            .addon(&id)
+                            .files(&paths)
+                            .failed(&e);
+                        failed.push(e)
+                    }
                 }
             }
         }

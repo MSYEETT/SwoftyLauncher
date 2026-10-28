@@ -7,6 +7,8 @@ description: Write to swofty/loader.log from a plugin with swofty::log, and conf
 
 You'll find everything the loader, swofty_core and plugins write in `swofty/loader.log` in the game folder. Watch it live in the launcher while the game runs, or use `swofty logs` for a summary of a past session's logs and crashes.
 
+When the game can't create `swofty/loader.log`, the loader writes the log to `%LOCALAPPDATA%\Swofty\state\loader-fallback.log` instead. Its second line names the file it couldn't open and the Windows error, and the third the rights the game runs with: the user, the integrity level, whether it's elevated, UAC virtualization and `__COMPAT_LAYER`. The session copies it to its folder as `loader.log`.
+
 | | |
 |---|---|
 | Header | `swofty/mixin.hpp` |
@@ -85,13 +87,15 @@ These environment variables change what swofty_core and the loader log. Set them
 | `SWOFTY_UI_DIAG=1` | Logs each node of an addon screen as it builds, and every node the engine rejects with a reason. `"diagnostics": true` in the `"ui"` block of `swofty/settings.json` does the same |
 | `SWOFTY_LOG_SYNC=1` | Writes each `loader.log` line as it's logged. Without it, a background thread writes lines in batches and crash lines go out at once |
 | `SWOFTY_STORAGE_LOG=all` | Logs every storage call. Without it, swofty_core logs the first three successful calls of each kind from each addon, then only failures |
-| `SWOFTY_RESOLVE=scan` | Finds every binding by scanning for its pattern and leaves the scan cache off. Without it, swofty_core checks each pattern at its address on the analysed build first, and keeps the addresses it scanned for in `swofty/cache/scan-cache.tsv` |
+| `SWOFTY_RESOLVE=scan` | Finds every binding by scanning for its pattern and leaves the scan cache off. Without it, swofty_core checks each pattern at its address on the analysed build first, and keeps the addresses it scanned for in `swofty/cache/scan-cache.tsv`, or in `%LOCALAPPDATA%\Swofty\cache\game\` when the game can't create files in its folder |
 | `SWOFTY_PERF=1` | Adds `[perf]` lines: every screen open, each career flow from Entering to its next state, the game log's volume every 10 seconds, each Career Editor section pass, and every hitch in the performance report. Screen opens of 50 ms or more are logged without it |
 | `SWOFTY_PROFILE=0` | Turns the performance report off |
 | `SWOFTY_FRAME_CAPTURE=<folder>` | Writes the presented frame, overlay included, to `<folder>\frame-NNNN.png` every `SWOFTY_FRAME_CAPTURE_EVERY` seconds (default 10). Under Proton, give a Windows path such as `Z:\mnt\work\shots`. It arms the overlay's present hook even when no addon turns the overlay on, and captures only swapchains the overlay would draw on |
 | `SWOFTY_OVERLAY_KILL=<list>` | Turns overlay parts off: `all`, `paint`, `capture` or `hdr`, comma-separated. `"overlay_kill"` in `swofty/assets.json` does the same |
 | `SWOFTY_OVERLAY_NITS=<nits>` | The overlay's paper white on HDR10 and scRGB output, 80 to 1000. Default 350, the level of the game's own HUD white |
 | `SWOFTY_KEEP_FOCUS=1` | Keeps the game running when its window loses focus: swofty_core drops `WM_KILLFOCUS`, `WM_ACTIVATE(WA_INACTIVE)` and `WM_ACTIVATEAPP(FALSE)` before the game's window procedure sees them, and hands a window that starts without focus one `WM_SETFOCUS`. A race in a parked or hidden window then runs instead of stopping at the pause menu. For test runs only |
+| `SWOFTY_POSTFX_CAPTURE=<folder>` | For developing [post-process passes](/reference/addons/postfx). Writes the picture just before and just after the passes to `<folder>\postfx-NN-before.ppm` and `postfx-NN-after.ppm`, at most six pairs, ten seconds apart, the first thirty seconds after the passes start. The pictures have no HUD. Under Proton, give a Windows path |
+| `SWOFTY_POSTFX=0` | Turns every post-process pass off for the session |
 | `SWOFTY_PERF_HITCH_MS=<ms>` | The frame time the performance report counts as a hitch. Default 50 |
 | `SWOFTY_PERF_SLOW_CALL_MS=<ms>` | The time a single hook or callback takes before the performance report lists it as a slow call. Default 8 |
 

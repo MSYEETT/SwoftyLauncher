@@ -52,7 +52,7 @@ The strings are copied. `add_box()` returns `ok` when the box is queued (or live
 
 ## The data side
 
-A box only selects an entrant list; the list itself must be in the game database, and in the entrant lists of the core's host setup mode, `swofty_f1`. The core adds `swofty_f1` (a game setup mode and its entrant setup mode) to every F1 mode. Your database operations then:
+A box only selects an entrant list; the list itself must be in the game database, and in the entrant lists of the core's host setup mode, `swofty_f1`. The core adds `swofty_f1` (a game setup mode and its entrant setup mode) to every F1 mode except the careers and Braking Point. Your database operations then:
 
 1. add the entrant list (`entrants.entrant_lists`), its teams and its drivers;
 2. `list-append` the entrant list onto the `swofty_f1` entrant setup mode's `entrant_lists` and `selectable_entrant_lists`;
@@ -75,4 +75,4 @@ An addon can replace the era picker's menu with its own copy, as some imported s
 
 ## Logs
 
-The core logs to `swofty/loader.log` with the `[era]` prefix: each registration, the hooks, the first builds of the picker (`era select: N stock box(es), M addon box(es) of K registered`), each skipped box and each narrowing.
+The core logs to `swofty/loader.log` with the `[era]` prefix: each registration, the hooks, the first builds of the picker (`era select: N stock box(es), M addon box(es) of K registered`), each skipped box and each narrowing. The Grand Prix and Time Trial each have their own picker, and the Addons row belongs to the one built last: building the other clears the previous picker's Addons row and logs `detached the addon row from a previous view model`.

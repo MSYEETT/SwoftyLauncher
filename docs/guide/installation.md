@@ -31,6 +31,8 @@ Install the launcher with the installer or by hand, then follow the setup steps 
 
 The installer downloads the latest release, checks it against the release's `SHA256SUMS` and extracts it into that folder. It adds **Swofty Launcher** to the Start menu on Windows, or **Swofty Launcher for F1 25** to the app menu on Linux, adds the desktop shortcut if you ticked it, then opens the launcher.
 
+On Windows the installer runs without administrator rights. When you run it as administrator anyway, it still opens the launcher as you, without administrator rights.
+
 | Platform | Default folder |
 |---|---|
 | Windows | `%LOCALAPPDATA%\Programs\SwoftyLauncher` |

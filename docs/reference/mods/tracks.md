@@ -115,6 +115,14 @@ Test Ring would crash F1 25: its testring_ai_track.aispline doesn't match the si
 
 Export the archive from a tool that writes each resource's stats from its own data, so the package works with other tools too.
 
+F1 25 crashes when an AI car drives a route of the racing line, often the pit lane, on which the passing space never changes from one gate to the next. The build moves one white line on such a route and prints:
+
+```text
+testring: fixed the AI pit lane of Test Ring so F1 25 doesn't crash when an AI car drives it
+```
+
+A pit lane whose white lines vary along its length, as at the stock tracks, needs no change.
+
 ## Check the build
 
 ```sh

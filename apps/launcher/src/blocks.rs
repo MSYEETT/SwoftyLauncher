@@ -18,15 +18,22 @@ use gpui_kit::*;
 use serde_json::{Map, Value};
 use swofty_core::view::{
     Align, Block, Body, Card, Cell, Choice, DropZone, Field, Fit, Form, Grid, Hero, Image as ImageBlock,
-    Meter, Pill, Search, SelectField, Table, Tabs, Tile, Tone, View,
+    Meter, Pill, Search, SelectField, Table, TableRow, Tabs, Tile, Tone, View, colour_hex, parse_colour,
 };
 
+use crate::colour::{ColourEvent, ColourPicker, hsla_of};
 use crate::pages::label;
 use crate::sections::{art, icon, tone};
 use crate::shell::Shell;
 use crate::theme::Palette;
 
 const GAP: f32 = 16.;
+/// Tables with more rows than this draw only the rows in view.
+const LONG_TABLE: usize = 30;
+/// A table's detail panel, as wide as the DB Editor's, and the narrowest a column without a
+/// fixed width may get beside it before the panel opens under its row instead.
+const DETAIL_W: f32 = 380.;
+const DETAIL_COLUMN_MIN: f32 = 96.;
 const SELECT_MENU_H: f32 = 320.;
 const SELECT_HEADING_H: f32 = 26.;
 const SELECT_THUMB: f32 = 30.;
@@ -318,16 +325,42 @@ pub(crate) struct SearchSlot {
 }
 
 pub(crate) struct CellEdit {
-    key: String,
-    addon: String,
-    section: String,
-    table: String,
-    row: String,
-    column: String,
+    target: CellTarget,
     field: Field,
     original: Value,
     input: Entity<InputState>,
     _subs: Vec<Subscription>,
+}
+
+pub(crate) struct ColourEdit {
+    key: String,
+    target: ColourTarget,
+    picker: Entity<ColourPicker>,
+    trigger: Rc<std::cell::Cell<Bounds<Pixels>>>,
+    _subs: Vec<Subscription>,
+}
+
+#[derive(Clone)]
+enum ColourTarget {
+    Form {
+        key: String,
+        field: String,
+        addon: String,
+        section: String,
+        form: String,
+    },
+    Cell {
+        target: CellTarget,
+        original: Value,
+    },
+}
+
+fn swatch(rgb: Option<[u8; 3]>, size: f32, p: Palette) -> Div {
+    let dot = div().size(px(size)).flex_shrink_0().rounded_full();
+    match rgb {
+        Some(c) => dot.bg(hsla_of(c)).border_1().border_color(hsla(0., 0., 1., 0.12)),
+        None => dot.border_1().border_color(p.text_placeholder),
+    }
 }
 
 pub(crate) fn pill(p: &Pill, pal: Palette) -> Div {
@@ -440,21 +473,40 @@ fn sorted_rows(t: &Table, sort: Option<&(String, bool)>) -> Vec<usize> {
     order
 }
 
+/// Which table rows' details to walk into: `open(table id, row id)`.
+type OpenRows<'f> = &'f dyn Fn(&str, &str) -> bool;
+
 pub(crate) fn walk<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>) {
+    walk_open(blocks, out, &|_, _| true);
+}
+
+fn walk_open<'a>(blocks: &'a [Block], out: &mut Vec<&'a Block>, open: OpenRows) {
     for b in blocks {
         out.push(b);
         match b {
-            Block::Card(c) => walk(&c.blocks, out),
-            Block::Grid(g) => walk(&g.blocks, out),
+            Block::Card(c) => walk_open(&c.blocks, out, open),
+            Block::Grid(g) => walk_open(&g.blocks, out, open),
+            Block::Table(t) => {
+                for (i, r) in t.rows.iter().enumerate() {
+                    if open(t.id(), &r.id(i)) {
+                        walk_open(r.detail(), out, open);
+                    }
+                }
+            }
             _ => {}
         }
     }
 }
 
 fn view_blocks(view: &View) -> Vec<&Block> {
+    view_blocks_open(view, &|_, _| true)
+}
+
+/// The view's blocks, walking into the details of the table rows `open` names.
+fn view_blocks_open<'a>(view: &'a View, open: OpenRows) -> Vec<&'a Block> {
     let mut out = Vec::new();
     match &view.body {
-        Body::Blocks(blocks) => walk(blocks, &mut out),
+        Body::Blocks(blocks) => walk_open(blocks, &mut out, open),
         Body::List { rows, .. } => {
             for r in rows {
                 walk(&r.detail, &mut out);
@@ -499,6 +551,7 @@ impl Shell {
             self.forms.clear();
             self.searches.clear();
             self.cell = None;
+            self.colour = None;
             return;
         };
         let prefix = format!("{addon}/{section}/");
@@ -512,7 +565,15 @@ impl Shell {
             let key = format!("{prefix}{}", search_id(s, "list"));
             self.sync_search(&key, &addon, &section, s, window, cx);
         }
-        for b in view_blocks(&view) {
+        // A form in a table row's detail is set up only while the row is open: a long table can
+        // carry a form in every row.
+        let open_rows = self.table_rows.clone();
+        let open = |table: &str, row: &str| {
+            open_rows
+                .get(&format!("{prefix}table:{table}"))
+                .is_some_and(|o| o == row)
+        };
+        for b in view_blocks_open(&view, &open) {
             match b {
                 Block::Form(f) => self.sync_form(&addon, &section, f, generation, window, cx),
                 Block::Table(t) => {
@@ -526,8 +587,15 @@ impl Shell {
         }
         self.forms.retain(|k, s| k.starts_with(&prefix) && s.seen);
         self.searches.retain(|k, s| k.starts_with(&prefix) && s.seen);
-        if self.cell.as_ref().is_some_and(|c| !c.key.starts_with(&prefix)) {
+        if self
+            .cell
+            .as_ref()
+            .is_some_and(|c| !c.target.key.starts_with(&prefix))
+        {
             self.cell = None;
+        }
+        if self.colour.as_ref().is_some_and(|c| !c.key.starts_with(&prefix)) {
+            self.colour = None;
         }
     }
 
@@ -807,7 +875,7 @@ impl Shell {
                         );
                     }
                 }
-                Field::Toggle(_) => {
+                Field::Toggle(_) | Field::Colour(_) => {
                     if force || slot.picks.get(&id) == Some(&value) {
                         slot.picks.remove(&id);
                     }
@@ -848,7 +916,7 @@ impl Shell {
                 }
                 Some(Value::String(text))
             }
-            Field::Select(_) | Field::Toggle(_) => {
+            Field::Select(_) | Field::Toggle(_) | Field::Colour(_) => {
                 Some(slot.picks.get(id).cloned().unwrap_or_else(|| field.value()))
             }
         }
@@ -1243,7 +1311,8 @@ impl Shell {
     fn image(&self, at: At, i: &ImageBlock, p: Palette) -> AnyElement {
         let width = i.width.clamp(0., at.width.max(0.));
         let height = i.height.max(0.);
-        let inner = ((width - 2.).max(1.), (height - 2.).max(1.));
+        let border = if i.transparent { 0. } else { 2. };
+        let inner = ((width - border).max(1.), (height - border).max(1.));
         let fit = match i.fit {
             Fit::Cover => ObjectFit::Cover,
             Fit::Contain => ObjectFit::Contain,
@@ -1257,9 +1326,9 @@ impl Shell {
                     .h(px(height))
                     .rounded(px(6.))
                     .overflow_hidden()
-                    .bg(p.surface)
-                    .border_1()
-                    .border_color(p.border_variant)
+                    .when(!i.transparent, |d| {
+                        d.bg(p.surface).border_1().border_color(p.border_variant)
+                    })
                     .when_some(self.image_roots(at.addon).allow(&i.path), |d, path| {
                         d.child(
                             img(path)
@@ -1550,6 +1619,55 @@ impl Shell {
                 }
                 None => div().into_any_element(),
             },
+            Field::Colour(cf) => {
+                let colour_key = format!("{key}/{id}");
+                let rgb = self.colour_shown(&colour_key, cx).or_else(|| {
+                    slot.and_then(|s| s.picks.get(&id))
+                        .cloned()
+                        .unwrap_or_else(|| field.value())
+                        .as_str()
+                        .and_then(parse_colour)
+                });
+                let open = self.colour.as_ref().is_some_and(|c| c.key == colour_key);
+                let overlay = self.colour_overlay(&colour_key, cx);
+                let target = ColourTarget::Form {
+                    key: key.to_owned(),
+                    field: id.clone(),
+                    addon: at.addon.to_owned(),
+                    section: at.section.to_owned(),
+                    form: form.id.clone(),
+                };
+                let start = rgb.unwrap_or([0xFF, 0xFF, 0xFF]);
+                h_flex()
+                    .id(control_id)
+                    .relative()
+                    .h(px(24.))
+                    .px(px(9.))
+                    .gap(px(8.))
+                    .rounded(px(5.))
+                    .border_1()
+                    .border_color(if open { p.accent } else { p.border })
+                    .bg(p.background)
+                    .child(swatch(rgb, 12., p))
+                    .when(cf.hex, |d| {
+                        d.child(
+                            div()
+                                .text_size(px(13.))
+                                .text_color(if rgb.is_some() { p.text } else { p.text_placeholder })
+                                .child(rgb.map_or_else(|| "None".to_owned(), colour_hex)),
+                        )
+                    })
+                    .map(|d| match disabled {
+                        true => d.opacity(0.5),
+                        false => d
+                            .cursor_pointer()
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.open_colour(colour_key.clone(), target.clone(), start, window, cx)
+                            })),
+                    })
+                    .children(overlay)
+                    .into_any_element()
+            }
             Field::Toggle(_) => {
                 let on = slot
                     .and_then(|s| s.picks.get(&id))
@@ -1624,7 +1742,16 @@ impl Shell {
             .into_iter()
             .filter(|i| query.is_none_or(|q| Search::matches(q, t.rows[*i].cells().iter().map(Cell::text))))
             .collect();
-        let (row_h, text) = if t.compact { (30., 12.) } else { (36., 13.) };
+        let (base_h, text) = if t.compact { (30., 12.) } else { (36., 13.) };
+        let row_h = t.row_height.map_or(base_h, |h| h.max(base_h));
+        // The row whose detail is open, while it is still shown.
+        let selected = self.table_rows.get(&table_key).and_then(|id| {
+            order
+                .iter()
+                .map(|&i| (i, &t.rows[i]))
+                .find(|(i, r)| r.id(*i) == *id && !r.detail().is_empty())
+        });
+        let selected_id = selected.map(|(i, r)| r.id(i));
         let specs: Vec<_> = t.columns.iter().map(|c| c.spec()).collect();
         let sized = |d: Div, i: usize| -> Div {
             let spec = &specs[i];
@@ -1639,7 +1766,7 @@ impl Shell {
             }
         };
         let header = h_flex()
-            .h(px(row_h - 2.))
+            .h(px(base_h - 2.))
             .px(px(12.))
             .gap(px(12.))
             .border_b_1()
@@ -1648,10 +1775,11 @@ impl Shell {
                 let spec = &specs[i];
                 let column = c.key().to_owned();
                 let active = sort.as_ref().filter(|(k, _)| *k == column).map(|(_, d)| *d);
+                // A pencil for cells edited as text; a switch shows it can be flipped.
                 let editable = t.rows.iter().any(|r| {
-                    r.cells()
-                        .get(i)
-                        .is_some_and(|c| matches!(c, Cell::Spec(s) if s.edit.is_some()))
+                    r.cells().get(i).is_some_and(|c| {
+                        matches!(c, Cell::Spec(s) if s.edit.as_ref().is_some_and(|e| !matches!(e, Field::Toggle(_))))
+                    })
                 });
                 let head = sized(h_flex().gap(px(4.)), i)
                     .id(SharedString::from(format!("{table_key}/h/{i}")))
@@ -1695,18 +1823,51 @@ impl Shell {
                     head.into_any_element()
                 }
             }));
+        // The open row's detail goes beside the table when every column still fits, else under
+        // its row, where it was clicked.
+        let needed = 24.
+            + specs
+                .iter()
+                .map(|c| c.width.unwrap_or(DETAIL_COLUMN_MIN))
+                .sum::<f32>()
+            + 12. * specs.len().saturating_sub(1) as f32;
+        let beside = at.width - DETAIL_W - GAP >= needed;
+        // A long table draws the rows in and near the page's view and leaves room for the rest.
+        let shown = self.visible_rows(at, &table_key, order.len(), row_h, selected.is_some() && !beside);
+        let (above, below) = (shown.start, order.len() - shown.end);
         let rows: Vec<AnyElement> = order
             .iter()
             .enumerate()
-            .map(|(n, &ri)| {
+            .skip(shown.start)
+            .take(shown.len())
+            .flat_map(|(n, &ri)| {
                 let row = &t.rows[ri];
                 let row_id = row.id(ri);
                 let row_tone = row.tone();
-                h_flex()
+                let opens = !row.detail().is_empty();
+                let open = selected_id.as_deref() == Some(row_id.as_str());
+                let (key, id) = (table_key.clone(), row_id.clone());
+                let line = h_flex()
+                    .id(SharedString::from(format!("{table_key}/r/{row_id}")))
                     .h(px(row_h))
                     .px(px(12.))
                     .gap(px(12.))
                     .when(n > 0, |d| d.border_t_1().border_color(p.border_variant))
+                    .when(open, |d| d.bg(p.selected))
+                    .when(opens && !open, |d| {
+                        d.cursor_pointer().hover(move |s| s.bg(p.hover))
+                    })
+                    .when(opens, |d| {
+                        // A click opens the row's detail, or closes it when it is open.
+                        d.on_click(cx.listener(move |this, _, _, cx| {
+                            if this.table_rows.get(&key) == Some(&id) {
+                                this.table_rows.remove(&key);
+                            } else {
+                                this.table_rows.insert(key.clone(), id.clone());
+                            }
+                            cx.notify();
+                        }))
+                    })
                     .children(
                         row.cells()
                             .iter()
@@ -1722,14 +1883,16 @@ impl Shell {
                                     t.columns[ci].key(),
                                     cell,
                                     row_tone,
-                                    text,
+                                    (text, row_h),
                                     p,
                                     cx,
                                 );
                                 sized(h_flex(), ci).child(content).into_any_element()
                             }),
                     )
-                    .into_any_element()
+                    .into_any_element();
+                let under = (open && !beside).then(|| self.row_detail(at, &table_key, row, None, p, cx));
+                std::iter::once(line).chain(under)
             })
             .collect();
         let empty = order.is_empty().then(|| {
@@ -1747,12 +1910,166 @@ impl Shell {
                 d.rounded(px(6.)).border_1().border_color(p.border_variant)
             })
             .child(header)
-            .children(rows)
+            .child(
+                v_flex()
+                    .w_full()
+                    .relative()
+                    .child(self.rows_tracker(at, &table_key))
+                    .when(above > 0, |d| {
+                        d.child(div().flex_shrink_0().h(px(above as f32 * row_h)))
+                    })
+                    .children(rows)
+                    .when(below > 0, |d| {
+                        d.child(div().flex_shrink_0().h(px(below as f32 * row_h)))
+                    }),
+            )
             .children(empty);
+        let detail = selected
+            .filter(|_| beside)
+            .map(|(_, r)| self.row_detail(at, &table_key, r, Some(DETAIL_W), p, cx));
+        let table = match detail {
+            Some(detail) => h_flex()
+                .items_start()
+                .gap(px(GAP))
+                .child(div().flex_1().min_w_0().child(body))
+                .child(detail)
+                .into_any_element(),
+            None => body.into_any_element(),
+        };
         v_flex()
             .gap(px(10.))
             .children(search_key.and_then(|k| self.search_box(&k, p)))
-            .child(body)
+            .child(table)
+            .into_any_element()
+    }
+
+    /// The rows of `n` worth drawing: those within the page's view, plus a few either side, for
+    /// a long table on a scrolled page whose rows are all `row_h` tall (`varied` when an open
+    /// row's detail sits under it). Every row on the first frame, before the rows' place is known.
+    fn visible_rows(&self, at: At, key: &str, n: usize, row_h: f32, varied: bool) -> std::ops::Range<usize> {
+        const OVERSCAN: usize = 8;
+        if varied || n <= LONG_TABLE {
+            return 0..n;
+        }
+        let Some((scroll, _)) = self.section_scrolls.get(&format!("{}/{}", at.addon, at.section)) else {
+            return 0..n;
+        };
+        let Some(top) = self.table_tops.borrow().get(key).copied() else {
+            return 0..n;
+        };
+        let view_h = f32::from(scroll.bounds().size.height);
+        if view_h <= 0. {
+            return 0..n;
+        }
+        // The view's top, from the rows' top.
+        let from = -f32::from(scroll.offset().y) - top;
+        let first = ((from / row_h).floor().max(0.) as usize)
+            .saturating_sub(OVERSCAN)
+            .min(n);
+        let last = (((from + view_h) / row_h).ceil().max(0.) as usize + OVERSCAN).min(n);
+        first..last.max(first)
+    }
+
+    /// An empty element over a table's rows that notes where they start in the page's scrolled
+    /// content, for `visible_rows` on the next frame.
+    fn rows_tracker(&self, at: At, key: &str) -> impl IntoElement {
+        let tops = self.table_tops.clone();
+        let scroll = self
+            .section_scrolls
+            .get(&format!("{}/{}", at.addon, at.section))
+            .map(|(s, _)| s.clone());
+        let key = key.to_owned();
+        canvas(
+            move |bounds, _, _| {
+                if let Some(scroll) = scroll {
+                    let top = bounds.origin.y - scroll.bounds().origin.y - scroll.offset().y;
+                    tops.borrow_mut().insert(key, f32::from(top));
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .inset_0()
+    }
+
+    /// A table row's detail panel: its title and subtitle, a close button and its blocks. A
+    /// `width` puts it beside the table; without one it fills the table under its row.
+    fn row_detail(
+        &self,
+        at: At,
+        table_key: &str,
+        row: &TableRow,
+        width: Option<f32>,
+        p: Palette,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let key = table_key.to_owned();
+        let inner = At {
+            width: width.unwrap_or(at.width) - 34.,
+            nested: false,
+            fill: false,
+            ..at
+        };
+        v_flex()
+            .map(|d| match width {
+                Some(w) => d
+                    .w(px(w))
+                    .flex_shrink_0()
+                    .rounded(px(8.))
+                    .border_1()
+                    .border_color(p.border_variant),
+                None => d.w_full().border_t_1().border_color(p.border_variant),
+            })
+            .bg(p.surface)
+            .overflow_hidden()
+            .child(
+                h_flex()
+                    .px(px(16.))
+                    .py(px(12.))
+                    .gap(px(10.))
+                    .border_b_1()
+                    .border_color(p.border_variant)
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(
+                                div()
+                                    .text_size(px(15.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .truncate()
+                                    .child(row.title()),
+                            )
+                            .when_some(row.subtitle().map(str::to_owned), |d, s| {
+                                d.child(
+                                    div()
+                                        .text_size(px(12.))
+                                        .text_color(p.text_muted)
+                                        .truncate()
+                                        .child(s),
+                                )
+                            }),
+                    )
+                    .child(
+                        Button::new(SharedString::from(format!("{table_key}/close")))
+                            .ghost()
+                            .small()
+                            .icon(IconName::X)
+                            .tooltip("Close")
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.table_rows.remove(&key);
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                v_flex()
+                    .px(px(16.))
+                    .py(px(14.))
+                    .gap(px(16.))
+                    .children(row.detail().iter().map(|b| self.block_at(inner, b, p, cx))),
+            )
             .into_any_element()
     }
 
@@ -1767,14 +2084,14 @@ impl Shell {
         column: &str,
         cell: &Cell,
         row_tone: Option<Tone>,
-        size: f32,
+        (size, row_h): (f32, f32),
         p: Palette,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = cell.spec();
         let key = format!("{table_key}/{row_id}/{column}");
         let color = c.tone.or(row_tone).map_or(p.text, |t| tone(t, p));
-        if let Some(edit) = self.cell.as_ref().filter(|e| e.key == key) {
+        if let Some(edit) = self.cell.as_ref().filter(|e| e.target.key == key) {
             let input = edit.input.clone();
             return div()
                 .id(SharedString::from(format!("edit-{key}")))
@@ -1788,21 +2105,152 @@ impl Shell {
                 .child(Input::new(&input).xsmall())
                 .into_any_element();
         }
-        let shown = self
-            .pending_cells
-            .get(&key)
-            .cloned()
-            .unwrap_or_else(|| c.text.clone());
-        let pending = self.pending_cells.contains_key(&key);
-        let text_el = div()
-            .min_w_0()
-            .truncate()
-            .text_size(px(size))
-            .text_color(if pending { p.text_muted } else { color })
-            .child(shown.clone());
+        // A switch cell keeps its pending state as "true" or "false", not as its text.
+        let toggle = match &c.edit {
+            Some(Field::Toggle(tf)) => Some(tf.clone()),
+            _ => None,
+        };
+        let pending = toggle.is_none() && self.pending_cells.contains_key(&key);
+        let shown = match pending {
+            true => self.pending_cells[&key].clone(),
+            false => c.text.clone(),
+        };
+        let text_el = match c.spans.is_empty() || pending {
+            true => div().child(shown.clone()),
+            // The spans as one text, each with its weight and colour.
+            false => {
+                let mut whole = String::new();
+                let mut marks = Vec::new();
+                for span in &c.spans {
+                    let start = whole.len();
+                    whole.push_str(&span.text);
+                    if span.bold || span.tone.is_some() {
+                        marks.push((
+                            start..whole.len(),
+                            HighlightStyle {
+                                font_weight: span.bold.then_some(FontWeight::BOLD),
+                                color: span.tone.map(|t| tone(t, p)),
+                                ..HighlightStyle::default()
+                            },
+                        ));
+                    }
+                }
+                div().child(StyledText::new(whole).with_highlights(marks))
+            }
+        }
+        .min_w_0()
+        .truncate()
+        .text_size(px(size))
+        .text_color(if pending { p.text_muted } else { color });
         let mut content = h_flex().gap(px(8.)).min_w_0();
         if spec.align == Align::Right {
             content = content.justify_end();
+        }
+        // A picture before the text: a square as tall as the row allows, or the cell's size.
+        if let Some(image) = &c.image {
+            let (w, h) = image.size((row_h - 8.).max(16.));
+            let (w, h) = (w.clamp(1., 512.), h.clamp(1., (row_h - 4.).max(1.)));
+            let fit = match image.fit() {
+                Fit::Cover => ObjectFit::Cover,
+                Fit::Contain => ObjectFit::Contain,
+            };
+            content = content.child(
+                div()
+                    .w(px(w))
+                    .h(px(h))
+                    .flex_shrink_0()
+                    .rounded(px(if h > 24. { 6. } else { 2. }))
+                    .overflow_hidden()
+                    .when(!image.transparent(), |d| d.bg(p.elevated))
+                    .when_some(self.image_roots(at.addon).allow(image.path()), |d, path| {
+                        d.child(img(path).w(px(w)).h(px(h)).object_fit(fit))
+                    }),
+            );
+        }
+        if let Some(tf) = toggle {
+            let on = self.pending_cells.get(&key).map_or(tf.value, |v| v == "true");
+            let busy = self.busy.contains(&key);
+            let (addon, section, table, row, column, control) = (
+                at.addon.to_owned(),
+                at.section.to_owned(),
+                t.id().to_owned(),
+                row_id.to_owned(),
+                column.to_owned(),
+                key.clone(),
+            );
+            let switch = Switch::new(SharedString::from(format!("cell-{key}")))
+                .checked(on)
+                .small()
+                .disabled(busy || tf.disabled)
+                .on_change(cx.listener(move |this, on: &bool, window, cx| {
+                    this.pending_cells.insert(control.clone(), on.to_string());
+                    let mut values = Map::new();
+                    values.insert(column.clone(), Value::Bool(*on));
+                    let event = swofty_core::view::Event::Submit {
+                        form: table.clone(),
+                        row: Some(row.clone()),
+                        values,
+                        changed: vec![column.clone()],
+                    };
+                    this.send(&addon, &section, control.clone(), event, window, cx);
+                }));
+            // The switch's click stays in the cell, so it doesn't also open the row.
+            content = content.child(
+                div()
+                    .id(SharedString::from(format!("cell-hold-{key}")))
+                    .flex_shrink_0()
+                    .on_click(|_, _, cx| cx.stop_propagation())
+                    .child(switch),
+            );
+            if !shown.is_empty() {
+                content = content.child(text_el);
+            }
+            return content.into_any_element();
+        }
+        if let Some(Field::Colour(cf)) = &c.edit {
+            let target = CellTarget {
+                key: key.clone(),
+                addon: at.addon.to_owned(),
+                section: at.section.to_owned(),
+                table: t.id().to_owned(),
+                row: row_id.to_owned(),
+                column: column.to_owned(),
+            };
+            let original = match cf.rgb().or_else(|| parse_colour(&c.text)) {
+                Some(rgb) => Value::String(colour_hex(rgb)),
+                None => Value::Null,
+            };
+            let rgb = self
+                .colour_shown(&key, cx)
+                .or_else(|| parse_colour(&shown).filter(|_| pending))
+                .or_else(|| original.as_str().and_then(parse_colour));
+            let (busy, disabled) = (self.busy.contains(&key), cf.disabled);
+            let start = rgb.unwrap_or([0xFF, 0xFF, 0xFF]);
+            let open_key = key.clone();
+            return content
+                .id(SharedString::from(format!("cell-{key}")))
+                .relative()
+                .px(px(6.))
+                .mx(px(-6.))
+                .h(px(size + 12.))
+                .rounded(px(4.))
+                .child(swatch(rgb, 14., p))
+                .when(cf.hex, |d| d.child(text_el))
+                .when(!disabled, |d| d.cursor_pointer())
+                .when(!busy && !disabled, |d| d.hover(move |s| s.bg(p.hover)))
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    if disabled || this.busy.contains(&open_key) {
+                        return;
+                    }
+                    let target = ColourTarget::Cell {
+                        target: target.clone(),
+                        original: original.clone(),
+                    };
+                    this.open_colour(open_key.clone(), target, start, window, cx)
+                }))
+                .children(self.colour_overlay(&key, cx))
+                .into_any_element();
         }
         if let Some(f) = c.bar {
             content = content.child(div().w(px(56.)).flex_shrink_0().child(bar(
@@ -1851,6 +2299,8 @@ impl Shell {
             .cursor_pointer()
             .when(!busy, |d| d.hover(move |s| s.bg(p.hover)))
             .on_click(cx.listener(move |this, _, window, cx| {
+                // Editing the cell doesn't also open the row.
+                cx.stop_propagation();
                 if this.busy.contains(&key) {
                     return;
                 }
@@ -1900,18 +2350,13 @@ impl Shell {
         let key = target.key.clone();
         let sub = cx.subscribe_in(&input, window, move |this, _, ev: &InputEvent, window, cx| {
             if matches!(ev, InputEvent::PressEnter { .. } | InputEvent::Blur)
-                && this.cell.as_ref().is_some_and(|c| c.key == key)
+                && this.cell.as_ref().is_some_and(|c| c.target.key == key)
             {
                 this.commit_cell(window, cx);
             }
         });
         self.cell = Some(CellEdit {
-            key: target.key,
-            addon: target.addon,
-            section: target.section,
-            table: target.table,
-            row: target.row,
-            column: target.column,
+            target,
             field,
             original,
             input,
@@ -1944,20 +2389,139 @@ impl Shell {
         if value == edit.original || value.is_null() {
             return;
         }
-        self.pending_cells
-            .insert(edit.key.clone(), field_text(&edit.field, &value));
+        let text = field_text(&edit.field, &value);
+        self.submit_cell(edit.target, value, text, window, cx);
+    }
+
+    fn submit_cell(
+        &mut self,
+        target: CellTarget,
+        value: Value,
+        text: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.pending_cells.insert(target.key.clone(), text);
         let mut values = Map::new();
-        values.insert(edit.column.clone(), value);
+        values.insert(target.column.clone(), value);
         let event = swofty_core::view::Event::Submit {
-            form: edit.table.clone(),
-            row: Some(edit.row.clone()),
+            form: target.table,
+            row: Some(target.row),
             values,
-            changed: vec![edit.column.clone()],
+            changed: vec![target.column],
         };
-        self.send(&edit.addon, &edit.section, edit.key.clone(), event, window, cx);
+        self.send(&target.addon, &target.section, target.key, event, window, cx);
+    }
+
+    fn colour_shown(&self, key: &str, cx: &App) -> Option<[u8; 3]> {
+        let edit = self.colour.as_ref().filter(|c| c.key == key)?;
+        Some(edit.picker.read(cx).rgb())
+    }
+
+    fn colour_overlay(&self, key: &str, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let Some(edit) = self.colour.as_ref().filter(|c| c.key == key) else {
+            return Vec::new();
+        };
+        let trigger = edit.trigger.clone();
+        let picker = edit.picker.clone();
+        vec![
+            canvas(move |b, _, _| trigger.set(b), |_, _, _, _| {})
+                .absolute()
+                .size_full()
+                .into_any_element(),
+            div()
+                .absolute()
+                .top_full()
+                .left_0()
+                .child(
+                    deferred(
+                        anchored().snap_to_window_with_margin(px(8.)).child(
+                            div()
+                                .id("colour-overlay")
+                                .mt(px(6.))
+                                .occlude()
+                                .on_mouse_down_out(cx.listener(|this, ev: &MouseDownEvent, window, cx| {
+                                    let on_trigger = this
+                                        .colour
+                                        .as_ref()
+                                        .is_some_and(|c| c.trigger.get().contains(&ev.position));
+                                    if !on_trigger {
+                                        this.close_colour(true, window, cx);
+                                    }
+                                }))
+                                .child(picker),
+                        ),
+                    )
+                    .with_priority(1),
+                )
+                .into_any_element(),
+        ]
+    }
+
+    fn open_colour(
+        &mut self,
+        key: String,
+        target: ColourTarget,
+        start: [u8; 3],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.colour.as_ref().is_some_and(|c| c.key == key) {
+            self.close_colour(true, window, cx);
+            return;
+        }
+        self.close_colour(true, window, cx);
+        let picker = cx.new(|cx| ColourPicker::new(start, window, cx));
+        let subs = vec![
+            cx.subscribe_in(&picker, window, |this, _, ev: &ColourEvent, window, cx| {
+                this.close_colour(matches!(ev, ColourEvent::Commit), window, cx)
+            }),
+            cx.observe(&picker, |_, _, cx| cx.notify()),
+        ];
+        self.colour = Some(ColourEdit {
+            key,
+            target,
+            picker,
+            trigger: Rc::default(),
+            _subs: subs,
+        });
+        cx.notify();
+    }
+
+    fn close_colour(&mut self, commit: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(edit) = self.colour.take() else {
+            return;
+        };
+        cx.notify();
+        if !commit {
+            return;
+        }
+        let hex = colour_hex(edit.picker.read(cx).rgb());
+        match edit.target {
+            ColourTarget::Form {
+                key,
+                field,
+                addon,
+                section,
+                form,
+            } => {
+                let live = self
+                    .find_form(&addon, &section, &form)
+                    .filter(|f| f.live)
+                    .map(|f| (addon, section, f));
+                self.pick(&key, &field, Value::String(hex), live, window, cx);
+            }
+            ColourTarget::Cell { target, original } => {
+                let value = Value::String(hex.clone());
+                if value != original {
+                    self.submit_cell(target, value, hex, window, cx);
+                }
+            }
+        }
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct CellTarget {
     key: String,
     addon: String,

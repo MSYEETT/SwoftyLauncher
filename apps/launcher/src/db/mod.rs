@@ -18,7 +18,7 @@ use swofty_core::dbedit::draft::{DraftFile, Opened, Written};
 use swofty_core::dbedit::package::{self, Incoming, PackageInfo};
 use swofty_core::dbedit::{
     Catalog, Draft, Edit, Edits, Hit, ImportReport, Kind, LinkSpec, Module, ModuleView, NodeId, NodeKind,
-    Target,
+    Target, driver_manager,
 };
 use swofty_core::store::Store;
 use swofty_core::view::{Block, Body};
@@ -116,6 +116,7 @@ pub(crate) struct Db {
     pub view_error: Option<String>,
     pub save_error: Option<String>,
     view_want: Option<(String, Option<String>, u64)>,
+    stale_choices: bool,
     rev: u64,
     pub row: Option<String>,
     pub max_cols: usize,
@@ -139,6 +140,7 @@ pub(crate) struct Db {
     pub rows_motion: crate::scroll::SmoothScroll,
     pub list_scroll: UniformListScrollHandle,
     pub list_motion: crate::scroll::SmoothScroll,
+    pub grid_scroll: ScrollHandle,
     pending_tab: Option<(String, String, String)>,
     pending_link: Option<LinkSpec>,
     pub importing: bool,
@@ -181,6 +183,7 @@ impl Db {
             view_error: None,
             save_error: None,
             view_want: None,
+            stale_choices: false,
             rev: 0,
             row: None,
             max_cols: 8,
@@ -204,6 +207,7 @@ impl Db {
             rows_motion: Default::default(),
             list_scroll: UniformListScrollHandle::new(),
             list_motion: Default::default(),
+            grid_scroll: ScrollHandle::new(),
             pending_tab: None,
             pending_link: None,
             importing: false,
@@ -613,9 +617,15 @@ impl Shell {
     }
 
     /// Writes pending draft changes when the player leaves the DB Editor.
-    pub(crate) fn db_leaving(&mut self, to: Page, cx: &mut Context<Self>) {
+    pub(crate) fn db_page_change(&mut self, to: Page, cx: &mut Context<Self>) {
         if self.page == Page::Database && to != Page::Database {
             self.db_flush(cx);
+        }
+        // Other pages change what choices offer, such as Driver Manager's drivers.
+        if self.page != Page::Database && to == Page::Database {
+            self.db.stale_choices = true;
+            self.db.view_want = None;
+            self.db_refresh_view(cx);
         }
     }
 
@@ -1141,11 +1151,12 @@ impl Shell {
             return;
         }
         self.db.view_want = Some(want.clone());
+        let stale = std::mem::take(&mut self.db.stale_choices);
         let choices = self
             .db
             .view
             .as_ref()
-            .filter(|v| v.module == id && v.scope == scope)
+            .filter(|v| !stale && v.module == id && v.scope == scope)
             .map(|v| v.choices.clone());
         let edits = self.db.draft.edits.clone();
         let store = self.store.clone();
@@ -1160,12 +1171,24 @@ impl Shell {
                     });
                     let choices = choices.unwrap_or_else(|| {
                         let tracks = swofty_core::tracks::installed(&store);
+                        let drivers = driver_manager::drivers(&store, &catalog);
+                        let heads = swofty_core::heads::installed(&store);
                         let refs = module
                             .fields
                             .iter()
                             .enumerate()
                             .filter(|(_, f)| matches!(f.kind, Some(Kind::Ref | Kind::RefList)))
-                            .map(|(i, _)| (i, module.choices_with(&catalog, i, scope.as_deref(), &tracks)))
+                            .map(|(i, _)| {
+                                let c = module.choices_with(
+                                    &catalog,
+                                    i,
+                                    scope.as_deref(),
+                                    &tracks,
+                                    &drivers,
+                                    &heads,
+                                );
+                                (i, c)
+                            })
                             .collect();
                         Arc::new(refs)
                     });
@@ -1269,10 +1292,17 @@ impl Shell {
             return;
         }
         let from = catalog.clone();
+        let store = self.store.clone();
         cx.spawn(async move |this, cx| {
             let hits = cx
                 .background_executor()
-                .spawn(async move { guarded(|| Ok(catalog.search(&query, 60))).unwrap_or_default() })
+                .spawn(async move {
+                    guarded(|| {
+                        let drivers = driver_manager::drivers(&store, &catalog);
+                        Ok(catalog.search_with(&query, 60, &drivers))
+                    })
+                    .unwrap_or_default()
+                })
                 .await;
             this.update(cx, |s, cx| {
                 if s.db.search.as_ref().is_some_and(|d| d.generation == generation)
@@ -1379,6 +1409,14 @@ impl Shell {
                 self.db_refresh_view(cx);
             }
             Target::Node(node) => self.db_show_node(node, cx),
+            Target::Link(link) => match self.db_link_state(&link) {
+                LinkState::Open => self.db_open_section(&link, cx),
+                _ => {
+                    if let Some(m) = self.db.modules.iter().find(|m| m.links.contains(&link)) {
+                        self.db_go(Nav::Module(m.id.clone()), cx);
+                    }
+                }
+            },
         }
         cx.notify();
     }
@@ -1448,6 +1486,7 @@ impl Shell {
         match guarded(|| edits.copy_row(&catalog, &table, &field, from.as_deref(), &to)) {
             Ok(()) => self.db_changed(None, true, cx),
             Err(e) => {
+                crate::app_log::action("db editor: copy a row").failed(&e);
                 self.db.toasts.push(Notification::error(e));
                 cx.notify();
             }
@@ -1589,6 +1628,7 @@ impl Shell {
                 self.db_changed(None, true, cx);
             }
             Err(e) => {
+                crate::app_log::action("db editor: change rows").failed(&e);
                 self.db.toasts.push(Notification::error(e));
                 cx.notify();
             }
@@ -1730,10 +1770,15 @@ impl Shell {
                 };
                 self.db_leave(then, window, cx);
             }
-            Err(e) => window.push_notification(
-                Notification::error(e).title(format!("Could not import {file}")),
-                cx,
-            ),
+            Err(e) => {
+                crate::app_log::action("db editor: import")
+                    .file(std::path::Path::new(&file))
+                    .failed(&e);
+                window.push_notification(
+                    Notification::error(e).title(format!("Could not import {file}")),
+                    cx,
+                )
+            }
         }
     }
 

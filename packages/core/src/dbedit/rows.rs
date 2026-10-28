@@ -376,6 +376,7 @@ pub(crate) mod tests {
             fields: &fields,
             keys: RowKeys::builtin(),
             stock: Some(&stock),
+            tracks: None,
         };
         let mut report = DbReport::default();
         let (_, failed) = crate::ops::apply_db_ops_lenient(&mut db, &edits.to_ops(), &names, &mut report);
@@ -635,6 +636,7 @@ pub(crate) mod tests {
             fields: &fields,
             keys: RowKeys::builtin(),
             stock: Some(&stock),
+            tracks: None,
         };
         let mut report = DbReport::default();
         crate::ops::apply_db_ops_report(&mut db, &e.to_ops(), &names, &mut report).unwrap();

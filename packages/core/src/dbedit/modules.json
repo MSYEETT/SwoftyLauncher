@@ -498,7 +498,7 @@
    "links": [
     {
      "label": "Create new drivers",
-     "text": "Driver Manager adds new drivers as free agents.",
+     "text": "Driver Manager adds new drivers as free agents. They're edited on its page, not here.",
      "addon": "swofty.driver-manager",
      "section": "drivers",
      "url": "https://www.overtake.gg/downloads/driver-manager-addon.87734/"
@@ -753,6 +753,15 @@
      "readonly": true,
      "section": "Identity",
      "help": "The id other tables use to find this row."
+    }
+   ],
+   "links": [
+    {
+     "label": "Driver Manager drivers",
+     "text": "Driver Manager adds an entrant for each of its drivers, marked Driver Manager in driver choices. They're edited on its page.",
+     "addon": "swofty.driver-manager",
+     "section": "drivers",
+     "url": "https://www.overtake.gg/downloads/driver-manager-addon.87734/"
     }
    ]
   },
@@ -2071,6 +2080,13 @@
      "section": "editor",
      "tab": "drivers",
      "url": "https://f1.swofty.net/using/career-editor"
+    },
+    {
+     "label": "Driver Manager drivers",
+     "text": "Seats also take the drivers Driver Manager adds, marked Driver Manager. They're edited on its page.",
+     "addon": "swofty.driver-manager",
+     "section": "drivers",
+     "url": "https://www.overtake.gg/downloads/driver-manager-addon.87734/"
     }
    ],
    "notes": [

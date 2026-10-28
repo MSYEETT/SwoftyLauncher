@@ -1291,6 +1291,7 @@ mod tests {
             fields: &none,
             keys: RowKeys::builtin(),
             stock: None,
+            tracks: None,
         };
         let mut report = DbReport::default();
         apply_db_ops_report(&mut db, &ops, &names, &mut report).unwrap();

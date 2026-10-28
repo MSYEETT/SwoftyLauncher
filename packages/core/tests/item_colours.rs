@@ -71,7 +71,9 @@ fn build(file: &str) -> (Gvdb, DbReport) {
     let mut db = stock();
     let keys = db.records.iter().map(|r| r.key).collect();
     let mut report = DbReport::default();
-    planner.apply_db_report(&mut db, &keys, &mut report).unwrap();
+    planner
+        .apply_db_report(&mut db, &keys, &Default::default(), &mut report)
+        .unwrap();
     (db, report)
 }
 
@@ -114,6 +116,7 @@ fn a_listed_item_copy_without_the_colour_defaults_warns() {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: None,
+        tracks: None,
     };
     let mut db = stock();
     let mut report = DbReport::default();
@@ -149,6 +152,7 @@ fn a_stock_gloves_copy_brings_its_colour_defaults() {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: None,
+        tracks: None,
     };
     apply_db_ops_report(&mut db, &ops, &names, &mut DbReport::default()).unwrap();
     for c in COLOURS {

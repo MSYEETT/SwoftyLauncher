@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde_json::Value;
 
 use crate::store::now_ms;
@@ -42,6 +44,37 @@ pub fn bridge_of(running: Option<bool>, snap: &Value, closed_since: Option<u64>)
     }
 }
 
+/// The running game's exe version, and whether no binding set was made for its exe.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GameBuild {
+    pub version: Option<String>,
+    pub unsupported: bool,
+}
+
+/// The SHA-256 of the build each `bindings*.json` set in core's folder was made for.
+pub fn binding_builds(core_dir: &Path) -> Vec<String> {
+    let Ok(dir) = std::fs::read_dir(core_dir) else {
+        return Vec::new();
+    };
+    dir.flatten()
+        .filter(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            name.starts_with("bindings") && name.ends_with(".json")
+        })
+        .filter_map(|e| std::fs::read(e.path()).ok())
+        .filter_map(|b| serde_json::from_slice::<Value>(&b).ok())
+        .filter_map(|d| d["build"]["sha256"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// A build key ends in the first 12 hex digits of the exe's SHA-256. False when either side is unknown.
+pub fn unsupported_build(build_key: Option<&str>, sets: &[String]) -> bool {
+    let sha = build_key
+        .and_then(|k| k.rsplit('-').next())
+        .filter(|s| s.len() == 12);
+    sha.is_some_and(|sha| !sets.is_empty() && !sets.iter().any(|s| s.starts_with(sha)))
+}
+
 pub struct Live {
     pub running: Option<bool>,
     pub game_session: Option<String>,
@@ -51,6 +84,7 @@ pub struct Live {
     pub bridge: Bridge,
     pub snap: Value,
     pub snap_error: Option<String>,
+    pub build: Option<GameBuild>,
 }
 
 impl Live {
@@ -74,6 +108,7 @@ impl Live {
             bridge,
             snap: snap.clone(),
             snap_error,
+            build: None,
         }
     }
 
@@ -186,7 +221,7 @@ impl Live {
 mod tests {
     use serde_json::{Value, json};
 
-    use super::{Bridge, Live, STALE_MS, closed_since};
+    use super::{Bridge, Live, STALE_MS, binding_builds, closed_since, unsupported_build};
     use crate::store::now_ms;
 
     fn snapshot(age_ms: u64) -> Value {
@@ -255,6 +290,36 @@ mod tests {
         let live = Live::new(closed(), &snap, true, None, None);
         assert_eq!(live.bridge, Bridge::Stale);
         assert!(!live.game_running());
+    }
+
+    #[test]
+    fn a_build_no_binding_set_was_made_for_is_unsupported() {
+        let dir = std::env::temp_dir().join(format!("ce-bindings-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let steam = "d873a1c8d2044cef2fd76c99c9d5a97649c5b815d055540995105f46619865ae";
+        let ea = "cc506879c1c834aa54d3478b2f2133d2ec243f2f2d313397631145ea618ff7f4";
+        for (name, sha) in [
+            ("bindings.json", steam),
+            ("bindings.ea.json", ea),
+            ("symbols.json", "ffff"),
+        ] {
+            std::fs::write(
+                dir.join(name),
+                json!({ "build": { "sha256": sha }, "bindings": [] }).to_string(),
+            )
+            .unwrap();
+        }
+        let mut sets = binding_builds(&dir);
+        sets.sort();
+        assert_eq!(sets, [ea, steam]);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(unsupported_build(Some("exe-5c1f0a9e77b2-5c1f0a9e77b2"), &sets));
+        assert!(!unsupported_build(Some("25251167-d873a1c8d204"), &sets));
+        assert!(!unsupported_build(Some("exe-cc506879c1c8-cc506879c1c8"), &sets));
+        assert!(!unsupported_build(None, &sets));
+        assert!(!unsupported_build(Some("exe-5c1f0a9e77b2-5c1f0a9e77b2"), &[]));
     }
 
     #[test]

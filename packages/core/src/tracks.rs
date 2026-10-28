@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use swofty_addon::asset::{AssetOp, FileKind, LangOp, OpFile, TrackOp};
 use swofty_addon::manifest::AddonManifest;
 use swofty_addon::ops::DbOp;
-use swofty_formats::gvdb::{Gvdb, Record};
+use swofty_formats::gvdb::{Gvdb, Record, ValueType};
 use swofty_formats::hash::fnv1a64;
 
 use crate::launcher::{ProfileTrack, ProfileTracks};
@@ -328,9 +328,121 @@ pub(crate) fn restore_weekends(db: &mut Gvdb, shipped: &Gvdb, left_out: &[&str])
     out
 }
 
+/// The shipped records `db` holds with other values: what the tracks changed.
+pub(crate) fn changed_records(db: &Gvdb, shipped: &Gvdb) -> Vec<Record> {
+    let stock: HashMap<u64, &[u8]> = shipped
+        .records
+        .iter()
+        .map(|r| (r.key, r.value.as_slice()))
+        .collect();
+    db.records
+        .iter()
+        .filter(|r| stock.get(&r.key).is_some_and(|v| *v != r.value.as_slice()))
+        .cloned()
+        .collect()
+}
+
+/// Puts back the track changes in `changed` that database ops undid. A mod
+/// made from a whole game database carries the shipped value of every record
+/// it holds, so a record an op set back to its shipped value gets the tracks'
+/// value again, and a list an op rewrote otherwise gets back the entries the
+/// tracks added to it. Returns the keys put back.
+pub(crate) fn keep_changes(db: &mut Gvdb, shipped: &Gvdb, changed: &[Record]) -> Vec<u64> {
+    let at: HashMap<u64, usize> = db.records.iter().enumerate().map(|(i, r)| (r.key, i)).collect();
+    let stock: HashMap<u64, &Record> = shipped.records.iter().map(|r| (r.key, r)).collect();
+    let mut kept = Vec::new();
+    for ours in changed {
+        let (Some(&i), Some(stock)) = (at.get(&ours.key), stock.get(&ours.key)) else {
+            continue;
+        };
+        let now = &db.records[i];
+        let value = if now.value == ours.value {
+            None
+        } else if now.value == stock.value {
+            Some(ours.value.clone())
+        } else if now.value_type() == ValueType::List && ours.value_type() == ValueType::List {
+            merged_list(&now.value, &ours.value, &stock.value)
+        } else {
+            None
+        };
+        if let Some(value) = value {
+            db.records[i].value = value;
+            kept.push(ours.key);
+        }
+    }
+    kept
+}
+
+fn merged_list(now: &[u8], ours: &[u8], stock: &[u8]) -> Option<Vec<u8>> {
+    let items = |v: &[u8]| -> Vec<String> {
+        String::from_utf8_lossy(v)
+            .split(',')
+            .map(|s| s.trim().to_owned())
+            .filter(|s| !s.is_empty())
+            .collect()
+    };
+    let (mut out, shipped) = (items(now), items(stock));
+    let added: Vec<String> = items(ours)
+        .into_iter()
+        .filter(|c| !shipped.contains(c) && !out.contains(c))
+        .collect();
+    if added.is_empty() {
+        return None;
+    }
+    out.extend(added);
+    Some(out.join(",").into_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn track_changes_survive_ops_that_carry_shipped_values() {
+        let list = |path: &str, v: &str| Record::new(path, 13, v);
+        let int = |path: &str, v: &str| Record::new(path, 0, v);
+        let shipped = Gvdb {
+            records: vec![
+                list("sets.a.tracks", "melbourne,suzuka"),
+                list("sets.b.tracks", "melbourne"),
+                list("sets.c.tracks", "melbourne"),
+                int("tracks._Track_instancecount_", "2"),
+                int("tracks.Track_0.statId", "5"),
+            ],
+        };
+        let mut db = Gvdb {
+            records: vec![
+                list("sets.a.tracks", "melbourne,suzuka,testring"),
+                list("sets.b.tracks", "melbourne,testring"),
+                list("sets.c.tracks", "melbourne,testring"),
+                int("tracks._Track_instancecount_", "3"),
+                int("tracks.Track_0.statId", "6"),
+                int("tracks.Track_2.statId", "50"),
+            ],
+        };
+        let changed = changed_records(&db, &shipped);
+        assert_eq!(changed.len(), 5);
+        db.set("sets.a.tracks", "melbourne,suzuka", None).unwrap();
+        db.set("sets.b.tracks", "suzuka,imola", None).unwrap();
+        db.set("tracks._Track_instancecount_", "2", None).unwrap();
+        db.set("tracks.Track_0.statId", "9", None).unwrap();
+        let kept = keep_changes(&mut db, &shipped, &changed);
+        assert_eq!(kept.len(), 3);
+        assert_eq!(
+            db.get_text("sets.a.tracks").as_deref(),
+            Some("melbourne,suzuka,testring")
+        );
+        assert_eq!(
+            db.get_text("sets.b.tracks").as_deref(),
+            Some("suzuka,imola,testring")
+        );
+        assert_eq!(
+            db.get_text("sets.c.tracks").as_deref(),
+            Some("melbourne,testring")
+        );
+        assert_eq!(db.get_text("tracks._Track_instancecount_").as_deref(), Some("3"));
+        assert_eq!(db.get_text("tracks.Track_0.statId").as_deref(), Some("9"));
+    }
 
     fn rec(path: &str, value: &str) -> Record {
         Record::new(path, 2, value.as_bytes().to_vec())

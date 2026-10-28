@@ -34,9 +34,11 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `icon` | string? | A path inside your addon, shown on the Tools page and your addon's sidebar pages. Use an `.svg` for a one-colour glyph in the launcher's icon style, or a square `.png`, `.jpg` or `.webp` to show the image as it is. |
 | `kind` | string[] | What the addon touches: `database`, `erp`, `text`, `ui`, `files`, `native`, `simplified`. `text` needs launcher 1.3.0 or later and `simplified` 1.3.6 or later; an earlier launcher rejects the manifest. `simplified` marks a mod merged into the game's shader packages, as the Simplified Suite loads `.serps` mods. |
 | `category` | string? | What the addon is for ([category](#category)). |
-| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) and `shaders` ([Shader packs](./shader-packs)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
+| `experimental_features` | string[]? | Experimental engines of the in-game core the addon uses: `overlay` ([Overlay](/reference/std/overlay)) `shaders` ([Shader packs](./shader-packs)) and `postfx` ([Post-process passes](./postfx)). While the addon is on, the build turns each one on, and the Addons page tags the addon **Uses experimental features**. Needs launcher 1.3.7 or later, and 1.4.0 or later for `shaders`; an earlier launcher rejects the manifest. |
 | `origin` | object? | The tool and file the addon was made from ([origin](#origin)). |
 | `shader` | object? | A colour look for the game's picture ([shader](#shader)). |
+| `career_setup` | object? | A settings page in game between a Driver Career tile and the new-career wizard ([career_setup](#career-setup)). |
+| `hub_tab` | object? | A settings page for one tab of the career hub's laptop, Team HQ ([hub_tab](#hub-tab)). |
 
 ## category
 
@@ -53,8 +55,14 @@ Your addon needs a `swofty.json` at its root. This is where you give it a name, 
 | `cars` | Cars |
 | `helmets` | Helmets |
 | `shaders` | Shaders |
+| `career` | Career |
+| `ai` | AI |
+| `performance` | Performance |
+| `utility` | Utility |
 
-An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later, and `shaders` 1.4.0 or later. DB Editor addons can't use `shaders`.
+An addon without a category is listed as Uncategorised. `helmets` needs launcher 1.3.6 or later, `shaders` 1.4.0 or later, and `career`, `ai`, `performance` and `utility` 1.5.3 or later. DB Editor addons can't use `shaders`.
+
+Launchers from 1.5.3 read a category they don't know as no category. Earlier launchers refuse the manifest; an addon that uses one of the 1.5.3 categories sets `compat.launcher` to `>=1.5.3`.
 
 Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `cars`, and `drivers-teams`, `database`, `gameplay`, `ui`, `audio`, `tools` and `other` as no category.
 
@@ -75,6 +83,23 @@ Launchers from 1.3.6 read the categories of earlier launchers: `liveries` as `ca
 | `sha256` | string? | That file's SHA-256, in hex. |
 
 The **Addons** page shows the source as Built in, DB Editor, Imported or Installed. A launcher before 1.3.0 rejects `category` and `origin`; set `"compat": { "launcher": ">=1.3.0" }` when you use them.
+
+## postfx
+
+`postfx` lists HLSL post-process passes that run on the game's picture after its tonemap and before the HUD. [Post-process passes](./postfx) covers the shader contract.
+
+```json
+"experimental_features": ["postfx"],
+"postfx": [{ "shader": "fx/vignette.hlsl", "options": ["{{amount}}"], "order": 0, "budget_ms": 1.5 }]
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `shader` | string | The `.hlsl` file, a path inside the addon. |
+| `name` | string? | The pass's name in logs. Defaults to the file name without `.hlsl`. |
+| `options` | (number \| string)[]? | Up to 16 values for `option(i)`; a string is <span v-pre>`"{{id}}"`</span> naming a `db` option. |
+| `order` | integer? | Lower runs first among every addon's passes. Defaults to 0. |
+| `budget_ms` | number? | GPU milliseconds a frame past which the core turns the pass off. Defaults to 1.5. |
 
 ## shader
 
@@ -104,6 +129,8 @@ The **Addons** page shows the source as Built in, DB Editor, Imported or Install
 |---|---|---|
 | `affects` | boolean | `true` makes the launcher ask before the addon is turned off in a profile or removed: "This addon has affected your saves. Careers you played with it may not load without it." Defaults to `false`. |
 | `message` | string? | Shown under the warning, such as what to do instead. |
+
+Before a session whose profile leaves this addon out, the launcher backs up the Steam profile save; see [`swofty saves`](/reference/cli#swofty-saves).
 
 Leave `saves` out for an addon that doesn't affect saves. The launcher shows the warning in a dialog; `swofty addons disable` and `swofty addons remove` ask on a terminal and need `--yes` otherwise. Turning the addon on is never asked about. A launcher before 1.0.12 rejects the field; set `"compat": { "launcher": ">=1.0.12" }` when you use it.
 
@@ -139,7 +166,7 @@ Leave `saves` out for an addon that doesn't affect saves. The launcher shows the
 | `conflicts` | `[{ id, touches? }]` | List the addons that must not be enabled together. Use `touches` to narrow the conflict to a shared target; `id` may be `*`. |
 | `load_after` | string[] | Addon ids or `*` patterns to build before your addon. |
 
-A profile with your addon enabled builds only when every addon in `requires` is enabled at a matching version. List as many as your addon needs; `swofty.core` and the other built-in addons are always present.
+A profile with your addon enabled builds only when every addon in `requires` is enabled at a matching version, and the build loads your addon after them, as if they were in `load_after`, whatever their places in the player's list. List as many as your addon needs; `swofty.core` and the other built-in addons are always present.
 
 The [Addon Browser](/using/addon-browser#requirements) reads `requires` when a player installs your addon. It installs each required addon the player lacks, and each one's own `requires`, from the Addon Browser. It refuses the install when a required addon isn't published there, or when no published version matches the range and works with the player's launcher. Publish the addons yours requires before you publish yours.
 
@@ -167,6 +194,54 @@ To give players settings they can change, declare them in `options`. They'll app
 | `min`, `max`, `step` | number | Set all three to define a slider's range. `max - min` must be a whole number of steps, at most 100. |
 | `values` | array | Supply 1 to 16 values for a choice. Each is a string; use `{ "value", "label" }` to show a different name. |
 | `binds` | string | `native` — the [engine plugin](./native-plugins#settings) reads the value while the game runs; `db` — the value is built into the game files, so a change needs a rebuild. |
+| `hidden` | boolean? | `true` keeps the option off your addon's page in ADDON SETTINGS in game, such as a developer option or a per-career setting. The launcher's **Addons** page still lists it, and [`career_setup`](#career-setup) and [`hub_tab`](#hub-tab) may list it. Defaults to `false`. A launcher before 1.5.13 rejects the field. |
+
+## career_setup
+
+`career_setup` adds a page in game, in the CUSTOM SETTINGS look, that shows some of your addon's options before the new-career wizard. [Add a career setup page](./in-game-ui#add-a-career-setup-page) covers the page and its routes.
+
+```json
+"options": [
+  { "id": "start_season", "type": "choice", "label": "Starting season", "default": "2016",
+    "values": ["2016", "2017", "2018"], "binds": "native" }
+],
+"career_setup": {
+  "route": "career_wizard_driver_career_progressive",
+  "title": "Progressive Career",
+  "options": ["start_season"]
+}
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `route` | string | `[a-z0-9_]`, at most 48 characters. The route in the career content select's route group that opens the page; a career content tile opens it through `tile_route`. |
+| `title` | string? | The page's title and its category tile's title, shown in capitals as written. Defaults to the addon's `name`. |
+| `options` | string[] | Ids from your `options`, in the order the rows show them. At least one, each once. `hidden` options may be listed. |
+| `next` | string? | The new-career wizard screen CONFIRM opens. Defaults to `career_wizard_season_length_select`. |
+
+The page needs your addon on in the profile. An addon has at most one `career_setup`. A launcher before 1.5.13 rejects the field; set `"compat": { "launcher": ">=1.5.13" }` when you use it.
+
+## hub_tab
+
+`hub_tab` has the launcher build the page of a Team HQ laptop tab that shows some of your addon's options. [Add a Team HQ tab](./in-game-ui#add-a-team-hq-tab) covers the page and what your plugin adds.
+
+```json
+"hub_tab": {
+  "name": "progressive",
+  "title": "Progressive Settings",
+  "options": ["rnd_mode"],
+  "data_group": "f1_career_progressive"
+}
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `name` | string | `[a-z0-9_]`, at most 40 characters. The page template is `swofty_hub_<name>` and its data `view_model_data.hud_swofty_hub_<name>`. |
+| `title` | string | The tab's title. |
+| `options` | string[] | 1 to 6 ids from your `options`, in the order the page shows them, each once. `hidden` options may be listed. |
+| `data_group` | string | `[a-z0-9_]`. The career data group whose careers show the tab. |
+
+The page needs your addon on in the profile. An addon has at most one `hub_tab`. A launcher before 1.5.13 rejects the field.
 
 ## operations
 

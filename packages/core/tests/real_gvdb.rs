@@ -179,6 +179,7 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: Some(&stock),
+        tracks: None,
     };
     let mut report = DbReport::default();
     apply_db_ops_report(&mut db, &ops, &names, &mut report).unwrap();
@@ -241,7 +242,21 @@ fn core_db_ops_add_the_swofty_f1_modes_to_the_real_database() {
                     == format!("{},{CORE_MODE}", String::from_utf8_lossy(&r.value))
         })
         .count();
-    assert_eq!(appended, 67);
+    assert_eq!(appended, 50);
+
+    let championships = count(&db, "championships", "Championship");
+    for i in 0..championships {
+        let row = format!("championships.Championship_{i}");
+        let modes = db
+            .get_text(&format!("{row}.game_setup_modes"))
+            .unwrap_or_default();
+        assert_eq!(
+            modes.split(',').count(),
+            1,
+            "championship {row} lists more than one setup mode: {modes}"
+        );
+    }
+    assert_eq!(championships, 21);
 
     let addon: DbOps = serde_json::from_str(&format!(
         r#"{{"schema_version":1,"ops":[
