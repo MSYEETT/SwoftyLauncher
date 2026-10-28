@@ -205,6 +205,8 @@ using Game_Network_CategoryOptionUsing_t = void(void *self);
 inline constexpr fn<"Game_Network_CategoryOptionUsing", Game_Network_CategoryOptionUsing_t> Game_Network_CategoryOptionUsing{}; // L2 experimental
 using Game_OptionsStore_FindOption_t = uint64_t(void *map, const char **name);
 inline constexpr fn<"Game_OptionsStore_FindOption", Game_OptionsStore_FindOption_t> Game_OptionsStore_FindOption{}; // L2 experimental
+using Game_PracticeTrackAcclimatisation_RefreshState_t = void(void *self);
+inline constexpr fn<"Game_PracticeTrackAcclimatisation_RefreshState", Game_PracticeTrackAcclimatisation_RefreshState_t> Game_PracticeTrackAcclimatisation_RefreshState{}; // L2 experimental
 using Game_Refresh_PerformanceComparison_t = void(void *comparison);
 inline constexpr fn<"Game_Refresh_PerformanceComparison", Game_Refresh_PerformanceComparison_t> Game_Refresh_PerformanceComparison{}; // L2 experimental
 using Game_Rnd_CalcUpgradeTypeProgress_t = float(void *const *instances, uint8_t type, uint8_t state, const void *meta);

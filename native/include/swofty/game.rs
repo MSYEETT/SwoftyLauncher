@@ -1970,6 +1970,7 @@ pub type Game_F1WorldActivityContainer_SelectEntrantList_t =
 pub type Game_Network_CategoryOptionUsing_t = unsafe extern "C" fn(self_: *mut c_void);
 pub type Game_OptionsStore_FindOption_t =
     unsafe extern "C" fn(map: *mut c_void, name: *mut *const c_char) -> u64;
+pub type Game_PracticeTrackAcclimatisation_RefreshState_t = unsafe extern "C" fn(self_: *mut c_void);
 pub type Game_Refresh_PerformanceComparison_t = unsafe extern "C" fn(comparison: *mut c_void);
 pub type Game_Rnd_CalcUpgradeTypeProgress_t =
     unsafe extern "C" fn(instances: *mut *mut c_void, r#type: u8, state: u8, meta: *const c_void) -> f32;
@@ -2467,6 +2468,11 @@ pub mod bindings {
     };
     pub const Game_OptionsStore_FindOption: Binding = Binding {
         id: "Game_OptionsStore_FindOption",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_PracticeTrackAcclimatisation_RefreshState: Binding = Binding {
+        id: "Game_PracticeTrackAcclimatisation_RefreshState",
         kind: "func",
         status: Status::Experimental,
     };
