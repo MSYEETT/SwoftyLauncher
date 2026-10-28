@@ -91,6 +91,33 @@ typedef struct SwoftyEvReset {
     bool upgrade;
 } SwoftyEvReset;
 
+typedef struct SwoftyEvControllerUpdate {
+    uint32_t size, payload_version;
+    int32_t vehicle;
+    float throttle;
+    float brake;
+    float steering;
+} SwoftyEvControllerUpdate;
+
+typedef struct SwoftyEvPlayerControl {
+    uint32_t size, payload_version;
+    SwoftyEvCar car;
+    int32_t from, to;
+    int32_t reason;
+} SwoftyEvPlayerControl;
+
+typedef struct SwoftyEvControllersRebuilt {
+    uint32_t size, payload_version;
+    SwoftyEvCar car;
+    uint32_t reason;
+} SwoftyEvControllersRebuilt;
+
+typedef struct SwoftyEvHudVisible {
+    uint32_t size, payload_version;
+    SwoftyEvCar following;
+    bool visible;
+} SwoftyEvHudVisible;
+
 typedef struct SwoftyEvPartsRegister {
     uint32_t size, payload_version;
     int32_t car;
@@ -174,6 +201,10 @@ typedef struct SwoftyEvCatalogueBuild {
     X(SwoftyEvVtfRead, cars, VtfRead, 56)                                                                      \
     X(SwoftyEvBuilt, cars, Built, 24)                                                                          \
     X(SwoftyEvReset, cars, Reset, 32)                                                                          \
+    X(SwoftyEvControllerUpdate, ai, ControllerUpdate, 24)                                                      \
+    X(SwoftyEvPlayerControl, sessions, PlayerControl, 40)                                                      \
+    X(SwoftyEvControllersRebuilt, cars, ControllersRebuilt, 32)                                                \
+    X(SwoftyEvHudVisible, spectator, HudVisible, 32)                                                           \
     X(SwoftyEvPartsRegister, cars, PartsRegister, 48)                                                          \
     X(SwoftyEvBundleResolve, sounds, BundleResolve, 56)                                                        \
     X(SwoftyEvLogoResolve, teams, LogoResolve, 56)                                                             \
@@ -224,6 +255,18 @@ typedef struct SwoftyEvCatalogueBuild {
     X(SwoftyEvBuilt, cars, Built, car, 8)                                                                      \
     X(SwoftyEvReset, cars, Reset, car, 8)                                                                      \
     X(SwoftyEvReset, cars, Reset, upgrade, 24)                                                                 \
+    X(SwoftyEvControllerUpdate, ai, ControllerUpdate, vehicle, 8)                                              \
+    X(SwoftyEvControllerUpdate, ai, ControllerUpdate, throttle, 12)                                            \
+    X(SwoftyEvControllerUpdate, ai, ControllerUpdate, brake, 16)                                               \
+    X(SwoftyEvControllerUpdate, ai, ControllerUpdate, steering, 20)                                            \
+    X(SwoftyEvPlayerControl, sessions, PlayerControl, car, 8)                                                  \
+    X(SwoftyEvPlayerControl, sessions, PlayerControl, from, 24)                                                \
+    X(SwoftyEvPlayerControl, sessions, PlayerControl, to, 28)                                                  \
+    X(SwoftyEvPlayerControl, sessions, PlayerControl, reason, 32)                                              \
+    X(SwoftyEvControllersRebuilt, cars, ControllersRebuilt, car, 8)                                            \
+    X(SwoftyEvControllersRebuilt, cars, ControllersRebuilt, reason, 24)                                        \
+    X(SwoftyEvHudVisible, spectator, HudVisible, following, 8)                                                 \
+    X(SwoftyEvHudVisible, spectator, HudVisible, visible, 24)                                                  \
     X(SwoftyEvPartsRegister, cars, PartsRegister, car, 8)                                                      \
     X(SwoftyEvPartsRegister, cars, PartsRegister, vehicle_id, 16)                                              \
     X(SwoftyEvPartsRegister, cars, PartsRegister, front_wing, 24)                                              \
