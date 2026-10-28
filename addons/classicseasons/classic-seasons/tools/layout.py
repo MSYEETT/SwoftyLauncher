@@ -5,7 +5,12 @@ classic-seasons-<year>, whose cars/ holds the built archives (not committed). A 
 archive instead of the season zip (a season's eleventh team, shipped in another team's slot) goes in a second package,
 cx_<year>_vehicle_package, under that slot's folder, so its per-track AI data is the slot's. A season of 2016 to 2021
 also ships its team suits (build_suits.py) from suits/ (not committed): each suit archive gets an asset group that
-lists its stock base suit's archive first, which holds the shared body and glove meshes.
+lists its stock base suit's archive first, which holds the shared body and glove meshes. A real driver suit's group
+(the core's suits/) depends on its base driver's stock team group, which holds the body and glove models: without it
+the grid's driver-in-car shot misses the glove model and the race crashes on the grid. The core addon ships the season
+helmets of data/helmets.json (build_helmets.py) from its helmets/ (not committed), each group listing its base
+helmet's archive first: a driver of any season can wear another season's helmet of his. A season ships the engine sound
+bundles of its cars (sounds.py) from sounds/ (not committed) to audio/2025/bundles/.
 """
 
 import json
@@ -48,6 +53,23 @@ def suit_paths(label):
     return (f"2025_asset_groups/{SUIT_ROOT}/{label}/{label}.erp", f"asset_groups/{SUIT_ROOT}/{label}/{label}.assetgroup")
 
 
+def sounds(year):
+    path = year_dir(year) / "sounds" / "meta.json"
+    if not path.exists():
+        return []
+    return [m for m in json.loads(path.read_text())["bundles"] if (year_dir(year) / "sounds" / f"{m['name']}.bdl").exists()]
+
+
+def sound_cars(year):
+    path = year_dir(year) / "sounds" / "meta.json"
+    return json.loads(path.read_text())["cars"] if path.exists() else []
+
+
+def sound_asset_ops(year):
+    return {"schema_version": 1, "ops": [{"op": "file.put", "source": f"sounds/{m['name']}.bdl",
+                                          "target": f"audio/2025/bundles/{m['name']}.bdl"} for m in sounds(year)]}
+
+
 def suit_asset_ops(year):
     ops = []
     for m in suits(year).values():
@@ -55,6 +77,23 @@ def suit_asset_ops(year):
         base, template = suit_paths(m["base"])
         ops.append({"op": "file.put", "source": f"suits/{m['label']}.erp", "target": target})
         ops.append({"op": "group.register", "group": group, "erps": [base, target], "template": template})
+    return {"schema_version": 1, "ops": ops}
+
+
+def helmets():
+    path = ROOT / "helmets" / "meta.json"
+    if not path.exists():
+        return {}
+    built = json.loads(path.read_text())["helmets"]
+    return {(m["season"], m["driver"]): m for m in built if (ROOT / m["source"]).exists()}
+
+
+def helmet_asset_ops():
+    ops = []
+    for m in helmets().values():
+        ops.append({"op": "file.put", "source": m["source"], "target": m["target"]})
+        ops.append({"op": "group.register", "group": m["group"], "erps": [m["base_erp"], m["target"]],
+                    "template": m["template"]})
     return {"schema_version": 1, "ops": ops}
 
 
@@ -70,8 +109,12 @@ def real_suit_asset_ops():
     for m in real_suits():
         for key in ("", "helmet_") if m["helmet"] else ("",):
             ops.append({"op": "file.put", "source": m[key + "source"], "target": m[key + "target"]})
-            ops.append({"op": "group.register", "group": m[key + "group"], "erps": [m[key + "base_erp"], m[key + "target"]],
-                        "template": m[key + "template"]})
+            group = {"op": "group.register", "group": m[key + "group"], "erps": [m[key + "base_erp"], m[key + "target"]],
+                     "template": m[key + "template"]}
+            if "driver" in m and not key:
+                team = m["base"].split("_", 1)[0]
+                group["deps"] = [f"asset_groups/{SUIT_ROOT}/{team}/{team}.assetgroup"]
+            ops.append(group)
         for rel in m["sidecars"]:
             ops.append({"op": "file.put", "source": f"suits/sidecars/{rel}", "target": rel})
     return {"schema_version": 1, "ops": ops}

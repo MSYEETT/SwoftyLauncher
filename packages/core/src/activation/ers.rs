@@ -153,16 +153,18 @@ fn set_data(res: &mut Resource, index: usize, data: &[u8]) -> Result<()> {
 }
 
 pub fn edit_vtf(res: &Resource, maps: &[ErsMap]) -> Result<Option<Resource>> {
-    let mut doc = Document::parse(&res.fragments[0].data()?)?;
+    let data = res.fragments[0].data()?;
+    let mut doc = Document::parse(&data)?;
     let mut changed = false;
     for m in maps {
         changed |= add_track(&mut doc.root, m)?;
     }
-    if !changed {
+    let bytes = doc.to_bytes();
+    if !changed || bytes == data {
         return Ok(None);
     }
     let mut out = res.clone();
-    set_data(&mut out, 0, &doc.to_bytes())?;
+    set_data(&mut out, 0, &bytes)?;
     if let Some(stats) = out.fragments.get(1) {
         let old = stats.data()?;
         let version = old
@@ -171,6 +173,43 @@ pub fn edit_vtf(res: &Resource, maps: &[ErsMap]) -> Result<Option<Resource>> {
         set_data(&mut out, 1, &doc.string_stats(version))?;
     }
     Ok(Some(out))
+}
+
+/// Whether `rel` is a team archive of a vehicle package, whose handling files take the tracks' entries.
+pub fn is_car_archive(rel: &str) -> bool {
+    rel.starts_with("2025_asset_groups/") && rel.contains("_vehicle_package/teams/") && rel.ends_with(".erp")
+}
+
+/// Writes to `out` a copy of the archive at `src` with the tracks' entries in its handling files, and returns how
+/// many handling files changed; with none it writes nothing.
+pub fn edit_archive(src: &Path, maps: &[ErsMap], out: &Path) -> Result<usize> {
+    let file = ErpFile::open(src)?;
+    let mut replace = BTreeMap::new();
+    for (i, r) in file.erp.resources.iter().enumerate() {
+        if r.kind() == "VTF"
+            && let Some(new) = edit_vtf(&file.load(r)?, maps)?
+        {
+            replace.insert(i, new);
+        }
+    }
+    let changed = replace.len();
+    if changed == 0 {
+        return Ok(0);
+    }
+    let entries = file
+        .erp
+        .resources
+        .iter()
+        .enumerate()
+        .map(|(i, r)| match replace.remove(&i) {
+            Some(new) => Entry::Owned(new),
+            None => Entry::Copy(r),
+        })
+        .collect();
+    let dir = out.parent().expect("has parent");
+    std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+    file.write(entries, out)?;
+    Ok(changed)
 }
 
 fn walk(dir: &Path, base: &Path, out: &mut Vec<String>) -> Result<()> {
@@ -238,33 +277,7 @@ pub fn build_ers(
     if !done.is_file() {
         let mut count = 0;
         for rel in &archives {
-            let file = ErpFile::open(&original(rel))?;
-            let mut replace = BTreeMap::new();
-            for (i, r) in file.erp.resources.iter().enumerate() {
-                if r.kind() == "VTF"
-                    && let Some(new) = edit_vtf(&file.load(r)?, maps)?
-                {
-                    replace.insert(i, new);
-                }
-            }
-            if replace.is_empty() {
-                continue;
-            }
-            count += replace.len();
-            let entries = file
-                .erp
-                .resources
-                .iter()
-                .enumerate()
-                .map(|(i, r)| match replace.remove(&i) {
-                    Some(new) => Entry::Owned(new),
-                    None => Entry::Copy(r),
-                })
-                .collect();
-            let dst = out.join(rel);
-            let dir = dst.parent().expect("has parent");
-            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
-            file.write(entries, &dst)?;
+            count += edit_archive(&original(rel), maps, &out.join(rel))?;
         }
         std::fs::create_dir_all(&out).map_err(io_err(&out))?;
         std::fs::write(&done, count.to_string()).map_err(io_err(&done))?;

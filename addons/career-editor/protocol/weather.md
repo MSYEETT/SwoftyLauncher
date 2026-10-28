@@ -1,6 +1,7 @@
 # Weather
 
-Owner: `native/src/weather.cpp` (ce-weather). Both modes. The ops only change the addon's sidecar
+Owner: `native/src/weather.cpp` (ce-weather), with the plan model (parser, state build, intensity clamp) in
+`native/src/weather_plan.cpp`. Both modes. The ops only change the addon's sidecar
 `weather_plan.json` (addon storage) and the weather datasets the game builds for the weekend, so nothing
 is written to the save. The sidecar is keyed by `ce::career_id()` and then by weekend
 (`{"version": 2, "careers": {"<career id>": {"seed", "plans", "locked"}}}`), so careers never share plans,
@@ -98,7 +99,9 @@ Args:
 - Per session:
   - `timeline`: 1..6 points (the game's limit is 6 states per session), each with exactly one of
     `at_fraction` / `at_minute` / `at_lap`, plus `state`. Optional `intensity` (0..1; omitted =
-    the game's random draw within the type's range, see `types`) and `ramp_s` (transition length in weather
+    the game's random draw within the type's range, see `types`; at each rebuild a planned intensity
+    outside the type's live range is clamped into it, and one whose type has no usable range, not
+    0 ≤ min ≤ max ≤ 1, is left to the game's draw) and `ramp_s` (transition length in weather
     seconds, 0..1800; default 2% of `length_s`, clamped to 30..300). The weather starts changing at the
     point's position and reaches the new state `ramp_s` later. Points are sorted by position; two points
     at the same position are an error.
@@ -122,16 +125,20 @@ nothing changed).
 Log: `[career-editor] weather.plan.set weekend=<w> <key>: before=<n|none> after=<n points|none>` per
 session, plus one `[career-editor] weather: rebuilt <key> (weekend <w>, forecast build|plan.set)
 states=<n> transitions=<n-1> len=<s>s: <type>(<intensity>)@<end>/<trans> ... <last type>(<intensity>)` line
-for each rebuild. That line is the
+for each rebuild, preceded by `[career-editor] weather: <key> (weekend <w>, <why>): state <i> <type>
+intensity <a> -> <b> (game range <min>..<max>)` for each clamped intensity. The `rebuilt` line is the
 dataset as the game holds it afterwards, read back. It ends in `MISMATCH` if the game's dataset doesn't
 hold the planned states (then the per-state intensity isn't written and `rebuilt` stays false).
 
 ### `weather.plan.clear`
-Args: `{ "weekend"?: int, "sessions"?: [key, ...] }`. Removes the plan for those sessions (all if
-`sessions` is omitted) of that weekend (default: the live one). Locked sessions are kept, and `kept` lists
-them. Sessions already rebuilt this weekend keep the planned dataset until the hub's next forecast rebuild,
-which then uses the game's own forecast again. Result `before`/`after` as for set. Undo:
-`weather.plan.set` with `before`.
+Args: `{ "weekend"?: int, "sessions"?: [key, ...], "started"?: bool }`. Removes the plan for those sessions
+(all if `sessions` is omitted) of that weekend (default: the live one). Locked sessions are kept, and `kept`
+lists them, unless `started` is true: then their plans are removed too. They stay locked, so
+`weather.plan.set` still refuses them. Sessions already rebuilt this weekend, started or not, keep the
+planned dataset until the next forecast build (the hub's refresh, or the session-time rebuild when a
+session is loaded again), which then uses the game's own forecast. The launcher's Clear plan sends
+`started: true`. Result `before`/`after` as for set. Undo:
+`weather.plan.set` with `before`, which fails with `session_locked` for a started session.
 
 ### `weather.seed.lock`
 Args: `{ "seed"?: u32 }`. Pins the realistic weather seed: the given seed, or the base seed the game is
@@ -252,6 +259,6 @@ addon init.
 | `TimeOfDayClock` (0x288) | 4 | weather progress |
 | `WeatherDataset` (0xe00) | 3 | states, full state count (+0xdf0), walked transitions (+0xdf8 = states − 1) |
 | `WeatherState` (0x10) | 4 | type, intensity, end, transition |
-| `WeatherTypeRange` (0x14) | 3 | per-type intensity range (pinned while a planned intensity is built); the weight isn't read or written (only types 0..4 are weighted) |
+| `WeatherTypeRange` (0x14) | 3 | per-type intensity range (planned intensities are clamped into it, and it's pinned while a planned intensity is built); the weight isn't read or written (only types 0..4 are weighted) |
 | `WeatherSessionSettings` | 3 | session type (time trial skip), mode, exact flag (scripted skip) |
 | `WeatherAndTimeOfDayComponent` | 2 | weather system pointer, `rnd_seed` |

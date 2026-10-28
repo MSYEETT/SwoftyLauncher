@@ -40,7 +40,8 @@ impl Motion {
     }
 }
 
-#[derive(Default)]
+/// Clones share one motion, so a handle kept in a map can be used where the page is drawn.
+#[derive(Default, Clone)]
 pub(crate) struct SmoothScroll(Rc<RefCell<Motion>>);
 
 impl SmoothScroll {

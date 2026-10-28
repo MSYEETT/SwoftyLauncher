@@ -146,6 +146,17 @@ mod tests {
 ";
 
     #[test]
+    fn picture_features_share_one_effect_tag() {
+        let m = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "a.fx", "name": "Fx", "version": "1.0.0", "author": "a",
+                 "experimental_features": ["shaders", "postfx", "overlay"], "compat": { "game": "f1_25" } }"#,
+        )
+        .unwrap();
+        assert_eq!(effects(&m), ["Changes the picture", "Draws over the game"]);
+        assert!(draws_over_the_game(&m));
+    }
+
+    #[test]
     fn a_150_session_that_drew_names_its_painters() {
         let s = SessionOverlay::scan(V150).unwrap();
         assert!(s.armed && s.drew);

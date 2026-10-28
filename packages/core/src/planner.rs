@@ -8,6 +8,7 @@ use crate::asset::{AssetOp, FileKind, FileOp, GroupOp, LangOp, Op, OpFile, Origi
 pub use crate::asset::{Features, Kind};
 use crate::conflicts::Changes;
 use crate::dbedit::deps::Copy;
+use crate::entrant_lists::StockLists;
 use crate::ops::{DbOps, DbReport, ErpOp, apply_db_ops_lenient, apply_db_ops_report};
 use crate::owned::{self, Added};
 use crate::rowkeys::{Names, RowKeys};
@@ -110,6 +111,26 @@ pub fn stock_removals_line(name: &str, n: usize) -> String {
     )
 }
 
+/// The build warning for `n` removals of records the tracks add that addon `name` asked for.
+pub fn track_removals_line(name: &str, n: usize) -> String {
+    format!(
+        "{name}: {n} removal(s) of database records the tracks add skipped; the game crashes when a record it reads is missing"
+    )
+}
+
+/// The build warning for the entrant `lists` addon `name` renamed or removed, which the build kept.
+pub fn kept_lists_line(name: &str, lists: &[String]) -> String {
+    let shown: Vec<&str> = lists.iter().take(8).map(String::as_str).collect();
+    let more = match lists.len() > shown.len() {
+        true => format!(" and {} more", lists.len() - shown.len()),
+        false => String::new(),
+    };
+    format!(
+        "{name}: kept the entrant list(s) {}{more} that it renames or removes; the game crashes when a list it looks up by name is missing",
+        shown.join(", ")
+    )
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Planned {
     pub runtime: Vec<Op>,
@@ -134,6 +155,9 @@ pub struct Planner<'a> {
     fields: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     skipped: Vec<String>,
     stock_removals: BTreeMap<String, usize>,
+    track_removals: BTreeMap<String, usize>,
+    lists: Option<StockLists>,
+    kept_lists: BTreeMap<String, Vec<String>>,
     copies: Vec<Copy>,
     lenient: BTreeMap<String, String>,
     touched: BTreeMap<String, Touched>,
@@ -170,9 +194,9 @@ fn erp_target(op: &ErpOp) -> Option<(Target, bool)> {
             rename,
             ..
         } => Some((resource(erp, rename.as_deref().unwrap_or(r)), false)),
-        ErpOp::AddResource { erp, resource: r, .. } | ErpOp::PatchPkg { erp, resource: r, .. } => {
-            Some((resource(erp, r), false))
-        }
+        ErpOp::AddResource { erp, resource: r, .. }
+        | ErpOp::PatchPkg { erp, resource: r, .. }
+        | ErpOp::SetMaterial { erp, resource: r, .. } => Some((resource(erp, r), false)),
         ErpOp::AddMipmaps { target, .. } => {
             Some((Target::File(target.trim_end_matches('/').to_owned()), true))
         }
@@ -222,6 +246,9 @@ impl<'a> Planner<'a> {
             fields: BTreeMap::new(),
             skipped: Vec::new(),
             stock_removals: BTreeMap::new(),
+            track_removals: BTreeMap::new(),
+            lists: None,
+            kept_lists: BTreeMap::new(),
             copies: Vec::new(),
             lenient: BTreeMap::new(),
             touched: BTreeMap::new(),
@@ -561,15 +588,18 @@ impl<'a> Planner<'a> {
     /// [`Planner::apply_db_report`] with `db` as the stock database.
     pub fn apply_db(&mut self, db: &mut Gvdb) -> Result<Vec<Added>> {
         let stock = db.records.iter().map(|r| r.key).collect();
-        self.apply_db_report(db, &stock, &mut DbReport::default())
+        self.apply_db_report(db, &stock, &HashSet::new(), &mut DbReport::default())
     }
 
     /// Applies every addon's database ops in load order. A `remove-record` of a
-    /// key in `stock` is left out unless the op allows it; see [`Planner::take_stock_removals`].
+    /// key in `stock` is left out unless the op allows it, and one of a key in
+    /// `tracks`, the records track activation added, always; see
+    /// [`Planner::take_stock_removals`] and [`Planner::take_track_removals`].
     pub fn apply_db_report(
         &mut self,
         db: &mut Gvdb,
         stock: &HashSet<u64>,
+        tracks: &HashSet<u64>,
         report: &mut DbReport,
     ) -> Result<Vec<Added>> {
         let fields = std::mem::take(&mut self.fields);
@@ -581,8 +611,11 @@ impl<'a> Planner<'a> {
                 fields: fields.get(&origin.addon).unwrap_or(&none),
                 keys: RowKeys::builtin(),
                 stock: Some(stock),
+                tracks: Some(tracks),
             };
             let mut ours = DbReport::default();
+            let lists = self.lists.as_ref().filter(|l| l.touched(&ops));
+            let was = lists.map(|l| l.before(db));
             let replaced = if let Some(name) = self.lenient.get(&origin.addon) {
                 let (replaced, failed) = apply_db_ops_lenient(db, &ops, &names, &mut ours);
                 self.skipped.extend(
@@ -605,6 +638,18 @@ impl<'a> Planner<'a> {
             );
             if ours.stock_removals > 0 {
                 *self.stock_removals.entry(origin.addon.clone()).or_default() += ours.stock_removals;
+            }
+            if ours.track_removals > 0 {
+                *self.track_removals.entry(origin.addon.clone()).or_default() += ours.track_removals;
+            }
+            if let (Some(lists), Some(was)) = (lists, was) {
+                let kept = lists.keep(db, &was);
+                if !kept.is_empty() {
+                    self.kept_lists
+                        .entry(origin.addon.clone())
+                        .or_default()
+                        .extend(kept);
+                }
             }
             self.copies.extend(ours.added_rows.into_iter().map(|r| Copy {
                 addon: origin.addon.clone(),
@@ -638,6 +683,21 @@ impl<'a> Planner<'a> {
     /// Per addon id, the removals of stock records the last `apply_db` left out.
     pub fn take_stock_removals(&mut self) -> BTreeMap<String, usize> {
         std::mem::take(&mut self.stock_removals)
+    }
+
+    /// Per addon id, the removals of records the tracks added that the last `apply_db` left out.
+    pub fn take_track_removals(&mut self) -> BTreeMap<String, usize> {
+        std::mem::take(&mut self.track_removals)
+    }
+
+    /// Keeps the game's entrant `lists` when an addon's ops rename or remove one; see [`Planner::take_kept_lists`].
+    pub fn keep_entrant_lists(&mut self, lists: StockLists) {
+        self.lists = Some(lists);
+    }
+
+    /// Per addon id, the entrant lists the last `apply_db` kept that the addon renamed or removed.
+    pub fn take_kept_lists(&mut self) -> BTreeMap<String, Vec<String>> {
+        std::mem::take(&mut self.kept_lists)
     }
 
     /// The `add-row` copies the last `apply_db` made, in load order.

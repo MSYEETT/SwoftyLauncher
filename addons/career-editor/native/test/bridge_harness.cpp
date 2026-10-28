@@ -92,6 +92,7 @@ int main() {
     pump(2);
     auto snap = parse(slurp(root / "snapshot.json"));
     CHECK(snap["v"].n == 1);
+    CHECK(snap["addon"]["version"].str() == parse(slurp("../../swofty.json"))["version"].str());
     CHECK(snap["status"]["career"].type == ce::Json::Bool && !snap["status"]["career"].b);
     CHECK(snap["bridge"]["ops"].a.size() == 3);
     CHECK(snap["bridge"]["duplicates"].a.size() == 1);

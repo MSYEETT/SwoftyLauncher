@@ -316,6 +316,10 @@ impl GameFiles for GameDir {
         Some(self.game.dir.clone())
     }
 
+    fn addon_dir(&self, id: &str) -> Option<PathBuf> {
+        Some(crate::addon_storage::live_dir(&self.data, &self.game.dir, id))
+    }
+
     fn status(&self) -> GameStatus {
         crate::process::game_status(Some(&self.data))
     }
@@ -329,6 +333,15 @@ impl GameFiles for GameDir {
         profile: &str,
     ) -> swofty_addon::Result<Option<swofty_addon::launcher::ProfileTracks>> {
         crate::tracks::for_profile(&self.data, &self.game, profile)
+            .map(Some)
+            .map_err(other)
+    }
+
+    fn profile_heads(
+        &self,
+        profile: &str,
+    ) -> swofty_addon::Result<Option<swofty_addon::launcher::ProfileHeads>> {
+        crate::heads::for_profile(&Store::new(self.data.clone()), &self.game, profile)
             .map(Some)
             .map_err(other)
     }

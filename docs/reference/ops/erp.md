@@ -46,6 +46,7 @@ python3 tools/erp.py <archive> '*'
 | `add-mipmaps` | `source`, `target` | Copy a mip file, or a folder of them, to a game-relative path |
 | `patch-pkg` | `erp`, `resource`, `fragment`, `edits` | Run `clone-entry` and `set-value` edits on a `!pkg` resource |
 | `overlay` | `erps`, `source` | Put every resource in a ready archive into each of `erps`, replacing or adding it. On the runtime route the archive loads as it is ([Asset API](/reference/addons/asset-api)) |
+| `set-material` | `erp`, `resource`, `params` | Set constants of a `.material` resource, such as a car paint's colour or roughness ([Materials](#materials)) |
 | `merge-slices` | `erp`, `resource`, `source` | Write the slices of a texture array that differ from the game's over the array already in `erp` ([Texture arrays](#texture-arrays)) |
 | `warn` | `message` | Print a message when the addon is built |
 
@@ -245,3 +246,33 @@ erp: 2025_asset_groups/ui_package/flow_career_hub.erp built into the game files;
 The rest of the build's archives stay on the overlay. `swofty restore` puts a rewritten archive back like any other replaced game file. A resource copied from an archive with a different argument size is still left out, and the build warns.
 
 For menu changes, see [UI patches](/reference/ops/ui-patches). For the archive format, see [ERP archives](/reference/erp).
+
+## Materials
+
+`set-material` changes constants of a `GfxMaterialRes` (`.material`) resource in place. `params` maps a constant's name to a number, or to a list for a vector constant. Each value is written as the material declares it (float or uint). Every other byte of the material stays as it is.
+
+```json
+{
+  "op": "set-material",
+  "erp": "2025_asset_groups/f1_2025_vehicle_package/teams/redbull/wep/redbull.erp",
+  "resource": "eaid://f1_2025_vehicle_package/teams/redbull/materials/redbull_paint.material",
+  "params": { "me_lacquerColour": [0.0, 1.0, 0.0], "me_flakesStrength": 1.0, "me_flakesColourInfluence": [1.0, 0.0, 1.0] }
+}
+```
+
+On the 2025 Red Bull in a race, this turns the yellow paint green and the dark blue purple.
+
+A value can come from a `db` [option](/reference/addons/manifest#options): <span v-pre>`"{{id}}"`</span> as the whole value, or as an item of a list. The option's value is read as one or more numbers separated by spaces or commas, and a toggle reads as 1 or 0. A choice can hold a colour, such as `"0 1 0"`:
+
+```json
+"params": { "me_lacquerColour": "{{coat}}", "me_flakesStrength": "{{flakes}}" }
+```
+
+List a material's constants and their current values with:
+
+```sh
+python3 tools/gfx_material.py dump <archive> <material name>
+```
+
+The operation fails when the material has no constant of that name, when the constant is a bindless heap index (`me_*HeapIndex`, which the game fills in at load), or when a list has the wrong number of values. A material's constants depend on its shader; `tools/gfx_material_layouts.json` lists them for every shader in the game.
+

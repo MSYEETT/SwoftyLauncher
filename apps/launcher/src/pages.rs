@@ -810,7 +810,10 @@ impl Shell {
                             };
                             window.push_notification(Notification::success(text), cx);
                         }
-                        Err(e) => window.push_notification(Notification::error(e), cx),
+                        Err(e) => {
+                            crate::app_log::action("delete profile").failed(&e);
+                            window.push_notification(Notification::error(e), cx)
+                        }
                     }
                     shell.update(cx, |s, cx| s.reload(cx)).ok();
                     true
@@ -972,7 +975,7 @@ impl Shell {
         if moved {
             self.cancel_scroll();
         }
-        self.db_leaving(page, cx);
+        self.db_page_change(page, cx);
         self.page = page;
         if let Page::Section(i) = page {
             self.fetch_views(Some(i), cx);

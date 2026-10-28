@@ -71,6 +71,8 @@ pub struct DbReport {
     pub warnings: Vec<String>,
     /// `remove-record` ops left out because their key is a stock record.
     pub stock_removals: usize,
+    /// `remove-record` ops left out because their key is a record a track added.
+    pub track_removals: usize,
     /// Each `add-row` applied, in order.
     pub added_rows: Vec<AddedRow>,
 }
@@ -129,7 +131,8 @@ pub enum DbOp {
         value: String,
     },
     /// Removing a key already absent is a no-op. A stock record stays unless
-    /// `allow_stock_removal` is set; see [`FieldNames::stock`].
+    /// `allow_stock_removal` is set, and a record a track added always stays;
+    /// see [`FieldNames::stock`] and [`FieldNames::track`].
     RemoveRecord {
         key: String,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -200,6 +203,62 @@ pub enum ErpOp {
         resource: String,
         source: Source,
     },
+    /// Sets constants of a `.material` resource in place: a number for a scalar, a list for a
+    /// vector, written as the material declares them.
+    SetMaterial {
+        erp: String,
+        resource: String,
+        params: BTreeMap<String, MaterialValue>,
+    },
+}
+
+/// A material constant's value: a number, a list, or text from a `{{option}}` placeholder holding
+/// one or more numbers separated by spaces or commas (`true` and `false` read as 1 and 0).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum MaterialValue {
+    Scalar(f64),
+    Vector(Vec<MaterialNumber>),
+    Text(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum MaterialNumber {
+    Number(f64),
+    Text(String),
+}
+
+fn material_number(text: &str) -> std::result::Result<f64, String> {
+    match text.trim() {
+        "true" => Ok(1.0),
+        "false" => Ok(0.0),
+        t => t
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite())
+            .ok_or_else(|| format!("{t:?} is not a number")),
+    }
+}
+
+impl MaterialValue {
+    pub fn values(&self) -> std::result::Result<Vec<f64>, String> {
+        match self {
+            Self::Scalar(v) => Ok(vec![*v]),
+            Self::Vector(v) => v
+                .iter()
+                .map(|n| match n {
+                    MaterialNumber::Number(v) => Ok(*v),
+                    MaterialNumber::Text(t) => material_number(t),
+                })
+                .collect(),
+            Self::Text(t) => t
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter(|s| !s.is_empty())
+                .map(material_number)
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -300,6 +359,12 @@ pub trait FieldNames {
         let _ = key;
         false
     }
+
+    /// Whether `key` is a record a track's activation added to the database.
+    fn track(&self, key: u64) -> bool {
+        let _ = key;
+        false
+    }
 }
 
 /// Stock record keys and no field names.
@@ -351,6 +416,10 @@ impl FieldNames for Schema<'_> {
 
     fn stock(&self, key: u64) -> bool {
         self.names.stock(key)
+    }
+
+    fn track(&self, key: u64) -> bool {
+        self.names.track(key)
     }
 }
 
@@ -675,6 +744,18 @@ pub fn apply_db_op(db: &mut Gvdb, op: &DbOp, names: &dyn FieldNames) -> Result<O
     Ok(replaced)
 }
 
+/// The keys of each row in `rows` that `db` holds, relative to the row, as `add-row` copies them.
+pub fn row_keys(db: &mut Gvdb, names: &dyn FieldNames, rows: &[String]) -> Vec<BTreeSet<String>> {
+    let db = Db::new(db);
+    rows.iter()
+        .map(|row| {
+            let mut out = Walk::default();
+            walk(&db, names, row, "", &mut out);
+            out.keys
+        })
+        .collect()
+}
+
 struct Cx<'r> {
     strict: bool,
     report: &'r mut DbReport,
@@ -849,6 +930,11 @@ fn apply(db: &mut Db, op: &DbOp, names: &dyn FieldNames, cx: &mut Cx) -> Result<
             // The game reads every stock key and crashes at the missing-key sentinel.
             if !allow_stock_removal && names.stock(k) {
                 cx.report.stock_removals += 1;
+                return Ok(None);
+            }
+            // A track's new rows count in their tables, and the game reads them like stock rows.
+            if names.track(k) {
+                cx.report.track_removals += 1;
                 return Ok(None);
             }
             db.remove(k);

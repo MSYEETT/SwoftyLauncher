@@ -1,4 +1,6 @@
 use std::ffi::c_void;
+use std::os::windows::ffi::OsStrExt;
+use std::path::Path;
 
 const TH32CS_SNAPPROCESS: u32 = 0x2;
 const INVALID_HANDLE_VALUE: *mut c_void = -1isize as *mut c_void;
@@ -76,4 +78,109 @@ pub fn images(name: &str) -> Vec<String> {
         .filter(|(_, file)| file.eq_ignore_ascii_case(name))
         .filter_map(|(pid, _)| image(pid))
         .collect()
+}
+
+/// Starts `exe` in `dir` through the desktop's shell, which runs it as the
+/// signed-in user, unelevated and with the shell's own environment, whatever
+/// this process runs as: `IShellDispatch2::ShellExecute` on the desktop
+/// window's folder view.
+pub fn shell_open(exe: &Path, dir: &Path) -> windows::core::Result<()> {
+    use std::mem::ManuallyDrop;
+    use windows::Win32::System::Com::{
+        CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
+        IDispatch, IServiceProvider,
+    };
+    use windows::Win32::System::Variant::{
+        VARENUM, VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_BSTR, VT_I4, VariantClear,
+    };
+    use windows::Win32::UI::Shell::{
+        CSIDL_DESKTOP, IShellBrowser, IShellDispatch2, IShellFolderViewDual, IShellWindows,
+        SID_STopLevelBrowser, SVGIO_BACKGROUND, SWC_DESKTOP, SWFO_NEEDDISPATCH, ShellWindows,
+    };
+    use windows::core::{BSTR, Interface};
+    const SW_SHOWNORMAL: i32 = 1;
+
+    fn bstr(path: &Path) -> BSTR {
+        BSTR::from_wide(&path.as_os_str().encode_wide().collect::<Vec<_>>())
+    }
+    fn variant(vt: VARENUM, value: VARIANT_0_0_0) -> VARIANT {
+        let value = VARIANT_0_0 {
+            vt,
+            Anonymous: value,
+            ..Default::default()
+        };
+        VARIANT {
+            Anonymous: VARIANT_0 {
+                Anonymous: ManuallyDrop::new(value),
+            },
+        }
+    }
+    let int = |n| variant(VT_I4, VARIANT_0_0_0 { lVal: n });
+
+    // SAFETY: COM stays initialised on this thread until every interface has
+    // been dropped, and `folder`, the one VARIANT that owns a string, is
+    // cleared once.
+    unsafe {
+        let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let done = (|| {
+            let windows: IShellWindows = CoCreateInstance(&ShellWindows, None, CLSCTX_LOCAL_SERVER)?;
+            let mut hwnd = 0;
+            let desktop = windows.FindWindowSW(
+                &int(CSIDL_DESKTOP as i32),
+                &VARIANT::default(),
+                SWC_DESKTOP,
+                &mut hwnd,
+                SWFO_NEEDDISPATCH,
+            )?;
+            let browser: IShellBrowser = desktop
+                .cast::<IServiceProvider>()?
+                .QueryService(&SID_STopLevelBrowser)?;
+            let view: IDispatch = browser.QueryActiveShellView()?.GetItemObject(SVGIO_BACKGROUND)?;
+            let shell: IShellDispatch2 = view.cast::<IShellFolderViewDual>()?.Application()?.cast()?;
+            let mut folder = variant(
+                VT_BSTR,
+                VARIANT_0_0_0 {
+                    bstrVal: ManuallyDrop::new(bstr(dir)),
+                },
+            );
+            let none = VARIANT::default();
+            let done = shell.ShellExecute(&bstr(exe), &none, &folder, &none, &int(SW_SHOWNORMAL));
+            VariantClear(&mut folder).ok();
+            done
+        })();
+        if init.is_ok() {
+            CoUninitialize();
+        }
+        done
+    }
+}
+
+/// The application manifest embedded in this program.
+#[cfg(test)]
+pub fn manifest() -> Option<String> {
+    const RT_MANIFEST: usize = 24;
+    const ID: usize = 1;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn FindResourceW(module: *mut c_void, name: *const u16, kind: *const u16) -> *mut c_void;
+        fn LoadResource(module: *mut c_void, info: *mut c_void) -> *mut c_void;
+        fn LockResource(data: *mut c_void) -> *const u8;
+        fn SizeofResource(module: *mut c_void, info: *mut c_void) -> u32;
+    }
+    // SAFETY: a null module is this program's own image, the integer name and
+    // type are MAKEINTRESOURCE values, and the locked bytes live as long as
+    // the image and are read only up to the resource's size.
+    unsafe {
+        let module = std::ptr::null_mut();
+        let info = FindResourceW(module, ID as *const u16, RT_MANIFEST as *const u16);
+        if info.is_null() {
+            return None;
+        }
+        let data = LockResource(LoadResource(module, info));
+        if data.is_null() {
+            return None;
+        }
+        let bytes = std::slice::from_raw_parts(data, SizeofResource(module, info) as usize);
+        Some(String::from_utf8_lossy(bytes).into_owned())
+    }
 }

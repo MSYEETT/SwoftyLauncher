@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 const API: u64 = 1;
 const EXTENSION: &str = "exmod";
+const COLOURS: [u64; 3] = [1, 5, 25];
 
 struct Host {
     lines: Lines<StdinLock<'static>>,
@@ -55,21 +56,28 @@ struct Addon {
     seen: Option<SystemTime>,
     running: bool,
     tab: String,
+    colours: bool,
 }
 
 fn default_dashboard() -> Value {
-    let driver = |id: &str, name: &str, team: &str, rating: u32, form: &str| json!({ "id": id, "name": name, "team": team, "rating": rating, "form": form });
+    let driver = |id: &str, name: &str, team: &str, rating: u32, form: &str, colour: &str| json!({ "id": id, "name": name, "team": team, "rating": rating, "form": form, "colour": colour });
     json!({
-        "budget": 120, "speed": 40, "name": "Example Racing", "mode": "dry", "lock": false,
+        "budget": 120, "speed": 40, "name": "Example Racing", "mode": "dry", "lock": false, "colour": "#8B7FD6",
         "drivers": [
-            driver("ada", "Ada Lovelace", "Analytical", 91, "good"),
-            driver("alan", "Alan Turing", "Bletchley", 87, "good"),
-            driver("grace", "Grace Hopper", "Cobol", 84, "warn"),
-            driver("linus", "Linus Torvalds", "Kernel", 79, "muted"),
-            driver("margaret", "Margaret Hamilton", "Apollo", 93, "good"),
-            driver("dennis", "Dennis Ritchie", "Bell Labs", 76, "bad")
+            driver("ada", "Ada Lovelace", "Analytical", 91, "good", "#E10600"),
+            driver("alan", "Alan Turing", "Bletchley", 87, "good", "#1868DB"),
+            driver("grace", "Grace Hopper", "Cobol", 84, "warn", "#00A19C"),
+            driver("linus", "Linus Torvalds", "Kernel", 79, "muted", "#FF8000"),
+            driver("margaret", "Margaret Hamilton", "Apollo", 93, "good", "#52E252"),
+            driver("dennis", "Dennis Ritchie", "Bell Labs", 76, "bad", "#B6BABD")
         ]
     })
+}
+
+fn at_least(version: &str, wanted: [u64; 3]) -> bool {
+    let core = version.split(['-', '+']).next().unwrap_or_default();
+    let parts: Vec<u64> = core.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+    parts.len() == 3 && parts[..] >= wanted[..]
 }
 
 impl Addon {
@@ -121,16 +129,53 @@ impl Addon {
             .iter()
             .map(|r| {
                 let rating = r["rating"].as_f64().unwrap_or(0.0);
-                json!({ "id": r["id"], "cells": [
-                    r["name"],
+                let name = r["name"].as_str().unwrap_or_default();
+                let (first, last) = name.rsplit_once(' ').unwrap_or(("", name));
+                let active = r["active"] != false;
+                let mut row = json!({ "id": r["id"], "subtitle": r["team"], "cells": [
+                    { "text": if active { "On" } else { "Off" }, "edit": { "toggle": { "value": active } } },
+                    // The surname in bold; `text` stays the whole name for search and sort.
+                    { "text": name, "spans": [ { "text": format!("{first} ") }, { "text": last, "bold": true } ] },
                     { "text": r["team"], "tone": "muted" },
                     { "text": format!("{rating}"), "bar": rating / 100.0,
                       "edit": { "number": { "min": 0, "max": 100, "step": 1 } } },
                     { "text": match r["form"].as_str() { Some("good") => "Strong", Some("warn") => "Patchy", Some("bad") => "Poor", _ => "Steady" },
                       "tone": r["form"], "pill": true }
-                ] })
+                  ],
+                  // Clicking the row opens this beside the table.
+                  "title": name,
+                  "detail": [
+                      { "stats": [ { "label": "Rating", "value": format!("{rating}") }, { "label": "Team", "value": r["team"] } ] },
+                      { "facts": [ { "label": "Driver id", "value": r["id"] }, { "label": "Active", "value": if active { "Yes" } else { "No" } } ] }
+                  ] });
+                if self.colours {
+                    let colour = r["colour"].as_str().unwrap_or("#737988");
+                    row["cells"].as_array_mut().into_iter().for_each(|c| c.push(json!({ "text": colour, "edit": { "colour": {} } })));
+                }
+                row
             })
             .collect();
+        let mut columns = vec![
+            json!({ "key": "active", "title": "Active", "width": 72 }),
+            json!({ "key": "name", "title": "Driver", "sort": true }),
+            json!({ "key": "team", "title": "Team", "sort": true }),
+            json!({ "key": "rating", "title": "Rating", "sort": true, "width": 150 }),
+            json!({ "key": "form", "title": "Form", "width": 96 }),
+        ];
+        let mut fields = vec![
+            json!({ "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } }),
+            json!({ "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } }),
+            json!({ "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } }),
+            json!({ "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
+                { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } }),
+            json!({ "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }),
+        ];
+        // Colour fields and cells need launcher 1.5.25; an older one fails the view.
+        if self.colours {
+            columns.push(json!({ "key": "colour", "title": "Colour", "width": 110 }));
+            fields
+                .push(json!({ "colour": { "id": "colour", "label": "Team colour", "value": d["colour"] } }));
+        }
         let path_or = |p: &Option<String>| p.clone().unwrap_or_else(|| "Not found".into());
         let mut blocks = vec![
             json!({ "hero": {
@@ -152,15 +197,10 @@ impl Addon {
         ];
         if self.tab == "drivers" {
             blocks.push(
-                json!({ "card": { "title": "Drivers", "subtitle": "Click a rating to edit it", "blocks": [
+                json!({ "card": { "title": "Drivers", "subtitle": "Click a rating to edit it, or a driver for details", "blocks": [
                 { "table": {
                     "id": "drivers",
-                    "columns": [
-                        { "key": "name", "title": "Driver", "sort": true },
-                        { "key": "team", "title": "Team", "sort": true },
-                        { "key": "rating", "title": "Rating", "sort": true, "width": 150 },
-                        { "key": "form", "title": "Form", "width": 96 }
-                    ],
+                    "columns": columns,
                     "rows": rows,
                     "sort": { "column": "rating", "desc": true },
                     "search": { "placeholder": "Search drivers" },
@@ -177,14 +217,7 @@ impl Addon {
             ] }));
             blocks.push(json!({ "grid": { "columns": [3, 2], "blocks": [
                 { "card": { "title": "Settings", "subtitle": "Applied together with Apply", "blocks": [
-                    { "form": { "id": "settings", "columns": 2, "fields": [
-                        { "number": { "id": "budget", "label": "Budget", "value": d["budget"], "min": 0, "max": 1000, "step": 10, "unit": "k" } },
-                        { "text": { "id": "name", "label": "Team name", "value": d["name"], "max_len": 32 } },
-                        { "slider": { "id": "speed", "label": "Speed", "value": d["speed"], "min": 0, "max": 100, "step": 5 } },
-                        { "select": { "id": "mode", "label": "Weather", "value": d["mode"], "options": [
-                            { "value": "dry", "label": "Dry" }, { "value": "light", "label": "Light rain" }, { "value": "heavy", "label": "Heavy rain" } ] } },
-                        { "toggle": { "id": "lock", "label": "Lock budget", "value": d["lock"], "help": "Stops the budget from changing." } }
-                    ] } }
+                    { "form": { "id": "settings", "columns": 2, "fields": fields } }
                 ] } },
                 { "card": { "title": "Facilities", "pills": [ { "text": "3 upgrading", "tone": "warn" } ], "blocks": [
                     { "meters": [
@@ -215,7 +248,7 @@ impl Addon {
             let values = &submit["values"];
             match (submit["form"].as_str(), submit["row"].as_str()) {
                 (Some("settings"), _) => {
-                    for key in ["budget", "speed", "name", "mode", "lock"] {
+                    for key in ["budget", "speed", "name", "mode", "lock", "colour"] {
                         if let Some(v) = values.get(key) {
                             d[key] = v.clone();
                         }
@@ -224,16 +257,26 @@ impl Addon {
                     return Ok(json!({ "notice": format!("Saved {}", submit["changed"]) }));
                 }
                 (Some("drivers"), Some(row)) => {
-                    let rating = values["rating"]
-                        .as_u64()
-                        .ok_or("the rating is not a whole number")?;
+                    // A rating cell sends a number, the Active switch true or false, a colour cell "#RRGGBB".
+                    let (key, value) = match (values["active"].as_bool(), values["colour"].as_str()) {
+                        (Some(on), _) => ("active", json!(on)),
+                        (None, Some(colour)) => ("colour", json!(colour)),
+                        (None, None) => (
+                            "rating",
+                            json!(
+                                values["rating"]
+                                    .as_u64()
+                                    .ok_or("the rating is not a whole number")?
+                            ),
+                        ),
+                    };
                     if let Some(r) = d["drivers"]
                         .as_array_mut()
                         .into_iter()
                         .flatten()
                         .find(|r| r["id"] == row)
                     {
-                        r["rating"] = json!(rating);
+                        r[key] = value;
                     }
                     self.save_dashboard(&d)?;
                     return Ok(json!("reload"));
@@ -410,6 +453,7 @@ fn main() {
         seen: None,
         running: false,
         tab: "status".into(),
+        colours: false,
     };
     while let Some(Ok(line)) = host.lines.next() {
         let Ok(message) = serde_json::from_str::<Value>(&line) else {
@@ -429,6 +473,7 @@ fn main() {
                 addon.data_dir = path(&params["data_dir"]);
                 addon.cache_dir = path(&params["cache_dir"]);
                 addon.vanilla = params["profile"]["vanilla"].as_bool().unwrap_or(false);
+                addon.colours = at_least(params["launcher"].as_str().unwrap_or_default(), COLOURS);
                 Ok(json!({ "api": API }))
             }
             "view" if params["section"] == "overview" => addon.overview(&mut host),

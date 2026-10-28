@@ -13,8 +13,9 @@
 // and per-state hold/transition seconds, so state i ends at (sum + hold_i) / len and transitions for
 // trans_i / len. One state per timeline point, no generator in-between states. Unplanned datasets keep
 // the game's forecast. Intensity: the builder draws each state's intensity from the per-type range
-// TOD+0xb378+type*0x14 {+0xc min, +0x10 max}; a planned intensity pins that range for the build and is
-// restored right after, and the state's own intensity is then set to the planned value.
+// TOD+0xb378+type*0x14 {+0xc min, +0x10 max}. A planned intensity is first clamped into that range (the
+// game never draws outside it), then pins the range for the build, which is restored right after, and the
+// state's own intensity is then set to the clamped value.
 //
 // Seed pin: GameWeatherSystem::updateRandomSeed honours the forced-seed override ws+0x1f14. The pin sets
 // it and runs the game's own propagation, Sess_WeatherComponent_SetSystemRandomSeed (the component's
@@ -51,17 +52,17 @@
 
 #include "ce.hpp"
 #include "components.hpp"
+#include "weather_plan.hpp"
 
 using namespace swofty::game;
+using namespace ce::weather;
 
 namespace {
 
 constexpr int kSessions = 8;
-constexpr int kMaxPlanStates = 6;
 constexpr int kNext = -1;
 
 const char *const kKeys[kSessions] = {"p1", "p2", "p3", "q", "ss", "r", "r2", "r3"};
-const char *const kStates[6] = {"clear", "light_cloud", "overcast", "light_rain", "heavy_rain", "storm"};
 
 // Game session type of a time-trial session (an enum value, not a field).
 constexpr uint32_t kSessionTimeTrial = 0x12;
@@ -127,27 +128,7 @@ WeatherAndTimeOfDayComponent &C(uintptr_t c)
 }
 
 // ---------------------------------------------------------------------------
-// Plan model and sidecar.
-
-enum Unit { kFraction, kMinute, kLap };
-const char *const kUnitKey[3] = {"at_fraction", "at_minute", "at_lap"};
-
-struct Point {
-    double at = 0;
-    int state = 0;
-    double intensity = -1;
-    double ramp = -1;
-};
-
-struct SessionPlan {
-    int unit = kFraction;
-    std::vector<Point> pts;
-    int start = -1;
-    int laps = 0;
-    int minutes = 0;
-    bool has_air = false, has_track = false;
-    double air = 0, track = 0;
-};
+// Plan sidecar (the plan model is weather_plan.cpp).
 
 struct WeekendPlan {
     bool has[kSessions] = {};
@@ -183,14 +164,6 @@ double g_frame_acc = 0;
 float g_last_progress = -1.0f;
 int g_bind_logged = 0;
 
-int state_of(const std::string &s)
-{
-    for (int i = 0; i < 6; ++i)
-        if (s == kStates[i])
-            return i;
-    return -1;
-}
-
 int session_of(const std::string &s)
 {
     for (int i = 0; i < kSessions; ++i)
@@ -202,124 +175,6 @@ int session_of(const std::string &s)
 const char *state_name(uint32_t t)
 {
     return t < 6 ? kStates[t] : "invalid";
-}
-
-bool is_int(const ce::Json &v, double lo, double hi)
-{
-    return v.type == ce::Json::Num && std::floor(v.n) == v.n && v.n >= lo && v.n <= hi;
-}
-
-bool is_num(const ce::Json &v, double lo, double hi)
-{
-    return v.type == ce::Json::Num && std::isfinite(v.n) && v.n >= lo && v.n <= hi;
-}
-
-bool at_zero(const SessionPlan &p, double at)
-{
-    return p.unit == kLap ? at <= 1.0 : at <= 0.0;
-}
-
-int plan_states(const SessionPlan &p)
-{
-    return static_cast<int>(p.pts.size()) + (p.pts.empty() || at_zero(p, p.pts[0].at) ? 0 : 1);
-}
-
-bool parse_session(const ce::Json &v, const char *key, SessionPlan &p, std::string &err)
-{
-    auto fail = [&](const std::string &what) {
-        err = std::string("sessions.") + key + ": " + what;
-        return false;
-    };
-    if (v.type != ce::Json::Obj)
-        return fail("must be an object or null");
-    const ce::Json &tl = v["timeline"];
-    if (tl.type != ce::Json::Arr || tl.a.empty() || tl.a.size() > kMaxPlanStates)
-        return fail("timeline must be an array of 1..6 points");
-    const ce::Json &laps = v["laps"];
-    if (laps.type != ce::Json::Null) {
-        if (!is_int(laps, 1, 200))
-            return fail("laps must be an integer 1..200");
-        p.laps = static_cast<int>(laps.n);
-    }
-    const ce::Json &mins = v["minutes"];
-    if (mins.type != ce::Json::Null) {
-        if (!is_int(mins, 1, 240))
-            return fail("minutes must be an integer 1..240");
-        p.minutes = static_cast<int>(mins.n);
-    }
-    const ce::Json &start = v["start"];
-    if (start.type != ce::Json::Null) {
-        p.start = start.type == ce::Json::Str ? state_of(start.s) : -1;
-        if (p.start < 0)
-            return fail("start must be a state name");
-    }
-    const ce::Json &air = v["air_temp"];
-    if (air.type != ce::Json::Null) {
-        if (!is_num(air, -10, 50))
-            return fail("air_temp must be -10..50");
-        p.has_air = true;
-        p.air = air.n;
-    }
-    const ce::Json &trk = v["track_temp"];
-    if (trk.type != ce::Json::Null) {
-        if (!is_num(trk, -10, 70))
-            return fail("track_temp must be -10..70");
-        p.has_track = true;
-        p.track = trk.n;
-    }
-    p.unit = -1;
-    for (size_t i = 0; i < tl.a.size(); ++i) {
-        const ce::Json &e = tl.a[i];
-        std::string at = "timeline[" + std::to_string(i) + "]";
-        if (e.type != ce::Json::Obj)
-            return fail(at + " must be an object");
-        int unit = -1, found = 0;
-        for (int u = 0; u < 3; ++u)
-            if (e[kUnitKey[u]].type != ce::Json::Null) {
-                unit = u;
-                ++found;
-            }
-        if (found != 1)
-            return fail(at + " needs exactly one of at_fraction, at_minute, at_lap");
-        if (p.unit >= 0 && unit != p.unit)
-            return fail(at + " mixes position units; use one unit per session");
-        p.unit = unit;
-        Point pt;
-        const ce::Json &pos = e[kUnitKey[unit]];
-        if (unit == kFraction && !is_num(pos, 0, 1))
-            return fail(at + ".at_fraction must be 0..1");
-        if (unit == kMinute && !is_num(pos, 0, 240))
-            return fail(at + ".at_minute must be 0..240");
-        if (unit == kLap && !is_int(pos, 1, 200))
-            return fail(at + ".at_lap must be an integer 1..200");
-        pt.at = pos.n;
-        if (unit == kLap && (!p.laps || pt.at > p.laps))
-            return fail(at + ".at_lap needs laps on the session and at_lap <= laps");
-        if (unit == kMinute && p.minutes && pt.at > p.minutes)
-            return fail(at + ".at_minute is past the session's minutes");
-        const ce::Json &st = e["state"];
-        pt.state = st.type == ce::Json::Str ? state_of(st.s) : -1;
-        if (pt.state < 0)
-            return fail(at + ".state must be one of clear, light_cloud, overcast, light_rain, heavy_rain, storm");
-        const ce::Json &in = e["intensity"];
-        if (in.type != ce::Json::Null) {
-            if (!is_num(in, 0, 1))
-                return fail(at + ".intensity must be 0..1");
-            pt.intensity = in.n;
-        }
-        const ce::Json &rp = e["ramp_s"];
-        if (rp.type != ce::Json::Null) {
-            if (!is_num(rp, 0, 1800))
-                return fail(at + ".ramp_s must be 0..1800");
-            pt.ramp = rp.n;
-        }
-        if (!p.pts.empty() && pt.at <= p.pts.back().at)
-            return fail(at + " must come after the previous point");
-        p.pts.push_back(pt);
-    }
-    if (plan_states(p) > kMaxPlanStates)
-        return fail("start plus the timeline is more than 6 states");
-    return true;
 }
 
 void write_session(ce::Writer &w, const SessionPlan &p)
@@ -717,54 +572,6 @@ int default_weekend()
 // ---------------------------------------------------------------------------
 // Rebuild one dataset from a plan.
 
-struct Build {
-    uint32_t n = 0;
-    uint8_t type[kMaxPlanStates] = {};
-    float hold[kMaxPlanStates] = {};
-    float trans[kMaxPlanStates] = {};
-    float inten[kMaxPlanStates] = {-1, -1, -1, -1, -1, -1};
-};
-
-double fraction(const SessionPlan &p, double at, float len)
-{
-    double f = p.unit == kFraction ? at
-               : p.unit == kMinute ? (p.minutes ? at / p.minutes : at * 60.0 / len)
-                                   : (at - 1.0) / (p.laps ? p.laps : 1);
-    return f < 0 ? 0 : f > 1 ? 1 : f;
-}
-
-Build make_build(const SessionPlan &p, float len, int game_first)
-{
-    Build b;
-    bool zero = at_zero(p, p.pts[0].at);
-    size_t first_change = zero ? 1 : 0;
-    b.type[0] = static_cast<uint8_t>(zero ? p.pts[0].state : p.start >= 0 ? p.start
-                                                          : (game_first >= 0 && game_first < 6) ? game_first
-                                                                                                : 0);
-    b.inten[0] = zero && p.pts[0].intensity >= 0 ? static_cast<float>(p.pts[0].intensity) : -1.0f;
-    b.n = 1;
-    float ramp_default = std::fmin(std::fmax(0.02f * len, 30.0f), 300.0f);
-    float prev_end = 0;
-    for (size_t k = first_change; k < p.pts.size() && b.n < kMaxPlanStates; ++k) {
-        float t = static_cast<float>(fraction(p, p.pts[k].at, len) * len);
-        if (t < prev_end)
-            t = prev_end;
-        float next = k + 1 < p.pts.size() ? static_cast<float>(fraction(p, p.pts[k + 1].at, len) * len) : len;
-        float ramp = p.pts[k].ramp >= 0 ? static_cast<float>(p.pts[k].ramp) : ramp_default;
-        ramp = std::fmin(ramp, std::fmax(0.0f, next - t));
-        ramp = std::fmin(ramp, std::fmax(0.0f, len - t));
-        b.hold[b.n - 1] = t - prev_end;
-        b.trans[b.n - 1] = ramp;
-        prev_end = t + ramp;
-        b.type[b.n] = static_cast<uint8_t>(p.pts[k].state);
-        b.inten[b.n] = p.pts[k].intensity >= 0 ? static_cast<float>(p.pts[k].intensity) : -1.0f;
-        ++b.n;
-    }
-    b.hold[b.n - 1] = std::fmax(len - prev_end, 1.0f);
-    b.trans[b.n - 1] = 0;
-    return b;
-}
-
 std::string rebuild_gate(uintptr_t ws, uintptr_t &tod, uintptr_t &owner)
 {
     char buf[160];
@@ -805,6 +612,11 @@ std::string rebuild(uintptr_t ws, int s, const SessionPlan &p, int weekend, cons
         len = s >= 5 ? 7200.0f : 3600.0f;
     int game_first = state_count(tod, s) ? static_cast<int>(dataset(tod, s).states[0].type) : -1;
     Build b = make_build(p, len, game_first);
+    TypeRange ranges[6];
+    for (int t = 0; t < 6; ++t)
+        ranges[t] = {T(tod).type_ranges[t].intensity_min, T(tod).type_ranges[t].intensity_max};
+    for (const std::string &c : clamp_build(b, ranges))
+        ce::log("weather: %s (weekend %d, %s): %s", kKeys[s], weekend, why, c.c_str());
 
     float saved_min[6] = {}, saved_max[6] = {};
     bool pinned[6] = {};
@@ -1225,6 +1037,10 @@ ce::OpResult op_plan_clear(const ce::Json &args)
                 return err("bad_args", "unknown session in sessions (p1 p2 p3 q ss r r2 r3)");
             mask |= static_cast<uint8_t>(1u << s);
         }
+    const ce::Json &st = args["started"];
+    if (st.type != ce::Json::Null && st.type != ce::Json::Bool)
+        return err("bad_args", "started must be a boolean");
+    bool with_started = st.type == ce::Json::Bool && st.b;
     auto it = g_plans.find(weekend);
     uint8_t had = 0;
     if (it != g_plans.end())
@@ -1234,7 +1050,7 @@ ce::OpResult op_plan_clear(const ce::Json &args)
     mask &= had;
     uint8_t kept = 0;
     for (int s = 0; s < kSessions; ++s)
-        if (((mask >> s) & 1) && weekend >= 0 && started(weekend, s)) {
+        if (!with_started && ((mask >> s) & 1) && weekend >= 0 && started(weekend, s)) {
             kept |= static_cast<uint8_t>(1u << s);
             mask &= static_cast<uint8_t>(~(1u << s));
         }

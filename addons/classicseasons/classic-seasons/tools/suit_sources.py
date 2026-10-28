@@ -55,6 +55,8 @@ def mod_label(entry):
 def real():
     out = []
     for e in REAL["suits"]:
+        if e.get("off"):
+            continue
         out.append({**e, "kind": "mod", "label": mod_label(e), "helmet_label": mod_label(e) if e.get("helmet") else None})
     for season in DATA["seasons"]:
         if season["year"] not in REAL["stock_seasons"]:

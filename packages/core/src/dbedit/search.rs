@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
 use super::catalog::plain;
+use super::driver_manager::{self, Driver};
 use super::schema::schema;
-use super::{Catalog, Edits, NodeId, NodeKind, modules};
+use super::{Catalog, Edits, LinkSpec, NodeId, NodeKind, modules};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HitKind {
     /// A row of a friendly module (a driver, team, track).
     ModuleRow,
+    /// A driver Driver Manager adds when the profile builds.
+    Added,
     Table,
     Row,
     Key,
@@ -25,6 +28,8 @@ pub enum Target {
         scope: Option<String>,
         label: String,
     },
+    /// An addon's page, where what the hit names is edited.
+    Link(LinkSpec),
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +170,11 @@ impl Catalog {
     /// Case-insensitive search over module rows, tables, rows, key paths, values,
     /// meanings and English text; best first.
     pub fn search(&self, query: &str, limit: usize) -> Vec<Hit> {
+        self.search_with(query, limit, &[])
+    }
+
+    /// Like `search`, also over the names, codes and labels of the drivers Driver Manager adds.
+    pub fn search_with(&self, query: &str, limit: usize, drivers: &[Driver]) -> Vec<Hit> {
         let q = query.trim().to_lowercase();
         if q.is_empty() || limit == 0 {
             return Vec::new();
@@ -178,7 +188,7 @@ impl Catalog {
             let bonus = if kind == HitKind::ModuleRow {
                 100
             } else {
-                5 - kind as u32
+                6 - kind as u32
             };
             for &(qual, i) in scored.iter().take(PER_GROUP) {
                 for (title, detail, target) in make(i).into_iter().take(PER_GROUP) {
@@ -264,6 +274,22 @@ impl Catalog {
             let (_, text, id) = &ix.texts[i];
             vec![(short(text), self.path(*id), Target::Node(*id))]
         });
+        for d in drivers {
+            let best = [d.name.to_lowercase(), d.code.to_lowercase(), d.label.clone()]
+                .iter()
+                .map(|h| quality(h, &q))
+                .max()
+                .unwrap_or(0);
+            if best > 0 {
+                hits.push(Hit {
+                    kind: HitKind::Added,
+                    target: Target::Link(driver_manager::link()),
+                    title: d.title(),
+                    detail: format!("{} · {} · #{}", d.label, d.code, d.number),
+                    score: best * 10 + 100,
+                });
+            }
+        }
         hits.sort_by(|a, b| {
             b.score
                 .cmp(&a.score)
@@ -297,6 +323,47 @@ mod tests {
         let hits = cat.search("driver", 5);
         assert!(hits.iter().any(|h| h.kind == HitKind::Table), "{hits:?}");
         assert!(cat.search("  ", 5).is_empty());
+    }
+
+    #[test]
+    fn finds_driver_manager_drivers_by_name_code_and_label() {
+        use crate::dbedit::driver_manager::tests;
+        let cat = Catalog::from_gvdb(tests::database(), String::new());
+        let dir = tests::temp("search");
+        tests::fixture(&dir);
+        let drivers = driver_manager::drivers_in(&dir, &cat);
+        for q in ["swofty", "Jacob Sw", "SWO", "dm_208"] {
+            let hits = cat.search_with(q, 20, &drivers);
+            let h = hits
+                .iter()
+                .find(|h| h.kind == HitKind::Added)
+                .unwrap_or_else(|| panic!("{q}: {hits:?}"));
+            assert_eq!(h.title, "Jacob Swofty (Driver Manager)");
+            assert_eq!(h.detail, "dm_208 · SWO · #21");
+            assert_eq!(h.target, Target::Link(driver_manager::link()));
+        }
+        let hits = cat.search_with("dm_", 20, &drivers);
+        let found: Vec<&str> = hits
+            .iter()
+            .filter(|h| h.kind == HitKind::Added)
+            .map(|h| h.title.as_str())
+            .collect();
+        assert_eq!(
+            found,
+            [
+                "Jacob Swofty (Driver Manager)",
+                "Ret Ired (Driver Manager, retired)"
+            ]
+        );
+        for left_out in ["dm_210", "Bad Code", "NOH", "Used Look"] {
+            let hits = cat.search_with(left_out, 20, &drivers);
+            assert!(
+                !hits.iter().any(|h| h.kind == HitKind::Added),
+                "{left_out}: {hits:?}"
+            );
+        }
+        assert!(!cat.search("swofty", 20).iter().any(|h| h.kind == HitKind::Added));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

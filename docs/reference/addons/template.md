@@ -11,6 +11,7 @@ Pick the repository template that fits what you want to build. Copy it, change `
 |---|---|
 | [`templates/launcher-addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/launcher-addon) | A [launcher plugin](./launcher-api): a sidebar page, an importer, a build hook and a command. |
 | [`templates/addon`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/addon) | [Data](/reference/data/) and an [engine plugin](./native-plugins): database and UI edits driven by settings, plus a C++ plugin. |
+| [`templates/postfx-pass`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/postfx-pass) | A [post-process pass](./postfx): a vignette with saturation, with settings for both. |
 | [`templates/shader-pack`](https://github.com/Swofty-Developments/SwoftyLauncher/tree/main/templates/shader-pack) | A [shader pack](./shader-packs): three colour looks, with settings to pick one and its strength. |
 
 ## templates/launcher-addon
@@ -61,6 +62,23 @@ swofty addons enable example.sample-mod
 ```
 
 If you only need data edits, remove the `native` entry from `swofty.json` and the `native/` directory. You can then install the folder as it is, without a compiler.
+
+## templates/postfx-pass
+
+Use this template for a [post-process pass](./postfx): a vignette with saturation, and settings for both.
+
+| Path | What it is |
+|---|---|
+| `swofty.json` | The manifest: the `postfx` experimental feature, `vignette` and `saturation` sliders (both `db`), and the `postfx` block that names the shader and passes the sliders to it. |
+| `fx/vignette.hlsl` | The pass. |
+| `README.md` | How to change the pass, and install steps. |
+
+The build compiles the pass with the launcher's dxc; see [Build](./postfx#build).
+
+```sh
+swofty addons install .
+swofty addons enable example.vignette-pass
+```
 
 ## templates/shader-pack
 

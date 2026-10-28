@@ -35,6 +35,7 @@ fn main() {
         fields: &none,
         keys: RowKeys::builtin(),
         stock: None,
+        tracks: None,
     };
     let (mut warnings, mut gaps) = (0, 0);
     let mut copies = Vec::new();
