@@ -2,8 +2,10 @@
 
 #include <swofty/json.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <optional>
@@ -14,7 +16,10 @@
 // vehicle.package, engine_sound) into the database changes the game needs, in the operation format of
 // a database operation file (add-row, set, list-append, put-record): the same rows Classic Seasons'
 // build operations make. Pure: the stock records a copy reads come from a Source, so the host test
-// runs it against the stock database file and the core against the database the game loads.
+// runs it against the stock database file and the core against the database the game loads. Stat ids
+// come from a StatIds callback: a record's explicit stat_id is pinned, "auto" is allocated from the
+// table's pool (scan_pools). Without a callback an explicit stat_id is written as it is, and a copy without
+// one keeps the build operations' rule (the table's highest id plus one).
 
 namespace swofty_core::apply::content {
 
@@ -27,6 +32,9 @@ struct Stock {
 
 using Source = std::function<std::optional<Stock>(const std::string &key)>;
 using Lookup = std::function<const Value *(const std::string &registry, const std::string &id)>;
+using StatIds = std::function<int64_t(const std::string &registry, const std::string &id, int64_t pin)>;
+
+inline constexpr const char *SCENARIO_IDS = "content.package.scenario";
 
 struct Redirect {
     std::string path, file, addon;
@@ -38,6 +46,8 @@ struct Box {
 };
 
 struct Plan {
+    std::string owner;
+    std::vector<std::string> owners;
     Value ops = Value::array();
     Value fields = Value::object();
     std::vector<Redirect> redirects;
@@ -105,6 +115,28 @@ inline std::string addon_of(std::string_view id)
     return slash == std::string_view::npos ? std::string() : std::string(id.substr(0, slash));
 }
 
+inline std::string title_text(const Value &t)
+{
+    if (t.is_string())
+        return std::string(t.as_string());
+    if (t.is_object() && t["literal"].is_string())
+        return std::string(t["literal"].as_string());
+    return {};
+}
+
+inline int64_t pin_of(const Value &rec)
+{
+    return rec["stat_id"].is_int() && rec["stat_id"].as_int() >= 0 ? rec["stat_id"].as_int() : -1;
+}
+
+inline std::optional<int64_t> stat_of(const StatIds &stat, const char *registry, const std::string &id, int64_t pin)
+{
+    if (!stat)
+        return pin >= 0 ? std::optional<int64_t>(pin) : std::nullopt;
+    int64_t got = stat(registry, id, pin);
+    return got >= 0 ? std::optional<int64_t>(got) : std::nullopt;
+}
+
 inline std::string text(const Value &v)
 {
     if (v.is_string())
@@ -170,10 +202,16 @@ inline Value append_op(const std::string &select, const std::string &field, cons
     return Value::object({{"op", "list-append"}, {"select", select}, {"field", field}, {"value", value}});
 }
 
+inline void push_op(Plan &plan, Value op)
+{
+    plan.owners.push_back(plan.owner);
+    plan.ops.push_back(std::move(op));
+}
+
 inline void push_row(Plan &plan, const std::string &table, const std::string &from, Value set)
 {
     plan.keys += row_keys(table);
-    plan.ops.push_back(add_row(table, from, std::move(set)));
+    push_op(plan, add_row(table, from, std::move(set)));
 }
 
 inline std::string bundle_name(const Value &sound)
@@ -188,6 +226,7 @@ inline std::string bundle_name(const Value &sound)
 
 inline void lower_engine_sound(const std::string &id, const Value &rec, Plan &plan)
 {
+    plan.owner = addon_of(id);
     const Value &b = rec["bundle"];
     std::string name = bundle_name(rec);
     if (name.empty()) {
@@ -208,8 +247,9 @@ inline void lower_engine_sound(const std::string &id, const Value &rec, Plan &pl
     plan.lines.push_back("engine_sound " + id + ": bundle " + name + ", settings from " + from);
 }
 
-inline void lower_vehicle_package(const std::string &id, const Value &rec, Plan &plan)
+inline void lower_vehicle_package(const std::string &id, const Value &rec, Plan &plan, const StatIds &stat = {})
 {
+    plan.owner = addon_of(id);
     std::string label = key_of(id);
     std::string donor = rec["donor"].is_string() ? key_of(rec["donor"].as_string()) : "f1_2025";
     std::string setups = rec["setups_from"].is_string() ? key_of(rec["setups_from"].as_string()) : donor;
@@ -220,16 +260,21 @@ inline void lower_vehicle_package(const std::string &id, const Value &rec, Plan 
     set["has_cockpit_halo"] = rec["halo"].is_bool() ? text(rec["halo"]) : std::string("True");
     if (rec["aero_2026"].is_bool())
         set["is_26_aero_regulations"] = text(rec["aero_2026"]);
+    auto sid = stat_of(stat, "vehicle.package", id, pin_of(rec));
+    if (sid)
+        set["stat_id"] = std::to_string(*sid);
     push_row(plan, "entrants.vehicles.vehicle_packages", std::string(PACKAGES) + "[_metadata_=" + donor + "]",
              std::move(set));
     push_row(plan, "car_setup.presets", std::string(SETUP_PRESETS) + "[_metadata_=" + setups + "_vehicle_package]",
              Value::object({{"_metadata_", label + "_vehicle_package"}}));
-    plan.lines.push_back("vehicle.package " + id + ": row " + label + " from " + donor + ", setups from " + setups);
+    plan.lines.push_back("vehicle.package " + id + ": row " + label + " from " + donor + ", setups from " + setups +
+                         (sid ? ", stat id " + std::to_string(*sid) : std::string()));
 }
 
 inline void lower_vehicle(const std::string &id, const Value &rec, const Lookup &lookup, const Source &source,
-                          Plan &plan)
+                          Plan &plan, const StatIds &stat = {})
 {
+    plan.owner = addon_of(id);
     std::string label = rec["label"].is_string() ? std::string(rec["label"].as_string()) : key_of(id);
     if (!rec["donor"].is_string()) {
         plan.lines.push_back("vehicle " + id + ": no donor; nothing applied");
@@ -247,8 +292,12 @@ inline void lower_vehicle(const std::string &id, const Value &rec, const Lookup 
     const Value &ai = rec["ai"]["asset_filename"];
     if (ai.is_string() && ai.as_string() != "auto")
         set["asset_filename"] = ai;
+    auto sid = stat_of(stat, "vehicle", id, pin_of(rec));
+    if (sid)
+        set["stat_id"] = std::to_string(*sid);
     push_row(plan, "entrants.vehicles", std::string(VEHICLES) + "[_metadata_=" + donor + "]", std::move(set));
-    std::string line = "vehicle " + id + ": row " + label + " from " + donor;
+    std::string line = "vehicle " + id + ": row " + label + " from " + donor +
+                       (sid ? ", stat id " + std::to_string(*sid) : std::string());
     const Value &sound_id = rec["engine_sound"];
     if (sound_id.is_string() && rec["audio_switch"].is_string() && rec["audio_from"].is_string()) {
         const Value *sound = lookup("engine_sound", std::string(sound_id.as_string()));
@@ -265,8 +314,8 @@ inline void lower_vehicle(const std::string &id, const Value &rec, const Lookup 
                 value = std::string(rec["audio_switch"].as_string());
             else if (std::string_view(field) == "bundle_name" && !bundle.empty())
                 value = bundle + ".bdl";
-            plan.ops.push_back(Value::object({{"op", "put-record"}, {"key", to + field}, {"type", stock->tag},
-                                              {"value", hex(value)}}));
+            push_op(plan, Value::object({{"op", "put-record"}, {"key", to + field}, {"type", stock->tag},
+                                         {"value", hex(value)}}));
             copied++;
         }
         plan.keys += copied;
@@ -288,14 +337,29 @@ inline std::string vehicle_label(const Value &team, const Lookup &lookup)
     return key_of(team["vehicle"].as_string());
 }
 
-inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan)
+// A package's private "database" block names the rows its own entrant list gets (entrant_prefix, standings,
+// scenario_stat_id). A variant inherits its base's block with a new entrant list: when the block's entrant_list is
+// another list, those names are made from the variant's entrant list and its scenario gets an id from the pool.
+inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
+                          const StatIds &stat = {})
 {
+    plan.owner = addon_of(id);
     const Value &db = rec["database"];
     std::string list = std::string(rec["entrant_list"].as_string());
-    std::string title = rec["title"].is_string() ? std::string(rec["title"].as_string()) : list;
+    std::string title = title_text(rec["title"]);
+    if (title.empty())
+        title = list;
     std::string mode = rec["setup_mode"].is_string() ? std::string(rec["setup_mode"].as_string()) : "swofty_f1";
-    std::string prefix = db["entrant_prefix"].is_string() ? std::string(db["entrant_prefix"].as_string()) : list + "-";
-    std::string standings = db["standings"].is_string() ? std::string(db["standings"].as_string()) : list + "_teams";
+    bool own = !db["entrant_list"].is_string() || db["entrant_list"].as_string() == list;
+    std::string prefix = own && db["entrant_prefix"].is_string() ? std::string(db["entrant_prefix"].as_string())
+                                                                  : list + "-";
+    std::string standings = own && db["standings"].is_string() ? std::string(db["standings"].as_string())
+                                                                : list + "_teams";
+    int64_t scenario_pin = own && db["scenario_stat_id"].is_int() ? db["scenario_stat_id"].as_int() : -1;
+    if (!own)
+        plan.lines.push_back("content.package " + id + ": its database block is " +
+                             std::string(db["entrant_list"].as_string()) + "'s; its own rows are " + prefix +
+                             "<driver> and " + standings);
     std::size_t seats = 0;
     const Value &teams = rec["teams"];
     for (std::size_t t = 0; t < teams.size(); t++)
@@ -325,9 +389,9 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     push_row(plan, "entrants.standings", std::string(STANDINGS) + "[_metadata_=" + standings_from + "]",
              Value::object({{"_metadata_", standings}}));
     for (std::size_t t = 0; t < teams.size(); t++)
-        plan.ops.push_back(set_op(std::string(STANDINGS) + "[_metadata_=" + standings + "].team_reference_" +
-                                      std::to_string(t),
-                                  "team", vehicle_label(teams[t], lookup)));
+        push_op(plan, set_op(std::string(STANDINGS) + "[_metadata_=" + standings + "].team_reference_" +
+                                 std::to_string(t),
+                             "team", vehicle_label(teams[t], lookup)));
     Value row = Value::object({{"_metadata_", list},
                                {"display_name", title},
                                {"previous_season_team_standings", standings},
@@ -335,9 +399,11 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     if (db["entrant_list_set"].is_object())
         for (auto &[field, value] : *db["entrant_list_set"].if_object())
             row[field] = value;
+    auto list_id = stat_of(stat, "content.package", id, pin_of(rec));
+    if (list_id)
+        row["stat_id"] = std::to_string(*list_id);
     if (wide)
-        plan.ops.push_back(set_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", "max_entrants",
-                                  std::to_string(seats)));
+        push_op(plan, set_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", "max_entrants", std::to_string(seats)));
     push_row(plan, "entrants.entrant_lists", std::string(LISTS) + "[_metadata_=" + list_from + "]", std::move(row));
     std::size_t slot = 0;
     for (std::size_t t = 0; t < teams.size(); t++) {
@@ -357,20 +423,21 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
                      {"car_number", "255"},
                      {"driver", ""},
                      {"driver_customisation", ""}})
-                plan.ops.push_back(set_op(at, field, value));
+                push_op(plan, set_op(at, field, value));
         }
     }
     Value scenario = Value::object({{"_metadata_", list},
                                     {"display_name", title},
                                     {"entrant_list", list},
                                     {"game_setup_mode", mode}});
-    if (rec["stat_id"].is_int())
-        scenario["statId"] = text(rec["stat_id"]);
+    auto scenario_id = stat_of(stat, SCENARIO_IDS, id, scenario_pin);
+    if (scenario_id)
+        scenario["statId"] = std::to_string(*scenario_id);
     push_row(plan, "game_setup.scenarios", std::string(SCENARIOS) + "[_metadata_=f1]", std::move(scenario));
     push_row(plan, CATEGORY, std::string(CATEGORY) + ".value[_metadata_=f1_2025]",
              Value::object({{"_metadata_", list}, {"game_value", list}, {"loc_tag", title}}));
     for (const char *field : {"entrant_lists", "selectable_entrant_lists"})
-        plan.ops.push_back(append_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", field, list));
+        push_op(plan, append_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", field, list));
     std::vector<std::string> sets;
     if (db["content_sets"].is_array())
         for (std::size_t i = 0; i < db["content_sets"].size(); i++)
@@ -378,12 +445,14 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     else
         sets = {"2025", "2026"};
     for (auto &cs : sets)
-        plan.ops.push_back(append_op("content_sets.content_set[_metadata_=" + cs + "].available_entrant_lists_0",
-                                     "entrant_lists", list));
+        push_op(plan, append_op("content_sets.content_set[_metadata_=" + cs + "].available_entrant_lists_0",
+                                "entrant_lists", list));
     add_fields(plan, SCENARIOS, SCENARIO_FIELDS, std::size(SCENARIO_FIELDS));
     add_fields(plan, (std::string(CATEGORY) + ".value").c_str(), CATEGORY_FIELDS, std::size(CATEGORY_FIELDS));
     plan.lines.push_back("content.package " + id + ": entrant list " + list + ", " + std::to_string(seats) +
-                         " entrants in " + mode);
+                         " entrants in " + mode +
+                         (list_id ? ", stat id " + std::to_string(*list_id) : std::string()) +
+                         (scenario_id ? ", scenario stat id " + std::to_string(*scenario_id) : std::string()));
 }
 
 inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan)
@@ -398,12 +467,60 @@ inline void lower_box(const std::string &id, const Value &rec, const Lookup &loo
     Box box;
     box.id = id;
     box.entrant_list = std::string((*pkg)["entrant_list"].as_string());
-    box.title = rec["title"].is_string() && !rec["title"].as_string().empty() ? std::string(rec["title"].as_string())
-                : (*pkg)["title"].is_string()                                 ? std::string((*pkg)["title"].as_string())
-                                                                              : box.entrant_list;
+    box.title = title_text(rec["title"]);
+    if (box.title.empty())
+        box.title = title_text((*pkg)["title"]);
+    if (box.title.empty())
+        box.title = box.entrant_list;
     box.image = std::string(rec["image"].as_string());
     box.order = int(rec["order"].as_int());
     plan.boxes.push_back(box);
 }
 
+// The stat-id pools of the content registries: the ids above every row the table holds when the game loads, up to
+// the table's ceiling, and the rows that hold each id below it.
+struct PoolSpec {
+    const char *registry, *table, *row, *field;
+    int64_t cap;
+};
+
+inline constexpr PoolSpec POOLS[] = {
+    {"vehicle", "entrants.vehicles", "vehicle", "stat_id", 1023},
+    {"vehicle.package", "entrants.vehicles.vehicle_packages", "vehicle_package", "stat_id", 255},
+    {"content.package", "entrants.entrant_lists", "entrant_list", "stat_id", 255},
+    {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 255},
+};
+
+struct PoolScan {
+    std::string registry, table;
+    int64_t lo = 0, hi = -1;
+    std::map<int64_t, std::string> used;
+};
+
+inline std::vector<PoolScan> scan_pools(const std::function<std::optional<std::string>(const std::string &)> &text)
+{
+    std::vector<PoolScan> out;
+    for (auto &spec : POOLS) {
+        PoolScan scan{spec.registry, spec.table, 0, -1, {}};
+        std::string base = std::string(spec.table) + "." + spec.row + "_";
+        auto count = text(std::string(spec.table) + "._" + spec.row + "_instancecount_");
+        int64_t rows = count ? std::strtoll(count->c_str(), nullptr, 10) : 0;
+        int64_t top = -1;
+        for (int64_t i = 0; i < rows; i++) {
+            auto v = text(base + std::to_string(i) + "." + spec.field);
+            if (!v || v->empty())
+                continue;
+            int64_t id = std::strtoll(v->c_str(), nullptr, 10);
+            auto label = text(base + std::to_string(i) + "._metadata_");
+            scan.used[id] = label ? *label : base + std::to_string(i);
+            top = std::max(top, id);
+        }
+        scan.lo = top + 1;
+        scan.hi = spec.cap;
+        out.push_back(std::move(scan));
+    }
+    return out;
 }
+
+}
+
