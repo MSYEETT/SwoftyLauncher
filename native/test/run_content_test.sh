@@ -17,6 +17,11 @@ pids=()
 "${PIN[@]}" "${CXX[@]}" -o "$OUT/rows_test" content/rows_test.cpp ../src/core/apply/ids.cpp "${SRC[@]}" & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include -I../include \
     -c ../src/core/apply/content/appliers.cpp -o "$OUT/appliers.windows.o" & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
+    -o "$OUT/bc7_test" content/bc7_test.cpp & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
+    -c content/bc7_test.cpp -o "$OUT/bc7_test.windows.o" & pids+=($!)
 for p in "${pids[@]}"; do wait "$p"; done
+"$OUT/bc7_test" content/bc7
 "$OUT/rows_test" ../../packages/sdk/std/registries
 python3 content/check_lowering.py "$OUT/lower_tool"
