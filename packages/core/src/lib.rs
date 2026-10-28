@@ -6,6 +6,7 @@ pub mod app_control;
 pub mod baseline;
 pub mod build;
 pub mod builtin;
+pub mod busy;
 pub mod cache;
 pub mod catalog;
 pub mod compat;
@@ -112,6 +113,8 @@ pub enum Error {
     Requires(catalog::requires::Refusal),
     #[error("{}", no_space(drive, *need, *free))]
     NoSpace { drive: String, need: u64, free: u64 },
+    #[error("{}", busy::CANCELLED)]
+    Cancelled,
     #[error("{0}")]
     Other(String),
 }
@@ -150,6 +153,17 @@ pub fn work() -> u64 {
 
 pub(crate) fn worked() {
     WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+static DOING: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// The step a build or install is on, for its progress lines.
+pub fn doing() -> String {
+    DOING.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+pub(crate) fn now_doing(step: impl Into<String>) {
+    *DOING.lock().unwrap_or_else(|e| e.into_inner()) = step.into();
 }
 
 pub(crate) fn io_err(path: impl Into<std::path::PathBuf>) -> impl FnOnce(std::io::Error) -> Error {

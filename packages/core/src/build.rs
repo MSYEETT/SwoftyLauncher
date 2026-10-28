@@ -603,6 +603,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         return Ok(built);
     }
     let _lock = lock(store, profile)?;
+    crate::now_doing("reading the addons");
     let mut hasher = Sha256::new();
     let packed = store.root.join("cache").join(crate::cache::PACKED_DIR);
     swofty_formats::erp::cache_compressed(Some(packed.clone()));
@@ -988,6 +989,12 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         return Ok(built);
     }
+    let cancel = || match checking {
+        true => Ok(()),
+        false => crate::busy::check(&store.root),
+    };
+    cancel()?;
+    crate::now_doing("editing the game database");
     let ui_lists = if ui_maps.is_empty() {
         Default::default()
     } else {
@@ -1315,6 +1322,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         let mut prebuilt: Vec<Prebuilt> = Vec::new();
         let slices = slice_merges(&erp_ops);
         for (at, op) in erp_ops.iter().enumerate() {
+            cancel()?;
+            crate::now_doing(format!("applying {}", op.origin));
             let id = &op.origin.addon;
             let resolve = |s: &Source| Ok(s.resolve(&source_dir(store, id, s.root))?);
             let origin = op.origin.to_string();
@@ -1452,7 +1461,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         } else {
             let resized = erps.resized();
             let archives = store.root.join("cache").join(crate::cache::ARCHIVES_DIR);
-            let (written, reused) = erps.write_cached(&built.overlay, Some(&archives))?;
+            let (written, reused) = erps.write_cached(&built.overlay, Some(&archives), &cancel)?;
             if reused > 0 {
                 built.lines.push(format!(
                     "erp: {reused} of {} archive(s) unchanged since an earlier build, linked from the cache",
@@ -1469,6 +1478,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .cloned()
             .collect();
     }
+    cancel()?;
+    crate::now_doing("placing files");
     put_files(&mut built, store, game, mipmaps, file_ops, &built_over, &ers_maps)?;
     match loader_dir() {
         Some(dir) => {
@@ -1608,6 +1619,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         });
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }
+    cancel()?;
+    crate::now_doing("saving the build");
     let saved = (!built.plan.is_vanilla())
         .then(|| Saved::of(&built, lines_at, warnings_at))
         .transpose()?;
@@ -2839,6 +2852,53 @@ mod tests {
         let changed = build(&store, "default", &game).unwrap();
         assert!(!reused(&changed));
         assert_ne!(changed.buildhash, first.buildhash);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_cancelled_build_stops_and_the_next_one_starts_fresh() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-cancel-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let records = vec![
+            Record::new("entrants.teams._team_instancecount_", 0, "1"),
+            Record::new("entrants.teams.team_0._metadata_", 4, "mclaren_26"),
+            Record::new("entrants.teams.team_0.stat_id", 0, "100"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.put", "name": "Put", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" } }"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Putter(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        std::fs::create_dir_all(store.addon_data_dir("t.put")).unwrap();
+        std::fs::write(store.addon_data_dir("t.put").join("mip"), "mip").unwrap();
+        let reused = |b: &Built| b.lines.iter().any(|l| l.starts_with("build: nothing changed"));
+
+        crate::busy::request_cancel(&store.root).unwrap();
+        assert!(matches!(build(&store, "default", &game), Err(Error::Cancelled)));
+        crate::busy::clear_cancel(&store.root);
+        let fresh = build(&store, "default", &game).unwrap();
+        assert!(!reused(&fresh), "{:?}", fresh.lines);
+        assert!(reused(&build(&store, "default", &game).unwrap()));
+        crate::busy::request_cancel(&store.root).unwrap();
+        build_as(&store, "default", &game, true).unwrap();
         std::fs::remove_dir_all(&root).ok();
     }
 

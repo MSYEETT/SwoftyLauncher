@@ -1051,16 +1051,23 @@ impl<'a> ErpBuild<'a> {
     }
 
     pub fn write(self, out: &Path) -> Result<Vec<String>> {
-        Ok(self.write_cached(out, None)?.0)
+        Ok(self.write_cached(out, None, &|| Ok(()))?.0)
     }
 
     /// Write the changed archives to `out`, linking from `cache` the ones an
     /// earlier build wrote the same; the archives written and how many came
-    /// from the cache.
-    pub fn write_cached(self, out: &Path, cache: Option<&Path>) -> Result<(Vec<String>, usize)> {
+    /// from the cache. `cancel` runs before each archive.
+    pub fn write_cached(
+        self,
+        out: &Path,
+        cache: Option<&Path>,
+        cancel: &dyn Fn() -> Result<()>,
+    ) -> Result<(Vec<String>, usize)> {
         let mut written = Vec::new();
         let mut reused = 0;
         for (rel, archive) in self.erps.into_iter().filter(|(_, a)| !a.untouched()) {
+            cancel()?;
+            crate::now_doing(format!("writing {rel}"));
             reused += usize::from(write_archive(out, &rel, archive, cache)?);
             written.push(rel);
         }
@@ -1790,7 +1797,7 @@ mod tests {
             let mut b = ErpBuild::new(&original);
             apply(&mut b, &ops, &addon).unwrap();
             let out = root.join(n);
-            let (written, reused) = b.write_cached(&out, Some(&cache)).unwrap();
+            let (written, reused) = b.write_cached(&out, Some(&cache), &|| Ok(())).unwrap();
             assert_eq!(written, ["ui/a.erp"]);
             (std::fs::read(out.join("ui/a.erp")).unwrap(), reused)
         };
