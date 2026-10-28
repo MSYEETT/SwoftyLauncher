@@ -321,7 +321,9 @@ impl Cause {
                 from: Some(PreferSource::System),
                 ..
             } => "To fix it, close F1 25, run Set-ProcessMitigation -System -Disable PreferSystem32 in PowerShell \
-                 as administrator, restart the PC, then launch again."
+                 as administrator, restart the PC, then launch again. If that command reports an error, or mods \
+                 still don't load, run Get-ProcessMitigation -System in PowerShell and post what it prints in the \
+                 support Discord."
                 .to_owned(),
             Self::OtherCopy {
                 prefer_system32: true,
@@ -1241,7 +1243,9 @@ mod tests {
             format!(
                 "{LOADED}Exploit protection's system settings make every program prefer System32 DLLs. To fix it, \
                  close F1 25, run Set-ProcessMitigation -System -Disable PreferSystem32 in PowerShell as \
-                 administrator, restart the PC, then launch again."
+                 administrator, restart the PC, then launch again. If that command reports an error, or mods still \
+                 don't load, run Get-ProcessMitigation -System in PowerShell and post what it prints in the support \
+                 Discord."
             )
         );
         assert_eq!(
