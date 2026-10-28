@@ -9,14 +9,17 @@
 #include <swofty/events.hpp>
 #include <swofty/registry.hpp>
 #include <swofty/systems/content.hpp>
+#include <swofty/systems/drivers.hpp>
 #include <swofty/systems/forward.hpp>
+#include <swofty/systems/teams.hpp>
 
 // Career: modes, contents, seasons and their boxes, calendars, ratings, the market, contracts, R&D,
 // facilities, economy, sponsors, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
-// mode, so the career.mode record struct is ModeRecord. apply_lineup, set_driver_ratings, swap_drivers and
-// report_season call the core's career operations (SwoftyCoreCareerOps) and return unavailable on a core
-// without them; set_seat, set_car_number and apply_dropped_scores return unavailable.
+// mode, so the career.mode record struct is ModeRecord. apply_teams, apply_lineup, set_driver_ratings,
+// swap_drivers and report_season call the core's career operations (SwoftyCoreCareerOps) and return
+// unavailable on a core without them; set_seat, set_car_number and apply_dropped_scores return unavailable.
+// A season's teams name team.identity records (new teams included) in up to 12 career team slots.
 
 namespace swofty::career {
 
@@ -355,20 +358,19 @@ inline Result set_slots(std::string_view data_group, const std::vector<uint32_t>
     return detail::ops_result(t->set_slots(std::string(data_group).c_str(), team_stats.data(), team_stats.size()));
 }
 
-inline Result apply_lineup(const Season &season, ApplyReport *report = nullptr)
+namespace detail {
+
+using SeasonOpFn = int (*)(SwoftyText, char *, size_t, size_t *);
+
+inline Result run_season_op(SeasonOpFn fn, const Season &season, ApplyReport *report)
 {
-    if (report)
-        *report = {};
-    auto t = detail::live_ops();
-    if (!t)
-        return Result::unavailable;
     std::string request = "{\"season\":" + to_json(season) + "}";
     std::string out(1024, '\0');
     size_t len = 0;
-    int r = t->apply_lineup({request.data(), request.size()}, out.data(), out.size(), &len);
+    int r = fn({request.data(), request.size()}, out.data(), out.size(), &len);
     if (r == SWOFTY_TOO_SMALL) {
         out.assign(len + 1, '\0');
-        r = t->apply_lineup({request.data(), request.size()}, out.data(), out.size(), &len);
+        r = fn({request.data(), request.size()}, out.data(), out.size(), &len);
     }
     if (report && len < out.size()) {
         json::Value v = json::parse(std::string_view(out.data(), len));
@@ -379,7 +381,33 @@ inline Result apply_lineup(const Season &season, ApplyReport *report = nullptr)
             for (const json::Value &why : *list)
                 report->refusals.emplace_back(why.as_string());
     }
-    return detail::ops_result(r);
+    return ops_result(r);
+}
+
+}
+
+// The season's teams race in its data group's career: each listed slot (1-12) races as its team (the slot
+// table and the Championship's participants), and a team with no career rows gets them, built from its
+// donor's. An empty team leaves the slot out of the Championship; a slot the season doesn't list keeps its
+// team. Call it before apply_lineup. unavailable on a core without the call (table version 3).
+inline Result apply_teams(const Season &season, ApplyReport *report = nullptr)
+{
+    if (report)
+        *report = {};
+    auto t = detail::live_ops();
+    if (!t || t->version < 3 || !t->apply_teams)
+        return Result::unavailable;
+    return detail::run_season_op(t->apply_teams, season, report);
+}
+
+inline Result apply_lineup(const Season &season, ApplyReport *report = nullptr)
+{
+    if (report)
+        *report = {};
+    auto t = detail::live_ops();
+    if (!t)
+        return Result::unavailable;
+    return detail::run_season_op(t->apply_lineup, season, report);
 }
 
 inline Result set_seat(int, int, Ref<drivers::Identity>) { return Result::unavailable; }
