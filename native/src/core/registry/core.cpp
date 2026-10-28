@@ -17,6 +17,8 @@ namespace {
 
 namespace reg = swofty_core::registry;
 
+std::size_t declared_count = 0;
+
 std::string swofty_dir()
 {
     wchar_t path[MAX_PATH] = {};
@@ -86,8 +88,7 @@ void setup()
                 return false;
             return t->declare(name.c_str(), swofty::detail::text(schema)) == SWOFTY_ASSET_OK;
         });
-    swofty::log("[registry] core declared %zu registr%s from the SDK headers; an addon that declares one again keeps its own newer minor",
-                count, count == 1 ? "y" : "ies");
+    declared_count = count;
 }
 
 }
@@ -135,6 +136,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreRegisterDone(void)
 {
     reg::Store &st = reg::store();
     st.end_register();
+    swofty::log("[registry] core declared %zu registr%s from the SDK headers; an addon that declares one again keeps its own newer minor",
+                declared_count, declared_count == 1 ? "y" : "ies");
     for (auto &addon : st.order()) {
         std::size_t layers = st.layer_count(addon, "");
         if (layers)
