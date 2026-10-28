@@ -476,6 +476,26 @@ static void values()
            "object equality ignores order, array equality doesn't");
     expect(json::dump(P(R"({"a":1,"b":2,"a":3})")) == R"({"a":3,"b":2})",
            "a repeated key keeps its first place and its last value");
+    {
+        json::Error e;
+        auto strict = json::ParseOptions::strict();
+        Value dup = json::parse(R"({"a":{"x":1,"y":2,"x":3}})", strict, &e);
+        expect(!e.ok() && e.message == "duplicate key" && dup.is_null(), "strict parsing refuses a repeated key, nested too");
+        std::string many = "{";
+        for (int k = 0; k < 40; ++k)
+            many += "\"k" + std::to_string(k) + "\":" + std::to_string(k) + ",";
+        many += "\"k17\":0}";
+        json::parse(many, strict, &e);
+        expect(!e.ok(), "strict parsing finds a repeat past the object's index threshold");
+        Value fine = json::parse(R"({"a":1,"b":{"a":2}})", strict, &e);
+        expect(e.ok() && json::dump(fine) == R"({"a":1,"b":{"a":2}})", "strict parsing takes the same key in different objects");
+        json::parse("\xEF\xBB\xBF{}", strict, &e);
+        expect(!e.ok(), "strict parsing refuses a byte order mark");
+        json::parse("\xEF\xBB\xBF{}", &e);
+        expect(e.ok(), "the default still skips a byte order mark");
+        json::parse(R"({"a":1,"a":2})", json::ParseOptions{}, &e);
+        expect(e.ok(), "default options keep today's behaviour");
+    }
     Value big;
     for (int k = 0; k < 2000; ++k)
         big["k" + std::to_string(k)] = k;
