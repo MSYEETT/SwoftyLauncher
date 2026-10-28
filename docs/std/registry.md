@@ -185,14 +185,13 @@ The core owns the registries that describe the game. Their handles live in one h
 swofty/registry.hpp            Registry<T>, Ref<T>, Edit<T>, Select<T>, Tag<T>, LayerHandle<T>, Scope, RegistryOptions,
                                Applies, Status, SWOFTY_RECORD, Keyed<T, &T::key...>, SWOFTY_REGISTER,
                                swofty::option<T>(), file(), stock(), where(), under(), tagged(), adapter(), migrate()
-swofty/systems/cars.hpp        swofty::cars      vehicles, packages, handling, damage_models, parts
+swofty/systems/cars.hpp        swofty::cars      vehicles, packages, handling
 swofty/systems/liveries.hpp    swofty::liveries  liveries
 swofty/systems/teams.hpp       swofty::teams     constructors, identities, logos, pit_times
 swofty/systems/drivers.hpp     swofty::drivers   people, identities, heads, looks, stats
 swofty/systems/wearables.hpp   swofty::wearables helmets, suits, gloves, season_sets
-swofty/systems/sounds.hpp      swofty::sounds    engine_sounds, car_audio
-swofty/systems/career.hpp      swofty::career    modes, contents, seasons, calendars, ratings, rnd_departments, characters,
-                                                 markets, contract_rules, rnd_trees, facilities, economy, sponsors, wizards,
+swofty/systems/sounds.hpp      swofty::sounds    engine_sounds
+swofty/systems/career.hpp      swofty::career    modes, contents, seasons, calendars, ratings, characters, wizards,
                                                  hub_tabs
 swofty/systems/content.hpp     swofty::content   packages (Grand Prix and Time Trial seasons), era_boxes
 swofty/systems/ui.hpp          swofty::ui        strings, addon_options
@@ -202,7 +201,7 @@ swofty/systems/ai.hpp          swofty::ai        the ai.controller.update payloa
 swofty/systems/spectator.hpp   swofty::spectator set_active, follow, set_camera, current
 ```
 
-Forty registries are in the headers. The tracks, tyres, power, session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/) come in later headers; their pages describe the design.
+Thirty registries are in the headers, each with a schema. The core applies most of them. For `career.calendar`, `career.mode` and `vehicle.handling` it stores the records and applies nothing; at boot it logs `[registry] <name>: N record(s); this core applies nothing from it` for any registry that has records and no applier. The market, contract, R&D, facility, economy, sponsor, car audio, damage model and car parts registries, and the tracks, tyres, power, session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/), come in later headers; their pages describe the design.
 
 The system headers sit under `swofty/systems/`, apart from the headers older addons use, such as `swofty/career.hpp`, and their names never clash. A handle's `name()` is the registry name the logs, origins and data files use: `cars::vehicles` is `vehicle`, `career::seasons` is `career.season`. Every system has a page in the [Systems catalogue](/std/systems/).
 

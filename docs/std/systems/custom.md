@@ -434,7 +434,7 @@ SWOFTY_ON_LOAD
 }
 ```
 
-**Five R&D departments (Aero, Chassis & Suspension, Engine, Tyres, Reliability & Gearbox):**
+**Five R&D departments (Aero, Chassis & Suspension, Engine, Tyres, Reliability & Gearbox), as the design shapes them; the R&D registries come in a later header:**
 
 ```cpp
 SWOFTY_REGISTER
@@ -450,7 +450,7 @@ SWOFTY_REGISTER
 }
 ```
 
-The game draws four departments natively. The core draws a fifth and more through its `career.rnd.department` applier, the native layer R&D Tyres built.
+The game draws four departments natively. R&D Tyres draws a fifth in native code; a registry for more departments comes in a later header.
 
 **Two qualifying sessions:** a `sessions::formats` record with a `best_of` grid rule, shown in full on [Sessions and weekends](./sessions#f1-1990-s-weekend). `best_of` is a grid rule the core adds to `session.grid.build`, and every addon that needs it uses the core's. F1 1990 gets a setup mode of its own for this weekend shape. Every Grand Prix and Time Trial box shares `swofty_f1`, and a system whose rules fit that mode's shape sets them per box (see [Rules per box](./sessions#rules-per-box)).
 

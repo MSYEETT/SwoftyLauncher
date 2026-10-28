@@ -1,11 +1,11 @@
 ---
 title: Cars
-description: Cars in code - vehicles, packages, handling, damage models and detachable parts as typed registries, with the car events and operations, protected history values and imported car ports.
+description: Cars in code - vehicles, packages and handling as typed registries, with the car events and operations, protected history values and imported car ports.
 ---
 
 # Cars
 
-Add a car, change how every car handles and breaks, or register parts that come off in a crash. Classic Seasons' 2017 Ferrari, for example, is one `cars::Vehicle` record that starts from the stock 2025 Ferrari and sets its own package, model, livery, engine sound and handling.
+Add a car, change how every car handles, or register parts that come off in a crash. Classic Seasons' 2017 Ferrari, for example, is one `cars::Vehicle` record that starts from the stock 2025 Ferrari and sets its own package, model, livery, engine sound and handling.
 
 A few terms used on this page:
 
@@ -26,8 +26,6 @@ A few terms used on this page:
 namespace swofty::cars {
 
 enum class Class { f1, f1_26, f2, classic, my_team, safety_car };
-enum class Component;                              // a damage.damage_levels row: front_wing, gearbox, engine ... (11)
-enum class Fault;                                  // a repair_times.faults entry: open_drs, closed_drs, front_wing ... (21)
 enum class Attribute;                              // a live car's R&D attribute: engine_power ... (the map is an RE item)
 enum class Department;                             // an R&D department: the one whose data a fit reads
 
@@ -105,30 +103,9 @@ struct Handling {                                  // one VTF, decoded; edits ch
     // F1Assists, Turbo, EnergyRecoverySystem, F1Plank: every section, typed the same way (Car physics and handling)
 };
 
-struct DamageLevel {                               // one damage.damage_levels row
-    float rate = 1.0f;                             // damage_rate_multiplier
-    float minimal, repairable, retirement, terminal;   // the *_damage thresholds
-    bool should_pit;                               // should_pit
-};
-
-struct DamageModel {
-    std::map<Component, DamageLevel> levels;       // front_wing, gearbox, engine ... (11 rows)
-    float puncture_limit;                          // damage.damage_limits
-    std::map<Fault, float> repair_times;           // repair_times.faults: open_drs, closed_drs, front_wing ... (21)
-};
-
-struct Part {
-    std::string node;                              // the model node: "front_wing_endplate_l"
-    float detach_at;                               // the damage at which it comes off
-    bool debris = true;                            // it stays on track as debris
-};
-struct Parts { Ref<Vehicle> vehicle; std::vector<Part> parts; };
-
 inline Registry<Vehicle> vehicles{"vehicle", { .applies = Applies::boot }};
 inline Registry<Package> packages{"vehicle.package", { .applies = Applies::boot }};
-inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::session }};   // applied to each car as it's built, at every session load
-inline Registry<DamageModel> damage_models{"vehicle.damage_model", { .applies = Applies::boot }};
-inline Registry<Parts> parts{"vehicle.parts", { .applies = Applies::read }};
+inline Registry<Handling> handling{"vehicle.handling", { .applies = Applies::session }};   // the 1.6.0 core stores handling records and applies nothing from them
 
 Result reset_upgrades(int car);                                      // undo the last fitted upgrade
 // the cars on track, live: cars::live (Car physics and handling)
@@ -446,69 +423,53 @@ F1 2020 cars                      Applies in  ( ) Everywhere
 
 The rest of the importer's choices are on [The Simplified importer](/std/importer).
 
-## Damage models
+## Parts at run time
+
+`car.parts.register` fires when the game builds a car's front wing. A handler adds the parts that come off in a crash:
+
+```cpp
+events::on<cars::events::PartsRegister>().after([](cars::events::PartsRegister &p, const events::Context &) {
+    if (p.vehicle().id() == "game/mclaren_2026")
+        p.add({ .node = "mirror_l", .detach_at = 0.6f, .debris = false });
+});
+```
+
+```text
+[events] car.parts.register (car 4, game/mclaren_2026): 1 after handler; 1 part added
+```
+
+## Described, in headers that come later
+
+`vehicle.damage_model` and `vehicle.parts` are described here. The 1.6.0 headers have no registry for either:
+
+```cpp
+enum class Component;                              // a damage.damage_levels row: front_wing, gearbox, engine ... (11)
+enum class Fault;                                  // repair_times.faults: open_drs, closed_drs, front_wing ... (21)
+
+struct DamageLevel {                               // one damage.damage_levels row
+    float rate = 1.0f;                             // damage_rate_multiplier
+    float minimal, repairable, retirement, terminal;   // the *_damage thresholds
+    bool should_pit;                               // should_pit
+};
+
+struct DamageModel {
+    std::map<Component, DamageLevel> levels;       // front_wing, gearbox, engine ... (11 rows)
+    float puncture_limit;                          // damage.damage_limits
+    std::map<Fault, float> repair_times;           // repair_times.faults: open_drs, closed_drs, front_wing ... (21)
+};
+
+struct Parts { Ref<Vehicle> vehicle; std::vector<cars::Part> parts; };   // cars::Part is in the header: the node, detach_at, debris
+```
 
 `vehicle.damage_model` holds the damage levels, the puncture limit and the repair times, per car or for every car (`game/default`):
 
 ```cpp
-cars::damage_models.layer(cars::damage_models["game/default"], [](cars::DamageModel &d) {
-    d.levels[cars::Component::front_wing].repairable *= 0.8f;
-    d.repair_times[cars::Fault::front_wing] = 9.5f;
+damage_models.layer(damage_models["game/default"], [](DamageModel &d) {
+    d.levels[Component::front_wing].repairable *= 0.8f;
+    d.repair_times[Fault::front_wing] = 9.5f;
 });
 ```
 
-## Parts at run time
-
-<Split>
-
-Parts Detach registers detachable parts when the game builds a car's front wing. Race Director embeds the same module. Two addons that each wrap `Car_FrontWing_Init` register every part twice.
-
-Both subscribe to `car.parts.register` instead, and `cars::parts` holds the parts per car. The second addon finds them already there.
-
-<template #example>
-<Example root="vmknolle.parts-detach" code-file="native/src/parts.cpp" files="swofty.json, native/CMakeLists.txt">
-<template #code>
-
-```cpp
-#include <swofty/events.hpp>
-#include <swofty/registry.hpp>
-#include <swofty/systems/cars.hpp>
-
-using namespace swofty;
-
-SWOFTY_REGISTER
-{
-    // the same parts for every car
-    cars::parts.provide([](std::string_view id) -> std::optional<cars::Parts> {
-        float endplate = option<float>("endplate_threshold");
-        return cars::Parts{ .vehicle = cars::vehicles[id], .parts = {
-            { .node = "front_wing_endplate_l", .detach_at = endplate },
-            { .node = "front_wing_endplate_r", .detach_at = endplate },
-            { .node = "mirror_l", .detach_at = 0.6f, .debris = false },
-        }};
-    });
-}
-
-SWOFTY_ON_LOAD
-{
-    events::on<cars::events::PartsRegister>().after([](cars::events::PartsRegister &p, const events::Context &) {
-        if (auto parts = cars::parts.get(cars::parts[p.vehicle().id()]))
-            for (const auto &part : parts->parts)
-                p.add(part);
-    });
-}
-
-SWOFTY_ADDON()
-```
-
-</template>
-</Example>
-</template>
-</Split>
-
-```text
-[events] car.parts.register (car 4, game/mclaren_2026): 1 after handler; 3 parts added (vmknolle.parts-detach)
-```
 
 ## Upgrades and handling as a car is built
 
@@ -533,7 +494,8 @@ cars::reset_upgrades(car);                                        // Car_Reset_L
 
 - **Records: ready.** The VTF round trip is proven on 74 of 74 files.
 - **Events and operations: partial.** `car.upgrades.fit` and `reset_upgrades` are L2 (`Car_Fit_UpgradesToRating`, `Car_Reset_LastFittedUpgrade`). The `Car_Read_<Section>` readers, the car build and the reset path are L2; in-game traces confirm when each runs.
-- **Handling applies as each car is built.** The game parses a handling file once, then reads each car's parts from it when the car is built, at every session load, and again when it rebuilds a car. The core applies handling layers at that read, so an option change reaches the next session with no restart.
+- **Handling records are stored, not applied.** The 1.6.0 core keeps `vehicle.handling` records and layers and logs `[registry] vehicle.handling: N record(s); this core applies nothing from it`. The game parses a handling file once, then reads each car's parts from it when the car is built, at every session load, and again when it rebuilds a car; the core that applies layers at that read ships later.
+- **Damage models and parts records** (`vehicle.damage_model`, `vehicle.parts`) are described in the design and have no registry in the 1.6.0 headers.
 - **Live physics values are XOR-obfuscated.** `car.vtf.read` and `cars::live` hand you the value in clear, and the core encodes your writes.
 - **Unknown:** who sets the per-car damage switches (CarLive +0x130), the tyre temperature model, and compound switching.
 - **Setup presets are side data,** found by package folder. The core writes the row with the package. A missing row grounds the AI's setups, and a `_metadata_`-only row crashes session load.
