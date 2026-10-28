@@ -2404,6 +2404,16 @@ pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
     layer: i32,
 );
 pub type Ne_Post_BusMessage_t = unsafe extern "C" fn(bus: *mut c_void, msg: *mut c_void) -> u64;
+pub type Ne_SaveSystem2Win_Mount_t = unsafe extern "C" fn(
+    device: *mut c_void,
+    op: *mut c_void,
+    save: *mut c_void,
+    for_saving: u8,
+    a5: u8,
+    created: *mut u8,
+) -> u32;
+pub type Ne_SaveSystem2Win_Start_t = unsafe extern "C" fn(device: *mut c_void) -> u64;
+pub type Ne_SaveSystem_InitDevice_t = unsafe extern "C" fn(save_system: *mut c_void) -> c_int;
 pub type Ne_StringTable_Lookup_t = unsafe extern "C" fn(table: *mut c_void, hash: u64) -> *const c_char;
 pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
@@ -3149,6 +3159,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_CloudUploader_Upload: Binding = Binding {
+        id: "Ne_CloudUploader_Upload",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Compare_StringNoCase: Binding = Binding {
         id: "Ne_Compare_StringNoCase",
         kind: "func",
@@ -3201,6 +3216,31 @@ pub mod bindings {
     };
     pub const Ne_Post_BusMessage: Binding = Binding {
         id: "Ne_Post_BusMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_Mount: Binding = Binding {
+        id: "Ne_SaveSystem2Win_Mount",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_Start: Binding = Binding {
+        id: "Ne_SaveSystem2Win_Start",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_WriteInfoXml: Binding = Binding {
+        id: "Ne_SaveSystem2Win_WriteInfoXml",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem_BuildSaveInfoList: Binding = Binding {
+        id: "Ne_SaveSystem_BuildSaveInfoList",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem_InitDevice: Binding = Binding {
+        id: "Ne_SaveSystem_InitDevice",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4886,6 +4926,11 @@ pub mod bindings {
     };
     pub const vt_Game_TrackListComponent: Binding = Binding {
         id: "vt_Game_TrackListComponent",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Ne_SaveSystem2Win: Binding = Binding {
+        id: "vt_Ne_SaveSystem2Win",
         kind: "vtable",
         status: Status::Experimental,
     };

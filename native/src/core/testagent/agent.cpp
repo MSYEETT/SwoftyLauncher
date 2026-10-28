@@ -15,13 +15,14 @@
 
 #include "agent_logic.hpp"
 
-// The test agent (docs/design/std-2/test-suite.md, "The agent's commands"). It arms only when the
-// game's environment names a run (SWOFTY_TEST) and its token (SWOFTY_TEST_TOKEN), and the run's
-// mailbox <game>/swofty/test/<run>/session.json holds the same token: only `swofty test` writes
-// those, so normal Play never arms it, never loads a test DLL and never installs its hooks. Once armed,
-// a watcher thread does the file IO (commands.jsonl in, results.jsonl out, loader.log tailed for log
-// waits) and the flow tick runs the commands, one step per frame, on the thread the menus run on.
-// Deleting session.json stops the agent and lets go of the pad.
+// The test agent (docs/design/std-2/test-suite.md, "The test run" and "The agent's commands"). It arms
+// only in a test run: SWOFTY_TEST_RUN names the run folder, SWOFTY_TEST_TOKEN equals the token in its
+// run.json (save_sandbox.cpp reads and checks them once and ends the game when they disagree). Only
+// `swofty test` writes those, so normal Play never arms it, never loads a test DLL and never installs its
+// hooks. Once armed, a watcher thread does the file IO in the run's agent/ folder (commands.jsonl in,
+// results.jsonl out, loader.log tailed for log waits) and the flow tick runs the commands, one step per
+// frame, on the thread the menus run on. Retiring the run (its token gone from run.json) stops the agent
+// and lets go of the pad.
 
 namespace runtime {
 std::string hook_error(const safetyhook::MidHook::Error &e);
@@ -34,7 +35,6 @@ namespace {
 namespace ta = testagent;
 
 constexpr DWORD POLL_MS = 20;
-constexpr uint64_t SESSION_WAIT_MS = 15 * 60 * 1000;
 constexpr size_t LOG_RING = 4096;
 
 std::atomic<bool> armed, stopped, started;
@@ -51,21 +51,6 @@ std::string screen_name, flow_name;
 std::mutex log_lock;
 std::deque<std::string> log_ring;
 uint64_t log_total;
-
-uint64_t wall_ms()
-{
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    uint64_t t = (uint64_t(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
-    return t / 10000 - 11644473600000ull;
-}
-
-std::string env(const char *name)
-{
-    char v[512] = {};
-    DWORD n = GetEnvironmentVariableA(name, v, sizeof v);
-    return n && n < sizeof v ? std::string(v, n) : std::string();
-}
 
 void emit(const std::string &line)
 {
@@ -134,6 +119,9 @@ void make_str(swofty::game::NeStr **s, const char *text)
 }
 
 std::atomic<void *> home_vm{nullptr}, home_vt{nullptr};
+// fe_career's view model (vt_Game_FECareerViewModel 0x1457385b0, L2), seen at the same populate loop.
+constexpr uintptr_t FE_CAREER_VT = 0x57385b0;
+std::atomic<void *> career_vm{nullptr};
 uintptr_t a_fire;
 safetyhook::MidHook h_populate;
 std::string route_why = "not set up";
@@ -169,6 +157,10 @@ void populate_mid(safetyhook::Context &c)
         if (runtime::readable(vt, 11 * sizeof(void *)) &&
             reinterpret_cast<uintptr_t>(vt[10]) == a_home_cmd)
             set_home(v);
+        else if (runtime::same_build() && reinterpret_cast<uintptr_t>(vt) == swofty::api->module_base() + FE_CAREER_VT) {
+            if (career_vm.exchange(v) != v)
+                swofty::log("[test] fe_career view model %p", v);
+        }
         return;
     }
 }
@@ -195,6 +187,123 @@ void routes_setup()
     }
     h_populate = std::move(*h);
     route_why.clear();
+}
+
+// The title screen without input. StateIntro's onStateUpdate (FeFlow_StateIntro_OnUpdate 0x1436da4d0,
+// slot 9 of vt_Sess_Intro 0x14585bff0, L1, no signature: the KB build only) waits until the title's
+// sync point (state+0xcd0, sync_points.boot; Vm_SyncPoint_IsComplete 0x1442626c0) has both bool nodes
+// true: the request node +0x80 and the UI's node +0xa0, which the title's UI sets on a button. Then it
+// sends its own request (kind 0x2e) whose callback (FeFlow_StateIntro_OnEngaged) sets +0xef4, and the
+// next update returns the front-end link. The agent sets the two nodes with Vm_NodeSet_Bool
+// (0x140973e20, (node, &value, 0, 0) as the sync point's own writes do) once the title's view exists
+// ([[state+0xc88]+0x140]+0x198), so the game's own path runs from there.
+constexpr uintptr_t INTRO_UPDATE = 0x36da4d0, INTRO_VTABLE = 0x585bff0, NODESET_BOOL = 0x973e20,
+                    SYNC_COMPLETE = 0x42626c0, BOOL_TYPE = 0x6129dc0, EMPTY_NODE = 0x6ca0e90;
+constexpr size_t INTRO_SYNC = 0xcd0, SYNC_REQUEST = 0x80, SYNC_UI = 0xa0, INTRO_SENT = 0xef3, INTRO_ENGAGED = 0xef4;
+
+using IntroUpdate_t = uint32_t *(void *state, uint32_t *link);
+using NodeSetBool_t = void(void *node, const uint8_t *value, int a3, int a4);
+using SyncComplete_t = bool(void *sync);
+
+safetyhook::InlineHook h_intro;
+std::atomic<void *> intro_state{nullptr};
+std::atomic<bool> title_wanted{false}, title_engaged{false}, title_set{false};
+std::atomic<uint32_t> title_view{0};
+std::string title_why = "not set up", continue_why = "not set up", hq_why = "not set up";
+
+uint8_t *game_at(uintptr_t rva)
+{
+    return reinterpret_cast<uint8_t *>(swofty::api->module_base() + rva);
+}
+
+// A live bool node: not null, not the empty handle, not read-only (+0x26 bit 0), valid (vt+0x20) and
+// holding the bool type (as the sync point's own checks).
+bool bool_node(void *node)
+{
+    void *empty = *reinterpret_cast<void **>(game_at(EMPTY_NODE));
+    if (!node || node == empty || !runtime::readable(node, 0x60) || (static_cast<uint8_t *>(node)[0x26] & 1))
+        return false;
+    auto **vt = *static_cast<void ***>(node);
+    if (!runtime::readable(vt, 0x28) || !reinterpret_cast<bool (*)(void *)>(vt[4])(node))
+        return false;
+    void *holder = static_cast<void **>(node)[0xb];
+    if (!holder || !runtime::readable(holder, 8))
+        return false;
+    auto **hvt = *static_cast<void ***>(holder);
+    void *type = reinterpret_cast<void *(*)(void *)>(hvt[1])(holder);
+    auto *bool_type = game_at(BOOL_TYPE);
+    auto **tvt = *reinterpret_cast<void ***>(type);
+    auto **bvt = *reinterpret_cast<void ***>(bool_type);
+    return reinterpret_cast<int (*)(void *)>(tvt[2])(type) == reinterpret_cast<int (*)(void *)>(bvt[2])(bool_type);
+}
+
+bool node_value(void *node)
+{
+    void *holder = static_cast<void **>(node)[0xb];
+    auto **hvt = *static_cast<void ***>(holder);
+    return *reinterpret_cast<const char *(*)(void *)>(hvt[7])(holder) != 0;
+}
+
+void title_nodes(uint8_t *state)
+{
+    void *view = nullptr;
+    void *a = *reinterpret_cast<void **>(state + 0xc88);
+    if (a && runtime::readable(a, 0x148)) {
+        void *b = *reinterpret_cast<void **>(static_cast<uint8_t *>(a) + 0x140);
+        if (b && runtime::readable(b, 0x1a0))
+            view = *reinterpret_cast<void **>(static_cast<uint8_t *>(b) + 0x198);
+    }
+    title_view = view ? 1 : 2;
+    if (!view)
+        return;
+    uint8_t *sync = state + INTRO_SYNC;
+    const uint8_t one = 1;
+    for (size_t off : {SYNC_REQUEST, SYNC_UI}) {
+        void *node = *reinterpret_cast<void **>(sync + off);
+        if (!bool_node(node) || node_value(node))
+            continue;
+        reinterpret_cast<NodeSetBool_t *>(game_at(NODESET_BOOL))(node, &one, 0, 0);
+        swofty::log("[test] title: set the sync point's %s node (sync_points.boot) to true",
+                    off == SYNC_REQUEST ? "request (+0x80)" : "ui (+0xa0)");
+    }
+    if (!title_set.exchange(true))
+        swofty::log("[test] title: sync point complete -> %d; the title sends its own request next",
+                    int(reinterpret_cast<SyncComplete_t *>(game_at(SYNC_COMPLETE))(sync)));
+}
+
+uint32_t *intro_detour(void *state, uint32_t *link)
+{
+    auto *st = static_cast<uint8_t *>(state);
+    if (intro_state.exchange(state) != state)
+        swofty::log("[test] title: StateIntro %p", state);
+    if (title_wanted.load() && !st[INTRO_ENGAGED])
+        title_nodes(st);
+    uint32_t *r = h_intro.call<uint32_t *>(state, link);
+    if (st[INTRO_ENGAGED] && !title_engaged.exchange(true))
+        swofty::log("[test] title: engaged (StateIntro+0xef4 set by the title's request callback); the front end "
+                    "comes next");
+    return r;
+}
+
+void title_setup()
+{
+    if (!runtime::same_build()) {
+        title_why = "FeFlow_StateIntro_OnUpdate (0x1436da4d0) has no signature and this is not the build the KB "
+                    "describes";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(game_at(INTRO_VTABLE));
+    if (!runtime::readable(vt, 10 * 8) || vt[9] != game_at(INTRO_UPDATE)) {
+        title_why = "vt_Sess_Intro slot 9 is not FeFlow_StateIntro_OnUpdate";
+        return;
+    }
+    auto h = safetyhook::InlineHook::create(game_at(INTRO_UPDATE), reinterpret_cast<void *>(intro_detour));
+    if (!h) {
+        title_why = "the hook on FeFlow_StateIntro_OnUpdate failed";
+        return;
+    }
+    h_intro = std::move(*h);
+    title_why.clear();
 }
 
 // The vehicle controller system, from the game's own calls of Game_Set_VehicleController_Thunk
@@ -553,7 +662,10 @@ struct InGame : ta::Game {
         std::string c = "{\"route\":" + ta::esc(route_why.empty() ? "ok" : route_why) +
                         ",\"pad\":" + ta::esc(pad_why.empty() ? "ok" : pad_why) +
                         ",\"ai_drives_player\":" + ta::esc(controller_why.empty() ? "ok" : controller_why) +
-                        ",\"car\":" + ta::esc(car_unbound().empty() ? "ok" : car_unbound()) + "}";
+                        ",\"car\":" + ta::esc(car_unbound().empty() ? "ok" : car_unbound()) +
+                        ",\"title\":" + ta::esc(title_why.empty() ? "ok" : title_why) +
+                        ",\"resume\":" + ta::esc(continue_why.empty() ? "ok" : continue_why) +
+                        ",\"advance\":" + ta::esc(hq_why.empty() ? "ok" : hq_why) + "}";
         std::string names = "[";
         for (auto &d : dlls)
             for (const char *p = d.names(); p && *p;) {
@@ -564,7 +676,9 @@ struct InGame : ta::Game {
             }
         return ta::Outcome::ok("{\"v\":" + std::to_string(ta::PROTOCOL) + ",\"pid\":" + std::to_string(GetCurrentProcessId()) +
                                ",\"run\":" + ta::esc(session.run) + ",\"ticks\":" + std::to_string(ticks.load()) +
-                               ",\"phase\":" + ta::esc(phase()) + ",\"bindings\":" + c + ",\"tests\":" + names + "]}");
+                               ",\"phase\":" + ta::esc(phase()) + ",\"sandbox\":" +
+                               (runtime::save_sandbox_test_mode() ? (sandboxed() ? "\"armed\"" : "\"required\"") : "\"off\"") +
+                               ",\"bindings\":" + c + ",\"tests\":" + names + "]}");
     }
 
     ta::Outcome route(const std::string &name) override
@@ -609,12 +723,8 @@ struct InGame : ta::Game {
         return ta::Outcome::ok();
     }
 
-    ta::Outcome advance(int) override
-    {
-        return ta::Outcome::unavailable("the Team HQ advance view model is not reachable: Career_TeamHqAdvance_Start "
-                                        "(0x1422bb0f0, L1) takes vm+0x730, and no core hook sees the "
-                                        "TeamHQAdvanceViewModel yet");
-    }
+    ta::Outcome advance(int days) override;
+    ta::Outcome advance_poll() override;
 
     ta::Outcome ai_drives_player(bool on) override
     {
@@ -720,11 +830,8 @@ struct InGame : ta::Game {
         return ta::Outcome::ok("{\"file\":" + ta::esc(capture_file) + "}");
     }
 
-    ta::Outcome save_now() override
-    {
-        return ta::Outcome::unavailable("no save trigger is bound: the SaveProfile request thunk (0x1436595b0) and "
-                                        "Game_TOPLevelUI_TriggerProfileSave (0x140ff7cf0, L1) need RE first");
-    }
+    ta::Outcome save_now() override;
+    ta::Outcome save_poll() override;
 
     static BOOL CALLBACK close_main(HWND h, LPARAM count)
     {
@@ -810,6 +917,37 @@ struct InGame : ta::Game {
         return o;
     }
 
+    ta::Outcome title_press() override
+    {
+        if (!title_why.empty())
+            return ta::Outcome::unavailable(title_why);
+        title_wanted = true;
+        return ta::Outcome::ok();
+    }
+
+    std::string title_state() override
+    {
+        if (title_engaged.load())
+            return "engaged";
+        auto *st = static_cast<uint8_t *>(intro_state.load());
+        if (!st)
+            return "waiting: StateIntro has not updated since the agent armed";
+        if (title_view.load() != 1)
+            return "waiting: the title's view ([[StateIntro+0xc88]+0x140]+0x198) is not up";
+        if (st[INTRO_SENT])
+            return "waiting: the title's request (kind 0x2e) has not called back (StateIntro+0xef3 set, +0xef4 not)";
+        return title_set.load() ? "waiting: the sync point is set and StateIntro has not sent its request"
+                                : "waiting: the sync point's nodes are not set yet";
+    }
+
+    ta::Outcome career_tile(const std::string &mode) override;
+    ta::Outcome resume_press(const std::string &slot) override;
+    ta::Outcome session_start() override;
+
+    bool sandboxed() override { return runtime::save_sandbox_armed(); }
+
+    void note(const std::string &line) override { swofty::log("%s", line.c_str()); }
+
     uint64_t log_lines(uint64_t from, std::vector<std::string> &out) override
     {
         std::lock_guard<std::mutex> g(log_lock);
@@ -821,6 +959,361 @@ struct InGame : ta::Game {
         return log_total;
     }
 };
+
+// Career tiles on fe_career: TileList vm+0x2c8, entries {node, item} 0x10 bytes from +0x78 to +0x80;
+// the career item's vtable is 0x145703eb0 with get_action (FeTile_Route_CareerItem 0x141725620, L2) at
+// slot 5; its kind is the NeStr at item+0x178 (djb2 0x73b00842 driver_career, 0x353c4a02 my_team_career).
+// get_action(item, &action) writes {u32 type, NeStr *route}: type 1 and solo_career_continue_* while the
+// mode has a visible slot, else a route into the new-career wizard. The tile screen fires that route
+// as Vm_Fire_Route(vm->router, vm, &route, 0) on select_pressed, and so does the agent.
+constexpr uintptr_t CAREER_ITEM_VT = 0x5703eb0;
+constexpr uint32_t KIND_DRIVER = 0x73b00842, KIND_MY_TEAM = 0x353c4a02;
+
+std::string nestr_text(const swofty::game::NeStr *s)
+{
+    auto *b = reinterpret_cast<const uint8_t *>(s);
+    if (!b || !runtime::readable(b, 0x10))
+        return {};
+    uint32_t lf;
+    std::memcpy(&lf, b + 6, 4);
+    size_t n = std::min<size_t>(lf & 0xfffff, 96);
+    if (!runtime::readable(b + 9, n))
+        return {};
+    return std::string(reinterpret_cast<const char *>(b + 9), n);
+}
+
+ta::Outcome InGame::career_tile(const std::string &mode)
+{
+    if (!runtime::same_build())
+        return ta::Outcome::unavailable("the career tile's item vtable (0x145703eb0) has no signature and this is not "
+                                        "the build the KB describes");
+    if (!route_why.empty())
+        return ta::Outcome::unavailable(route_why);
+    auto *vm = static_cast<uint8_t *>(career_vm.load());
+    uintptr_t base = swofty::api->module_base();
+    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8) || *reinterpret_cast<uintptr_t *>(vm) != base + FE_CAREER_VT)
+        return ta::Outcome::unavailable("no fe_career view model: the career screen has not built its tiles yet");
+    auto *list = *reinterpret_cast<uint8_t **>(vm + VM_TILE_LIST);
+    if (!list || !runtime::readable(list, 0x90))
+        return ta::Outcome::unavailable("fe_career has no tile list yet");
+    auto *it = *reinterpret_cast<uint8_t **>(list + 0x78), *end = *reinterpret_cast<uint8_t **>(list + 0x80);
+    if (!it || end < it || size_t(end - it) > 0x10 * 64 || !runtime::readable(it, size_t(end - it)))
+        return ta::Outcome::unavailable("fe_career's tile list is not readable");
+    std::vector<std::pair<uint32_t, uint8_t *>> careers;
+    for (; it < end; it += 0x10) {
+        auto *item = *reinterpret_cast<uint8_t **>(it + 8);
+        if (!item || !runtime::readable(item, 0x180) || *reinterpret_cast<uintptr_t *>(item) != base + CAREER_ITEM_VT)
+            continue;
+        auto *kind = *reinterpret_cast<uint8_t **>(item + 0x178);
+        if (!kind || !runtime::readable(kind, 4))
+            continue;
+        careers.emplace_back(*reinterpret_cast<uint32_t *>(kind), item);
+    }
+    if (careers.empty())
+        return ta::Outcome::unavailable("fe_career shows no Driver Career or My Team tile yet");
+    std::vector<uint32_t> order;
+    if (mode == "driver_career")
+        order = {KIND_DRIVER};
+    else if (mode == "my_team_career")
+        order = {KIND_MY_TEAM};
+    else
+        order = {KIND_MY_TEAM, KIND_DRIVER};
+    std::string tried;
+    for (uint32_t want : order)
+        for (auto &[kind, item] : careers) {
+            if (kind != want)
+                continue;
+            struct alignas(8) Action {
+                uint32_t type, pad;
+                swofty::game::NeStr *route;
+                uint64_t rest[2];
+            } a{};
+            auto **vt = *reinterpret_cast<void ***>(item);
+            reinterpret_cast<void *(*)(void *, Action *)>(vt[5])(item, &a);
+            std::string route = nestr_text(a.route);
+            const char *name = want == KIND_DRIVER ? "driver_career" : "my_team_career";
+            if (a.type != 1 || route.rfind("solo_career_continue_", 0) != 0) {
+                tried += std::string(tried.empty() ? "" : "; ") + "the " + name + " tile's action is type " +
+                         std::to_string(a.type) + " route '" + route + "' (no saved career to continue)";
+                if (a.route)
+                    make_str(&a.route, nullptr);
+                continue;
+            }
+            void *router = *reinterpret_cast<void **>(vm + VM_ROUTER);
+            reinterpret_cast<Fire_t *>(a_fire)(router, vm, &a.route, 0);
+            make_str(&a.route, nullptr);
+            swofty::log("[test] career: the %s tile's action fired route %s from fe_career", name, route.c_str());
+            return ta::Outcome::ok("{\"mode\":" + ta::esc(name) + ",\"route\":" + ta::esc(route) + "}");
+        }
+    if (tried.empty())
+        return ta::Outcome::fail("fe_career has no " + (mode.empty() ? std::string("career") : mode) + " tile");
+    return ta::Outcome::fail(tried);
+}
+
+// The resume screens (CareerContinueDriverViewModel vt 0x1457264a0, CareerContinueMyTeamViewModel vt
+// 0x145726670): the agent sees them in Game_CareerContinue_HandleCommand (0x141a1db90, slot 10, L1 with
+// an agree in V1485), which the UI raises transition_in_finished into when the screen opens. Cards are
+// the 0x540-byte entries at vm+0x328 (three), has_save at +0, the slot id at +8. A press is
+// HandleCommand(vm, &"slot_focused", &{type, data = card}) then the same with "slot_pressed"; the
+// handler reads only the data byte at +8. Presses are ignored while vm+0x1380 is set.
+constexpr uintptr_t CONTINUE_HANDLE = 0x1a1db90, CONTINUE_DRIVER_VT = 0x57264a0, CONTINUE_MY_TEAM_VT = 0x5726670;
+constexpr size_t CARDS = 0x328, CARD_SIZE = 0x540, CARD_COUNT = 3, CONTINUE_BUSY = 0x1380;
+
+using ContinueHandle_t = uint64_t(void *vm, swofty::game::NeStr **cmd, void *value);
+safetyhook::InlineHook h_continue;
+std::atomic<void *> continue_vm{nullptr};
+
+uint64_t continue_detour(void *vm, swofty::game::NeStr **cmd, void *value)
+{
+    uintptr_t vt = vm && runtime::readable(vm, 8) ? *static_cast<uintptr_t *>(vm) : 0;
+    uintptr_t base = swofty::api->module_base();
+    if ((vt == base + CONTINUE_DRIVER_VT || vt == base + CONTINUE_MY_TEAM_VT) && continue_vm.exchange(vm) != vm)
+        swofty::log("[test] career: resume screen view model %p (%s)", vm,
+                    vt == base + CONTINUE_DRIVER_VT ? "driver" : "my team");
+    return h_continue.call<uint64_t>(vm, cmd, value);
+}
+
+
+void continue_setup()
+{
+    if (!runtime::same_build()) {
+        continue_why = "Game_CareerContinue_HandleCommand (0x141a1db90) has no signature and this is not the build the "
+                       "KB describes";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(game_at(CONTINUE_DRIVER_VT));
+    if (!runtime::readable(vt, 11 * 8) || vt[10] != game_at(CONTINUE_HANDLE)) {
+        continue_why = "CareerContinueDriverViewModel's slot 10 is not Game_CareerContinue_HandleCommand";
+        return;
+    }
+    auto h = safetyhook::InlineHook::create(game_at(CONTINUE_HANDLE), reinterpret_cast<void *>(continue_detour));
+    if (!h) {
+        continue_why = "the hook on Game_CareerContinue_HandleCommand failed";
+        return;
+    }
+    h_continue = std::move(*h);
+    continue_why.clear();
+}
+
+ta::Outcome InGame::resume_press(const std::string &slot)
+{
+    if (!continue_why.empty())
+        return ta::Outcome::unavailable(continue_why);
+    auto *vm = static_cast<uint8_t *>(continue_vm.load());
+    uintptr_t base = swofty::api->module_base();
+    uintptr_t vt = vm && runtime::readable(vm, CONTINUE_BUSY + 8) ? *reinterpret_cast<uintptr_t *>(vm) : 0;
+    if (vt != base + CONTINUE_DRIVER_VT && vt != base + CONTINUE_MY_TEAM_VT)
+        return ta::Outcome::unavailable("no resume screen view model yet (it is seen when the screen opens)");
+    if (vm[CONTINUE_BUSY])
+        return ta::Outcome::unavailable("the resume screen ignores presses for now (vm+0x1380 is set)");
+    int card = -1;
+    std::string slots;
+    for (size_t i = 0; i < CARD_COUNT; i++) {
+        uint8_t *e = vm + CARDS + i * CARD_SIZE;
+        if (!e[0])
+            continue;
+        uint32_t id;
+        std::memcpy(&id, e + 8, 4);
+        slots += (slots.empty() ? "" : ", ") + std::to_string(id);
+        if (card < 0 && (slot == "newest" || std::to_string(id) == slot))
+            card = int(i);
+    }
+    if (slots.empty())
+        return ta::Outcome::unavailable("the resume screen's cards hold no save yet");
+    if (card < 0)
+        return ta::Outcome::fail("no resume card holds slot " + slot + " (the cards hold " + slots + ")");
+    uint32_t id;
+    std::memcpy(&id, vm + CARDS + size_t(card) * CARD_SIZE + 8, 4);
+    struct alignas(8) Value {
+        uint32_t type, pad;
+        uint64_t data, zero;
+    } v{4, 0, uint64_t(card), 0};
+    for (const char *c : {"slot_focused", "slot_pressed"}) {
+        swofty::game::NeStr *s = nullptr;
+        make_str(&s, c);
+        reinterpret_cast<ContinueHandle_t *>(game_at(CONTINUE_HANDLE))(vm, &s, &v);
+        make_str(&s, nullptr);
+    }
+    swofty::log("[test] career: slot_focused and slot_pressed raised on card %d (slot %u)", card, id);
+    return ta::Outcome::ok("{\"index\":" + std::to_string(card) + ",\"slot\":" + std::to_string(id) + "}");
+}
+
+// Team HQ's advance (TeamHQAdvanceViewModel, vt 0x14577a9c0, L2): Game_TeamHQAdvanceViewModel_Update
+// (0x1422ca380, slot 12, L2) runs every frame with rcx = the view model, so a mid hook at its entry
+// captures it. The agent raises timeline_advance_pressed through its onCommandRaised (0x1422c3540,
+// slot 10, L2) as the Advance button does: PressAdvance checks vm+0x620, canAdvance (+0x758) and
+// advancing (+0x759) and shows today's cards (0x1422c7080) instead when there are any, else runs
+// Career_TeamHqAdvance_Start and the screen's start_advancing. The game advances a day per tick until
+// the next event; for N days the agent raises timeline_stop_pressed once the day (u32
+// [[vm+0x6e0]+0x2b0] >> 5, / 1440) reaches the start + N.
+constexpr uintptr_t HQ_ADVANCE_VT = 0x577a9c0, HQ_ADVANCE_UPDATE = 0x22ca380, HQ_ADVANCE_COMMAND = 0x22c3540;
+constexpr size_t HQ_READY = 0x620, HQ_CAN_ADVANCE = 0x758, HQ_ADVANCING = 0x759, HQ_CLOCK = 0x6e0, HQ_CLOCK_MIN = 0x2b0;
+
+using HqCommand_t = uint64_t(void *vm, swofty::game::NeStr **cmd, void *data);
+safetyhook::MidHook h_hq;
+std::atomic<void *> hq_vm{nullptr};
+struct {
+    bool on = false, stop_sent = false;
+    int from = 0, last = 0, target = 0;
+} adv;
+
+void hq_mid(safetyhook::Context &c)
+{
+    auto *vm = reinterpret_cast<void *>(c.rcx);
+    if (vm && hq_vm.exchange(vm) != vm)
+        swofty::log("[test] Team HQ advance view model %p", vm);
+}
+
+void hq_setup()
+{
+    if (!runtime::same_build()) {
+        hq_why = "Game_TeamHQAdvanceViewModel_Update (0x1422ca380) has no signature and this is not the build the KB "
+                 "describes";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(game_at(HQ_ADVANCE_VT));
+    if (!runtime::readable(vt, 13 * 8) || vt[12] != game_at(HQ_ADVANCE_UPDATE) || vt[10] != game_at(HQ_ADVANCE_COMMAND)) {
+        hq_why = "vt_Game_TeamHQAdvanceViewModel's slots 10 and 12 are not onCommandRaised and update";
+        return;
+    }
+    auto h = safetyhook::MidHook::create(game_at(HQ_ADVANCE_UPDATE), hq_mid);
+    if (!h) {
+        hq_why = "the hook on Game_TeamHQAdvanceViewModel_Update failed: " + runtime::hook_error(h.error());
+        return;
+    }
+    h_hq = std::move(*h);
+    hq_why.clear();
+}
+
+uint8_t *live_hq()
+{
+    auto *vm = static_cast<uint8_t *>(hq_vm.load());
+    return vm && runtime::readable(vm, 0x790) && *reinterpret_cast<uintptr_t *>(vm) == swofty::api->module_base() + HQ_ADVANCE_VT
+               ? vm
+               : nullptr;
+}
+
+int hq_day(uint8_t *vm)
+{
+    auto *clock = *reinterpret_cast<uint8_t **>(vm + HQ_CLOCK);
+    if (!clock || !runtime::readable(clock + HQ_CLOCK_MIN, 4))
+        return -1;
+    return int((*reinterpret_cast<uint32_t *>(clock + HQ_CLOCK_MIN) >> 5) / 1440);
+}
+
+void hq_command(uint8_t *vm, const char *name)
+{
+    struct alignas(8) {
+        uint32_t type, pad;
+        uint64_t a, b;
+    } data{4, 0, 0, 0};
+    swofty::game::NeStr *s = nullptr;
+    make_str(&s, name);
+    reinterpret_cast<HqCommand_t *>(game_at(HQ_ADVANCE_COMMAND))(vm, &s, &data);
+    make_str(&s, nullptr);
+}
+
+ta::Outcome InGame::advance(int days)
+{
+    if (!hq_why.empty())
+        return ta::Outcome::unavailable(hq_why);
+    uint8_t *vm = live_hq();
+    if (!vm)
+        return ta::Outcome::unavailable("no Team HQ advance view model: Team HQ's advance panel has not updated since "
+                                        "the agent armed");
+    if (!*reinterpret_cast<uint64_t *>(vm + HQ_READY))
+        return ta::Outcome::unavailable("Team HQ's advance panel is not ready (vm+0x620 is 0)");
+    if (vm[HQ_ADVANCING])
+        return ta::Outcome::unavailable("Team HQ is already advancing");
+    if (!vm[HQ_CAN_ADVANCE])
+        return ta::Outcome::unavailable("Team HQ can't advance now (canAdvance, vm+0x758, is off)");
+    adv = {};
+    adv.from = adv.last = hq_day(vm);
+    adv.target = days > 0 ? adv.from + days : 0;
+    hq_command(vm, "timeline_advance_pressed");
+    if (!vm[HQ_ADVANCING])
+        return ta::Outcome::unavailable("the Advance press showed today's cards instead of advancing (press again)");
+    adv.on = true;
+    swofty::log("[test] advance: timeline_advance_pressed raised on Team HQ at day %d (%s)", adv.from,
+                days > 0 ? ("for " + std::to_string(days) + " day(s) at most").c_str() : "to the next event");
+    return ta::Outcome::ok("{\"from_day\":" + std::to_string(adv.from) + "}");
+}
+
+ta::Outcome InGame::advance_poll()
+{
+    uint8_t *vm = live_hq();
+    std::string done = "{\"from_day\":" + std::to_string(adv.from) + ",\"to_day\":";
+    if (!vm) {
+        adv.on = false;
+        swofty::log("[test] advance: Team HQ's advance view model went away at day %d (the flow left Team HQ)", adv.last);
+        return ta::Outcome::ok(done + std::to_string(adv.last) + ",\"left_team_hq\":true}");
+    }
+    adv.last = hq_day(vm);
+    if (adv.target && adv.last >= adv.target && vm[HQ_ADVANCING] && !adv.stop_sent) {
+        adv.stop_sent = true;
+        hq_command(vm, "timeline_stop_pressed");
+        swofty::log("[test] advance: day %d reached, timeline_stop_pressed raised", adv.last);
+    }
+    if (vm[HQ_ADVANCING])
+        return ta::Outcome::pending();
+    adv.on = false;
+    swofty::log("[test] advance: stopped at day %d (from %d)", adv.last, adv.from);
+    return ta::Outcome::ok(done + std::to_string(adv.last) + "}");
+}
+
+// Save now: Game_SaveMgr_RequestProfileSave_Thunk (0x1436595b0, L2) with the save manager system, as
+// Team HQ's own autosave after an advance does: (mgr, &{fn 0, ctx 0}, 1, 0). The manager is the system
+// keyed k_Game_SaveMgrSystemKey (0x146100ca8) in g_Game_Manager's system map ([0x14604c2c8]+0x30):
+// idx = 0x14030ffd0(map, &key), a miss returns the entry count; entries are 0x10 bytes from [map+0x18]
+// with the system at +8. The save is done when the sandbox has served a FileWrite.
+constexpr uintptr_t GAME_MANAGER = 0x604c2c8, SYSTEM_FIND = 0x30ffd0, SAVE_MGR_KEY = 0x6100ca8, SAVE_REQUEST = 0x36595b0;
+uint32_t save_writes_before;
+
+ta::Outcome InGame::save_now()
+{
+    if (!runtime::same_build())
+        return ta::Outcome::unavailable("Game_SaveMgr_RequestProfileSave_Thunk (0x1436595b0) has no signature and this is "
+                                        "not the build the KB describes");
+    auto *mgr = *reinterpret_cast<uint8_t **>(game_at(GAME_MANAGER));
+    if (!mgr || !runtime::readable(mgr, 0x38))
+        return ta::Outcome::unavailable("g_Game_Manager is not set yet");
+    auto *map = *reinterpret_cast<uint8_t **>(mgr + 0x30);
+    if (!map || !runtime::readable(map, 0x28))
+        return ta::Outcome::unavailable("the game manager has no system map yet");
+    void *key = game_at(SAVE_MGR_KEY);
+    uint64_t idx = reinterpret_cast<uint64_t (*)(void *, void **)>(game_at(SYSTEM_FIND))(map, &key);
+    auto *first = *reinterpret_cast<uint8_t **>(map + 0x18), *last = *reinterpret_cast<uint8_t **>(map + 0x20);
+    uint64_t count = first && last >= first ? uint64_t(last - first) >> 4 : 0;
+    if (idx >= count || !runtime::readable(first + idx * 0x10, 0x10))
+        return ta::Outcome::unavailable("the save manager system is not registered yet");
+    void *save_mgr = *reinterpret_cast<void **>(first + idx * 0x10 + 8);
+    if (!save_mgr)
+        return ta::Outcome::unavailable("the save manager system is null");
+    struct {
+        void *fn, *ctx;
+    } cb{nullptr, nullptr};
+    save_writes_before = runtime::save_sandbox_writes();
+    bool r = reinterpret_cast<bool (*)(void *, void *, uint8_t, uint8_t)>(game_at(SAVE_REQUEST))(save_mgr, &cb, 1, 0);
+    swofty::log("[test] save now: the profile save requested from the save manager %p -> %d", save_mgr, int(r));
+    return ta::Outcome::ok();
+}
+
+ta::Outcome InGame::save_poll()
+{
+    uint32_t n = runtime::save_sandbox_writes();
+    if (n <= save_writes_before)
+        return ta::Outcome::pending();
+    swofty::log("[test] save now: the sandbox served %u FileWrite(s)", n - save_writes_before);
+    return ta::Outcome::ok("{\"writes\":" + std::to_string(n - save_writes_before) + "}");
+}
+
+ta::Outcome InGame::session_start()
+{
+    return ta::Outcome::unavailable(
+        "the garage's goto_track command (GarageCockpitViewModel 0x145739830, djb2 0xac456bd2, L1) is found but not "
+        "what releases the car after it, nor its confirm popups (time warning, parc ferme, tyre choice); it needs one "
+        "trace of goto_track in a practice session");
+}
 
 InGame *game;
 ta::Runner *runner;
@@ -835,30 +1328,22 @@ void refuse(const std::string &why)
 
 void watch()
 {
-    std::wstring session_path = mbox + L"\\session.json";
-    uint64_t start = GetTickCount64();
-    std::string text;
-    for (;;) {
-        text = runtime::read_file(session_path, 64 << 10);
-        if (!text.empty() || GetTickCount64() - start > SESSION_WAIT_MS)
-            break;
-        Sleep(250);
-    }
-    std::string why = ta::arm_check(session.run, env("SWOFTY_TEST_TOKEN"), text, wall_ms(), &session);
-    if (!why.empty()) {
-        refuse(why);
-        return;
-    }
     routes_setup();
     pad_setup();
     controller_setup();
+    title_setup();
+    continue_setup();
+    hq_setup();
     load_dlls();
     game = new InGame;
     runner = new ta::Runner(*game);
     armed = true;
-    swofty::log("[test] agent armed for run %s: %zu test DLL(s); route %s, pad %s, ai_drives_player %s",
+    swofty::log("[test] agent armed for run %s: %zu test DLL(s); route %s, pad %s, ai_drives_player %s, title %s; save "
+                "sandbox %s",
                 session.run.c_str(), dlls.size(), route_why.empty() ? "ok" : route_why.c_str(),
-                pad_why.empty() ? "ok" : pad_why.c_str(), controller_why.empty() ? "ok" : controller_why.c_str());
+                pad_why.empty() ? "ok" : pad_why.c_str(), controller_why.empty() ? "ok" : controller_why.c_str(),
+                title_why.empty() ? "ok" : title_why.c_str(),
+                runtime::save_sandbox_test_mode() ? "required" : "off (the player's own saves)");
     ta::Outcome h = game->hello();
     std::string hello = h.value;
     hello.insert(1, "\"event\":\"hello\",");
@@ -871,13 +1356,18 @@ void watch()
         std::string skip = tail(log_path, &log_off);
         (void)skip;
     }
+    uint64_t checked = GetTickCount64();
     for (;;) {
-        if (GetFileAttributesW(session_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
-            stopped = true;
-            pad_word = 0;
-            pad_held = false;
-            swofty::log("[test] session.json removed: the agent stops and lets go of the pad");
-            return;
+        if (GetTickCount64() - checked >= 500) {
+            checked = GetTickCount64();
+            if (!runtime::test_run_live()) {
+                stopped = true;
+                pad_word = 0;
+                pad_held = false;
+                title_wanted = false;
+                swofty::log("[test] the run's token is gone from run.json: the agent stops and lets go of the pad");
+                return;
+            }
         }
         cmd_part += tail(commands, &cmd_off);
         for (size_t nl; (nl = cmd_part.find('\n')) != std::string::npos;) {
@@ -924,16 +1414,20 @@ namespace runtime {
 
 void testagent_setup()
 {
-    std::string run = env("SWOFTY_TEST");
-    if (run.empty() || started.exchange(true))
+    const runtime::TestRun *run = runtime::test_run();
+    if (!run || started.exchange(true))
         return;
-    if (!testagent::valid_run(run)) {
-        swofty::log("[test] agent refused: SWOFTY_TEST is not a run name");
+    session.run = run->id;
+    session.token = run->token;
+    session.dlls = run->dlls;
+    mbox = run->dir + L"\\agent";
+    if (run->agent_v != testagent::PROTOCOL) {
+        refuse("run.json asks for test agent protocol " + std::to_string(run->agent_v) + ", this agent speaks " +
+               std::to_string(testagent::PROTOCOL));
         return;
     }
-    session.run = run;
-    mbox = runtime::under_swofty("test\\" + run);
-    swofty::log("[test] SWOFTY_TEST=%s: waiting for the run's session.json to arm the test agent", run.c_str());
+    CreateDirectoryW(mbox.c_str(), nullptr);
+    swofty::log("[test] test run %s: arming the test agent (mailbox %s)", run->id.c_str(), runtime::narrow(mbox).c_str());
     std::thread(watch).detach();
 }
 
@@ -985,8 +1479,19 @@ void testagent_flow(const std::string &name, uint32_t to)
 {
     if (!armed.load() || (to != 1 && to != 2))
         return;
-    std::lock_guard<std::mutex> g(phase_lock);
-    flow_name = name;
+    std::string id = name;
+    for (const char *known : {"StateIntro", "StateFrontend", "StateTeamHQ", "StateSession", "StateLoadSession",
+                              "StateTeamHQToSession", "StateTeamHQTimeAdvance"})
+        if (name == testagent::flow_id(known))
+            id = known;
+    {
+        std::lock_guard<std::mutex> g(phase_lock);
+        flow_name = id;
+    }
+    if (to == 1) {
+        std::lock_guard<std::mutex> g(fire_lock);
+        fired_ids.push_back("flow:" + id);
+    }
 }
 
 void testagent_home_vm(void *vm)
