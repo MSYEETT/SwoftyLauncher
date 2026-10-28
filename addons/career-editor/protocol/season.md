@@ -159,7 +159,9 @@ race-weekend count:
 
 `race_weekends` counts the `RaceWeekend` activities of the busiest driver calendar in the
 ScheduleComponent's record for this season index (`ScheduleSeason.driver_calendars`,
-`DriverCalendar.activities`, `CalendarActivity.activity`, `ActivityDef.type`). `reorder` and `set_round`
+`DriverCalendar.activities`, `CalendarActivity.activity`, `ActivityDef.type`), the count the game's
+own season-length lookup takes (0x141267be0, which the daily tick matches against the contract
+schedule's season lengths). `reorder` and `set_round`
 keep the count. `add_round` and `remove_round` are accepted only when they leave the count at
 `race_weekends` or move it closer (a season edited before this rule); otherwise `round_count`, also when
 `race_weekends` is unreadable.
