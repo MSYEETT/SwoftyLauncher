@@ -58,7 +58,7 @@ For each set and each side, the tool:
 2. runs `swofty --data-dir D addons install ZIP` for every zip, then `--profile compat addons enable ID` for every addon;
 3. runs `swofty --data-dir D --profile compat build --game G`.
 
-Nothing else runs: no `apply`, no `run`. The game folder is read only. The tool takes a stat of every file in it before and after each set, and a change is written into that set's notes (another session's `apply` changes the folder; the stock originals come from the baseline, so the builds still read the same files).
+Nothing else runs: no `apply`, no `run`. The game folder is read only. The tool takes a stat of every file in it before and after each set, and a change is written into that set's notes. A set whose builds differ while the folder changed is built again, up to `--retries` times (default 2), and is an `ERROR` ("inconclusive") when the folder changed during every attempt. Another session's `apply` changes the folder: the stock originals come from the baseline, but a file it adds, such as a Classic Seasons head, turns the same file from `add` into `replace` in the plan.
 
 Every CLI call runs with `SWOFTY_USAGE=0` and the registry, logs and usage URLs pointed at `http://127.0.0.1:9`. The other `SWOFTY_*` variables are cleared, and `--loader-a` and `--loader-b` set `SWOFTY_LOADER_DIR`.
 

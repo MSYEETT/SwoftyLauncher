@@ -121,36 +121,50 @@ def _run_pair(args, a, b, index, item, seed, out, fetched, game):
         free = shutil.disk_usage(out).free
         if free < args.min_free_gb << 30:
             raise runner.ToolError(f"only {free >> 30} GB free under {out}")
-        before = runner.game_state(game)
-        snaps = {}
-        work = Path(out) / "work" / f"s{index:04d}"
-        for side in (a, b):
-            meta = {"set": item["set"], "side": side.name, "cli": str(side.cli), "version": side.version}
-            snaps[side.name] = runner.build_set(
-                side, addons, work / "data", game, seed=seed, cache=args.cache,
-                timeout=args.timeout, pin=not args.no_pin, meta=meta,
-            )
-            _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
-            kept = Path(out) / side.name / work.name
-            if args.keep:
-                shutil.rmtree(kept, ignore_errors=True)
-                kept.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(work, kept)
-            else:
-                shutil.rmtree(work, ignore_errors=True)
-        changed, n = runner.state_changes(before, runner.game_state(game))
-        if n:
+        for attempt in range(args.retries + 1):
+            before = runner.game_state(game)
+            snaps = _build_both(args, a, b, index, item, seed, out, addons, game)
+            changed, n = runner.state_changes(before, runner.game_state(game))
+            result["comparison"] = compare.compare(snaps[a.name], snaps[b.name], allow=set(args.allow or []))
+            result["buildhash"] = {a.name: snaps[a.name]["buildhash"], b.name: snaps[b.name]["buildhash"]}
+            if not n:
+                break
             result["notes"].append(
-                f"the game folder changed during this set ({n} file(s), e.g. {', '.join(changed[:3])}); "
-                "another session may have applied a build"
+                f"the game folder changed during attempt {attempt + 1} ({n} file(s), e.g. {', '.join(changed[:3])}); "
+                "another session may have applied or restored a build"
             )
-        result["comparison"] = compare.compare(snaps[a.name], snaps[b.name], allow=set(args.allow or []))
-        result["buildhash"] = {a.name: snaps[a.name]["buildhash"], b.name: snaps[b.name]["buildhash"]}
+            if result["comparison"]["same"]:
+                break
+        else:
+            raise runner.ToolError(
+                f"inconclusive: the game folder changed during each of {args.retries + 1} attempt(s), "
+                f"and the builds differ ({report.first_difference(result)})"
+            )
     except (runner.ToolError, fetch.FetchError, OSError) as e:
         result["error"] = str(e)
     except Exception as e:
         result["error"] = f"tool bug: {type(e).__name__}: {e}\n{traceback.format_exc()}"
     return result
+
+
+def _build_both(args, a, b, index, item, seed, out, addons, game):
+    snaps = {}
+    work = Path(out) / "work" / f"s{index:04d}"
+    for side in (a, b):
+        meta = {"set": item["set"], "side": side.name, "cli": str(side.cli), "version": side.version}
+        snaps[side.name] = runner.build_set(
+            side, addons, work / "data", game, seed=seed, cache=args.cache,
+            timeout=args.timeout, pin=not args.no_pin, meta=meta,
+        )
+        _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
+        kept = Path(out) / side.name / work.name
+        if args.keep:
+            shutil.rmtree(kept, ignore_errors=True)
+            kept.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(work, kept)
+        else:
+            shutil.rmtree(work, ignore_errors=True)
+    return snaps
 
 
 def _safe(name):
@@ -331,6 +345,8 @@ def parser():
     r.add_argument("--no-per-version", action="store_true", help="skip the one-addon sets")
     r.add_argument("--jobs", type=int, default=2, help="sets built at once (default %(default)s)")
     r.add_argument("--timeout", type=int, default=3600, help="seconds per CLI call (default %(default)s)")
+    r.add_argument("--retries", type=int, default=2,
+                   help="build a set again when the game folder changed during it and the builds differ (default %(default)s)")
     r.add_argument("--keep", action="store_true", help="keep the scratch data dirs")
     r.add_argument("--no-pin", action="store_true", help="do not run the CLIs under taskset and nice")
     r.add_argument("--allow", action="append", choices=compare.CATEGORIES,

@@ -206,6 +206,49 @@ class Gate(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["recompare", str(out), "--allow", "warnings"]), 0)
 
+    def gate(self, root, env_a, extra=()):
+        import hashlib
+        import io
+        from contextlib import redirect_stdout
+
+        from compat.__main__ import main
+
+        (root / "loader").mkdir()
+        (root / "loader/version.dll").write_bytes(b"MZ proxy")
+        (root / "game").mkdir()
+        (root / "game/F1_25.exe").write_bytes(b"MZ")
+        data = addon_zip(root / "src").read_bytes()
+        sha = hashlib.sha256(data).hexdigest()
+        cache = root / "cache"
+        (cache / "downloads/x.addon/1.0.0").mkdir(parents=True)
+        (cache / "downloads/x.addon/1.0.0" / f"{sha}.swoftyaddon").write_bytes(data)
+        (cache / "catalog.json").write_text(json.dumps({"addons": [{"id": "x.addon", "name": "X", "versions": [
+            {"version": "1.0.0", "size": len(data), "sha256": sha, "url": ""}]}]}))
+        (root / "ca").mkdir()
+        (root / "cb").mkdir()
+        args = ["run", "--cli-a", str(fake_cli(root / "ca", env_a)), "--cli-b", str(fake_cli(root / "cb")),
+                "--loader-a", str(root / "loader"), "--loader-b", str(root / "loader"), "--game", str(root / "game"),
+                "--cache", str(cache), "--out", str(root / "out"), "--offline", "--no-r2", "--no-pin",
+                "--baseline-from", str(root / "none"), *extra]
+        with redirect_stdout(io.StringIO()):
+            code = main(args)
+        return code, json.loads((root / "out/report.json").read_text())["results"][0]
+
+    def test_a_set_is_built_again_when_the_game_folder_changes_under_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            code, result = self.gate(root, {"FAKE_TOUCH_GAME_ONCE": str(root / "touched")})
+            self.assertEqual(code, 0)
+            self.assertEqual(result["status"], "pass")
+            self.assertIn("the game folder changed during attempt 1", result["notes"][0])
+
+    def test_a_set_whose_game_folder_keeps_changing_is_inconclusive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            code, result = self.gate(root, {"FAKE_TOUCH_GAME_ONCE": str(root / "touched")}, ["--retries", "0"])
+            self.assertEqual(code, 2)
+            self.assertIn("inconclusive", result["error"])
+
     def test_tool_errors_exit_2(self):
         import io
         from contextlib import redirect_stderr
