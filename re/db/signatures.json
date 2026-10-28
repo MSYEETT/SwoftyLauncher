@@ -34617,7 +34617,7 @@
    "used_by": []
   },
   {
-   "id": "game.controller_set_clear_flags",
+   "id": "session.controller_system_build_sets",
    "section": ".xtls",
    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 78 48 89 CE C6 81 66 03 00 00 01",
    "match": "0x14389bc50",
@@ -34628,7 +34628,7 @@
    "target": "0x14389bc50",
    "kind": "func_start",
    "names": [
-    "Game_ControllerSet_ClearFlags"
+    "Sess_ControllerSystem_BuildSets"
    ],
    "verified": [
     {

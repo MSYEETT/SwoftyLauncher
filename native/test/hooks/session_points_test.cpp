@@ -180,15 +180,6 @@ extern "C" __attribute__((noinline)) void sa_dir_set_active(void *dir, bool on)
     }
 }
 
-extern "C" __attribute__((noinline)) void sa_request_driver(void *dir, uint32_t car)
-{
-    volatile uintptr_t pad = reinterpret_cast<uintptr_t>(dir);
-    for (volatile int i = 0; i < 1; i = i + 1)
-        pad = pad + 0;
-    trail.push_back("game request driver " + std::to_string(car));
-    static_cast<uint8_t *>(dir)[0xd6] = uint8_t(car);
-}
-
 static std::map<std::string, std::string> overwrites;
 static std::vector<std::string> conflicts;
 static bool image_ok = true;
@@ -210,8 +201,6 @@ static uintptr_t resolve(const std::string &b)
         return reinterpret_cast<uintptr_t>(&sa_dir_update);
     if (b == sp::DIRECTOR_SET_ACTIVE.binding)
         return reinterpret_cast<uintptr_t>(&sa_dir_set_active);
-    if (b == sp::REQUEST_DRIVER)
-        return reinterpret_cast<uintptr_t>(&sa_request_driver);
     return 0;
 }
 
@@ -595,11 +584,12 @@ static void test_spectator()
     trail.clear();
     expect(S::op_spectator_set_active(1) == SWOFTY_ASSET_OK && joined() == "game director set_active 1" && director_mem[0xd1] == 1,
            "set_active(true) calls the game's SetActive on the director");
-    expect(S::op_spectator_follow(2) == SWOFTY_ASSET_OK && director_mem[0xd6] == 2, "follow requests the driver");
+    expect(S::op_spectator_follow(2) == SWOFTY_ASSET_OK && director_mem[0xdc] == 2, "follow stores the requested driver");
     expect(S::op_spectator_follow(0xff) == SWOFTY_ASSET_INVALID, "driver 0xff is not a car");
     expect(S::op_spectator_set_camera(1) == SWOFTY_ASSET_OK && at<int32_t>(director_mem, 0xe0) == 1 &&
                S::op_spectator_set_camera(7) == SWOFTY_ASSET_INVALID,
            "set_camera writes the requested camera, 1 or 2 only");
+    director_mem[0xd6] = director_mem[0xdc];
     at<int32_t>(director_mem, 0xd8) = 1;
     expect(S::op_spectator_current(&car, &camera) == SWOFTY_ASSET_OK && car == 2 && camera == 1, "current() reads the current driver and camera");
     director_mem[0xd2] = 1;
