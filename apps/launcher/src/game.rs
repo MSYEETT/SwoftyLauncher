@@ -5,6 +5,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use swofty_core::app_control::{self, Block};
+use swofty_core::busy::Busy;
 use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
@@ -80,6 +81,7 @@ pub struct Probe {
     pub blocked: Option<Blocked>,
     pub blocked_at: Option<f64>,
     pub launch_failed: Option<launch::Failure>,
+    pub busy: Option<Busy>,
 }
 
 pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
@@ -97,11 +99,29 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe
         blocked: Blocked::read(&store.root),
         blocked_at: blocked_at(&store.root),
         launch_failed: launch::Failure::read(&store.root),
+        busy: build_state(store),
         launch_stage: std::fs::read_to_string(store.root.join(steam_client::STAGE_FILE))
             .ok()
             .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty()),
     }
+}
+
+/// The build a Play is running. One whose process ended is rolled back
+/// here, as at launcher start.
+fn build_state(store: &Store) -> Option<Busy> {
+    Busy::read(&store.root)?;
+    let live = Busy::live(&store.root);
+    if live.is_none() {
+        match recover_stale(store) {
+            Ok(lines) => lines.iter().for_each(|l| eprintln!("swofty-launcher: {l}")),
+            Err(e) => eprintln!("swofty-launcher: could not clean up an unfinished build: {e}"),
+        }
+        if let Ok(Some(_lock)) = SessionLock::try_acquire(&store.root) {
+            Busy::clear(&store.root);
+        }
+    }
+    live
 }
 
 pub fn blocked_at(data: &Path) -> Option<f64> {

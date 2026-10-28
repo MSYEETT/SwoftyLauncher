@@ -13,6 +13,7 @@ use gpui_kit::component::slider::SliderState;
 use gpui_kit::component::{Disableable, Icon, Sizable, TitleBar, WindowExt, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::busy::Busy;
 use swofty_core::crash::StartFailure;
 use swofty_core::install::Source;
 use swofty_core::launch;
@@ -93,6 +94,7 @@ pub enum PlayState {
     Elsewhere(Owner),
     Checking,
     Crashed(SessionRecord),
+    Building,
 }
 
 pub struct Shell {
@@ -127,6 +129,8 @@ pub struct Shell {
     pub(crate) blocked_seen: f64,
     pub(crate) launch_failed_seen: f64,
     pub(crate) restoring: bool,
+    pub(crate) build: Option<Busy>,
+    pub(crate) cancelling: bool,
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
@@ -503,6 +507,8 @@ impl Shell {
             blocked_seen,
             launch_failed_seen,
             restoring: false,
+            build: None,
+            cancelling: false,
             sliders: HashMap::new(),
             requests: None,
             console: None,
@@ -668,6 +674,15 @@ impl Shell {
         } else if probe.merged {
             self.reload(cx);
         }
+        if self.cancelling && probe.busy.is_none() && self.build.is_some() {
+            self.cancelling = false;
+            window.push_notification(
+                Notification::info("The game files are back as they were. Press Play to build again.")
+                    .title("Build cancelled"),
+                cx,
+            );
+        }
+        self.build = probe.busy;
         self.processes = probe.processes;
         self.attribute();
         if let Some(launch) = self.launch.as_mut() {
@@ -701,7 +716,8 @@ impl Shell {
                             b.files.len()
                         ),
                         None => failed.unwrap_or_else(|| launch.failure()),
-                    });
+                    })
+                    .filter(|n| !n.contains(swofty_core::busy::CANCELLED));
                 }
                 self.launch = None;
             }
@@ -792,6 +808,9 @@ impl Shell {
     pub(crate) fn play_state(&self) -> PlayState {
         if self.owners.contains(&Owner::Active) {
             return PlayState::Running;
+        }
+        if self.build.is_some() {
+            return PlayState::Building;
         }
         if let Some(launch) = &self.launch {
             return if launch.saw_game {
@@ -1019,6 +1038,36 @@ impl Shell {
         })
         .detach();
         cx.notify();
+    }
+
+    pub(crate) fn cancel_build(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let data = self.store.root.clone();
+        let this = cx.entity().downgrade();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let (data, this) = (data.clone(), this.clone());
+            alert
+                .title("Cancel the build?")
+                .description(
+                    "Swofty stops after the file it is on and puts the game files back. \
+                     Your profile and addons stay as they are, and the next Play builds again.",
+                )
+                .ok_text("Cancel build")
+                .cancel_text("Keep building")
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    match swofty_core::busy::request_cancel(&data) {
+                        Ok(()) => {
+                            this.update(cx, |s, cx| {
+                                s.cancelling = true;
+                                cx.notify();
+                            })
+                            .ok();
+                        }
+                        Err(e) => window.push_notification(Notification::error(e.to_string()), cx),
+                    }
+                    true
+                })
+        });
     }
 
     pub(crate) fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
