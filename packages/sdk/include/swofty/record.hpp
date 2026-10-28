@@ -31,6 +31,53 @@
 // to and from that text. Fields the struct doesn't list are kept in its `extra` member when it has one
 // (json::Value), so a record from a newer minor round-trips unchanged.
 
+#ifndef SWOFTY_GUARDED_ENTRY
+#define SWOFTY_GUARDED_ENTRY 1
+#include <cstring>
+#include <exception>
+#if defined(_WIN32)
+extern "C" __declspec(dllimport) void __stdcall RaiseException(unsigned long code, unsigned long flags, unsigned long count,
+                                                               const unsigned long long *info);
+#endif
+
+// A C++ exception never unwinds out of an addon callback into the core: the core's handler guard
+// (SEH) can't unwind another runtime's C++ frames. Every SDK entry the core calls runs its body here;
+// a throw is caught in the addon's own runtime and, once the catch block has ended, raised again as
+// the SEH exception handler_threw_code, carrying what(), which the core's guard treats like any other
+// fault of that handler.
+namespace swofty::detail {
+
+inline constexpr unsigned long handler_threw_code = 0xE0535746ul;
+
+template <class F> int guarded_entry(F &&body)
+{
+#if defined(_WIN32)
+    static thread_local char what[256];
+    bool threw = false;
+    int r = 0;
+    try {
+        r = body();
+    } catch (const std::exception &e) {
+        threw = true;
+        strncpy(what, e.what() ? e.what() : "", sizeof what - 1);
+        what[sizeof what - 1] = 0;
+    } catch (...) {
+        threw = true;
+        strcpy(what, "an exception that is not a std::exception");
+    }
+    if (threw) {
+        unsigned long long info = reinterpret_cast<unsigned long long>(what);
+        RaiseException(handler_threw_code, 1, 1, &info);
+    }
+    return r;
+#else
+    return body();
+#endif
+}
+
+}
+#endif
+
 namespace swofty {
 
 enum class Result { ok, late, unavailable, invalid, too_small };

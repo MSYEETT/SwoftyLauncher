@@ -29,7 +29,7 @@ constexpr uint32_t N = SWOFTY_POINT_NOTIFY, M = SWOFTY_POINT_MODIFY, C = SWOFTY_
 constexpr const char *SHELL = "swofty_core::hooks::Shell";
 
 inline constexpr Event EVENTS[] = {
-    {"game.boot", N, SHELL, 1, false, Fired::no, nullptr},
+    {"game.boot", N, SHELL, 1, false, Fired::yes, nullptr},
     {"game.ready", N, SHELL, 1, false, Fired::no, nullptr},
     {"flow.state", N, SHELL, 1, true, Fired::yes, SWOFTY_EVENT_FLOW_STATE},
     {"menu.route", C, SHELL, 1, false, Fired::no, nullptr},

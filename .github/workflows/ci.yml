@@ -374,6 +374,8 @@ jobs:
         run: native/test/run_events_test.sh
       - name: Hook points, events and services host test
         run: native/test/run_hooks_test.sh
+      - name: Hook points review test
+        run: native/test/run_w5_review_test.sh
       - name: swofty::json unit test
         run: native/test/run_json_test.sh
       - name: Schema check unit and agreement test
@@ -468,6 +470,10 @@ jobs:
       # A synthetic F1_25.exe carries the signatures; no game files are used.
       - name: Wine test
         run: native/test/run_wine_test.sh
+
+      # The 1.6 handler guard, built as build.sh builds it, against faults and SDK handlers that throw.
+      - name: Handler guard Wine test
+        run: native/test/run_guard_test.sh
 
       # Without work/exe/F1_25.exe it runs the synthetic packed image only.
       - name: Binding resolver Wine test

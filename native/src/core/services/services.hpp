@@ -20,7 +20,12 @@ namespace swofty_core::services {
 
 class Registry {
 public:
-    explicit Registry(std::function<void(const std::string &)> log = {}) : log_(std::move(log)) {}
+    using Invoke = std::function<bool(SwoftyServiceFn, void *, const void *, size_t, uint32_t, std::string *)>;
+
+    explicit Registry(std::function<void(const std::string &)> log = {}, Invoke invoke = {})
+        : log_(std::move(log)), invoke_(std::move(invoke))
+    {
+    }
 
     int publish(const std::string &addon, const std::string &name, uint32_t version, const void *table, size_t size)
     {
@@ -126,6 +131,7 @@ private:
         const void *table;
         size_t size;
         uint32_t version;
+        std::string addon, name;
     };
 
     Entry *find(const std::string &name)
@@ -151,15 +157,23 @@ private:
                 continue;
             }
             w.done = true;
-            calls.push_back({w.fn, w.user, e.table, e.size, e.version});
+            calls.push_back({w.fn, w.user, e.table, e.size, e.version, w.addon, e.name});
         }
         return calls;
     }
 
-    static void run(const std::vector<Call> &calls)
+    void run(const std::vector<Call> &calls)
     {
-        for (auto &c : calls)
-            c.fn(c.user, c.table, c.size, c.version);
+        for (auto &c : calls) {
+            std::string what;
+            if (!invoke_) {
+                c.fn(c.user, c.table, c.size, c.version);
+                continue;
+            }
+            if (!invoke_(c.fn, c.user, c.table, c.size, c.version, &what))
+                log("[services] when callback from " + who(c.addon) + " for " + c.name + " faulted (" + what +
+                    "); the game carries on");
+        }
     }
 
     static std::string who(const std::string &addon) { return addon.empty() ? std::string("the core") : addon; }
@@ -171,6 +185,7 @@ private:
     }
 
     std::function<void(const std::string &)> log_;
+    Invoke invoke_;
     std::mutex lock_;
     std::vector<Entry> entries_;
     std::vector<Waiter> waiters_;

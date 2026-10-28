@@ -492,6 +492,11 @@ private:
 
     static int edit_entry(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
     {
+        return detail::guarded_entry([&] { return edit_body(user, in, out, cap, len); });
+    }
+
+    static int edit_body(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
+    {
         const auto &edit = *static_cast<Edit<T> *>(user);
         T value{};
         if constexpr (std::is_same_v<T, json::Value>)
@@ -504,6 +509,11 @@ private:
 
     static int match_entry(void *user, SwoftyText base)
     {
+        return detail::guarded_entry([&] { return match_body(user, base); });
+    }
+
+    static int match_body(void *user, SwoftyText base)
+    {
         const auto &match = *static_cast<std::function<bool(const T &)> *>(user);
         T value{};
         if constexpr (std::is_same_v<T, json::Value>)
@@ -513,7 +523,12 @@ private:
         return match(value) ? 1 : 0;
     }
 
-    static int provide_entry(void *user, const char *, const char *id, char *out, size_t cap, size_t *len)
+    static int provide_entry(void *user, const char *registry, const char *id, char *out, size_t cap, size_t *len)
+    {
+        return detail::guarded_entry([&] { return provide_body(user, registry, id, out, cap, len); });
+    }
+
+    static int provide_body(void *user, const char *, const char *id, char *out, size_t cap, size_t *len)
     {
         auto *p = static_cast<Provider *>(user);
         std::optional<T> v = p->fn(id ? id : "");
@@ -524,12 +539,24 @@ private:
 
     static void list_entry(void *user, const char *, void (*add)(void *ctx, const char *id), void *ctx)
     {
-        auto *p = static_cast<Provider *>(user);
-        p->list([&](std::string_view id) { add(ctx, std::string(id).c_str()); });
+        detail::guarded_entry([&] {
+            auto *p = static_cast<Provider *>(user);
+            p->list([&](std::string_view id) { add(ctx, std::string(id).c_str()); });
+            return 0;
+        });
     }
 
     static void check_entry(void *user, SwoftyText value, void (*error)(void *ctx, const char *path, const char *msg),
                             void *ctx)
+    {
+        detail::guarded_entry([&] {
+            check_body(user, value, error, ctx);
+            return 0;
+        });
+    }
+
+    static void check_body(void *user, SwoftyText value, void (*error)(void *ctx, const char *path, const char *msg),
+                           void *ctx)
     {
         const auto &fn = *static_cast<std::function<void(const T &, Errors &)> *>(user);
         T v{};
@@ -547,8 +574,11 @@ private:
 
     static void watch_entry(void *user, const char *, const char *id)
     {
-        if (id && *id)
-            (*static_cast<std::function<void(Ref<T>)> *>(user))(Ref<T>(id));
+        detail::guarded_entry([&] {
+            if (id && *id)
+                (*static_cast<std::function<void(Ref<T>)> *>(user))(Ref<T>(id));
+            return 0;
+        });
     }
 
     std::string name_;
@@ -568,6 +598,10 @@ namespace detail {
 template <class A, class B> struct Convert {
     std::function<B(A)> fn;
     static int entry(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
+    {
+        return guarded_entry([&] { return body(user, in, out, cap, len); });
+    }
+    static int body(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
     {
         A a{};
         if (!from_json(std::string_view(in.data, in.size), a))

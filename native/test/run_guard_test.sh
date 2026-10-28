@@ -16,11 +16,12 @@ set -e
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -fms-extensions \
     -I$SDK -c ../src/core/hooks/guard.cpp -o "$OUT/hooks_guard.o" 2>/dev/null
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -fms-extensions \
-    -I$SDK -o "$OUT/guard_test.exe" hooks/guard_test.cpp "$OUT/hooks_guard.o" 2>/dev/null
+    -Wno-missing-designated-field-initializers -I$SDK -o "$OUT/guard_test.exe" hooks/guard_test.cpp "$OUT/hooks_guard.o"
 set +e
 export WINEPREFIX=${WINEPREFIX:-$OUT/prefix} WINEDEBUG=-all
+timeout 300 wineboot -i >/dev/null 2>&1
 status=0
-for c in fine av_plain av_locals throw_plain throw_locals msvc_code sdk_av sdk_throw blamed; do
+for c in fine av_plain av_locals throw_plain throw_locals msvc_code sdk_av sdk_throw sdk_service_throw sdk_blamed blamed; do
     out=$(timeout 60 "${PIN[@]}" wine "$OUT/guard_test.exe" "$c" 2>/dev/null)
     r=$?
     echo "$out"

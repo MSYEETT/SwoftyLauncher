@@ -172,7 +172,7 @@ struct SessionView {
 };
 SWOFTY_RECORD(SessionView, type, session, group, track, weather, laps, setup_mode)
 
-SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, story, f1_world)
+SWOFTY_ENUM(Mode, grand_prix, time_trial, driver_career, my_team, split_screen, story, f1_world, unknown)
 SWOFTY_ENUM(SessionType, practice, qualifying, race, sprint, time_trial)
 
 class Context {
@@ -182,7 +182,7 @@ public:
 
     Mode mode() const
     {
-        Mode m = Mode::grand_prix;
+        Mode m = Mode::unknown;
         std::string s = part("mode");
         from_json(s, m);
         return m;
@@ -316,22 +316,28 @@ public:
 private:
     static int before_entry(void *user, SwoftyHookCall *call)
     {
-        (*static_cast<std::function<void(E &, const Context &)> *>(user))(*static_cast<E *>(call->payload),
-                                                                         Context(call->context));
-        return 0;
+        return swofty::detail::guarded_entry([&] {
+            (*static_cast<std::function<void(E &, const Context &)> *>(user))(*static_cast<E *>(call->payload),
+                                                                             Context(call->context));
+            return 0;
+        });
     }
     static int replace_entry(void *user, SwoftyHookCall *call)
     {
-        return (*static_cast<std::function<bool(E &, const Context &)> *>(user))(*static_cast<E *>(call->payload),
-                                                                                 Context(call->context))
-                   ? 1
-                   : 0;
+        return swofty::detail::guarded_entry([&] {
+            return (*static_cast<std::function<bool(E &, const Context &)> *>(user))(*static_cast<E *>(call->payload),
+                                                                                     Context(call->context))
+                       ? 1
+                       : 0;
+        });
     }
     static int after_entry(void *user, SwoftyHookCall *call)
     {
-        (*static_cast<std::function<void(const E &, const Context &)> *>(user))(*static_cast<const E *>(call->payload),
-                                                                               Context(call->context));
-        return 0;
+        return swofty::detail::guarded_entry([&] {
+            (*static_cast<std::function<void(const E &, const Context &)> *>(user))(
+                *static_cast<const E *>(call->payload), Context(call->context));
+            return 0;
+        });
     }
 
     std::vector<Selector> scope_;
@@ -362,10 +368,12 @@ public:
 private:
     static int entry(void *user, SwoftyHookCall *call)
     {
-        uint32_t size = call->payload ? *static_cast<const uint32_t *>(call->payload) : 0;
-        (*static_cast<std::function<void(std::span<const std::byte>, const Context &)> *>(user))(
-            std::span<const std::byte>(static_cast<const std::byte *>(call->payload), size), Context(call->context));
-        return 0;
+        return swofty::detail::guarded_entry([&] {
+            uint32_t size = call->payload ? *static_cast<const uint32_t *>(call->payload) : 0;
+            (*static_cast<std::function<void(std::span<const std::byte>, const Context &)> *>(user))(
+                std::span<const std::byte>(static_cast<const std::byte *>(call->payload), size), Context(call->context));
+            return 0;
+        });
     }
     std::string point_;
     std::vector<Selector> scope_;

@@ -14,6 +14,8 @@
 std::string settings_addon(const void *from, std::string &dll);
 
 namespace runtime {
+void crash_blame(const char *text);
+size_t addon_load_index(uint64_t module);
 std::string mixin_overwrite_on(const std::string &binding, uintptr_t at);
 std::string mixin_occupying(uintptr_t at);
 }
@@ -70,28 +72,32 @@ std::string module_at(uintptr_t a)
     return runtime::narrow(w) + b;
 }
 
-std::string describe(DWORD code, uintptr_t at)
+std::string describe(DWORD code, uintptr_t at, const char *thrown = "")
 {
-    const char *what = code == EXCEPTION_ACCESS_VIOLATION       ? "access violation"
-                       : code == guard::MSVC_CXX || code == guard::GCC_CXX    ? "C++ exception"
-                       : code == EXCEPTION_ILLEGAL_INSTRUCTION  ? "illegal instruction"
-                       : code == EXCEPTION_INT_DIVIDE_BY_ZERO   ? "integer divide by zero"
-                       : code == EXCEPTION_PRIV_INSTRUCTION     ? "privileged instruction"
-                       : code == EXCEPTION_IN_PAGE_ERROR        ? "in-page error"
-                       : code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED ? "array bounds exceeded"
-                                                                : "exception";
+    if (code == guard::HANDLER_THREW)
+        return std::string("C++ exception") + (thrown && *thrown ? std::string(": ") + thrown : std::string()) +
+               " from " + module_at(at);
+    const char *what = code == EXCEPTION_ACCESS_VIOLATION                  ? "access violation"
+                       : code == guard::MSVC_CXX || code == guard::GCC_CXX ? "C++ exception"
+                       : code == EXCEPTION_ILLEGAL_INSTRUCTION             ? "illegal instruction"
+                       : code == EXCEPTION_INT_DIVIDE_BY_ZERO              ? "integer divide by zero"
+                       : code == EXCEPTION_PRIV_INSTRUCTION                ? "privileged instruction"
+                       : code == EXCEPTION_IN_PAGE_ERROR                   ? "in-page error"
+                       : code == EXCEPTION_ARRAY_BOUNDS_EXCEEDED           ? "array bounds exceeded"
+                                                                           : "exception";
     char b[48];
     snprintf(b, sizeof b, " 0x%08lx", (unsigned long)code);
     return std::string(what) + (what[0] == 'e' ? b : "") + " at " + module_at(at);
 }
 
-void blame(const void *ctx, unsigned long code, uintptr_t at)
+void blame(const void *ctx, unsigned long code, uintptr_t at, const char *thrown)
 {
     auto *b = static_cast<const std::pair<const Handler *, const SwoftyHookCall *> *>(ctx);
-    std::string what = describe(DWORD(code), at);
+    std::string what = describe(DWORD(code), at, thrown);
     std::string addon = b->first->addon.empty() ? std::string("the core") : b->first->addon;
     std::string line = "Crash in " + addon + "'s " + catalogue::phase_name(b->second->phase) + " handler on " +
                        b->second->point;
+    runtime::crash_blame((line + " (" + what + ")").c_str());
     blackbox::note("hooks", line.c_str(), (" (" + what + ")").c_str());
     swofty::log("[hooks] %s: %s; a before or replace handler that faults crashes the game", line.c_str(), what.c_str());
 }
@@ -103,11 +109,11 @@ int guarded(const Handler &h, SwoftyHookCall *c, bool isolate, Fault *f)
         std::pair<const Handler *, const SwoftyHookCall *> b{&h, c};
         return guard::blamed_call(h.fn, h.user, c, blame, &b);
     }
-    guard::Seen seen{0, 0};
+    guard::Seen seen{0, 0, {}};
     int r = guard::isolated_call(h.fn, h.user, c, &seen);
     if (seen.code) {
         f->faulted = true;
-        f->what = describe(DWORD(seen.code), seen.at);
+        f->what = describe(DWORD(seen.code), seen.at, seen.what);
         return 0;
     }
     return r;
@@ -128,6 +134,7 @@ Table &the_table()
             h.probe = perf::probe(h.addon.empty() ? std::string("core") : h.addon,
                                   std::string(catalogue::phase_name(h.phase)) + " handler on " + point);
         };
+        p.load_order = [](const std::string &, uint64_t module) { return uint64_t(runtime::addon_load_index(module)); };
         p.records = [](const Facts &f, std::string_view registry) {
             RecordFn fn;
             {
@@ -256,6 +263,11 @@ const char *mode_of(int64_t m)
 const SwoftyHooks *table()
 {
     return &hooks_table;
+}
+
+std::string describe_fault(unsigned long code, uintptr_t at, const char *what)
+{
+    return describe(DWORD(code), at, what);
 }
 
 Table &core()

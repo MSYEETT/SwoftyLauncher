@@ -58,7 +58,11 @@ static void unknown_mode_is_not_grand_prix()
 
 static void load_order_is_attach_order()
 {
-    Table t;
+    Platform p;
+    p.load_order = [](const std::string &addon, uint64_t) -> uint64_t {
+        return addon == "first.in.load.order" ? 1 : addon == "second.in.load.order" ? 2 : 0;
+    };
+    Table t(std::move(p));
     t.declare("x.notify", SWOFTY_POINT_NOTIFY, 1, true, false);
     calls.clear();
     uint32_t tok = 0;

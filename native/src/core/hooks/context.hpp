@@ -74,7 +74,7 @@ inline std::string part_json(const Facts &f, std::string_view part, const Record
     };
     auto ref = [](const std::string &id) { return id.empty() ? Value() : Value(id); };
     if (part == "mode")
-        return swofty::json::dump(Value(f.mode.empty() ? std::string("grand_prix") : f.mode));
+        return swofty::json::dump(Value(f.mode.empty() ? std::string("unknown") : f.mode));
     if (part == "content")
         return swofty::json::dump(Value::object({{"id", Value(f.content)},
                                                  {"registry", Value(f.content_registry)},
@@ -127,7 +127,7 @@ inline std::string part_json(const Facts &f, std::string_view part, const Record
 
 inline std::string summary(const Facts &f)
 {
-    std::string s = f.mode.empty() ? std::string("menu") : f.mode;
+    std::string s = f.mode.empty() ? std::string("unknown") : f.mode;
     if (!f.content.empty())
         s += ", " + f.content;
     if (f.career && f.career->year)
@@ -318,7 +318,7 @@ private:
         case Op::data_group:
             return f.career && any_of(n.values, f.career->data_group);
         case Op::mode:
-            return any_of(n.values, f.mode.empty() ? std::string("grand_prix") : f.mode);
+            return any_of(n.values, f.mode);
         case Op::session_type:
             return f.session && any_of(n.values, f.session->type);
         case Op::track:

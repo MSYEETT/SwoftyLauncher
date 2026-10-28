@@ -62,13 +62,16 @@ struct Platform {
     std::function<void(const std::string &point, const char *phase, const std::string &addon, const std::string &what)>
         faulted;
     std::function<void(Handler &, const std::string &point)> attached;
+    // An addon's place in load order (1 = first; 0 = unknown, ranked after every known addon in the
+    // order it first attached).
+    std::function<uint64_t(const std::string &addon, uint64_t module)> load_order;
     RecordFn records;
 };
 
 struct Point {
     std::string name;
     uint32_t kind = SWOFTY_POINT_CANCEL;
-    bool event = false, defined = false, core = false, hot = false, after_only = false;
+    bool event = false, defined = false, core = false, hot = false, after_only = false, unfired = false;
     uint32_t payload_version = 0;
     std::string owner;
     Selectors scope;
@@ -89,16 +92,19 @@ public:
     void declare_core()
     {
         for (auto &e : catalogue::EVENTS)
-            declare(e.id, e.kind, e.version, true, e.hot, e.fired == catalogue::Fired::after_only);
+            declare(e.id, e.kind, e.version, true, e.hot, e.fired == catalogue::Fired::after_only,
+                    e.fired == catalogue::Fired::no);
     }
 
-    void declare(const std::string &name, uint32_t kind, uint32_t version, bool event, bool hot, bool after_only = false)
+    void declare(const std::string &name, uint32_t kind, uint32_t version, bool event, bool hot, bool after_only = false,
+                 bool unfired = false)
     {
         std::vector<std::string> refused;
         {
             std::lock_guard<std::mutex> g(lock_);
             Point &p = point(name);
             p.kind = kind, p.payload_version = version, p.event = event, p.hot = hot, p.after_only = after_only;
+            p.unfired = unfired;
             p.defined = p.core = true;
             refused = prune(p);
         }
@@ -182,7 +188,7 @@ public:
             if (p.defined && !catalogue::has_phase(p.kind, phase))
                 return refuse_locked(no_phase(p, phase, addon));
             h->token = ++next_token_;
-            h->order = rank(addon) << 32 | ++next_order_;
+            h->order = rank(addon, module) << 32 | ++next_order_;
             p.handlers.push_back(h);
             tokens_[h->token] = name;
             if (p.game && p.handlers.size() == 1 && armed_ && !p.game->installed())
@@ -194,6 +200,8 @@ public:
                    (h->scope.empty() ? "" : " in " + h->scope.text()) + " -> ok token " + std::to_string(h->token);
             if (!p.defined)
                 line += " (nothing defines " + name + " yet; held until it is)";
+            else if (p.unfired)
+                line += "; the core doesn't fire " + name + " in this version, so live() reports it unavailable";
             else if (p.after_only && phase != SWOFTY_PHASE_AFTER)
                 line += "; the core runs only after handlers on " + name + " in this version";
             else if (p.game && !armed_)
@@ -282,6 +290,8 @@ public:
             *version = p.payload_version;
         if (p.game && !p.game->installed())
             return p.handlers.empty() || armed_ ? SWOFTY_ASSET_UNAVAILABLE : SWOFTY_ASSET_LATE;
+        if (p.unfired)
+            return SWOFTY_ASSET_UNAVAILABLE;
         return SWOFTY_ASSET_OK;
     }
 
@@ -533,12 +543,15 @@ private:
         return *slot;
     }
 
-    uint64_t rank(const std::string &addon)
+    uint64_t rank(const std::string &addon, uint64_t module)
     {
+        uint64_t known = p_.load_order ? p_.load_order(addon, module) : 0;
+        if (known)
+            return known;
         auto it = ranks_.find(addon);
         if (it != ranks_.end())
             return it->second;
-        uint64_t r = ranks_.size() + 1;
+        uint64_t r = (uint64_t(1) << 20) + ranks_.size();
         ranks_[addon] = r;
         return r;
     }
@@ -625,7 +638,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Point>> points_;
     std::unordered_map<uint32_t, std::string> tokens_;
     std::unordered_map<std::string, uint64_t> ranks_;
-    uint32_t next_token_ = 0;
+    uint32_t next_token_ = 0x80000000u;
     uint64_t next_order_ = 0;
     bool armed_ = false;
     std::mutex facts_lock_;
