@@ -65,10 +65,10 @@ static int g_report_year = 0, g_report_index = -1;
 static int report_season(int32_t year, int32_t index)
 {
     g_report_year = year, g_report_index = index;
-    return year == 2099 ? SWOFTY_REFUSED : SWOFTY_ASSET_OK;
+    return year == 2099 ? int(SWOFTY_REFUSED) : int(SWOFTY_ASSET_OK);
 }
 
-static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap};
+static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap, nullptr};
 static const SwoftyCareerOps kOps2 = {2,  available,         driver_stat, set_slots, apply_lineup, set_driver_ratings,
                                       swap, report_season};
 
