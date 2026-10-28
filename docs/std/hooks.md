@@ -59,15 +59,13 @@ struct AddActivity {
     static constexpr const char *point = "career.calendar.add_activity";
     static constexpr uint32_t version = 1;
     static constexpr uint8_t contract_event = 0x0f;
-
-    uint32_t size;           // bytes the core filled; never read past it
-    uint32_t payload_version;
-    void *calendar;          // the driver calendar the activity goes on
-    const void *activity;    // the activity definition
-    uint32_t driver;         // the calendar's driver, stat id << 16
-    uint32_t day;            // before handlers may move it
-    uint8_t type;            // the activity type
-    bool player;             // the calendar belongs to the human player
+    uint32_t size, payload_version;
+    void *calendar;                                // the driver calendar the activity goes on
+    const void *activity;                          // the activity definition
+    uint32_t driver;                               // the calendar's driver, stat id << 16
+    uint32_t day;                                  // before handlers may move it
+    uint8_t type;                                  // the activity type
+    bool player;                                   // the calendar belongs to the human player
 };
 
 } // namespace swofty::career::events

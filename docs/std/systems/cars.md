@@ -160,9 +160,9 @@ struct VtfRead {                                   // the Car_Read_<Section> rea
     const char *upgrade_str;                       // the radUpgrade block being applied, or "" for the base values
     float value;                                   // in clear, before the game obfuscates it
 
-    std::string_view section() const;
-    std::string_view field() const;
-    std::string_view upgrade() const;
+    std::string_view section() const { return swofty::detail::payload_str(section_str); }
+    std::string_view field() const { return swofty::detail::payload_str(field_str); }
+    std::string_view upgrade() const { return swofty::detail::payload_str(upgrade_str); }
 };
 
 struct Built {                                     // a car's parts were read from its handling file: after
@@ -186,7 +186,7 @@ struct ControllersRebuilt {                        // the game built the car's c
     enum Reason : uint32_t { rebuild = 0, resettle = 1 };
     uint32_t size, payload_version;
     live::Car car;
-    uint32_t reason;                               // rebuild: after the sets' build-all
+    uint32_t reason;                               // rebuild: after the sets' build (Sess_ControllerSystem_BuildSets); in-game check T144
 };
 
 struct PartsRegister {                             // Car_FrontWing_Init: after
@@ -199,8 +199,12 @@ struct PartsRegister {                             // Car_FrontWing_Init: after
     int32_t (*add_fn)(void *user, const char *node, float detach_at, bool debris);
     void *user;
 
-    Ref<Vehicle> vehicle() const;
-    Result add(const Part &part) const;            // register one detachable part
+    Ref<Vehicle> vehicle() const { return swofty::detail::payload_ref<Vehicle>(vehicle_id); }
+    Result add(const Part &part) const
+    {
+        return add_fn ? swofty::detail::result(add_fn(user, part.node.c_str(), part.detach_at, part.debris))
+                      : Result::unavailable;
+    }
 };
 
 }

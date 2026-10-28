@@ -9,6 +9,10 @@ With the weather system you change how often it rains at a track, and script a s
 
 A **climate** is a track's weather weights and temperature range. A **forecast** is a script for one session: a list of **slots**, each a kind of weather, how long it lasts and how long the change into it takes.
 
+::: info In 1.6.0
+The weather system has no header in 1.6.0 (`swofty/systems/weather.hpp` ships later). This page describes the design.
+:::
+
 ## The header
 
 <Split>

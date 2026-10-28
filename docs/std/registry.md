@@ -186,23 +186,23 @@ swofty/registry.hpp            Registry<T>, Ref<T>, Edit<T>, Select<T>, Tag<T>, 
                                Applies, Status, SWOFTY_RECORD, Keyed<T, &T::key...>, SWOFTY_REGISTER,
                                swofty::option<T>(), file(), stock(), where(), under(), tagged(), adapter(), migrate()
 swofty/systems/cars.hpp        swofty::cars      vehicles, packages, handling, damage_models, parts
-swofty/systems/liveries.hpp    swofty::liveries  liveries, decal_sets, sponsor_packs, ai_assignments
-swofty/systems/teams.hpp       swofty::teams     identities, logos, pit_times
-swofty/systems/drivers.hpp     swofty::drivers   identities, heads, looks, stats
+swofty/systems/liveries.hpp    swofty::liveries  liveries
+swofty/systems/teams.hpp       swofty::teams     constructors, identities, logos, pit_times
+swofty/systems/drivers.hpp     swofty::drivers   people, identities, heads, looks, stats
 swofty/systems/wearables.hpp   swofty::wearables helmets, suits, gloves, season_sets
 swofty/systems/sounds.hpp      swofty::sounds    engine_sounds, car_audio
-swofty/systems/tracks.hpp      swofty::tracks    tracks, venues, data, per_package, layers, slots, ai_lines
-swofty/systems/tyres.hpp       swofty::tyres     physical, visual, classes, per_event, allocations, wear_scales, rules
-swofty/systems/power.hpp       swofty::power     units, suppliers, drs_rules, component_rules
-swofty/systems/sessions.hpp    swofty::sessions  modes, formats, lengths, points, rules_profiles, safety_car, grids
-swofty/systems/weather.hpp     swofty::weather   climates, forecasts
-swofty/systems/ai.hpp          swofty::ai        vehicle_configs, package_maps, track_packs, general, difficulty
-swofty/systems/career.hpp      swofty::career    contents, modes, seasons, calendars, ratings, markets, contract_rules,
-                                                 rnd_trees, rnd_departments, facilities, economy, sponsors, characters, wizards
+swofty/systems/career.hpp      swofty::career    modes, contents, seasons, calendars, ratings, rnd_departments, characters,
+                                                 markets, contract_rules, rnd_trees, facilities, economy, sponsors, wizards,
+                                                 hub_tabs
 swofty/systems/content.hpp     swofty::content   packages (Grand Prix and Time Trial seasons), era_boxes
-swofty/systems/ui.hpp          swofty::ui        screens, tiles, texture_slices, routes, options, hud_widgets, strings
-swofty/systems/graphics.hpp    swofty::graphics  looks, passes, settings
+swofty/systems/ui.hpp          swofty::ui        strings, addon_options
+swofty/systems/sessions.hpp    swofty::sessions  Rules, set_control (the registries come later)
+swofty/systems/tracks.hpp      swofty::tracks    set_track_fuel, copy_track_fuel, restore_track_fuel (the registries come in 1.6.x)
+swofty/systems/ai.hpp          swofty::ai        the ai.controller.update payload
+swofty/systems/spectator.hpp   swofty::spectator set_active, follow, set_camera, current
 ```
+
+Forty registries are in the headers. The tracks, tyres, power, session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/) come in later headers; their pages describe the design.
 
 The system headers sit under `swofty/systems/`, apart from the headers older addons use, such as `swofty/career.hpp`, and their names never clash. A handle's `name()` is the registry name the logs, origins and data files use: `cars::vehicles` is `vehicle`, `career::seasons` is `career.season`. Every system has a page in the [Systems catalogue](/std/systems/).
 

@@ -9,6 +9,10 @@ With the tyre system you add compounds, give them their own colours and badges, 
 
 A **compound class** is the set of five tyre options a session offers. An **allocation** is how many sets of each option a car gets per session. A **box** is a Grand Prix or Time Trial season tile, or one season of a career.
 
+::: info In 1.6.0
+The tyre system has no header in 1.6.0 (`swofty/systems/tyres.hpp` ships later). This page describes the design. An addon with its own tyre system declares its own registries ([Your own systems](./custom)).
+:::
+
 ## The header
 
 <Split>

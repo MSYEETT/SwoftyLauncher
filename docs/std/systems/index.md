@@ -10,7 +10,7 @@ Each part of the game you can change, such as cars, tracks, drivers or session r
 - its **records**: structs such as `cars::Vehicle`, one item of game data each;
 - its **registries**: typed handles such as `cars::vehicles`, where you add records and change other addons' records;
 - its **events**: points in the game your code can run at;
-- its **operations**: functions that change the running game, such as `tracks::set_data`.
+- its **operations**: functions that change the running game, such as `tracks::set_track_fuel`.
 
 This addon adds a V10 engine sound and puts it on Classic Seasons' 2017 Ferrari:
 
@@ -35,23 +35,34 @@ Every system page has the header, a complete addon modelled on a real one, small
 
 ## The map
 
+Shipped in 1.6.0:
+
 - **[Seasons and GP/TT content](/std/content)** `swofty/systems/content.hpp`: `content::packages`, `era_boxes`.
 - **[Cars](./cars)** `swofty/systems/cars.hpp`: `cars::vehicles`, `packages`, `handling`, `damage_models`, `parts`.
-- **[Liveries](./liveries)** `swofty/systems/liveries.hpp`: `liveries::liveries`, `decal_sets`, `sponsor_packs`, `ai_assignments`.
-- **[Teams](./teams)** `swofty/systems/teams.hpp`: `teams::identities`, `constructors`, `logos`, `pit_times`.
-- **[Drivers](./drivers)** `swofty/systems/drivers.hpp`: `drivers::identities`, `people`, `heads`, `looks`, `stats`.
+- **[Liveries](./liveries)** `swofty/systems/liveries.hpp`: `liveries::liveries`.
+- **[Teams](./teams)** `swofty/systems/teams.hpp`: `teams::constructors`, `identities`, `logos`, `pit_times`.
+- **[Drivers](./drivers)** `swofty/systems/drivers.hpp`: `drivers::people`, `identities`, `heads`, `looks`, `stats`.
 - **[Helmets, suits and gloves](./wearables)** `swofty/systems/wearables.hpp`: `wearables::helmets`, `suits`, `gloves`, `season_sets`.
 - **[Sounds](./sounds)** `swofty/systems/sounds.hpp`: `sounds::engine_sounds`, `car_audio`.
-- **[Tracks](./tracks)** `swofty/systems/tracks.hpp`: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines`.
-- **[Tyres](./tyres)** `swofty/systems/tyres.hpp`: `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
-- **[Power units, ERS and DRS](./power-units)** `swofty/systems/power.hpp`: `power::units`, `suppliers`, `drs_rules`, `component_rules`.
-- **[Sessions and weekends](./sessions)** `swofty/systems/sessions.hpp`: `sessions::modes`, `formats`, `lengths`, `points`, `rules_profiles`, `safety_car`, `grids`.
-- **[Weather](./weather)** `swofty/systems/weather.hpp`: `weather::climates`, `forecasts`.
-- **[AI](./ai)** `swofty/systems/ai.hpp`: `ai::vehicle_configs`, `package_maps`, `track_packs`, `general`, `difficulty`.
-- **[Career](./career)** `swofty/systems/career.hpp`: `career::contents`, `modes`, `seasons`, `calendars`, `ratings`, `markets`, `contract_rules`, `rnd_trees`, `rnd_departments`, `facilities`, `economy`, `sponsors`, `characters`, `wizards`.
-- **[UI and strings](./ui)** `swofty/systems/ui.hpp`: `ui::screens`, `tiles`, `texture_slices`, `routes`, `options`, `hud_widgets`, `strings`.
-- **[Graphics, replays and telemetry](./graphics)** `swofty/systems/graphics.hpp`: `graphics::looks`, `passes`, `settings`.
+- **[Career](./career)** `swofty/systems/career.hpp`: `career::modes`, `contents`, `seasons`, `calendars`, `ratings`, `rnd_departments`, `characters`, `markets`, `contract_rules`, `rnd_trees`, `facilities`, `economy`, `sponsors`, `wizards`, `hub_tabs`.
+- **[UI and strings](./ui)** `swofty/systems/ui.hpp`: `ui::strings`, `addon_options`.
+- **[Sessions](./sessions)** `swofty/systems/sessions.hpp`: `sessions::Rules`, `set_control`.
+- **[Tracks](./tracks)** `swofty/systems/tracks.hpp`: `tracks::set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`.
+- **[AI](./ai)** `swofty/systems/ai.hpp`: the `ai.controller.update` payload.
+- **[The spectator camera](./graphics#the-spectator-camera)** `swofty/systems/spectator.hpp`: `spectator::set_active`, `follow`, `set_camera`, `current`.
 - **[Your own systems](./custom)**: an addon's own registries, scope, projection, scoped hooks and service.
+
+Described on their pages, in headers that come later:
+
+- **[Tracks](./tracks)**: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines` (1.6.x).
+- **[Tyres](./tyres)** `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
+- **[Power units, ERS and DRS](./power-units)** `power::units`, `suppliers`, `drs_rules`, `component_rules`.
+- **[Sessions and weekends](./sessions)** `sessions::modes`, `formats`, `lengths`, `points`, `rules_profiles`, `safety_car`, `grids`.
+- **[Weather](./weather)** `weather::climates`, `forecasts`.
+- **[AI](./ai)** `ai::vehicle_configs`, `package_maps`, `track_packs`, `general`, `difficulty`.
+- **[Liveries](./liveries)** `liveries::decal_sets`, `sponsor_packs`, `ai_assignments`.
+- **[UI](./ui)** `ui::screens`, `tiles`, `texture_slices`, `routes`, `options`, `hud_widgets`.
+- **[Graphics, replays and telemetry](./graphics)** `graphics::looks`, `passes`, `settings`.
 
 ## When a registry applies
 

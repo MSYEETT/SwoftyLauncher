@@ -161,7 +161,29 @@ game
    └─ session.unload               notify
 ```
 
-The session events with typed payloads are in `swofty/systems/sessions.hpp`: `sessions::events::StateEnter` is `session.state.enter`, `SafetyCarDeploy` is `session.safety_car.deploy`, `ResultsFinalise` is `session.results.finalise` and `PitStop` is `session.pit_stop` (see [Sessions](/std/systems/sessions#events-and-operations)). Addons made for 1.5 and earlier subscribe to some of these moments by shorter names, which still work: see [Compatibility](/std/compatibility#events).
+The headers of 1.6.0 define typed payloads for these points:
+
+```text
+career.season.start              swofty/systems/career.hpp   career::events::SeasonStart
+career.calendar.add_activity     swofty/systems/career.hpp   career::events::AddActivity
+career.contract.decide           swofty/systems/career.hpp   career::events::ContractDecide
+career.contract.sign             swofty/systems/career.hpp   career::events::ContractSign
+career.standings.rebuild         swofty/systems/career.hpp   career::events::StandingsRebuild
+session.fuel.load                swofty/systems/tracks.hpp   tracks::events::FuelLoad
+session.player.control           swofty/systems/sessions.hpp sessions::events::PlayerControl
+ai.controller.update             swofty/systems/ai.hpp       ai::events::ControllerUpdate
+hud.spectator.visible            swofty/systems/spectator.hpp spectator::events::HudVisible
+car.built / car.reset / car.vtf.read / car.parts.register / car.upgrades.fit / car.controllers.rebuilt
+                                 swofty/systems/cars.hpp     cars::events
+audio.bundle.resolve             swofty/systems/sounds.hpp   sounds::events::BundleResolve
+driver.ratings.read / driver.number.assign / driver.head.resolve
+                                 swofty/systems/drivers.hpp  drivers::events
+team.logo.resolve / team.name.resolve
+                                 swofty/systems/teams.hpp    teams::events
+wearable.catalogue.build         swofty/systems/wearables.hpp wearables::events::CatalogueBuild
+```
+
+`ai.controller.update` and `car.controllers.rebuilt` need the in-game checks T145 and T144. The other points in the tree (`session.state.enter`, `session.weather.setup`, `session.safety_car.deploy`, `session.pit_stop`, `session.results.finalise`, `career.season.process` and the rest of the session group) are the design for later headers; addons made for 1.5 and earlier subscribe to some of these moments by shorter names, which still work: see [Compatibility](/std/compatibility#events).
 
 **Every start has one end.** The core keeps a lifecycle stack. If the player quits from the pause menu, the core fires the missing ends itself, with `reason = abandoned`:
 
@@ -255,7 +277,7 @@ The owner's `replace` runs first in its own content, so it decides how the game 
 // Classic Seasons 2017: races in the 2017 package start on 2017 fuel loads
 on<tracks::events::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
     .replace([](tracks::events::FuelLoad &f, const Context &) {
-        f.kg = cs::fuel_2017(f.track);
+        f.kg = cs::fuel_2017(f.track());
         return true;
     });
 ```

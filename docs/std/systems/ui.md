@@ -9,6 +9,10 @@ With the UI system you change what the player sees in the menus and on the HUD: 
 
 A **texture array** is one of the game's image sheets, made of named **slices**. A **route** is the game's link from a press to the screen it opens. A **view model** is the data a screen binds to, by path.
 
+::: info In 1.6.0
+The header `swofty/systems/ui.hpp` has `ui::strings` (`lang.string`) and `ui::addon_options` (`addon.option`). Screens, tiles, texture slices, routes, options and HUD widgets ship later; those sections describe that design.
+:::
+
 ## The header
 
 <Split>

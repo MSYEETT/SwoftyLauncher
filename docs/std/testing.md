@@ -120,6 +120,53 @@ In a `benchmark` race the AI drives every car, including the player's. For a tes
 { "perf": { "p99_ms": { "max": 40 } } }
 ```
 
+## The test file
+
+A file named `*.test.json` in the addon's `tests/` folder holds one suite. Every key is checked when the file is read, and an unknown key is an error naming it.
+
+```json
+{
+  "schema": 1,
+  "suite": "swofty.rnd-tyres-thermal",
+  "defaults": {
+    "timeout_s": 300,
+    "addons": ["swofty.rnd-tyres-thermal", "swofty.core"],
+    "settings": { "swofty.rnd-tyres-thermal": { "thermal_model": true } }
+  },
+  "tests": [
+    {
+      "id": "thermal_off_by_default",
+      "tags": ["smoke"],
+      "fresh": true,
+      "env": { "kind": "boot" },
+      "settings": { "swofty.rnd-tyres-thermal": { "thermal_model": false } },
+      "timeout_s": 60,
+      "steps": [{ "wait": { "log": "\\[rnd-tyres\\] thermal model off" }, "timeout_s": 30 }],
+      "assert": [{ "no_crash": true }]
+    }
+  ]
+}
+```
+
+- **`defaults`:** `timeout_s`, `addons` and `settings` for every test in the file. A test's own `settings` add to them.
+- **`addons`:** the addons the test's profile switches on. The default is the addon whose folder holds the file.
+- **`settings`:** addon settings (`addon.option` values) set for the test's profile.
+- **`fresh`:** the test gets its own game start instead of sharing one with tests of the same environment.
+- **`fn`:** the name of a `SWOFTY_TEST` function in the addon's test DLL, in place of `steps` and `assert`.
+
+The environments take these keys:
+
+```json
+{ "kind": "none" }
+{ "kind": "boot" }
+{ "kind": "benchmark", "track": "bahrain", "laps": 3, "cars": 10, "weather": "dry", "box": "...", "grid_pos": 1, "camera": "...", "driver": "..." }
+{ "kind": "route", "routes": ["career", "team_hq"] }
+{ "kind": "career", "fixture": "fixtures/my-team-r3", "at": "team_hq", "slot": 1 }
+{ "kind": "grand_prix", "box": "...", "track": "...", "car": "...", "team": "...", "session": "...", "weather": "..." }
+```
+
+`none` starts the game and is ready at the loader's attached line, before any menu. `boot` and `route` are ready at the main menu. `benchmark` needs `track`, `route` needs `routes`, `career` needs `fixture`.
+
 ## Tests in code
 
 A test can also be a C++ function in a test DLL your addon ships next to the test file. It runs inside the game, a step at a time, without blocking it.
@@ -172,6 +219,13 @@ Outside the shell, `swofty test fixture capture <name>` captures the last test r
 `career load`, `advance` and `save now` work only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused.
 
 Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud: if the launcher can't make sure of that for your game's build, the test doesn't start.
+
+## What runs today
+
+- **Runs:** `none`, `boot`, `benchmark`, `route` (routes from the home screen) and `career` (to `team_hq` and `weekend_hub`, on the Steam build where the core's bindings for the exe resolve).
+- **Planned, not runnable:** `grand_prix` and `time_trial` environments. `swofty test plan` lists them as "needs session setup inside the game's screens". A `career` environment with `"at": "session"` answers `unavailable`.
+- **Needs an in-game run:** the title pass (`title`) and the virtual pad. If the agent can't pass the title, the CLI presses the pad.
+- **Steps and checks the launcher reads itself** (`wait`, and the `log`, `event`, `no_crash` and `perf` checks) work from the session's `loader.log`. Steps that read or write the running game (`read`, `sample`, `set`, `pad`, `capture`, and the `value` and `series` checks) go through the test agent in the game.
 
 ## Running tests
 
