@@ -297,7 +297,33 @@ Totals Scheduler::run_boot()
         log("[registry] applied at boot: " + line);
         boot_summary_.clear();
     }
+    log_unapplied();
     return t;
+}
+
+void Scheduler::log_unapplied()
+{
+    static const char *const READ_BY_CORE[] = {
+        "addon.option",   "career.character", "career.content",       "career.driver_ratings", "career.season",
+        "career.wizard",  "content.package",  "driver.head",          "driver.identity",       "driver.look",
+        "driver.person",  "driver.stats",     "engine_sound",         "era.box",               "gloves",
+        "helmet",         "hub.tab",          "lang.string",          "livery",                "suit",
+        "team.constructor", "team.identity",  "team.logo",            "team.pit_times",        "vehicle",
+        "vehicle.package", "wearable.season_set"};
+    std::vector<std::string> names = store_.registries();
+    std::sort(names.begin(), names.end());
+    for (auto &name : names) {
+        bool handled = false;
+        for (Applier *a : appliers())
+            handled = handled || name == a->registry();
+        for (const char *known : READ_BY_CORE)
+            handled = handled || name == known;
+        if (handled)
+            continue;
+        std::size_t records = store_.list(name, "").size();
+        if (records)
+            log("[registry] " + name + ": " + std::to_string(records) + " record(s); this core applies nothing from it");
+    }
 }
 
 std::vector<std::string> Scheduler::chain_of(const std::string &registry, const std::string &id)

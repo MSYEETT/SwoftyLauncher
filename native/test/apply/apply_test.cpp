@@ -235,6 +235,12 @@ void test_scheduler()
     declare(st, "t.session", reg::Applies::session);
     declare(st, "t.read", reg::Applies::read);
     declare(st, "content.package", reg::Applies::content);
+    declare(st, "t.stored", reg::Applies::boot);
+    declare(st, "t.empty", reg::Applies::boot);
+    declare(st, "career.season", reg::Applies::read);
+    st.add_base("t.stored", "one", Value::object({{"n", Value(1)}}));
+    st.add_base("t.stored", "two", Value::object({{"n", Value(2)}}));
+    st.add_base("career.season", "y2017", Value::object({{"year", Value(2017)}}));
     st.add_base("t.content", "pkg", Value::object({{"n", Value(0)}}));
     std::string id;
     st.add("mod.a", "content.package", "f1_2017",
@@ -295,6 +301,15 @@ void test_scheduler()
     check(logged("[apply] boot: 2 applier(s); 2 applied"), "the boot moment logs a summary");
     check(logged("[registry] applied at boot: t.boot1 1, t.boot2 1 (1 test row)"),
           "the boot moment logs one [registry] line with each registry's count and summary");
+
+    check(logged("[registry] t.stored: 2 record(s); this core applies nothing from it"),
+          "a registry with records and no applier is logged once at boot");
+    int stored_lines = 0;
+    for (auto &l : logs)
+        stored_lines += l.find("[registry] t.stored:") != std::string::npos;
+    check(stored_lines == 1, "the line is logged once however often boot runs: " + std::to_string(stored_lines));
+    check(!logged("[registry] t.empty:") && !logged("[registry] career.season:") && !logged("[registry] t.boot1:"),
+          "no line for a registry without records, one the core reads, or one with an applier");
 
     calls.clear();
     logs.clear();
