@@ -66,6 +66,8 @@ struct Platform {
     // order it first attached).
     std::function<uint64_t(const std::string &addon, uint64_t module)> load_order;
     RecordFn records;
+    // Every event fire, before delivery (the test agent's waits).
+    std::function<void(const std::string &event, bool hot)> fired;
 };
 
 struct Point {
@@ -325,6 +327,8 @@ public:
             if (a == &p)
                 return refuse("[hooks] fire " + name + " refused: a handler fired the point it runs on");
         auto snap = facts ? std::move(facts) : current();
+        if (p.event && p_.fired)
+            p_.fired(name, p.hot);
         const char *tag = p.event ? "[events]" : "[hooks]";
         if (!p.scope.empty() && !p.scope.match(*snap)) {
             log(std::string(tag) + " " + name + " fired outside its scope (" + where(*snap) + "); not delivered");

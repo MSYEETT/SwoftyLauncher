@@ -168,6 +168,15 @@ bool netplay_popup(const char *id, void *fn, void *ctx);
 void netplay_home_vm(void *vm);
 void netplay_tick();
 void net_trace_setup();
+// The test agent (native/src/core/testagent/agent.cpp): armed only by `swofty test`'s run token.
+void testagent_setup();
+void testagent_tick();
+void testagent_fired(const std::string &id, bool hot);
+void testagent_screen(const char *name);
+void testagent_flow(const std::string &name, uint32_t to);
+void testagent_home_vm(void *vm);
+bool frame_capture_request(const std::wstring &path);
+int frame_capture_poll(std::string *why);
 int group_add(const json::Value &entry);
 int db_add(const json::Value &entry);
 void db_older_edits(const std::function<void(uint64_t key, int tag, const std::string &text)> &fn);

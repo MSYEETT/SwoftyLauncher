@@ -1,7 +1,8 @@
-//! `swofty test`: test files, plans, the game lock, checks and reports. The
-//! CLI drives the game; everything here works on files and text, so it is
-//! tested without one.
+//! `swofty test`: test files, plans, the game lock, the test agent's mailbox,
+//! checks and reports. The CLI drives the game; everything here works on
+//! files and text, so it is tested without one.
 
+pub mod agent;
 pub mod bench;
 pub mod checks;
 pub mod lock;

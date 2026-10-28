@@ -1,14 +1,19 @@
 //! `swofty test`: plan and run addon tests. A run takes the game lock,
 //! builds a throwaway profile per batch, starts the game through
 //! `swofty run --apply --direct`, waits for the environment, runs the steps
-//! it can, checks the session's logs and writes the reports.
+//! through the in-game test agent's mailbox, checks the results and the
+//! session's logs and writes the reports. `swofty test shell` starts the
+//! game in test mode and sends the agent the commands a person types.
 
+use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
+use serde_json::{Value, json};
 use swofty_core::builtin::CORE_ID;
 use swofty_core::install::Game;
 use swofty_core::journal::Journal;
@@ -16,12 +21,13 @@ use swofty_core::process::{descends_from, game_processes, games_in, stop_process
 use swofty_core::recovery::SessionLock;
 use swofty_core::session::{LOADER_LOG, LogMark, SessionRecord, request_stop};
 use swofty_core::store::Store;
+use swofty_core::testsuite::agent::{self, Client, Mailbox, Outcome, Session};
 use swofty_core::testsuite::bench;
 use swofty_core::testsuite::checks::{self, Evidence, Failure};
 use swofty_core::testsuite::lock::{self, GameLock};
 use swofty_core::testsuite::plan::{self, Batch, Plan};
 use swofty_core::testsuite::report::{self, BatchReport, Report, Status, StepReport, TestReport, exit};
-use swofty_core::testsuite::suite::{self, Kind, Selector, Suite, Test};
+use swofty_core::testsuite::suite::{self, Env, Kind, Selector, Suite, Test};
 
 use crate::time::{now_secs, stamp};
 
@@ -35,6 +41,41 @@ pub enum TestCommand {
         about = "Start F1 25 in each test's environment, run its steps, check what happened and write the report"
     )]
     Run(RunArgs),
+    #[command(
+        about = "Start F1 25 in test mode and send the test agent the commands you type (route, read, wait, pad, capture, quit...)"
+    )]
+    Shell(ShellArgs),
+}
+
+#[derive(Args)]
+pub struct ShellArgs {
+    #[arg(
+        long = "addon",
+        value_name = "ID",
+        help = "An installed addon to switch on in the shell's profile (repeatable)"
+    )]
+    addons: Vec<String>,
+    #[arg(
+        long,
+        help = "Close a running F1 25 first, by its exact process id, and wait for its game files to be put back"
+    )]
+    take_over: bool,
+    #[arg(
+        long,
+        value_name = "TIME",
+        default_value = "30m",
+        value_parser = parse_wait,
+        help = "How long to wait for the game to be free: 0, 90s, 30m, 2h"
+    )]
+    wait: Duration,
+    #[arg(long, help = crate::GAME_HELP)]
+    game: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "The machine's game lock folder (as for swofty test run)"
+    )]
+    lock: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -123,6 +164,7 @@ pub fn command(store: &Store, cmd: TestCommand) -> Result<ExitCode> {
     match cmd {
         TestCommand::Plan(a) => plan_command(&a),
         TestCommand::Run(a) => run_command(store, a),
+        TestCommand::Shell(a) => shell_command(store, a),
     }
 }
 
@@ -271,6 +313,7 @@ fn run_with_game(
         game: &g.dir,
         out,
         profile: &profile,
+        run: run_id,
         launcher: &mut launcher,
         times: Times::default(),
     };
@@ -460,7 +503,13 @@ fn hh_mm() -> String {
 
 /// What starts the game for a batch: `swofty run`, or a stand-in in tests.
 pub(crate) trait Launcher {
-    fn launch(&mut self, profile: &str, game_args: &[String], dir: &Path) -> Result<Box<dyn Running>>;
+    fn launch(
+        &mut self,
+        profile: &str,
+        game_args: &[String],
+        env: &[(String, String)],
+        dir: &Path,
+    ) -> Result<Box<dyn Running>>;
 }
 
 /// A started batch.
@@ -481,7 +530,13 @@ struct SwoftyRun {
 }
 
 impl Launcher for SwoftyRun {
-    fn launch(&mut self, profile: &str, game_args: &[String], dir: &Path) -> Result<Box<dyn Running>> {
+    fn launch(
+        &mut self,
+        profile: &str,
+        game_args: &[String],
+        env: &[(String, String)],
+        dir: &Path,
+    ) -> Result<Box<dyn Running>> {
         let log = std::fs::File::create(dir.join("launcher.log"))?;
         let mut c = Command::new(std::env::current_exe()?);
         c.arg("--data-dir")
@@ -498,6 +553,7 @@ impl Launcher for SwoftyRun {
             c.arg(format!("--game-arg={a}"));
         }
         c.env("SWOFTY_KEEP_FOCUS", "1")
+            .envs(env.iter().map(|(k, v)| (k, v)))
             .stdin(Stdio::null())
             .stdout(log.try_clone()?)
             .stderr(log);
@@ -578,6 +634,12 @@ pub(crate) struct Times {
     pub finish: Duration,
     pub restop: Duration,
     pub poll: Duration,
+    /// How long past a command's own time limit the CLI waits for its answer.
+    pub grace: Duration,
+    /// How long the game gets to close after the agent's quit.
+    pub quit: Duration,
+    /// How often the title screen gets a pad press.
+    pub title_press: Duration,
 }
 
 impl Default for Times {
@@ -590,6 +652,9 @@ impl Default for Times {
             finish: Duration::from_secs(600),
             restop: Duration::from_secs(10),
             poll: Duration::from_millis(250),
+            grace: Duration::from_secs(10),
+            quit: Duration::from_secs(30),
+            title_press: Duration::from_secs(3),
         }
     }
 }
@@ -599,8 +664,21 @@ pub(crate) struct Harness<'a> {
     pub game: &'a Path,
     pub out: &'a Path,
     pub profile: &'a str,
+    pub run: &'a str,
     pub launcher: &'a mut dyn Launcher,
     pub times: Times,
+}
+
+/// A batch's line to the test agent.
+struct Agent {
+    mailbox: Mailbox,
+    client: Client,
+    hello: bool,
+    /// Values the steps read, by their `as` name, and sampled series.
+    values: BTreeMap<String, Value>,
+    series: BTreeMap<String, Vec<f64>>,
+    /// Where results and frames are kept: the batch folder.
+    keep_dir: PathBuf,
 }
 
 /// The benchmark XML staged in the game folder for one batch, and removed
@@ -806,9 +884,24 @@ impl Harness<'_> {
             Kind::Benchmark => bench::args(),
             _ => Vec::new(),
         };
+        let mut agent = match runnable.iter().any(|&i| b.tests[i].needs_agent()) {
+            false => None,
+            true => match self.mailbox(b, index, &dir) {
+                Ok(a) => Some(a),
+                Err(e) => {
+                    br.error = Some(format!("the test agent's mailbox: {e}"));
+                    fail_all(&mut reports, "the batch did not start");
+                    return (br, reports);
+                }
+            },
+        };
+        let env = agent
+            .as_ref()
+            .map(|a| a.mailbox.session.env())
+            .unwrap_or_default();
         say(&format!("batch {index}: starting F1 25 ({})", br.env));
         let started = Instant::now();
-        let mut run = match self.launcher.launch(self.profile, &args, &dir) {
+        let mut run = match self.launcher.launch(self.profile, &args, &env, &dir) {
             Ok(r) => r,
             Err(e) => {
                 br.error = Some(format!("could not start the game: {e:#}"));
@@ -819,12 +912,26 @@ impl Harness<'_> {
         br.started_game = true;
         let kind = b.env.kind;
         let mut told_title = false;
+        let mut pressed: Option<Instant> = None;
         let ready = loop {
+            if let Some(a) = agent.as_mut()
+                && let Err(why) = a.keep_up()
+            {
+                break Err(why);
+            }
             let text = live.text();
             if text.contains(checks::ready_line(kind)) {
                 break Ok(());
             }
-            if kind == Kind::Boot && !told_title && text.contains(checks::TITLE) {
+            let at_title = matches!(kind, Kind::Boot | Kind::Route) && text.contains(checks::TITLE);
+            if let Some(a) = agent.as_mut().filter(|a| a.hello && at_title)
+                && pressed.is_none_or(|p| p.elapsed() >= self.times.title_press)
+            {
+                pressed = Some(Instant::now());
+                a.client
+                    .send("pad", json!({ "press": "a", "ms": 150 }), None)
+                    .ok();
+            } else if at_title && agent.is_none() && !told_title {
                 told_title = true;
                 say("at the title screen: it waits for a button press before the main menu");
             }
@@ -840,6 +947,14 @@ impl Harness<'_> {
             }
             std::thread::sleep(self.times.poll);
         };
+        let ready = ready.and_then(|()| match agent.as_mut() {
+            None => Ok(()),
+            Some(a) => {
+                let left = self.times.start.saturating_sub(started.elapsed());
+                a.hello(left, self.times.poll, &mut *run)?;
+                self.env_routes(&b.env, a, &mut *run)
+            }
+        });
         match &ready {
             Err(why) => {
                 br.error = Some(why.clone());
@@ -851,7 +966,22 @@ impl Harness<'_> {
                 let race_start = Instant::now();
                 for &i in &runnable {
                     let t0 = Instant::now();
-                    self.steps(&b.tests[i], &mut reports[i], &mut live, &mut *run);
+                    let t = &b.tests[i];
+                    self.steps(t, &mut reports[i], &mut live, &mut *run, agent.as_mut());
+                    if reports[i].failures.is_empty()
+                        && let (Some(f), Some(a)) = (&t.function, agent.as_mut())
+                    {
+                        self.function(t, f, &mut reports[i], a, &mut *run);
+                    }
+                    if let Some(a) = agent.as_mut() {
+                        for c in &t.checks {
+                            if let suite::Check::Agent { text } = c
+                                && let Err(f) = self.agent_check(text, a, &mut *run)
+                            {
+                                reports[i].failures.push(f);
+                            }
+                        }
+                    }
                     reports[i].ms = Some(ms(t0));
                 }
                 if kind == Kind::Benchmark {
@@ -872,10 +1002,25 @@ impl Harness<'_> {
                 }
             }
         }
+        if let Some(a) = agent.as_mut().filter(|a| a.hello) {
+            a.client.send("quit", Value::Null, None).ok();
+            until_polled(self.times.quit, self.times.poll, || run.finished());
+        }
         if let Err(why) = self.finish(&mut *run) {
             br.notes.push(why);
         }
         br.ms = Some(ms(started));
+        if let Some(a) = agent.as_mut() {
+            a.client.poll();
+            if let Err(e) = a.keep() {
+                br.notes
+                    .push(format!("could not keep the test agent's results: {e}"));
+            }
+            if let Err(e) = a.mailbox.remove() {
+                br.notes
+                    .push(format!("could not remove {}: {e}", a.mailbox.dir.display()));
+            }
+        }
         let unstaged = staged.as_mut().map(|s| s.remove());
         drop(staged);
         let session = run.session();
@@ -922,6 +1067,9 @@ impl Harness<'_> {
                 continue;
             }
             for c in &b.tests[i].checks {
+                if matches!(c, suite::Check::Agent { .. }) && agent.is_some() {
+                    continue;
+                }
                 if let Err(f) = checks::evaluate(c, &ev) {
                     r.failures.push(f);
                 }
@@ -937,22 +1085,49 @@ impl Harness<'_> {
         (br, reports)
     }
 
-    fn steps(&self, t: &Test, r: &mut TestReport, live: &mut Live, run: &mut dyn Running) {
+    fn steps(
+        &self,
+        t: &Test,
+        r: &mut TestReport,
+        live: &mut Live,
+        run: &mut dyn Running,
+        mut agent: Option<&mut Agent>,
+    ) {
         let test_limit = t.timeout_s.map_or(self.times.test, Duration::from_secs);
         let started = Instant::now();
         for s in &t.steps {
-            let Some(wait) = &s.host else {
-                r.steps.push(StepReport {
-                    step: s.text.clone(),
-                    status: format!("skipped: {}", suite::NEEDS_AGENT),
-                    ms: None,
-                });
-                continue;
-            };
             let limit = s
                 .timeout_s
                 .map_or(self.times.step, Duration::from_secs)
                 .min(test_limit.saturating_sub(started.elapsed()));
+            let by_agent =
+                s.host.is_none() || matches!(s.host, Some(suite::Wait::Event(_))) && agent.is_some();
+            if by_agent {
+                let Some(a) = agent.as_deref_mut() else {
+                    r.steps.push(StepReport {
+                        step: s.text.clone(),
+                        status: format!("skipped: {}", suite::NEEDS_AGENT),
+                        ms: None,
+                    });
+                    continue;
+                };
+                let t0 = Instant::now();
+                let done = self.agent_step(s, limit, a, run);
+                r.steps.push(StepReport {
+                    step: s.text.clone(),
+                    status: match &done {
+                        Ok(text) => text.clone(),
+                        Err(f) => f.actual.clone(),
+                    },
+                    ms: Some(ms(t0)),
+                });
+                if let Err(f) = done {
+                    r.failures.push(f);
+                    return;
+                }
+                continue;
+            }
+            let Some(wait) = &s.host else { continue };
             let t0 = Instant::now();
             let seen = loop {
                 if checks::waited(live.text(), wait) {
@@ -1040,6 +1215,472 @@ impl Harness<'_> {
         }
         (notes.is_empty(), notes)
     }
+}
+
+impl Agent {
+    /// Write the mailbox again until the agent has said hello, and read what
+    /// it has written.
+    fn keep_up(&mut self) -> std::result::Result<(), String> {
+        if !self.hello {
+            self.mailbox.write().ok();
+        }
+        self.client.poll();
+        self.hello |= self.client.hello.is_some();
+        match &self.client.refused {
+            Some(why) => Err(format!("the test agent refused the run: {why}")),
+            None => Ok(()),
+        }
+    }
+
+    fn hello(
+        &mut self,
+        limit: Duration,
+        poll: Duration,
+        run: &mut dyn Running,
+    ) -> std::result::Result<(), String> {
+        let mailbox = self.mailbox.clone();
+        let hello = self.client.wait_hello(
+            limit,
+            poll,
+            || !run.finished(),
+            || {
+                mailbox.write().ok();
+            },
+        )?;
+        self.hello = true;
+        say(&format!(
+            "test agent: hello (pid {}, protocol {})",
+            hello["pid"], hello["v"]
+        ));
+        Ok(())
+    }
+
+    fn call(
+        &mut self,
+        cmd: &str,
+        args: Value,
+        limit: Duration,
+        times: &Times,
+        run: &mut dyn Running,
+    ) -> std::result::Result<agent::Reply, String> {
+        let r = self
+            .client
+            .call(
+                cmd,
+                args,
+                Some(limit),
+                times.grace,
+                times.poll.min(Duration::from_millis(50)),
+                || !run.finished(),
+            )
+            .map_err(|e| e.to_string())?;
+        if cmd == "capture"
+            && r.outcome == Outcome::Ok
+            && let Some(f) = r.value.get("file").and_then(Value::as_str)
+            && let Some(name) = Path::new(f).file_name()
+        {
+            let frames = self.keep_dir.join("frames");
+            std::fs::create_dir_all(&frames).ok();
+            std::fs::copy(self.mailbox.dir.join(f), frames.join(name)).ok();
+        }
+        Ok(r)
+    }
+
+    /// Keep what the agent wrote in the batch folder: the game's own
+    /// session end may clear the mailbox before the CLI gets to it.
+    fn keep(&self) -> std::io::Result<()> {
+        let mut text = self.client.lines.join("\n");
+        text.push('\n');
+        std::fs::write(self.keep_dir.join("agent.jsonl"), text)
+    }
+}
+
+fn agent_failure(check: String, expected: String, actual: String) -> Failure {
+    Failure {
+        check,
+        expected,
+        actual,
+        evidence: Some("agent.jsonl".into()),
+    }
+}
+
+impl Harness<'_> {
+    fn mailbox(&self, b: &Batch, index: usize, keep_dir: &Path) -> std::io::Result<Agent> {
+        let mut m = Mailbox::new(self.game, Session::new(&format!("{}-b{index}", self.run)));
+        for t in &b.tests {
+            if let Some(dll) = t.dll() {
+                m.add_dll(&dll, &format!("{}.dll", t.suite));
+            } else if let Some(f) = &t.function {
+                return Err(std::io::Error::other(format!(
+                    "{} runs fn {f}, and there is no native/tests.dll next to {}",
+                    t.full_id(),
+                    t.file.display()
+                )));
+            }
+        }
+        m.remove()?;
+        m.write()?;
+        let client = Client::new(&m.dir);
+        Ok(Agent {
+            mailbox: m,
+            client,
+            hello: false,
+            values: BTreeMap::new(),
+            series: BTreeMap::new(),
+            keep_dir: keep_dir.to_path_buf(),
+        })
+    }
+
+    /// A route environment: fire its routes from the home screen in order.
+    fn env_routes(&self, env: &Env, a: &mut Agent, run: &mut dyn Running) -> std::result::Result<(), String> {
+        if env.kind != Kind::Route {
+            return Ok(());
+        }
+        let routes: Vec<String> = env
+            .params
+            .get("routes")
+            .and_then(Value::as_array)
+            .map(|r| r.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+            .unwrap_or_default();
+        for r in routes {
+            let reply = a.call("route", json!({ "route": r }), self.times.step, &self.times, run)?;
+            if reply.outcome != Outcome::Ok {
+                return Err(format!("route {r}: {}", reply.text()));
+            }
+        }
+        Ok(())
+    }
+
+    fn agent_step(
+        &self,
+        s: &suite::Step,
+        limit: Duration,
+        a: &mut Agent,
+        run: &mut dyn Running,
+    ) -> std::result::Result<String, Failure> {
+        let fail =
+            |actual: String| agent_failure(s.action.clone(), format!("{} to succeed", s.action), actual);
+        let v: Value = serde_json::from_str(&s.text).unwrap_or_default();
+        if s.action == "sample" {
+            let o = &v["sample"];
+            let path = o["read"].as_str().unwrap_or_default().to_owned();
+            let name = o["as"].as_str().unwrap_or_default().to_owned();
+            let every = Duration::from_millis(o["every_ms"].as_u64().unwrap_or(500).max(10));
+            let span =
+                Duration::from_secs(o["for_s"].as_u64().unwrap_or(10)).min(limit.max(Duration::from_secs(1)));
+            let start = Instant::now();
+            let mut got = Vec::new();
+            while start.elapsed() < span {
+                let r = a
+                    .call("read", json!({ "path": path }), self.times.step, &self.times, run)
+                    .map_err(fail)?;
+                match (r.outcome, agent::number(&r.value)) {
+                    (Outcome::Ok, Some(n)) => got.push(n),
+                    (Outcome::Ok, None) => {
+                        return Err(fail(format!("read {path} is not a number: {}", r.value)));
+                    }
+                    _ => return Err(fail(format!("read {path}: {}", r.text()))),
+                }
+                std::thread::sleep(every);
+            }
+            let n = got.len();
+            a.series.insert(name.clone(), got);
+            return Ok(format!("ok: {n} samples as {name}"));
+        }
+        let cmds = agent::step_commands(s).map_err(|e| fail(e.0))?;
+        let mut text = Vec::new();
+        for (cmd, args) in cmds {
+            let r = a.call(&cmd, args, limit, &self.times, run).map_err(fail)?;
+            if r.outcome != Outcome::Ok {
+                return Err(fail(r.text()));
+            }
+            if s.action == "read"
+                && let Some(name) = v.get("as").and_then(Value::as_str)
+            {
+                a.values.insert(name.to_owned(), r.value.clone());
+            }
+            text.push(r.text());
+        }
+        Ok(text.join("; "))
+    }
+
+    /// A `fn` test: the agent runs the test DLL's coroutine and answers with
+    /// its expectations.
+    fn function(&self, t: &Test, f: &str, r: &mut TestReport, a: &mut Agent, run: &mut dyn Running) {
+        let limit = t.timeout_s.map_or(self.times.test, Duration::from_secs);
+        let t0 = Instant::now();
+        let reply = a.call("run_test", json!({ "fn": f }), limit, &self.times, run);
+        let status = match &reply {
+            Ok(rep) => rep.text(),
+            Err(e) => e.clone(),
+        };
+        r.steps.push(StepReport {
+            step: format!("fn {f}"),
+            status: status.clone(),
+            ms: Some(ms(t0)),
+        });
+        let rep = match reply {
+            Ok(rep) => rep,
+            Err(e) => {
+                r.failures
+                    .push(agent_failure(format!("fn {f}"), "the test to finish".into(), e));
+                return;
+            }
+        };
+        let expects = rep
+            .value
+            .get("expects")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for e in expects.iter().filter(|e| e["ok"] == json!(false)) {
+            r.failures.push(agent_failure(
+                format!("fn {f}"),
+                e["what"].as_str().unwrap_or("an expectation").to_owned(),
+                "false".into(),
+            ));
+        }
+        if rep.outcome != Outcome::Ok && r.failures.is_empty() {
+            r.failures.push(agent_failure(
+                format!("fn {f}"),
+                "the test to pass".into(),
+                rep.text(),
+            ));
+        }
+    }
+
+    fn operand(&self, v: &Value, a: &mut Agent, run: &mut dyn Running) -> std::result::Result<Value, String> {
+        let Some(name) = v.as_str() else {
+            return Ok(v.clone());
+        };
+        if let Some(stored) = a.values.get(name) {
+            return Ok(stored.clone());
+        }
+        let r = a.call("read", json!({ "path": name }), self.times.step, &self.times, run)?;
+        match r.outcome {
+            Outcome::Ok => Ok(r.value),
+            _ => Err(format!("read {name}: {}", r.text())),
+        }
+    }
+
+    /// `value` and `series` checks, on what the steps read or a read now.
+    fn agent_check(
+        &self,
+        text: &str,
+        a: &mut Agent,
+        run: &mut dyn Running,
+    ) -> std::result::Result<(), Failure> {
+        let c: Value = serde_json::from_str(text).unwrap_or_default();
+        let fail = |expected: String, actual: String| agent_failure(text.to_owned(), expected, actual);
+        if let Some(name) = c.get("series").and_then(Value::as_str) {
+            let Some(s) = a.series.get(name).filter(|s| !s.is_empty()) else {
+                return Err(fail(format!("a sampled series {name}"), "no samples".into()));
+            };
+            let change = s[s.len() - 1] - s[0];
+            if let Some(n) = c.get("rises_by").and_then(Value::as_f64)
+                && change < n
+            {
+                return Err(fail(
+                    format!("{name} to rise by {n}"),
+                    format!("a change of {change}"),
+                ));
+            }
+            if let Some(n) = c.get("falls_by").and_then(Value::as_f64)
+                && -change < n
+            {
+                return Err(fail(
+                    format!("{name} to fall by {n}"),
+                    format!("a change of {change}"),
+                ));
+            }
+            return Ok(());
+        }
+        let Some(subject) = c.get("value") else {
+            return Err(fail("a value or series check".into(), "neither".into()));
+        };
+        let got = self
+            .operand(subject, a, run)
+            .map_err(|e| fail("a value".into(), e))?;
+        let num = agent::number(&got);
+        let want_num =
+            |key: &str, a: &mut Agent, run: &mut dyn Running| -> std::result::Result<Option<f64>, Failure> {
+                match c.get(key) {
+                    None => Ok(None),
+                    Some(v) => {
+                        let v = self.operand(v, a, run).map_err(|e| fail(key.into(), e))?;
+                        agent::number(&v)
+                            .map(Some)
+                            .ok_or_else(|| fail(format!("{key} a number"), v.to_string()))
+                    }
+                }
+            };
+        let shown = num.map_or_else(|| got.to_string(), |n| n.to_string());
+        if let Some(range) = c.get("between").and_then(Value::as_array)
+            && range.len() == 2
+        {
+            let (lo, hi) = (
+                range[0].as_f64().unwrap_or(f64::MIN),
+                range[1].as_f64().unwrap_or(f64::MAX),
+            );
+            if !num.is_some_and(|n| n >= lo && n <= hi) {
+                return Err(fail(format!("between {lo} and {hi}"), shown));
+            }
+        }
+        if let Some(n) = want_num("greater_than", a, run)?
+            && !num.is_some_and(|x| x > n)
+        {
+            return Err(fail(format!("greater than {n}"), shown));
+        }
+        if let Some(n) = want_num("less_than", a, run)?
+            && !num.is_some_and(|x| x < n)
+        {
+            return Err(fail(format!("less than {n}"), shown));
+        }
+        if let Some(want) = c.get("equals") {
+            let want = self.operand(want, a, run).map_err(|e| fail("equals".into(), e))?;
+            let same = match (agent::number(&want), num) {
+                (Some(x), Some(y)) => x == y,
+                _ => strip(&want) == strip(&got),
+            };
+            if !same {
+                return Err(fail(format!("equal to {want}"), shown));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn strip(v: &Value) -> Value {
+    v.get("value").cloned().unwrap_or_else(|| v.clone())
+}
+
+fn shell_command(store: &Store, a: ShellArgs) -> Result<ExitCode> {
+    let run_id = format!("shell-{}", stamp());
+    let g = match crate::build::game(store, a.game.clone()) {
+        Ok(g) => g,
+        Err(e) => return Ok(infra(format!("{e:#}"))),
+    };
+    if let Err(e) = terms(store) {
+        return Ok(infra(e));
+    }
+    if !swofty_core::setup::done(&store.root) {
+        return Ok(infra(swofty_core::setup::NEEDED));
+    }
+    let dir = a.lock.clone().unwrap_or_else(|| lock::default_path(&store.root));
+    let owner = lock::owner_line(&run_id, &["shell".to_owned()], &hh_mm());
+    let lock = match take_lock(&dir, &owner, a.wait) {
+        Ok(l) => l,
+        Err(Stop::Busy(why)) => {
+            eprintln!("swofty: {why}");
+            return Ok(ExitCode::from(exit::BUSY));
+        }
+        Err(Stop::Infra(why)) => return Ok(infra(why)),
+    };
+    let code = shell_session(store, &g.dir, &a, &run_id);
+    lock.release().ok();
+    code
+}
+
+fn shell_session(store: &Store, game: &Path, a: &ShellArgs, run_id: &str) -> Result<ExitCode> {
+    if let Err(Stop::Busy(why) | Stop::Infra(why)) = free_the_game(store, a.take_over, a.wait) {
+        return Ok(infra(why));
+    }
+    let launch_json = store.root.join("state/launch.json");
+    let saved = std::fs::read(&launch_json).ok();
+    let profile = format!("test-{run_id}");
+    let out = PathBuf::from("swofty-test").join(run_id);
+    std::fs::create_dir_all(&out)?;
+    let mut launcher = SwoftyRun {
+        data: store.root.clone(),
+        game: game.to_path_buf(),
+    };
+    let h = Harness {
+        store,
+        game,
+        out: &out,
+        profile: &profile,
+        run: run_id,
+        launcher: &mut launcher,
+        times: Times::default(),
+    };
+    let b = Batch {
+        key: "shell".into(),
+        env: Env {
+            kind: Kind::Boot,
+            params: Default::default(),
+        },
+        addons: a.addons.clone(),
+        settings: Default::default(),
+        tests: Vec::new(),
+    };
+    let code = shell_loop(h, &b, &out);
+    if store.profile_names().is_ok_and(|n| n.contains(&profile)) {
+        store.delete_profile(&profile).ok();
+    }
+    match saved {
+        Some(bytes) => std::fs::write(&launch_json, bytes).ok(),
+        None => std::fs::remove_file(&launch_json).ok(),
+    };
+    code
+}
+
+fn shell_loop(h: Harness, b: &Batch, out: &Path) -> Result<ExitCode> {
+    h.profile(b)?;
+    let mut agent = h.mailbox(b, 1, out)?;
+    let env = agent.mailbox.session.env();
+    say("starting F1 25 in test mode");
+    let mut run = h.launcher.launch(h.profile, &[], &env, out)?;
+    let times = Times::default();
+    let mut ok = agent
+        .hello(times.start, times.poll, &mut *run)
+        .map_err(anyhow::Error::msg);
+    if let Err(e) = &ok {
+        eprintln!("swofty: {e}");
+    } else {
+        eprintln!(
+            "type a command (route <name>, read <path>, wait <event> [s], pad <button>, capture [name], quit); end with Ctrl-D"
+        );
+    }
+    let stdin = std::io::stdin();
+    let mut lines = stdin.lock().lines();
+    while ok.is_ok() && !run.finished() {
+        eprint!("> ");
+        let Some(Ok(line)) = lines.next() else { break };
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if matches!(line, "exit" | "quit") {
+            break;
+        }
+        let (cmd, args, timeout) = match agent::parse_shell(line) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("{e}");
+                continue;
+            }
+        };
+        let limit = timeout.map_or(Duration::from_secs(60), Duration::from_millis);
+        let before = agent.client.events.len();
+        match agent.call(&cmd, args, limit, &times, &mut *run) {
+            Ok(r) => println!("{}", r.text()),
+            Err(e) => println!("{e}"),
+        }
+        for (name, v) in &agent.client.events[before..] {
+            println!("  [{name}] {v}");
+        }
+        ok = Ok(());
+    }
+    if agent.hello {
+        agent.client.send("quit", Value::Null, None).ok();
+        until_polled(times.quit, times.poll, || run.finished());
+    }
+    h.finish(&mut *run).ok();
+    agent.client.poll();
+    agent.keep().ok();
+    agent.mailbox.remove().ok();
+    eprintln!("results: {}", out.display());
+    Ok(ExitCode::SUCCESS)
 }
 
 fn until_polled(limit: Duration, poll: Duration, mut done: impl FnMut() -> bool) -> bool {

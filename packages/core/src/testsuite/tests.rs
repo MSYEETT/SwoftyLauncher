@@ -62,7 +62,8 @@ fn the_documented_test_file_parses() {
     assert!(matches!(&t.checks[1], Check::Log { count, .. } if *count == Count { min: Some(1), max: None }));
     assert_eq!(t.checks[2], Check::NoCrash);
     assert_eq!(t.addons, ["my.addon"], "the addon whose folder holds the tests");
-    assert_eq!(t.skip_reason(), Some(suite::NEEDS_AGENT));
+    assert_eq!(t.skip_reason(), None, "the agent runs sample");
+    assert!(t.needs_agent());
     assert_eq!(s.tests[1].skip_reason(), Some("needs the save sandbox"));
 }
 
@@ -326,25 +327,23 @@ fn tests_with_the_same_environment_share_a_game_start() {
         ]
     );
     assert_eq!(p.tests(), 9);
-    assert_eq!(
-        p.game_starts(),
-        4,
-        "route and career batches only hold skipped tests"
-    );
-    assert_eq!(p.headline(), "9 tests in 4 game starts");
+    assert_eq!(p.game_starts(), 5, "the career batch only holds a skipped test");
+    assert_eq!(p.headline(), "9 tests in 5 game starts");
     let text = p.text();
     assert!(
-        text.starts_with("swofty test plan: 9 tests in 4 game starts\n"),
+        text.starts_with("swofty test plan: 9 tests in 5 game starts\n"),
         "{text}"
     );
     assert!(
         text.contains("  boot ............................. m1\n"),
         "{text}"
     );
+    assert!(!text.contains("a1                           skipped"), "{text}");
     assert!(
-        text.contains("a1                           skipped: needs the test agent"),
-        "{text}"
+        p.batches[0].tests[2].needs_agent(),
+        "a route step talks to the agent"
     );
+    assert!(!p.batches[0].tests[0].needs_agent());
     assert!(
         text.contains("c1                           skipped: needs the save sandbox"),
         "{text}"
@@ -694,4 +693,265 @@ fn durations_read_as_minutes_and_seconds() {
     assert_eq!(duration(112_000), "1 m 52 s");
     assert_eq!(duration(40_400), "40 s");
     assert_eq!(duration(59_600), "1 m 0 s");
+}
+
+mod mailbox {
+    use std::io::Write;
+    use std::path::Path;
+    use std::time::Duration;
+
+    use serde_json::{Value, json};
+
+    use super::super::agent::{self, Client, Line, Mailbox, Outcome, Session, WaitError};
+    use super::{one_test, temp};
+
+    fn append(path: &Path, line: &str) {
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        f.write_all(line.as_bytes()).unwrap();
+    }
+
+    #[test]
+    fn the_session_carries_the_run_the_token_and_the_dlls() {
+        let game = temp("mailbox-session");
+        let dll = game.join("tests.dll");
+        std::fs::write(&dll, b"MZ").unwrap();
+        let mut m = Mailbox::new(&game, Session::new("20261028-1402-b1"));
+        m.add_dll(&dll, "my.addon.dll");
+        m.add_dll(&dll, "my.addon.dll");
+        m.write().unwrap();
+        let dir = game.join("swofty/test/20261028-1402-b1");
+        assert_eq!(m.dir, dir);
+        let s: Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join(agent::SESSION)).unwrap()).unwrap();
+        assert_eq!(s["v"], 1);
+        assert_eq!(s["run"], "20261028-1402-b1");
+        assert_eq!(s["token"].as_str().unwrap().len(), 32);
+        assert_eq!(s["dlls"], json!(["dll/my.addon.dll"]));
+        assert_eq!(std::fs::read(dir.join("dll/my.addon.dll")).unwrap(), b"MZ");
+        assert_eq!(std::fs::read_to_string(dir.join(agent::COMMANDS)).unwrap(), "");
+        let env = m.session.env();
+        assert_eq!(env[0], ("SWOFTY_TEST".to_owned(), "20261028-1402-b1".to_owned()));
+        assert_eq!(env[1].0, "SWOFTY_TEST_TOKEN");
+        assert_eq!(env[1].1, s["token"].as_str().unwrap());
+
+        std::fs::remove_dir_all(game.join("swofty")).unwrap();
+        m.write().unwrap();
+        assert!(
+            dir.join(agent::SESSION).is_file(),
+            "a cleared folder is written again"
+        );
+        m.remove().unwrap();
+        assert!(!dir.exists());
+        m.remove().unwrap();
+        assert_ne!(agent::token(), agent::token());
+    }
+
+    #[test]
+    fn run_names_are_folder_names() {
+        assert!(agent::valid_run("20261028-1402-b1"));
+        for bad in ["", "..", "a/b", "a\\b", ".hidden", "a b"] {
+            assert!(!agent::valid_run(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn result_lines_parse_into_replies_and_events() {
+        let r = agent::parse_line(r#"{"seq":3,"status":"unavailable","error":"no home view model","ms":0}"#)
+            .unwrap();
+        let Line::Reply(r) = r else { panic!() };
+        assert_eq!((r.seq, r.outcome), (3, Outcome::Unavailable));
+        assert_eq!(r.text(), "unavailable: no home view model");
+        let r = agent::parse_line(r#"{"seq":4,"status":"ok","value":{"value":798.5,"type":"f32"},"ms":1}"#)
+            .unwrap();
+        let Line::Reply(r) = r else { panic!() };
+        assert_eq!(agent::number(&r.value), Some(798.5));
+        assert!(matches!(
+            agent::parse_line(r#"{"event":"hello","v":1,"pid":7}"#),
+            Some(Line::Hello(_))
+        ));
+        assert_eq!(
+            agent::parse_line(r#"{"event":"refused","why":"the token does not match"}"#),
+            Some(Line::Refused("the token does not match".into()))
+        );
+        assert!(
+            matches!(agent::parse_line(r#"{"event":"fired","id":"race.start"}"#), Some(Line::Event(n, _)) if n == "fired")
+        );
+        for bad in [
+            "",
+            "not json",
+            "[]",
+            r#"{"seq":1}"#,
+            r#"{"seq":1,"status":"maybe"}"#,
+            r#"{"x":1}"#,
+        ] {
+            assert_eq!(agent::parse_line(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn steps_become_agent_commands() {
+        let t = one_test(
+            r#"{"id":"a","env":{"kind":"boot"},"steps":[
+                {"route":"contracts"},{"skip":"session"},{"advance":{"days":7}},{"ai_drives_player":true},
+                {"pad":{"press":"a","then":"right"}},{"set":{"car[player].f1_aero.lift_scale":1.05,"career.money":5}},
+                {"read":"career.money","as":"m"},{"capture":"frame","name":"hq"},{"save":"now"},
+                {"wait":{"event":"race.start"}},{"wait":{"log":"x"}}]}"#,
+        )
+        .unwrap();
+        let cmds: Vec<Vec<(String, Value)>> =
+            t.steps.iter().map(|s| agent::step_commands(s).unwrap()).collect();
+        let c = |cmd: &str, v: Value| vec![(cmd.to_owned(), v)];
+        assert_eq!(cmds[0], c("route", json!({"route":"contracts"})));
+        assert_eq!(cmds[1], c("skip", json!({"to":"session"})));
+        assert_eq!(cmds[2], c("advance", json!({"days":7})));
+        assert_eq!(cmds[3], c("ai_drives_player", json!({"on":true})));
+        assert_eq!(cmds[4], c("pad", json!({"press":"a","then":"right"})));
+        assert_eq!(cmds[5].len(), 2, "one set per path");
+        assert_eq!(
+            cmds[5][0],
+            (
+                "set".to_owned(),
+                json!({"path":"car[player].f1_aero.lift_scale","value":1.05})
+            )
+        );
+        assert_eq!(cmds[6], c("read", json!({"path":"career.money"})));
+        assert_eq!(cmds[7], c("capture", json!({"name":"hq"})));
+        assert_eq!(cmds[8], c("save", json!({"what":"now"})));
+        assert_eq!(cmds[9], c("wait", json!({"event":"race.start"})));
+        assert!(cmds[10].is_empty(), "the CLI waits for log lines itself");
+    }
+
+    #[test]
+    fn shell_lines_become_commands() {
+        let p = agent::parse_shell;
+        assert_eq!(
+            p("route career").unwrap(),
+            ("route".into(), json!({"route":"career"}), None)
+        );
+        assert_eq!(
+            p("wait race.start 90").unwrap(),
+            ("wait".into(), json!({"event":"race.start"}), Some(90_000))
+        );
+        assert_eq!(
+            p("skip session 15").unwrap(),
+            ("skip".into(), json!({"to":"session","session":15}), None)
+        );
+        assert_eq!(
+            p("ai off").unwrap(),
+            ("ai_drives_player".into(), json!({"on":false}), None)
+        );
+        assert_eq!(
+            p("set career.money 5000").unwrap().1,
+            json!({"path":"career.money","value":5000})
+        );
+        assert_eq!(
+            p("pad a then right 200").unwrap().1,
+            json!({"press":"a","then":"right","ms":200})
+        );
+        assert_eq!(p("save").unwrap().1, json!({"what":"now"}));
+        assert_eq!(
+            p(r#"{"cmd":"read","args":{"path":"x"},"timeout_ms":5}"#).unwrap(),
+            ("read".into(), json!({"path":"x"}), Some(5))
+        );
+        assert!(p("bogus").unwrap_err().starts_with("unknown command bogus"));
+        assert_eq!(p("advance soon").unwrap_err(), "soon: expected days");
+        assert_eq!(p("route").unwrap_err(), "usage: route <name>");
+    }
+
+    #[test]
+    fn the_client_sends_commands_and_reads_replies_as_they_arrive() {
+        let dir = temp("mailbox-client");
+        let mut c = Client::new(&dir);
+        let seq = c.send("route", json!({"route":"career"}), Some(100)).unwrap();
+        assert_eq!(seq, 1);
+        assert_eq!(c.send("hello", Value::Null, None).unwrap(), 2);
+        let sent = std::fs::read_to_string(dir.join(agent::COMMANDS)).unwrap();
+        assert_eq!(
+            sent,
+            "{\"args\":{\"route\":\"career\"},\"cmd\":\"route\",\"seq\":1,\"timeout_ms\":100}\n{\"cmd\":\"hello\",\"seq\":2}\n"
+        );
+        let results = dir.join(agent::RESULTS);
+        assert!(c.poll().is_empty(), "no results file yet");
+        append(
+            &results,
+            "{\"event\":\"hello\",\"v\":1}\n{\"seq\":2,\"status\":\"ok\",\"val",
+        );
+        assert_eq!(c.poll().len(), 1, "a half-written line waits for its end");
+        assert!(c.hello.is_some());
+        append(&results, "ue\":{\"pid\":1}}\n");
+        let r = c
+            .wait_reply(2, Duration::from_millis(10), Duration::from_millis(1), || true)
+            .unwrap();
+        assert_eq!(r.value, json!({"pid":1}));
+
+        let writer = {
+            let results = results.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(50));
+                append(&results, "{\"seq\":1,\"status\":\"ok\",\"ms\":3}\n");
+            })
+        };
+        let r = c
+            .wait_reply(1, Duration::from_secs(5), Duration::from_millis(5), || true)
+            .unwrap();
+        writer.join().unwrap();
+        assert_eq!(r.outcome, Outcome::Ok);
+
+        let seq = c.send("wait", json!({"event":"x"}), None).unwrap();
+        assert_eq!(
+            c.wait_reply(seq, Duration::from_millis(30), Duration::from_millis(5), || true),
+            Err(WaitError::Timeout(Duration::from_millis(30)))
+        );
+        assert_eq!(
+            c.wait_reply(seq, Duration::from_secs(5), Duration::from_millis(5), || false),
+            Err(WaitError::Gone)
+        );
+    }
+
+    #[test]
+    fn hello_waits_for_the_agent_or_its_refusal() {
+        let dir = temp("mailbox-hello");
+        let mut c = Client::new(&dir);
+        let mut polls = 0;
+        let e = c
+            .wait_hello(
+                Duration::from_millis(20),
+                Duration::from_millis(2),
+                || true,
+                || polls += 1,
+            )
+            .unwrap_err();
+        assert!(
+            e.starts_with("the test agent did not say hello within 0 s"),
+            "{e}"
+        );
+        assert!(polls > 0);
+        append(
+            &dir.join(agent::RESULTS),
+            "{\"event\":\"refused\",\"why\":\"the token does not match\"}\n",
+        );
+        assert_eq!(
+            c.wait_hello(Duration::from_secs(1), Duration::from_millis(2), || true, || {}),
+            Err("the test agent refused the run: the token does not match".into())
+        );
+        let dir = temp("mailbox-hello-2");
+        let mut c = Client::new(&dir);
+        assert_eq!(
+            c.wait_hello(Duration::from_secs(1), Duration::from_millis(2), || false, || {}),
+            Err("the game exited before the test agent said hello".into())
+        );
+        append(
+            &dir.join(agent::RESULTS),
+            "{\"event\":\"hello\",\"v\":1,\"commands\":[\"route\"]}\n",
+        );
+        assert_eq!(
+            c.wait_hello(Duration::from_secs(1), Duration::from_millis(2), || true, || {})
+                .unwrap()["commands"],
+            json!(["route"])
+        );
+    }
 }
