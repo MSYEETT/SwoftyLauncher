@@ -440,7 +440,11 @@ career::report_season(year, season_index);
 [registry] career 7c01 season index 1: no career.season.start (no career.season record has data group f1_career_2026)
 ```
 
-The core writes the entry with a profile save only with `SWOFTY_REGISTRY_SAVE=on`. By default each profile save logs the entry it would write and how many bytes it would add, and writes nothing:
+A career's id is its mode and its save slot: `<mode>:<slot guid>`, or `<mode>:<slot id>` for a slot without a guid. The mode is the save container name of the career content that owns the data group, else `<data group>.<driver_career|my_team>`. The core reads the slot when the game selects it for a load and keeps the id once `career.loaded` fires. An entry saved under a career's older `dc-<driver>` key moves to the new id the first time that career loads.
+
+A career's snapshot has 256 KB, and the whole entry 4 MB of payload. An entry past 4 MB isn't written with that save.
+
+The core writes the entry with a profile save only with `SWOFTY_REGISTRY_SAVE=on`. Every profile save logs the entry's size. By default each profile save logs the entry it would write and how many bytes it would add, and writes nothing:
 
 ```text
 [registry] swofty_registry dry: this profile save would write a 2591-byte entry (1 career(s), 1 season snapshot(s)), adding 2591 bytes to the save; nothing written (SWOFTY_REGISTRY_SAVE is unset, and saving defaults to dry)

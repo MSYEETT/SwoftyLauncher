@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <set>
@@ -110,14 +111,43 @@ struct Season {
     std::string not_ready;
 };
 
-// SWOFTY_REGISTRY_SAVE: empty when the entry is written (on or 1, and the save splice can write it),
-// otherwise why not. Unset or any other value is dry.
+// Whether a profile save writes the entry when SWOFTY_REGISTRY_SAVE is unset.
+constexpr bool SAVE_BY_DEFAULT = false;
+// A career's id: <mode>:<slot_guid as 16 hex digits>, or <mode>:<slot_id> without a guid or with
+// KEY_BY_GUID off (re/tests/T132.md: whether two careers of one driver get different guids).
+constexpr bool KEY_BY_GUID = true;
+
+// SWOFTY_REGISTRY_SAVE: empty when the entry is written (on or 1, or unset with SAVE_BY_DEFAULT, and the
+// save splice can write it), otherwise why not. Any other value is dry.
 inline std::string save_blocked(const std::string &env, bool splice_live, const std::string &splice_blocked)
 {
-    if (env != "on" && env != "1")
+    bool on = env == "on" || env == "1" || (env.empty() && SAVE_BY_DEFAULT);
+    if (!on)
         return env.empty() ? std::string("SWOFTY_REGISTRY_SAVE is unset, and saving defaults to dry")
                            : "SWOFTY_REGISTRY_SAVE=" + env + " (on or 1 writes)";
     return splice_live ? splice_blocked : std::string("the save splice is off");
+}
+
+// The mode part of a career id: the save container name of the career content that owns the data group,
+// else <data group>.<driver_career|my_team>.
+inline std::string mode_part(const std::string &save_name, const std::string &data_group, const std::string &kind)
+{
+    if (!save_name.empty())
+        return save_name;
+    return data_group.empty() ? kind : data_group + "." + kind;
+}
+
+inline std::string career_id(const std::string &mode, uint64_t slot_id, uint64_t slot_guid)
+{
+    if (KEY_BY_GUID && slot_guid) {
+        char b[17];
+        static const char *hex = "0123456789abcdef";
+        for (int i = 0; i < 16; i++)
+            b[i] = hex[(slot_guid >> (60 - 4 * i)) & 0xf];
+        b[16] = 0;
+        return mode + ":" + b;
+    }
+    return mode + ":" + std::to_string(slot_id);
 }
 
 // The bytes an entry of body bytes adds to the profile save: its root child (name length byte, name, bag

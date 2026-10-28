@@ -53,6 +53,7 @@ namespace sp = runtime::save_splice;
 namespace layout = runtime::layout;
 
 constexpr const char *MIXIN = "swofty_core.dll (save splice)";
+constexpr const char *SLOT_MIXIN = "swofty_core.dll (save slot)";
 constexpr size_t CHILD_SLOT = 0x88;
 constexpr size_t FRAME_SELF = 0x30;
 constexpr size_t FRAME_CHILDREN = 0x38;
@@ -274,6 +275,15 @@ template <class S = g::SaveDataContainer> bool child_names(uintptr_t begin, uint
     }
 }
 
+// W4b: Game_SaveSlotManager_SelectSlot stored the slot it loads at manager+0x280; rbx = that SaveSlotInfo
+// (slot_id +0x0, slot_guid +0x8), rsi = the manager (re/db/structs/SaveSlotInfo.h, SaveSlotManager.h).
+void slot_selected(SwoftyContext *c)
+{
+    uint64_t id = 0, guid = 0;
+    if (c->rbx && mem::read(c->rbx, id) && mem::read(c->rbx + 8, guid))
+        runtime::snapshots_slot_selected(c->rsi, id, guid);
+}
+
 void count_entry(SwoftyContext *c)
 {
     uintptr_t self = 0;
@@ -404,6 +414,8 @@ std::vector<CoreMixins> save_splice_mixins()
     if (offered || !code_ready())
         return out;
     offered = true;
+    // W4b: the career id's save slot, whether or not the splice runs.
+    out.push_back({SLOT_MIXIN, {{"site_Game_SaveSlot_Selected", SWOFTY_MIXIN_SITE, 100, (void *)&slot_selected, nullptr}}});
     char v[16] = {};
     DWORD n = GetEnvironmentVariableA("SWOFTY_SAVE_SPLICE", v, sizeof v);
     if (n && n < sizeof v && (!strcmp(v, "0") || !strcmp(v, "off"))) {

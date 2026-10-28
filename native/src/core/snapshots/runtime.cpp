@@ -57,6 +57,14 @@ sn::Clock the_clock;
 size_t loaded_entry = 0;
 bool loaded_has_entry = false;
 
+constexpr uintptr_t SLOT_MANAGER_CURRENT = 0x280;
+std::mutex slot_mu;
+uintptr_t slot_manager = 0;
+uint64_t seen_id = 0, seen_guid = 0;
+bool seen = false;
+std::string committed_key, committed_id;
+unsigned committed_mode = 0;
+
 snap::Book &book() { return *the_book; }
 
 reg::Context facts_context()
@@ -101,6 +109,53 @@ std::string facts_career()
 {
     auto f = hk::core().current();
     return f && f->career ? f->career->id : std::string();
+}
+
+std::string loaded_data_group()
+{
+    char group[128] = {};
+    if (auto t = runtime::career_content_table(); t && t->data_group &&
+                                                  t->data_group(nullptr, group, sizeof group) == SWOFTY_ASSET_OK)
+        return group;
+    return {};
+}
+
+std::string slot_career_id(const std::string &data_group, unsigned mode, uint64_t id, uint64_t guid)
+{
+    std::string save;
+    runtime::career_content_owner(data_group, &save);
+    return sn::career_id(sn::mode_part(save, data_group, mode == SWOFTY_CAREER_MY_TEAM ? "my_team" : "driver_career"),
+                         id, guid);
+}
+
+bool current_slot(uintptr_t manager, uint64_t &id, uint64_t &guid)
+{
+    uintptr_t cur = 0;
+    return manager && swofty::mem::read(manager + SLOT_MANAGER_CURRENT, cur) && cur && swofty::mem::read(cur, id) &&
+           swofty::mem::read(cur + 8, guid);
+}
+
+void refresh_slot()
+{
+    std::string from, to;
+    {
+        std::lock_guard g(slot_mu);
+        uint64_t id = 0, guid = 0;
+        if (committed_id.empty() || committed_id == committed_key || !current_slot(slot_manager, id, guid))
+            return;
+        to = slot_career_id(loaded_data_group(), committed_mode, id, guid);
+        if (to == committed_id)
+            return;
+        from = committed_id;
+        committed_id = to;
+    }
+    bool moved = book().active() == from && book().rename(from, to);
+    hk::update_facts([&](hk::Facts &f) {
+        if (f.career && f.career->id == from)
+            f.career->id = to;
+    });
+    swofty::log("[registry] career %s: its save slot now reads %s at this save%s", from.c_str(), to.c_str(),
+                moved ? "; its entry moved with it" : "");
 }
 
 std::string owner_of_data_group(const std::string &data_group)
@@ -231,7 +286,15 @@ snap::format::Freeze freeze_of(const std::string &data_group)
 
 int on_loaded(void *, SwoftyHookCall *)
 {
-    std::string career = facts_career();
+    std::string career = facts_career(), legacy;
+    {
+        std::lock_guard g(slot_mu);
+        if (career == committed_id && committed_key != committed_id)
+            legacy = committed_key;
+    }
+    if (!legacy.empty() && book().rename(legacy, career))
+        swofty::log("[registry] career %s: its swofty_registry entry was keyed %s; migrated to the save slot id",
+                    career.c_str(), legacy.c_str());
     book().career_loaded(career, facts_context());
     bool created;
     {
@@ -315,10 +378,19 @@ void entry_loaded(const std::vector<uint8_t> *body)
 
 bool entry_saving(std::vector<uint8_t> &body)
 {
-    if (!book().saving(body))
+    refresh_slot();
+    if (!book().saving(body)) {
+        swofty::log("[registry] swofty_registry: this profile save %s", loaded_has_entry
+                        ? ("writes back the entry it loaded (" + std::to_string(loaded_entry + 20) + " bytes)").c_str()
+                        : "has no entry to write");
         return false;
-    if (writes)
+    }
+    if (writes) {
+        swofty::log("[registry] swofty_registry: this profile save writes a %zu-byte entry, adding %lld bytes to the save",
+                    size_t(sn::entry_growth(std::strlen(sp::ENTRY_NAME), body.size(), false, 0)),
+                    sn::entry_growth(std::strlen(sp::ENTRY_NAME), body.size(), loaded_has_entry, loaded_entry));
         return true;
+    }
     book().written(false);
     snap::format::Entry e = book().entry();
     size_t seasons = 0;
@@ -378,6 +450,45 @@ void snapshots_start(bool splice_live)
     });
 }
 
+
+void snapshots_slot_selected(uintptr_t manager, uint64_t slot_id, uint64_t slot_guid)
+{
+    std::lock_guard g(slot_mu);
+    slot_manager = manager;
+    seen_id = slot_id, seen_guid = slot_guid;
+    seen = true;
+}
+
+std::string snapshots_career_loaded(const char *key, unsigned mode)
+{
+    std::string k = key ? key : "";
+    std::string group = loaded_data_group();
+    std::lock_guard g(slot_mu);
+    uint64_t id = seen_id, guid = seen_guid, cur_id = 0, cur_guid = 0;
+    bool have = seen;
+    if (have && current_slot(slot_manager, cur_id, cur_guid))
+        id = cur_id, guid = cur_guid;
+    if (!have)
+        slot_manager = 0;
+    committed_key = k;
+    committed_mode = mode;
+    committed_id = have ? slot_career_id(group, mode, id, guid) : k;
+    seen = false;
+    if (have)
+        swofty::log("[registry] career id %s (save slot %llu, guid %016llx; the career tracker's key '%s')",
+                    committed_id.c_str(), (unsigned long long)id, (unsigned long long)guid, k.c_str());
+    else
+        swofty::log("[registry] career id '%s': no save slot was selected before this load (a new career's slot is "
+                    "read at its first save)",
+                    k.c_str());
+    return committed_id;
+}
+
+std::string snapshots_career_id(const char *key)
+{
+    std::lock_guard g(slot_mu);
+    return key && committed_key == key && !committed_id.empty() ? committed_id : std::string(key ? key : "");
+}
 
 int snapshots_report_season(const std::string &caller, int year, int season_index)
 {

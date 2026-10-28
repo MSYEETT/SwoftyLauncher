@@ -64,6 +64,9 @@ public:
     bool has_career(const std::string &id) const;
     // A per-season career whose entry already holds a snapshot for that year: its season started before.
     bool started(const std::string &id, int year) const;
+    // The career's entry keyed from under to (a save slot id for an entry from before it); false when from
+    // has no entry or to already has one.
+    bool rename(const std::string &from, const std::string &to);
     format::Entry entry() const;
     std::string state() const;
 

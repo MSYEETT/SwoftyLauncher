@@ -572,6 +572,40 @@ static void clock_tests()
     expect(sn::entry_growth(15, body.size(), false, 0) == (long long)(20 + body.size()),
            "a new entry adds its body and its 20-byte root child head");
     expect(sn::entry_growth(15, 900, true, 1000) == -100, "a smaller entry over a loaded one adds less than nothing");
+    expect(!sn::SAVE_BY_DEFAULT, "the entry is not written by default");
+}
+
+static void career_id_tests()
+{
+    expect(sn::career_id(sn::mode_part("", "f1_career_2026", "driver_career"), 3, 0x00ab12cd34ef5678ull) ==
+               "f1_career_2026.driver_career:00ab12cd34ef5678",
+           "a stock career's id is its data group and kind with the slot guid in 16 hex digits");
+    expect(sn::career_id(sn::mode_part("f1_career_progressive_save", "f1_career_progressive", "driver_career"), 7, 0) ==
+               "f1_career_progressive_save:7",
+           "an addon career's id uses its content's save name, and the slot id without a guid");
+    logs.clear();
+    reg::Store st;
+    world(st);
+    snap::Book book(st, [](const std::string &l) { logs.push_back(l); });
+    st.set_snapshot_source(book.source());
+    book.loaded(nullptr);
+    book.career_loaded("dc-44", career_ctx());
+    book.season_start(2016, career_ctx());
+    fmt::Bytes body;
+    expect(book.saving(body), "an entry keyed by the old career key is due");
+    book.written(true);
+    snap::Book next(st, [](const std::string &l) { logs.push_back(l); });
+    next.loaded(&body);
+    std::string id = "f1_career_progressive.driver_career:00000000000000aa";
+    expect(next.rename("dc-44", id), "an old dc-<driver> entry moves to the save slot id at its first load");
+    expect(next.has_career(id) && !next.has_career("dc-44") && next.started(id, 2016),
+           "and keeps its frozen seasons under the new id");
+    expect(!next.rename("dc-44", id), "a second load moves nothing");
+    next.career_loaded("dc-45", career_ctx());
+    next.season_start(2016, career_ctx());
+    expect(!next.rename("dc-45", id), "an id that already has an entry is never overwritten");
+    fmt::Bytes again;
+    expect(next.saving(again), "the moved entry is due at the next save");
 }
 
 static void fuzz_tests()
@@ -858,6 +892,7 @@ int main(int argc, char **argv)
     creation_tests();
     year_map_tests();
     clock_tests();
+    career_id_tests();
     fuzz_tests();
     splice_tests();
     if (argc == 3 && std::string(argv[1]) == "--fixtures")
