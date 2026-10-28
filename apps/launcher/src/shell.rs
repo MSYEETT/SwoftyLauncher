@@ -159,6 +159,7 @@ pub struct Shell {
     /// a long table draws only the rows in view.
     pub(crate) table_tops: Rc<std::cell::RefCell<HashMap<String, f32>>>,
     pub(crate) cell: Option<crate::blocks::CellEdit>,
+    pub(crate) colour: Option<crate::blocks::ColourEdit>,
     pub(crate) pending_cells: HashMap<String, String>,
     pub(crate) content_width: f32,
     pub(crate) short: bool,
@@ -532,6 +533,7 @@ impl Shell {
             section_scrolls: HashMap::new(),
             table_tops: Rc::default(),
             cell: None,
+            colour: None,
             pending_cells: HashMap::new(),
             content_width: 900.,
             short: false,
