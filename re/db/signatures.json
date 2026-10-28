@@ -75276,6 +75276,33 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "game.save_slot_selected",
+   "section": ".xtls",
+   "pattern": "48 89 9E 80 02 00 00 48 83 BB 78 01 00 00 00",
+   "match": "0x1429d0c40",
+   "anchor": "0x7",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1429d0c47",
+   "kind": "mid",
+   "expect": "48 83 BB 78 01 00 00 00",
+   "names": [
+    "site_Game_SaveSlot_Selected"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "save-re",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/save_splice.cpp"
+   ]
   }
  ]
 }
