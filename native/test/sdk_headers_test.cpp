@@ -436,8 +436,8 @@ static void round_trip()
     wearables::SeasonSet ssb;
     CHECK(from_json(to_json(ss), ssb) && ssb.season == 2016 && ssb.suit.empty());
 
-    career::RndDepartment d{.colour = Colour("#22A45D")};
-    CHECK(to_json(d).find("\"colour\":\"#22A45D\"") != std::string::npos);
+    career::Calendar cal_json{.seasons = 3, .transfer_windows = {10}};
+    CHECK(to_json(cal_json).find("\"seasons\":3") != std::string::npos);
     CHECK(!from_json("{\"year\":", back));
 }
 

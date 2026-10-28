@@ -1,6 +1,6 @@
 ---
 title: Career
-description: Career modes, contents, seasons, calendars, ratings, the driver market, contracts, R&D, facilities, economy, sponsors, characters and wizards in code, with the career events and operations.
+description: Career modes, contents, seasons, calendars, ratings, characters and wizards in code, with the career events and operations.
 ---
 
 # Career
@@ -13,7 +13,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 
 <Split>
 
-`swofty/systems/career.hpp` has fourteen registries. The main ones:
+`swofty/systems/career.hpp` has eight registries. The main ones:
 
 - `career::modes`: a mode row, its save container and data group (`career.mode`);
 - `career::contents`: a career tile and the data it clones (`career.content`);
@@ -21,7 +21,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 - `career::calendars`: an event list (`career.calendar`);
 - `career::ratings`: a driver's ratings at the start of a season (`career.driver_ratings`).
 
-The rest: `markets`, `contract_rules`, `rnd_trees`, `rnd_departments`, `facilities`, `economy`, `sponsors`, `characters`, `wizards`.
+The rest: `characters`, `wizards`, `hub_tabs`.
 
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/career.hpp">
@@ -123,14 +123,6 @@ struct DriverRatings {
 SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, pace)
 inline Registry<DriverRatings> ratings{"career.driver_ratings", { .applies = Applies::read, .snapshot = true, .snapshot_budget = 65536 }};
 
-struct RndDepartment {
-    Text name;
-    Colour colour;
-    Path icon;
-    float cost_scale = 1.0f;                   // UpgradeDepartmentEntry economy scale
-};
-inline Registry<RndDepartment> rnd_departments{"career.rnd.department", { .applies = Applies::content }};
-
 struct Character {
     Ref<Character> replaces;                   // the stock character it stands in for, per data group
     Text first_name, last_name;
@@ -138,76 +130,6 @@ struct Character {
     std::vector<std::string> mute;             // speech lines it mutes: "agent", "agent_cutscene"
 };
 inline Registry<Character> characters{"career.character", { .applies = Applies::content }};
-
-struct Retirement {                            // one retirement schedule
-    std::chrono::year_month_day date;          // stock schedules use absolute dates; the last is December 2035
-    std::vector<Ref<drivers::Identity>> drivers;   // up to 8
-};
-
-struct Market {                                // driver_market, per data group
-    std::string data_group;
-    std::vector<Retirement> retirements;       // driver_retirements: 6 schedules of 8 drivers in stock
-    bool firings = true;                       // driver_firings
-    std::vector<Ref<drivers::Identity>> available;   // drivers_available_from_team_setup
-};
-SWOFTY_RECORD(Market, data_group, retirements, firings, available)
-inline Registry<Market> markets{"career.market", { .applies = Applies::read, .snapshot = true }};
-
-struct ContractRules {                         // driver_contracts and career.generic_contracts, per data group
-    std::string data_group;
-    std::map<std::string, std::array<int, 2>> rating_ranges;   // the rating range each team tier asks for
-    std::array<int64_t, 2> salary;             // the lowest and highest salary offered
-    int secret_meetings = 9;                   // secret meetings a season offers
-    bool counteroffers = true;                 // career.generic_contracts counteroffers
-};
-SWOFTY_RECORD(ContractRules, data_group, rating_ranges, salary, secret_meetings, counteroffers)
-inline Registry<ContractRules> contract_rules{"career.contract_rules", { .applies = Applies::boot }};
-
-struct RndUpgrade {                            // one node of a tree: an upgrade_N row
-    int cost = 0, weighting = 0, size = 0;
-    int type = 0;                              // upgrade_type: 0..18 (the game keeps a std::bitset<19>)
-    Ref<RndDepartment> department;
-    std::vector<int> links;                    // the nodes it unlocks, by index
-    std::array<int, 2> grid_coordinates;       // where the node sits in the tree
-    int unlock_at_facility_level = 0;
-};
-
-struct RndTree {                               // one team's tree in one data group
-    std::string data_group;
-    std::string token;                         // one of the 12 compiled-in team tokens: "ferrari" .. "user_defined"
-    std::vector<Ref<RndDepartment>> departments;
-    std::vector<RndUpgrade> nodes;
-};
-SWOFTY_RECORD(RndTree, data_group, token, departments, nodes)
-inline Registry<RndTree> rnd_trees{"career.rnd.tree", { .applies = Applies::boot }};
-
-struct Facility {                              // career.my_team_facilities: Engineering, Personnel, Corporate
-    Text name;
-    std::string group;                         // "engineering", "personnel", "corporate"
-    std::vector<std::string> perk_tree;        // the FacilityPerkTree nodes, in order
-    StatId stat_id = StatId::automatic;
-};
-SWOFTY_RECORD(Facility, name, group, perk_tree, stat_id)
-inline Registry<Facility> facilities{"career.facility", { .applies = Applies::boot }};
-
-struct Economy {                               // resource points and bank, per data group
-    std::string data_group;
-    std::map<std::string, float> resource_point_rates;   // resource_points.*
-    std::map<std::string, int64_t> budgets;    // bank: the budget per team key
-    int64_t initial_cash = 0;                  // bank: starting cash
-};
-SWOFTY_RECORD(Economy, data_group, resource_point_rates, budgets, initial_cash)
-inline Registry<Economy> economy{"career.economy", { .applies = Applies::boot }};
-
-struct Sponsor {                               // career.my_team_sponsors: 15 title and 72 secondary in stock
-    Text name;
-    Path logo;
-    bool title = false;                        // a title sponsor
-    std::vector<int> loyalty;                  // the loyalty track: points per level
-    StatId stat_id = StatId::automatic;
-};
-SWOFTY_RECORD(Sponsor, name, logo, title, loyalty, stat_id)
-inline Registry<Sponsor> sponsors{"career.sponsor", { .applies = Applies::boot }};
 
 struct WizardStep {
     std::string route;                         // the setup screen it opens, in flow_career_season_setup
@@ -464,6 +386,8 @@ career::contents.layer(career::contents["swofty.progressive/f1_career_progressiv
 
 ## Calendars
 
+The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group and applies nothing else.
+
 ```cpp
 auto calendar = career::calendars.add("f1_1990", {
     .rounds = {
@@ -483,27 +407,84 @@ A history career can race each season's real calendar (`Season::calendar`). The 
 [registry] career season 2017 calendar: 20 rounds from swofty.progressive/2017; venue/sepang not installed, round dropped
 ```
 
-## Contracts and the market
+## Described, in headers that come later
+
+The market, contracts, R&D, facilities, the economy and sponsors are described here. The 1.6.0 headers have no registry for them: `career.market`, `career.contract_rules`, `career.rnd.department`, `career.rnd.tree`, `career.facility`, `career.economy` and `career.sponsor`.
 
 ```cpp
-// Progressive's own market: no retirements while its seasons cover the grid; the real ones come from the seasons
-career::markets.variant("progressive", career::markets["game/f1_career_2026"], [](career::Market &m) {
-    m.data_group = "f1_career_progressive";
-    m.retirements.clear();
-});
+struct RndDepartment {
+    Text name;
+    Colour colour;
+    Path icon;
+    float cost_scale = 1.0f;                   // UpgradeDepartmentEntry economy scale
+};
+
+struct Retirement {                            // one retirement schedule
+    std::chrono::year_month_day date;          // stock schedules use absolute dates; the last is December 2035
+    std::vector<Ref<drivers::Identity>> drivers;   // up to 8
+};
+
+struct Market {                                // driver_market, per data group
+    std::string data_group;
+    std::vector<Retirement> retirements;       // driver_retirements: 6 schedules of 8 drivers in stock
+    bool firings = true;                       // driver_firings
+    std::vector<Ref<drivers::Identity>> available;   // drivers_available_from_team_setup
+};
+SWOFTY_RECORD(Market, data_group, retirements, firings, available)
+
+struct ContractRules {                         // driver_contracts and career.generic_contracts, per data group
+    std::string data_group;
+    std::map<std::string, std::array<int, 2>> rating_ranges;   // the rating range each team tier asks for
+    std::array<int64_t, 2> salary;             // the lowest and highest salary offered
+    int secret_meetings = 9;                   // secret meetings a season offers
+    bool counteroffers = true;                 // career.generic_contracts counteroffers
+};
+SWOFTY_RECORD(ContractRules, data_group, rating_ranges, salary, secret_meetings, counteroffers)
+
+struct RndUpgrade {                            // one node of a tree: an upgrade_N row
+    int cost = 0, weighting = 0, size = 0;
+    int type = 0;                              // upgrade_type: 0..18 (the game keeps a std::bitset<19>)
+    Ref<RndDepartment> department;
+    std::vector<int> links;                    // the nodes it unlocks, by index
+    std::array<int, 2> grid_coordinates;       // where the node sits in the tree
+    int unlock_at_facility_level = 0;
+};
+
+struct RndTree {                               // one team's tree in one data group
+    std::string data_group;
+    std::string token;                         // one of the 12 compiled-in team tokens: "ferrari" .. "user_defined"
+    std::vector<Ref<RndDepartment>> departments;
+    std::vector<RndUpgrade> nodes;
+};
+SWOFTY_RECORD(RndTree, data_group, token, departments, nodes)
+
+struct Facility {                              // career.my_team_facilities: Engineering, Personnel, Corporate
+    Text name;
+    std::string group;                         // "engineering", "personnel", "corporate"
+    std::vector<std::string> perk_tree;        // the FacilityPerkTree nodes, in order
+    StatId stat_id = StatId::automatic;
+};
+SWOFTY_RECORD(Facility, name, group, perk_tree, stat_id)
+
+struct Economy {                               // resource points and bank, per data group
+    std::string data_group;
+    std::map<std::string, float> resource_point_rates;   // resource_points.*
+    std::map<std::string, int64_t> budgets;    // bank: the budget per team key
+    int64_t initial_cash = 0;                  // bank: starting cash
+};
+SWOFTY_RECORD(Economy, data_group, resource_point_rates, budgets, initial_cash)
+
+struct Sponsor {                               // career.my_team_sponsors: 15 title and 72 secondary in stock
+    Text name;
+    Path logo;
+    bool title = false;                        // a title sponsor
+    std::vector<int> loyalty;                  // the loyalty track: points per level
+    StatId stat_id = StatId::automatic;
+};
+SWOFTY_RECORD(Sponsor, name, logo, title, loyalty, stat_id)
 ```
 
-## R&D
-
-```cpp
-// the Tyres department, coloured for 1990
-career::rnd_departments.layer(career::rnd_departments["swofty.rnd-tyres-thermal/tyres"], [](career::RndDepartment &d) {
-    d.colour = Colour("#22A45D");
-    d.cost_scale = 0.8f;
-});
-```
-
-The game draws four departments natively. The core draws a fifth and more through its `career.rnd.department` applier, the native layer R&D Tyres built. Team trees are found through 12 compiled-in tokens. A 13th tree needs native code.
+A market record for a mode of its own would clear the stock retirements while its seasons cover the grid. The game draws four R&D departments natively; a fifth and more come from native code, as R&D Tyres does. Team trees are found through 12 compiled-in tokens, and a 13th tree needs native code.
 
 ## Characters and wizards
 
@@ -565,7 +546,7 @@ Any other order crashes the career. Every operation runs on the flow thread.
 ## Readiness and limits
 
 - **The most ready system:** 59 career and 46 game functions at L2, saves at L3. Ready: contracts, line-ups, standings, resource points, upgrade start, cancel and cost, the calendar, activities, the wizard step, save containers.
-- **Partial:** facilities, sponsors, the market, Team HQ tabs (L1).
+- **Partial:** Team HQ tabs (L1). Facilities, sponsors and the market are described under "Described, in headers that come later".
 - **Unknown:** the resource point spend, regulation changes, a 13th team tree.
 - **The save heap** is 3 MB. The core keeps career snapshots outside it, in the `swofty_registry` entry, with a budget per registry and per career.
 - **R&D:** four departments drawn natively; upgrade types are a table of 19 and a `std::bitset<19>` (ids of 19 and up throw without native code).

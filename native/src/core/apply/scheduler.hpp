@@ -75,6 +75,7 @@ private:
     Totals session_end_locked(Lock &, const std::string &why);
     Totals content_picked_locked(Lock &, const std::string &entrant_list, const std::string *mode);
     void log_facts();
+    void log_unapplied();
 
     Store &store_;
     mutable std::recursive_mutex mu_;

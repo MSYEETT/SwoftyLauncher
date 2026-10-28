@@ -1,6 +1,6 @@
 ---
 title: Sounds
-description: Engine sounds and a car's audio data in code - typed registries, the bundle event, and pinning the game's own sound files.
+description: Engine sounds in code - typed registries, the bundle event, and pinning the game's own sound files.
 ---
 
 # Sounds
@@ -10,7 +10,7 @@ Give cars a new engine sound, give an added car its audio data, or keep the game
 A few terms used on this page:
 
 - An **engine sound** is a `sounds::EngineSound` record: a `.bdl` bundle, plus the stock sounds its mixing settings and tuning come from.
-- A car's **audio data** is a `sounds::CarAudio` record: the `audio_car_data` records that connect a car to its bundle through its switch name.
+- A car's **audio data** is an `audio.car` record: the `audio_car_data` records that connect a car to its bundle through its switch name. It is described on this page, in a header that comes later.
 - A **layer** changes values on a record that already exists. A **variant** is a separate record that inherits another record's values and overrides some of them.
 - A **box** is one of the year tiles in Grand Prix or Time Trial. The **base** is the data every year shares.
 
@@ -31,7 +31,7 @@ struct EngineSound {                               // an audio.audio_bundle_sett
     Ref<EngineSound> tuning_from;                  // copy its tuning (engine, era, cabin, exhaust)
 };
 
-struct CarAudio {                                  // one car's audio.audio_car_data.<switch> records
+struct CarAudio {                                  // described here; the registry comes in a later header; one car's audio.audio_car_data.<switch> records
     Ref<cars::Vehicle> vehicle;                    // the car
     std::string switch_name;                       // the car template's AudioF1Car switch: "f1_M_mercedes"
     Ref<EngineSound> engine_sound;                 // the bundle the switch reaches
@@ -39,7 +39,6 @@ struct CarAudio {                                  // one car's audio.audio_car_
 };
 
 inline Registry<EngineSound> engine_sounds{"engine_sound", { .applies = Applies::boot }};   // rows at boot; the file when it's opened
-inline Registry<CarAudio> car_audio{"audio.car", { .applies = Applies::boot }};
 
 }
 
@@ -227,7 +226,7 @@ SWOFTY_REGISTER
 
 <Split>
 
-Classic Seasons' cars need 430 raw audio records per season. As records, that's one `car_audio` record per car, copied from a stock car. The car reaches its bundle through its switch name, not through the car model's `bundleName`.
+Classic Seasons' cars need 430 raw audio records per season. In the design that is one `audio.car` record per car, copied from a stock car. The car reaches its bundle through its switch name, not through the car model's `bundleName`.
 
 <template #example>
 <Example root="swofty.classic-seasons-2017" code-file="native/src/sounds.cpp" data-file="registry/sounds.json" files="swofty.json, sounds/cs17_mercedes.bdl, sounds/cs17_ferrari.bdl, sounds/cs17_honda.bdl, sounds/cs17_renault.bdl">
@@ -236,17 +235,10 @@ Classic Seasons' cars need 430 raw audio records per season. As records, that's 
 ```cpp
 SWOFTY_REGISTER
 {
-    auto mercedes = sounds::engine_sounds.add("mercedes", {
+    sounds::engine_sounds.add("mercedes", {
         .bundle = file("sounds/cs17_mercedes.bdl"),
         .settings_from = sounds::engine_sounds["game/mercedes_2025"],
         .tuning_from = sounds::engine_sounds["game/mercedes_2025"],
-    });
-
-    sounds::car_audio.add("mercedes", {
-        .vehicle = cars::vehicles["swofty.classic-seasons-2017/mercedes"],
-        .switch_name = "f1_M_mercedes",
-        .engine_sound = mercedes,
-        .from = sounds::car_audio["game/mercedes_2025"],
     });
 }
 ```
@@ -258,10 +250,6 @@ SWOFTY_REGISTER
 {
   "engine_sound": {
     "mercedes": { "bundle": "sounds/cs17_mercedes.bdl", "settings_from": "game/mercedes_2025", "tuning_from": "game/mercedes_2025" }
-  },
-  "audio.car": {
-    "mercedes": { "vehicle": "swofty.classic-seasons-2017/mercedes", "switch_name": "f1_M_mercedes",
-                  "engine_sound": "swofty.classic-seasons-2017/mercedes", "from": "game/mercedes_2025" }
   }
 }
 ```

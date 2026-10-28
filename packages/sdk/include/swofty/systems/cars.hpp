@@ -8,7 +8,7 @@
 #include <swofty/systems/forward.hpp>
 
 // Cars: vehicle rows and their packages (boot), each car's handling file (applied as the car is built at
-// every session load), damage models and detachable parts. Handling parts are named after the handling
+// every session load; the 1.6.0 core stores handling records and applies nothing from them). Handling parts are named after the handling
 // file's sections and their fields after its keys, in snake_case (FrontCoeffLiftMultiplier ->
 // front_coeff_lift_multiplier); a key this header doesn't name is kept in the part's `extra`. cars::live
 // is the cars on track; the core that drives it ships later, and until then live::available() is false
@@ -22,10 +22,6 @@ using Result = swofty::Result;
 
 enum class Class { f1, f1_26, f2, classic, my_team, safety_car };
 SWOFTY_ENUM(Class, f1, f1_26, f2, classic, my_team, safety_car)
-enum class Component { front_wing, gearbox, engine };
-SWOFTY_ENUM(Component, front_wing, gearbox, engine)
-enum class Fault { open_drs, closed_drs, front_wing };
-SWOFTY_ENUM(Fault, open_drs, closed_drs, front_wing)
 enum class Department : int32_t { chassis, aero, powertrain, durability, tyres };
 SWOFTY_ENUM(Department, chassis, aero, powertrain, durability, tyres)
 
@@ -227,23 +223,6 @@ SWOFTY_RECORD(Handling, from, vtf, cls, damage_scale, chassis, f1_aero, core_aer
               tyre_damage, body_damage, tyres, engine, gearbox, fuel_tank, fuel_ecu, brake_ecu, steering, differential,
               suspension, tuning, assists, turbo, ers, plank, rad_upgrades)
 
-struct DamageLevel {
-    float rate = 1.0f;
-    float minimal = 0, repairable = 0, retirement = 0, terminal = 0;
-    bool should_pit = false;
-};
-SWOFTY_RECORD(DamageLevel, rate, minimal, repairable, retirement, terminal, should_pit)
-
-struct DamageModel {
-    static constexpr Version version{1, 0};
-    std::map<Component, DamageLevel> levels;
-    float puncture_limit = 0;
-    std::map<Fault, float> repair_times;
-    json::Value extra;
-};
-SWOFTY_RECORD(DamageModel, levels, puncture_limit, repair_times)
-SWOFTY_RECORD_REGISTRY(DamageModel, "vehicle.damage_model")
-
 struct Part {
     std::string node;
     float detach_at = 0;
@@ -251,20 +230,9 @@ struct Part {
 };
 SWOFTY_RECORD(Part, node, detach_at, debris)
 
-struct Parts {
-    static constexpr Version version{1, 0};
-    Ref<Vehicle> vehicle;
-    std::vector<Part> parts;
-    json::Value extra;
-};
-SWOFTY_RECORD(Parts, vehicle, parts)
-SWOFTY_RECORD_REGISTRY(Parts, "vehicle.parts")
-
 inline Registry<Vehicle> vehicles{"vehicle", {.applies = Applies::boot}};
 inline Registry<Package> packages{"vehicle.package", {.applies = Applies::boot}};
 inline Registry<Handling> handling{"vehicle.handling", {.applies = Applies::session}};
-inline Registry<DamageModel> damage_models{"vehicle.damage_model", {.applies = Applies::boot}};
-inline Registry<Parts> parts{"vehicle.parts", {.applies = Applies::read}};
 
 inline Result reset_upgrades(int) { return Result::unavailable; }
 

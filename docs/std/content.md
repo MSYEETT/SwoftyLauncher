@@ -450,7 +450,7 @@ See [Career snapshots](/std/scopes#career-snapshots) and [Career](/std/systems/c
 
 - `era.box`, `content.package`: this page.
 - `vehicle`, `vehicle.package`, `vehicle.handling`: [Cars](/std/systems/cars).
-- `engine_sound`, `audio.car`: [Sounds](/std/systems/sounds).
+- `engine_sound`: [Sounds](/std/systems/sounds).
 - `livery`: [Liveries](/std/systems/liveries).
 - `helmet`, `suit`, `gloves`, `wearable.season_set`: [Helmets, suits and gloves](/std/systems/wearables).
 - `track`, `track.data`, `track.per_package`: [Tracks](/std/systems/tracks).
