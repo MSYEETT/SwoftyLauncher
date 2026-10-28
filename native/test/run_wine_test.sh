@@ -5,6 +5,7 @@ cd "$(dirname "$SELF")"
 if ! command -v wine >/dev/null || ! command -v xvfb-run >/dev/null || ! command -v zig >/dev/null; then
     exec nix shell nixpkgs#zig nixpkgs#wineWow64Packages.stable nixpkgs#xvfb-run -c "$SELF" "$@"
 fi
+. ./game_lock.sh
 OUT=${1:-$PWD/../build/wine-test}
 ITEMS=
 grep -qa '\[items\] ownership check hooked' ../dist/swofty/addons/core/swofty_core.dll && ITEMS=1

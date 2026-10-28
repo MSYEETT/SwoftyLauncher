@@ -547,6 +547,16 @@ impl<'a> Planner<'a> {
         self.write(target, origin, true);
     }
 
+    /// Records that `keeper` keeps `target`, which `lost` replaces later in load order.
+    pub fn kept(&mut self, target: Target, keeper: &Origin, lost: &Origin) {
+        let writers = self.writers.entry(target.clone()).or_default();
+        writers.retain(|w| w != lost);
+        if !writers.contains(keeper) {
+            writers.push(keeper.clone());
+        }
+        self.overrides(&target, keeper, vec![lost.clone()]);
+    }
+
     /// Records that `origin` puts the whole archive `erp` with a `file.put`: it
     /// writes every resource other ops write in it, and load order decides.
     pub fn put_archive(&mut self, erp: &str, origin: &Origin) {
