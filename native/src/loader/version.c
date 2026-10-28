@@ -444,6 +444,35 @@ static int dll_registers(const wchar_t *path)
 
 static int registered_count;
 
+/* The early stage runs before the game loads its database, which is when SWOFTY_REGISTER must run, so a
+   DLL that exports SwoftyAddonRegister turns the early stage on. Profiles without one are unaffected. */
+static int registering_dlls(void)
+{
+    int n = 0;
+    for (int i = 0; i < plugin_count; i++) {
+        wchar_t path[MAX_PATH * 2];
+        swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\%ls", game_dir, plugins[i]);
+        n += dll_registers(path);
+    }
+    for (int r = 0; r < (int)(sizeof ROOTS / sizeof *ROOTS); r++) {
+        wchar_t query[MAX_PATH * 2];
+        swprintf(query, MAX_PATH * 2, L"%ls\\swofty\\%ls\\*.dll", game_dir, ROOTS[r]);
+        WIN32_FIND_DATAW fd;
+        HANDLE f = FindFirstFileW(query, &fd);
+        if (f == INVALID_HANDLE_VALUE)
+            continue;
+        do {
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                continue;
+            wchar_t path[MAX_PATH * 2];
+            swprintf(path, MAX_PATH * 2, L"%ls\\swofty\\%ls\\%ls", game_dir, ROOTS[r], fd.cFileName);
+            n += dll_registers(path);
+        } while (FindNextFileW(f, &fd));
+        FindClose(f);
+    }
+    return n;
+}
+
 static void register_addon(const wchar_t *dir, const wchar_t *name)
 {
     wchar_t path[MAX_PATH * 2];
@@ -1720,6 +1749,14 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved)
     if (early_count && !early_enabled && !early_env) {
         early_enabled = 1;
         slog("early stage: on for %d early plugin(s); SwoftyMod loads with them", early_count);
+    }
+    if (!early_enabled && !early_env) {
+        int registering = registering_dlls();
+        if (registering) {
+            early_enabled = 1;
+            slog("early stage: on for %d addon dll(s) that export SwoftyAddonRegister; SWOFTY_REGISTER runs before the "
+                 "game loads its database", registering);
+        }
     }
     if (ea_diag && !early_enabled) {
         early_enabled = 1;

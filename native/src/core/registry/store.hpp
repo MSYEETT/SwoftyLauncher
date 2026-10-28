@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -58,6 +59,7 @@ struct Change {
     Value patch;
     SwoftyEditFn fn = nullptr;
     void *user = nullptr;
+    std::shared_ptr<const Value> schema;
 };
 
 struct LayerSpec {
@@ -129,8 +131,9 @@ public:
     void end_career_load();
     void set_flow_thread(bool is_flow_thread_fn());
 
-    int declare(const std::string &name, const Value &schema, bool core = false);
-    int declare_def(const Def &def);
+    int declare(const std::string &name, const Value &schema, bool core = false, const std::string &addon = {});
+    int declare_def(const Def &def, const std::string &addon = {}, const Value *schema = nullptr);
+    std::size_t pending(const std::string &registry = {}) const;
     bool declared(const std::string &name) const;
     int add_base(const std::string &registry, const std::string &key, const Value &value);
     int define_tag(const std::string &registry, const std::string &tag, const std::vector<std::string> &members);
@@ -161,6 +164,7 @@ public:
     Status status(const std::string &registry_at, const std::string &id);
     std::string origin(const std::string &registry, const std::string &id, const std::string &pointer);
     std::vector<std::string> list(const std::string &registry, const std::string &prefix);
+    bool next(const std::string &registry, const std::string &prefix, const std::string *after, std::string &id);
     std::vector<std::string> tag_members(const std::string &registry, const std::string &tag);
     std::vector<std::string> chain(const std::string &registry, const std::string &id);
     std::vector<std::string> registries() const;

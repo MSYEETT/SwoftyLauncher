@@ -18,13 +18,14 @@ mkdir -p "$OUT/game" "$OUT/stages" "$OUT/packed" "$OUT/filled"
 "${PIN[@]}" zig cc -target x86_64-windows-gnu -O2 -o "$OUT/filled/F1_25.exe" fake_filled_iat.c -luser32 &
 cp -r ../dist/. "$OUT/game/"
 cp -r ../dist/. "$OUT/filled/"
-mkdir -p "$OUT/game/swofty/mods/core"
+mkdir -p "$OUT/game/swofty/mods/core" "$OUT/register"
 mv "$OUT/game/swofty/addons/core/swofty_gamelog.dll" "$OUT/game/swofty/addons/core/log_channels.tsv" "$OUT/game/swofty/mods/core/"
 for m in addons/t_*.cpp; do
     name=$(basename "${m%.cpp}")
     case $name in
     t_chain_b) dest=$OUT/game/swofty/mods ;;
     t_stage_*) dest=$OUT/stages ;;
+    t_register) dest=$OUT/register ;;
     t_packed*) dest=$OUT/packed ;;
     t_ntpage | t_int3hook) dest=$OUT ;;
     *) dest=$OUT/game/swofty/addons ;;
@@ -786,4 +787,34 @@ once "filled: RegisterClassExW is found in the filled table" 'trigger armed: gam
 once "filled: CreateWindowExW is found in the filled table" 'trigger armed: game IAT slot USER32!CreateWindowExW at [0-9A-Fa-f]+ \(was [0-9A-Fa-f]+\), in the import table the exe filled at load'
 once "filled: the window stage runs at RegisterClassExW" 'stage: window \(USER32!RegisterClassExW from [0-9A-Fa-f]+ \(\.text\)\), addons were loaded at the early stage'
 count "filled: the fallback watcher leaves the window stage to the armed slots" 0 'waiting for a visible main window for the window stage'
+echo "==== register"
+SR=$OUT/register/game
+rm -rf "$SR"
+cp -r "$OUT/game" "$SR"
+rm -f "$SR"/swofty/addons/t_*.dll "$SR"/swofty/mods/t_*.dll "$SR/swofty/loader.log"
+cp "$OUT/register/t_register.dll" "$SR/swofty/addons/"
+python3 - "$SR/swofty" <<'EOF'
+import json, os, sys
+root = sys.argv[1]
+json.dump({'schema': 1, 'profile': 'wine-test', 'addons': [{'id': 't.register', 'dlls': ['t_register.dll'], 'options': []}]},
+          open(root + '/settings.json', 'w'))
+os.makedirs(root + '/registry', exist_ok=True)
+os.makedirs(root + '/addons/wine.data/registry', exist_ok=True)
+json.dump({'version': 1, 'profile': 'wine-test', 'order': ['t.register', 'wine.data'],
+           'data': {'wine.data': ['addons/wine.data/registry/records.json']}}, open(root + '/registry/index.json', 'w'))
+json.dump({'wine.thing': {'extra': {'name': 'extra', 'n': 7}}}, open(root + '/addons/wine.data/registry/records.json', 'w'))
+EOF
+LOG=$SR/swofty/loader.log
+env -u SWOFTY_EARLY_STAGE "${PIN[@]}" xvfb-run -a wine "$SR/F1_25.exe" register || status=1
+echo "---- $LOG (register)"
+grep -v '  section ' "$LOG"
+check "register: a dll that exports SwoftyAddonRegister turns the early stage on" 'early stage: on for 1 addon dll\(s\) that export SwoftyAddonRegister'
+check "register: SwoftyAddonRegister is called at the early stage" 'addon t_register\.dll: calling SwoftyAddonRegister \(API v9\) at the early stage'
+check "register: index.json's data file waits for its registry and lands on declare" '\[registry\] wine\.thing: declared; applying 1 call'
+check "register: the code record and a data-only addon's record read back" '\[t_register\] on_load: t\.register/one n=1, wine\.data/extra n=7'
+awk '/addon t_register\.dll: calling SwoftyAddonRegister/ && !a {a = NR} /\[t_register\] register: SWOFTY_REGISTER runs/ && !b {b = NR}
+     /fake game: the game database loads now/ && !c {c = NR} /addon t_register\.dll: loaded at .*, calling SwoftyAddonInit/ && !d {d = NR}
+     END {exit !(a && b && c && d && a < b && b < c && c < d)}' "$LOG" &&
+    echo "ok  : register: the register pass, then the database load, then SwoftyAddonInit" ||
+    { echo "FAIL: register: the register pass, then the database load, then SwoftyAddonInit"; status=1; }
 exit $status

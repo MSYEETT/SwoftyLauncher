@@ -299,6 +299,60 @@ template <class F> int call_sized(std::string &buf, F f)
     return SWOFTY_ASSET_INVALID;
 }
 
+const Value *schema_node(const Value *node, const Value &root)
+{
+    for (int hops = 0; node && hops < 8; hops++) {
+        auto ref = node->find("$ref");
+        if (!ref || !ref->is_string())
+            return node;
+        std::string r(ref->as_string());
+        node = r.rfind("#/", 0) == 0 ? root.get(r.substr(1)) : nullptr;
+    }
+    return node;
+}
+
+Value overlay(const Value &in, const Value &out, const Value *node, const Value &root, int depth)
+{
+    node = schema_node(node, root);
+    if (!node || depth > 32)
+        return out;
+    if (in.is_object() && out.is_object()) {
+        const Value *props = node->find("properties");
+        if (!props || !props->is_object())
+            return out;
+        Value res = in;
+        for (auto &[k, v] : *out.if_object()) {
+            const Value *sub = props->find(k), *iv = in.find(k);
+            res[k] = sub && iv ? overlay(*iv, v, sub, root, depth + 1) : v;
+        }
+        for (auto &[k, sub] : *props->if_object())
+            if (!out.find(k))
+                res.erase(k);
+        return res;
+    }
+    if (in.is_array() && out.is_array()) {
+        const Value *xk = node->find("x-key"), *items = node->find("items");
+        if (!xk || !xk->is_array() || !items)
+            return out;
+        std::vector<std::string> fields;
+        for (auto &f : *xk->if_array())
+            fields.emplace_back(f.as_string());
+        Value res = Value::array();
+        for (auto &e : *out.if_array()) {
+            const Value *old = nullptr;
+            if (holds(e, fields))
+                for (auto &o : *in.if_array())
+                    if (holds(o, fields) && same_key(o, e, fields)) {
+                        old = &o;
+                        break;
+                    }
+            res.push_back(old ? overlay(*old, e, items, root, depth + 1) : e);
+        }
+        return res;
+    }
+    return out;
+}
+
 }
 
 const char *applies_name(Applies a)
@@ -471,6 +525,7 @@ struct Reg {
     std::map<std::string, std::vector<std::string>> protect;
     std::vector<std::pair<SwoftyCheckFn, void *>> checks;
     std::vector<Adapter> adapters;
+    std::map<std::string, std::shared_ptr<const Value>> schema_of;
     Eval eval;
 };
 
@@ -497,9 +552,62 @@ struct Store::Impl {
     uint32_t next_handle = 1, next_token = 1;
     std::vector<Refusal> refusals;
     std::vector<Watcher> watchers;
-    bool loading = false;
-    std::condition_variable_any loaded;
-    bool (*is_flow)() = nullptr;
+    std::atomic<bool> loading{false};
+    std::mutex wait_mu;
+    std::condition_variable loaded;
+    std::atomic<bool (*)()> is_flow{nullptr};
+    std::map<std::string, std::vector<std::function<void()>>> pending;
+    std::set<uint32_t> pending_handles;
+    std::map<uint32_t, std::vector<Value>> pending_in;
+    int forced_op = -1;
+    uint64_t forced_seq = 0;
+    uint32_t forced_handle = 0;
+    int forced_registering = -1;
+
+    void wait_for_load()
+    {
+        if (!loading || tl_callback_depth || tl_computing)
+            return;
+        auto flow = is_flow.load();
+        if (flow && flow()) {
+            std::unique_lock w(wait_mu);
+            loaded.wait(w, [&] { return !loading.load(); });
+        }
+    }
+
+    uint64_t take_seq()
+    {
+        if (forced_seq) {
+            uint64_t q = forced_seq;
+            forced_seq = 0;
+            return q;
+        }
+        return ++seq;
+    }
+
+    bool registering_now() const { return forced_registering >= 0 ? forced_registering != 0 : registering; }
+
+    template <class F> int defer(const std::string &registry, int op, F &&replay)
+    {
+        uint64_t q = ++seq;
+        int reg_state = registering_now() ? 1 : 0;
+        std::string profile = ctx.profile, career = ctx.career;
+        pending[registry.substr(0, registry.find('@'))].push_back([this, op, q, reg_state, profile, career, replay] {
+            Context saved = ctx;
+            ctx.profile = profile;
+            ctx.career = career;
+            forced_op = op;
+            forced_seq = q;
+            forced_registering = reg_state;
+            replay();
+            forced_op = -1;
+            forced_seq = 0;
+            forced_registering = -1;
+            ctx.profile = saved.profile;
+            ctx.career = saved.career;
+        });
+        return SWOFTY_ASSET_OK;
+    }
     std::map<std::pair<std::string, std::string>, std::optional<Value>> option_reads;
     std::set<std::string> unchecked;
     SnapshotSource snapshot;
@@ -545,7 +653,15 @@ struct Store::Impl {
         return n;
     }
 
-    int next_op(const std::string &addon) { return ops[addon]++; }
+    int next_op(const std::string &addon)
+    {
+        if (forced_op >= 0) {
+            int o = forced_op;
+            forced_op = -1;
+            return o;
+        }
+        return ops[addon]++;
+    }
 
     int refuse(const std::string &addon, const std::string &registry, const std::string &id, int op,
                const std::string &reason, const std::string &message, int result)
@@ -565,7 +681,7 @@ struct Store::Impl {
         return it == regs.end() ? nullptr : &it->second;
     }
 
-    bool late_for(const Reg &r) const { return !registering && r.def.applies == Applies::boot; }
+    bool late_for(const Reg &r) const { return !registering_now() && r.def.applies == Applies::boot; }
 
     void evaluate(Reg &r);
 };
@@ -839,10 +955,7 @@ struct Engine {
         Value v = swofty::json::parse(out, &e);
         if (!e.message.empty() || !v.is_object())
             return false;
-        if (!after.is_object())
-            after = Value::object();
-        for (auto &[k, m] : *v.if_object())
-            (*after.if_object())[k] = m;
+        after = c.schema ? overlay(before, v, c.schema.get(), *c.schema, 0) : v;
         return true;
     }
 
@@ -1577,27 +1690,24 @@ bool Store::registering() const
 
 void Store::begin_career_load()
 {
-    std::lock_guard g(d->mu);
+    std::lock_guard w(d->wait_mu);
     d->loading = true;
 }
 
 void Store::end_career_load()
 {
     {
-        std::lock_guard g(d->mu);
+        std::lock_guard w(d->wait_mu);
         d->loading = false;
-        d->touch();
     }
     d->loaded.notify_all();
-}
-
-void Store::set_flow_thread(bool fn())
-{
     std::lock_guard g(d->mu);
-    d->is_flow = fn;
+    d->touch();
 }
 
-int Store::declare_def(const Def &def)
+void Store::set_flow_thread(bool fn()) { d->is_flow = fn; }
+
+int Store::declare_def(const Def &def, const std::string &addon, const Value *schema)
 {
     std::lock_guard g(d->mu);
     auto it = d->regs.find(def.name);
@@ -1605,15 +1715,28 @@ int Store::declare_def(const Def &def)
         Reg r;
         r.def = def;
         r.majors[def.major] = def;
+        if (!addon.empty() && schema)
+            r.schema_of[addon] = std::make_shared<const Value>(*schema);
         d->regs.emplace(def.name, std::move(r));
         if (def.name == "vehicle" || def.name == "vehicle.handling")
             d->regs[def.name].tags["c/f1_cars"];
         if (def.name == "track")
             d->regs[def.name].tags["c/street_circuits"];
         d->touch();
+        auto p = d->pending.find(def.name);
+        if (p != d->pending.end()) {
+            auto replays = std::move(p->second);
+            d->pending.erase(p);
+            d->note("[registry] " + def.name + ": declared; applying " + std::to_string(replays.size()) +
+                    " call(s) made before it was declared, in their original order");
+            for (auto &fn : replays)
+                fn();
+        }
         return SWOFTY_ASSET_OK;
     }
     Reg &r = it->second;
+    if (!addon.empty() && schema)
+        r.schema_of[addon] = std::make_shared<const Value>(*schema);
     auto m = r.majors.find(def.major);
     if (m == r.majors.end() || m->second.minor < def.minor)
         r.majors[def.major] = def;
@@ -1626,7 +1749,7 @@ int Store::declare_def(const Def &def)
     return SWOFTY_ASSET_OK;
 }
 
-int Store::declare(const std::string &name, const Value &schema, bool core)
+int Store::declare(const std::string &name, const Value &schema, bool core, const std::string &addon)
 {
     if (name.empty() || !schema.is_object()) {
         set_last_error("declare: a registry name and a schema object are needed");
@@ -1634,7 +1757,7 @@ int Store::declare(const std::string &name, const Value &schema, bool core)
     }
     Def def = parse_schema(name, schema);
     def.core = core;
-    return declare_def(def);
+    return declare_def(def, addon, &schema);
 }
 
 bool Store::declared(const std::string &name) const
@@ -1687,9 +1810,11 @@ int Store::add(const std::string &addon, const std::string &registry, const std:
     if (tl_callback_depth)
         return d->refuse(addon, registry, rid, op, "late", "add from inside a registry callback is refused", SWOFTY_ASSET_LATE);
     Reg *r = d->reg(registry);
-    if (!r)
-        return d->refuse(addon, registry, rid, op, "unavailable", "add: registry " + registry + " is not declared",
-                         SWOFTY_ASSET_UNAVAILABLE);
+    if (!r) {
+        if (id)
+            *id = rid;
+        return d->defer(registry, op, [this, addon, registry, key, value, source] { add(addon, registry, key, value, nullptr, source); });
+    }
     if (addon.empty() || !is_key(key))
         return d->refuse(addon, registry, rid, op, "invalid", "add: '" + key + "' is not a key", SWOFTY_ASSET_INVALID);
     if (d->late_for(*r))
@@ -1703,7 +1828,7 @@ int Store::add(const std::string &addon, const std::string &registry, const std:
     if (!list.empty())
         d->note("[registry] " + registry + " " + rid + ": added twice by " + addon + " (" + list.back().source +
                 ", then " + source + "); the later wins. The conflicts report lists it.");
-    list.push_back({addon, false, strip_meta(value), {}, {}, ++d->seq, op, source});
+    list.push_back({addon, false, strip_meta(value), {}, {}, d->take_seq(), op, source});
     if (auto pf = value.find("$protect"); pf && pf->is_array())
         for (auto &f : *pf->if_array())
             if (f.is_string())
@@ -1725,9 +1850,12 @@ int Store::variant(const std::string &addon, const std::string &registry, const 
         return d->refuse(addon, registry, rid, op, "late", "variant from inside a registry callback is refused",
                          SWOFTY_ASSET_LATE);
     Reg *r = d->reg(registry);
-    if (!r)
-        return d->refuse(addon, registry, rid, op, "unavailable", "variant: registry " + registry + " is not declared",
-                         SWOFTY_ASSET_UNAVAILABLE);
+    if (!r) {
+        if (id)
+            *id = rid;
+        return d->defer(registry, op,
+                        [this, addon, registry, key, base, change, source] { variant(addon, registry, key, base, change, nullptr, source); });
+    }
     if (addon.empty() || !is_key(key) || base.empty())
         return d->refuse(addon, registry, rid, op, "invalid", "variant: bad key or base", SWOFTY_ASSET_INVALID);
     if (d->late_for(*r))
@@ -1735,6 +1863,9 @@ int Store::variant(const std::string &addon, const std::string &registry, const 
                          "variant by " + addon + " refused (late): " + registry + " applies at boot",
                          SWOFTY_ASSET_LATE);
     Change c = change;
+    if (!c.is_patch && !c.schema)
+        if (auto so = r->schema_of.find(addon); so != r->schema_of.end())
+            c.schema = so->second;
     if (c.is_patch) {
         if (auto pf = c.patch.find("$protect"); pf && pf->is_array())
             for (auto &f : *pf->if_array())
@@ -1743,7 +1874,7 @@ int Store::variant(const std::string &addon, const std::string &registry, const 
         c.patch = strip_meta(c.patch);
         c.patch.erase("extends");
     }
-    r->provs[rid].push_back({addon, true, {}, base, c, ++d->seq, op, source});
+    r->provs[rid].push_back({addon, true, {}, base, c, d->take_seq(), op, source});
     if (id)
         *id = rid;
     d->note("[registry] " + registry + " " + rid + ": variant of " + base);
@@ -1766,7 +1897,7 @@ int Store::provide_fn(const std::string &addon, const std::string &registry, Swo
     if (d->late_for(*r))
         return d->refuse(addon, registry, "", op, "late", "provide by " + addon + " refused (late): " + registry +
                                                                " applies at boot", SWOFTY_ASSET_LATE);
-    r->dyns.push_back({addon, fn, list, user, ++d->seq, {}, false, {}});
+    r->dyns.push_back({addon, fn, list, user, d->take_seq(), {}, false, {}});
     d->touch();
     return SWOFTY_ASSET_OK;
 }
@@ -1817,9 +1948,26 @@ int Store::layer(const LayerSpec &spec, uint32_t *handle)
         return d->refuse(spec.addon, spec.registry, rid, op, "late", "layer from inside a registry callback is refused",
                          SWOFTY_ASSET_LATE);
     Reg *r = d->reg(spec.registry);
-    if (!r)
-        return d->refuse(spec.addon, spec.registry, rid, op, "unavailable",
-                         "layer: registry " + spec.registry + " is not declared", SWOFTY_ASSET_UNAVAILABLE);
+    if (!r) {
+        uint32_t h = d->next_handle++;
+        d->pending_handles.insert(h);
+        if (handle)
+            *handle = h;
+        return d->defer(spec.registry, op, [this, spec, h] {
+            d->forced_handle = h;
+            layer(spec, nullptr);
+            d->forced_handle = 0;
+        });
+    }
+    if (!spec.change.is_patch && spec.change.fn && !spec.change.schema) {
+        auto so = r->schema_of.find(spec.addon);
+        if (so != r->schema_of.end()) {
+            LayerSpec with = spec;
+            with.change.schema = so->second;
+            d->forced_op = op;
+            return layer(with, handle);
+        }
+    }
     if (spec.addon.empty() || (!spec.selector && spec.id.empty()))
         return d->refuse(spec.addon, spec.registry, rid, op, "invalid", "layer: no target", SWOFTY_ASSET_INVALID);
     if (spec.in.is_array() && spec.in.size() && r->def.applies == Applies::boot)
@@ -1847,9 +1995,29 @@ int Store::layer(const LayerSpec &spec, uint32_t *handle)
     if (!L.spec.in.is_array())
         L.spec.in = Value();
     L.owner = owner;
-    L.seq = ++d->seq;
+    L.seq = d->take_seq();
     L.op = op;
-    L.handle = d->next_handle++;
+    if (d->forced_handle) {
+        L.handle = d->forced_handle;
+        d->forced_handle = 0;
+        d->pending_handles.erase(L.handle);
+    } else
+        L.handle = d->next_handle++;
+    if (auto pi = d->pending_in.find(L.handle); pi != d->pending_in.end()) {
+        if (!L.spec.in.is_array())
+            L.spec.in = Value::array();
+        for (auto &sel : pi->second)
+            if (auto a = sel.if_array())
+                for (auto &e : *a)
+                    L.spec.in.push_back(e);
+            else
+                L.spec.in.push_back(sel);
+        d->pending_in.erase(pi);
+        if (r->def.applies == Applies::boot)
+            return d->refuse(spec.addon, spec.registry, rid, op, "boot_filtered",
+                             "layer from " + spec.addon + " has .in(), but " + spec.registry + " applies at boot; refused",
+                             SWOFTY_ASSET_INVALID);
+    }
     if (!spec.selector)
         std::erase_if(r->layers, [&](const Layer &o) {
             return !o.spec.selector && o.spec.addon == spec.addon && o.spec.id == spec.id && o.spec.scope == spec.scope &&
@@ -1858,7 +2026,7 @@ int Store::layer(const LayerSpec &spec, uint32_t *handle)
     r->layers.push_back(std::move(L));
     if (handle)
         *handle = r->layers.back().handle;
-    if (!d->registering)
+    if (!d->registering_now())
         d->note("[registry] layer from " + spec.addon + " on " + spec.registry + (rid.empty() ? "" : " " + rid) +
                 " registered at run time; applies from the next read of that data");
     d->touch();
@@ -1894,6 +2062,10 @@ int Store::layer_in(const std::string &addon, uint32_t handle, const Value &sele
             d->touch();
             return SWOFTY_ASSET_OK;
         }
+    if (d->pending_handles.count(handle)) {
+        d->pending_in[handle].push_back(selectors);
+        return SWOFTY_ASSET_OK;
+    }
     set_last_error("layer_in: no layer with that handle");
     return SWOFTY_ASSET_INVALID;
 }
@@ -2010,9 +2182,8 @@ int Store::unwatch(uint32_t token)
 
 Record Store::get(const std::string &registry_at, const std::string &id)
 {
+    d->wait_for_load();
     std::unique_lock g(d->mu);
-    if (d->loading && d->is_flow && d->is_flow())
-        d->loaded.wait(g, [&] { return !d->loading; });
     Record out;
     Reg *r = d->reg(registry_at);
     if (!r) {
@@ -2078,6 +2249,7 @@ Status Store::status(const std::string &registry_at, const std::string &id) { re
 
 std::string Store::origin(const std::string &registry, const std::string &id, const std::string &pointer)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     Reg *r = d->reg(registry);
     if (!r)
@@ -2090,8 +2262,40 @@ std::string Store::origin(const std::string &registry, const std::string &id, co
     return origin_in(it->second, p);
 }
 
+std::size_t Store::pending(const std::string &registry) const
+{
+    std::lock_guard g(d->mu);
+    std::size_t n = 0;
+    for (auto &[name, calls] : d->pending)
+        if (registry.empty() || name == registry)
+            n += calls.size();
+    return n;
+}
+
+bool Store::next(const std::string &registry, const std::string &prefix, const std::string *after, std::string &id)
+{
+    d->wait_for_load();
+    std::lock_guard g(d->mu);
+    Reg *r = d->reg(registry);
+    if (!r)
+        return false;
+    d->evaluate(*r);
+    auto &top = r->eval.top;
+    auto it = after ? top.upper_bound(*after) : top.lower_bound(prefix);
+    for (; it != top.end(); ++it) {
+        if (it->first.compare(0, prefix.size(), prefix) != 0)
+            return false;
+        if (it->second.st != Status::no_record) {
+            id = it->first;
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<std::string> Store::list(const std::string &registry, const std::string &prefix)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     std::vector<std::string> out;
     Reg *r = d->reg(registry);
@@ -2106,6 +2310,7 @@ std::vector<std::string> Store::list(const std::string &registry, const std::str
 
 std::vector<std::string> Store::tag_members(const std::string &registry, const std::string &tag)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     Reg *r = d->reg(registry);
     if (!r)
