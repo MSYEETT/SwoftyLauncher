@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::{Context, Result, bail};
 use swofty_core::baseline::DepotHashes;
 use swofty_core::build::GVDB;
+use swofty_core::busy::{self, Busy, Step};
 use swofty_core::install::{EA_APP_EXPERIMENTAL, Game, Installer, Source};
 use swofty_core::recovery::{Blocked, Scope, SessionLock};
 use swofty_core::settings::SETTINGS_FILE;
@@ -168,44 +170,81 @@ pub fn install(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn 
     if swofty_core::compat::write_blocker(&g.dir).is_some() {
         bail!("{}", swofty_core::compat::write_blocked_text(&g.dir));
     }
-    let done = std::sync::atomic::AtomicBool::new(false);
-    std::thread::scope(|s| {
-        s.spawn(|| heartbeat(&done));
-        let r = install_checked(store, profile, g, session, out)
+    let done = AtomicBool::new(false);
+    let copied = Copied::default();
+    let progress = |n: usize, total: usize| {
+        copied.0.store(n as u64, Ordering::Relaxed);
+        copied.1.store(total as u64, Ordering::Relaxed);
+    };
+    let busy = session.then(|| {
+        busy::clear_cancel(&store.root);
+        let addons = store
+            .profile(profile)
+            .map(|p| p.enabled().map(str::to_owned).collect())
+            .unwrap_or_default();
+        Busy::new(profile, addons)
+    });
+    let r = std::thread::scope(|s| {
+        s.spawn(|| heartbeat(&done, &store.root, busy, &copied));
+        let r = install_checked(store, profile, g, session, out, &progress)
             .map_err(|e| named(store, g, e))
             .map_err(|e| denied(e, &g.dir))
             .map_err(|e| outdated(store, g, e));
-        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        done.store(true, Ordering::Relaxed);
         r
-    })
+    });
+    if session {
+        Busy::clear(&store.root);
+        busy::clear_cancel(&store.root);
+    }
+    r
 }
+
+#[derive(Default)]
+struct Copied(AtomicU64, AtomicU64);
 
 /// While a build and install run, a line every 30 s that they moved, so the
 /// launcher's ten-minute limit on a silent wrapper stops only one that is
-/// stuck.
-fn heartbeat(done: &std::sync::atomic::AtomicBool) {
+/// stuck. A session's build also keeps `state/build.json` current.
+fn heartbeat(done: &AtomicBool, data: &Path, mut busy: Option<Busy>, copied: &Copied) {
     const EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+    const NOTE: std::time::Duration = std::time::Duration::from_secs(2);
     let start = std::time::Instant::now();
     let first = swofty_core::work();
     let mut last = first;
+    let mut doing = swofty_core::doing();
     let mut tick = start;
-    while !done.load(std::sync::atomic::Ordering::Relaxed) {
+    let mut noted: Option<std::time::Instant> = None;
+    while !done.load(Ordering::Relaxed) {
+        if let Some(b) = busy.as_mut()
+            && noted.is_none_or(|n| n.elapsed() >= NOTE)
+        {
+            noted = Some(std::time::Instant::now());
+            track(b, swofty_core::work() - first, copied);
+            b.write(data).ok();
+        }
         std::thread::sleep(std::time::Duration::from_millis(250));
         if tick.elapsed() < EVERY {
             continue;
         }
         tick = std::time::Instant::now();
         let now = swofty_core::work();
-        if now != last {
+        let step = swofty_core::doing();
+        if now != last || step != doing {
             crate::run::say(
                 "info",
                 &format!(
-                    "build: still working after {} s ({} file(s) and fragment(s) so far)",
+                    "build: still working after {} s ({} file(s) and fragment(s) so far{})",
                     start.elapsed().as_secs(),
-                    now - first
+                    now - first,
+                    match step.is_empty() {
+                        true => String::new(),
+                        false => format!("; {step}"),
+                    }
                 ),
             );
             last = now;
+            doing = step;
         }
     }
 }
@@ -262,7 +301,26 @@ fn outdated_with(
     }
 }
 
-fn install_checked(store: &Store, profile: &str, g: &Game, session: bool, out: &dyn Fn(&str)) -> Result<()> {
+fn track(b: &mut Busy, work: u64, copied: &Copied) {
+    let total = copied.1.load(Ordering::Relaxed);
+    if total == 0 {
+        b.step = Step::Building;
+        b.done = work;
+    } else {
+        b.step = Step::Copying;
+        b.done = copied.0.load(Ordering::Relaxed);
+        b.total = total;
+    }
+}
+
+fn install_checked(
+    store: &Store,
+    profile: &str,
+    g: &Game,
+    session: bool,
+    out: &dyn Fn(&str),
+    progress: &dyn Fn(usize, usize),
+) -> Result<()> {
     crate::setup::gate(store)?;
     Blocked::clear(&store.root).ok();
     stock::Report::clear(&store.root).ok();
@@ -271,6 +329,7 @@ fn install_checked(store: &Store, profile: &str, g: &Game, session: bool, out: &
         session,
         depot: depots.as_ref().map_or(&() as &dyn DepotHashes, |d| d),
         out,
+        progress,
         ..Installer::new(&store.root, g)
     };
     let built = build_profile(store, profile, g)?;
@@ -392,7 +451,13 @@ pub fn apply(store: &Store, profile: &str, game: Option<PathBuf>) -> Result<Exit
     supported(&g)?;
     let out = |l: &str| println!("{l}");
     let Some(lock) = SessionLock::try_acquire(&store.root)? else {
-        bail!("a modded session is running or rolling back; close F1 25 and try again");
+        if let Some(b) = Busy::live(&store.root) {
+            bail!("{}", b.text());
+        }
+        bail!(
+            "{}",
+            crate::recover::held(store, swofty_core::process::game_running())
+        );
     };
     crate::recover::stale(store, &lock, &g, Scope::All, &out)?;
     install(store, profile, &g, false, &out)?;
@@ -799,5 +864,17 @@ mod tests {
             ..report.pairs[0].clone()
         };
         assert!(conflicts_text(&report, &names).ends_with("  and 3 more\n"));
+    }
+
+    #[test]
+    fn the_build_file_follows_the_build_then_the_copy() {
+        let mut b = Busy::new("default", vec!["swofty.classic-seasons".into()]);
+        let copied = Copied::default();
+        track(&mut b, 3155, &copied);
+        assert_eq!((b.step, b.done, b.total), (Step::Building, 3155, 0));
+        copied.0.store(443, Ordering::Relaxed);
+        copied.1.store(2544, Ordering::Relaxed);
+        track(&mut b, 3160, &copied);
+        assert_eq!((b.step, b.done, b.total), (Step::Copying, 443, 2544));
     }
 }
