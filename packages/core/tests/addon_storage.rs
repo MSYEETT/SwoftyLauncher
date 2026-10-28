@@ -595,6 +595,7 @@ fn w8_review_a_deleted_profile_name_reused_starts_empty() {
     });
 }
 
+#[cfg(unix)]
 #[test]
 fn w8_review_a_profile_switch_that_fails_half_way_keeps_both_copies() {
     use std::os::unix::fs::PermissionsExt;

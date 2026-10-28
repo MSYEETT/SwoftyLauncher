@@ -190,7 +190,7 @@ class Gate(unittest.TestCase):
             out = root / "out"
             args = ["run", "--cli-a", str(cli), "--cli-b", str(cli), "--loader-a", str(root / "loader"),
                     "--loader-b", str(root / "loader"), "--game", str(root / "game"), "--cache", str(cache),
-                    "--out", str(out), "--offline", "--no-r2", "--no-pin", "--baseline-from", str(root / "none")]
+                    "--out", str(out), "--offline", "--no-r2", "--no-pin", "--baseline-from", str(root / "none"), "--min-free-gb", "0"]
             with redirect_stdout(io.StringIO()) as printed:
                 self.assertEqual(main(args), 0)
             self.assertIn("PASS  x.addon@1.0.0", printed.getvalue())
@@ -229,7 +229,7 @@ class Gate(unittest.TestCase):
         args = ["run", "--cli-a", str(fake_cli(root / "ca", env_a)), "--cli-b", str(fake_cli(root / "cb")),
                 "--loader-a", str(root / "loader"), "--loader-b", str(root / "loader"), "--game", str(root / "game"),
                 "--cache", str(cache), "--out", str(root / "out"), "--offline", "--no-r2", "--no-pin",
-                "--baseline-from", str(root / "none"), *extra]
+                "--baseline-from", str(root / "none"), "--min-free-gb", "0", *extra]
         with redirect_stdout(io.StringIO()):
             code = main(args)
         return code, json.loads((root / "out/report.json").read_text())["results"][0]
