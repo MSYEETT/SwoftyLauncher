@@ -605,6 +605,9 @@
   "Game_F1WorldActivityContainer_SelectEntrantList": {
    "match": "0x1a735f0"
   },
+  "Game_PracticeTrackAcclimatisation_RefreshState": {
+   "match": "0x2997720"
+  },
   "Game_Refresh_PerformanceComparison": {
    "match": "0x188aee0"
   },
