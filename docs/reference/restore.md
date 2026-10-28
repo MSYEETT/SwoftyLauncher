@@ -18,6 +18,8 @@ The **baseline** records original game files. The **journal** records changes so
 | `$DATA/state/journal/<id>.json` | Changes to undo; `"session": true` for a `swofty run` session |
 | `$DATA/state/placed.json` | Every file the launcher wrote into the game folder, with its SHA-256 |
 | `$DATA/state/session.lock` | Held by a running session until its game files are rolled back |
+| `$DATA/state/build.json` | The build a session is running: its process, profile, addons, step (`building` or `copying`), files done and total |
+| `$DATA/state/cancel-build` | Asks the running build to stop |
 | `$DATA/state/blocked.json` | Files of unknown origin that stopped the last launch |
 | `$DATA/state/not-stock.json` | Game files that don't match Steam's copy, which stopped the last launch, with each file's measured path, found size, Steam's size and modified time |
 | `$DATA/state/recovered.json` | The last recovery, for the launcher to announce |
@@ -69,7 +71,9 @@ Before an install backs up or copies anything, it adds up what it writes on each
 
 The `swofty run` wrapper holds `session.lock` from before it installs the profile until the offline play staging and the profile are rolled back. It rolls back when the game exits for any reason, on an error, and on a stop signal. A direct `swofty run` waits for the wrapper to exit and rolls back anything the wrapper left.
 
-A session journal still open while the lock is free belongs to a session that ended without rolling back. `swofty run`, `swofty apply` and the wrapper roll back every open journal before they start. The launcher rolls back session journals when it starts, and keeps a `swofty apply` install.
+While the wrapper builds and installs the profile, it rewrites `build.json` every 2 seconds and deletes it when the install ends. The build checks for `cancel-build` before each archive edit, before each archive it writes and between the steps of the build; the install checks before each file it copies. A cancelled build stops with `the build was cancelled; the game folder is back as it was`, writes no saved build for the profile, and the wrapper rolls back the files it copied. Installing over, updating or removing an addon listed in a live `build.json` fails with `<name> is in the build that is running`.
+
+A session journal still open while the lock is free belongs to a session that ended without rolling back. `swofty run`, `swofty apply` and the wrapper roll back every open journal before they start. The launcher rolls back session journals when it starts, and keeps a `swofty apply` install. A `build.json` left while the lock is free belongs to a build whose process ended; the same rollback deletes it and `cancel-build`, and logs `the last Play stopped while <step>; Play starts the build again`. The launcher runs that rollback as soon as it finds one.
 
 ## Leftovers
 

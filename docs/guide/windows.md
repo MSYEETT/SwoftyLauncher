@@ -34,7 +34,7 @@ With F1 25 on both Steam and the EA app, select the game name next to the cover 
 4. On your first launch, select **Accept and launch** in the **Modded play runs offline** dialog. For why modded play runs offline, see [Offline play](/reference/safety).
 5. The first launch after the setup can take 5 to 8 minutes. Don't press Play in Steam or the EA app while it runs.
 
-You'll see **Launching…** on the button, then **Stop** while the game runs. If Steam is closed, the launcher starts it and waits for it to sign in first; see [Steam](/reference/launch#steam). When you want to play vanilla, launch through Steam as usual.
+You'll see **Launching…** on the button, then **Stop** while the game runs. While Swofty builds your mods or copies them into the game folder, the button shows **Building…** and the bar beside it shows how far it got. **Cancel** stops the build after the file it is on and puts the game files back; your profile and addons stay as they are, and the next Play builds again. Addons in a running build can't be updated or removed until it finishes. If Steam is closed, the launcher starts it and waits for it to sign in first; see [Steam](/reference/launch#steam). When you want to play vanilla, launch through Steam as usual.
 
 To follow the logs as you play, select the arrow next to **Play** and choose **Play with console**, or run `swofty run` from a terminal.
 
