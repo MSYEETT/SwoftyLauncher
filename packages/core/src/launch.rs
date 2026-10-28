@@ -34,6 +34,8 @@ const PID: &str = "attached, pid ";
 const UNHANDLED: &str = "[crash] unhandled ";
 const TOP_LEVEL: &str = "reached the top-level filter";
 const STUB_EXIT: &str = "[stub] [offline] game exited with code ";
+/// The loader's line for F1 25's dialog when a drive it writes to is nearly full.
+pub const LOW_DISK: &str = "dialog shown: Insufficient Storage: ";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -148,6 +150,8 @@ pub struct LoaderSeen {
     pub unhandled: Option<u32>,
     /// The game's exit code as the session launcher read it (its last line).
     pub stub_exit: Option<u32>,
+    /// The game showed its own Insufficient Storage dialog.
+    pub low_disk: bool,
 }
 
 impl LoaderSeen {
@@ -162,6 +166,7 @@ impl LoaderSeen {
             }
             seen.window |= WINDOW.iter().any(|w| line.contains(w));
             seen.second_copy |= line.contains(SECOND_COPY);
+            seen.low_disk |= line.contains(LOW_DISK);
             if seen.unhandled.is_none() && line.contains(UNHANDLED) && line.contains(TOP_LEVEL) {
                 seen.unhandled = line.split_once("(0x").and_then(|(_, rest)| {
                     u32::from_str_radix(rest.split(|c: char| !c.is_ascii_hexdigit()).next()?, 16).ok()
@@ -231,6 +236,7 @@ mod tests {
                 second_copy: false,
                 unhandled: None,
                 stub_exit: None,
+                low_disk: false,
             }
         );
         let window = format!(

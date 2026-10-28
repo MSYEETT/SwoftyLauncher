@@ -12,6 +12,7 @@ use std::path::Path;
 
 use crate::conflicts::Pair;
 use crate::install::LOADER_DIR;
+use crate::launch::LOW_DISK;
 use crate::manifest::{AddonManifest, Category};
 use crate::overlay_guard::SessionOverlay;
 use crate::session::SessionRecord;
@@ -682,6 +683,16 @@ const BUSY_LINES: usize = 5;
 const CAR_PACK_RESOURCES: usize = 1000;
 /// Imported Sepang, the heaviest imported track.
 const SEPANG: &str = "mod.bahrain24";
+/// Manual Pit Lane, and where F1 25 crashes when it takes the car as the
+/// game returns it to the garage.
+const PITLANE: &str = "kizi.pitlane";
+const PITLANE_CRASH: &str = "F1_25.exe+0x389a1d7 ";
+/// How long before the crash Manual Pit Lane's lines count, and after it.
+const PITLANE_SECS: f64 = 1.5;
+const PITLANE_AFTER_SECS: f64 = 0.5;
+/// The highest control mode a car really has; Manual Pit Lane prints a
+/// garbage one when it read the car as the game moved it.
+const PITLANE_MODES: u64 = 0xffff;
 
 fn name(e: &Evidence, id: &str) -> String {
     e.names.get(id).cloned().unwrap_or_else(|| id.to_owned())
@@ -1043,8 +1054,126 @@ fn hang(e: &Evidence, f: &Fatal, mods: &[(&'static str, Vec<String>)]) -> Diagno
     }
 }
 
+/// F1 25's Insufficient Storage dialog: the drive it names, and the MiB free
+/// and needed there.
+fn low_disk(loader: &str) -> Option<(String, u64, u64)> {
+    loader.lines().rev().find_map(|l| {
+        let rest = &l[l.find(LOW_DISK)? + LOW_DISK.len()..];
+        let (free, rest) = rest.split_once('/')?;
+        let (need, rest) = rest.split_once(" MiB available on ")?;
+        let drive = rest
+            .trim_start_matches(['\'', '"'])
+            .get(..2)
+            .filter(|d| d.ends_with(':') && d.starts_with(|c: char| c.is_ascii_alphabetic()))
+            .map_or_else(
+                || "the drive F1 25 saves to".to_owned(),
+                |d| format!("drive {}", d[..1].to_ascii_uppercase()),
+            );
+        Some((drive, free.trim().parse().ok()?, need.trim().parse().ok()?))
+    })
+}
+
+fn gb(mib: u64, round: fn(f64) -> f64) -> String {
+    let tenths = round(mib as f64 / 102.4);
+    if tenths % 10.0 == 0.0 {
+        format!("{:.0} GB", tenths / 10.0)
+    } else {
+        format!("{:.1} GB", tenths / 10.0)
+    }
+}
+
+fn low_disk_space(drive: &str, free: u64, need: u64) -> Diagnosis {
+    let mut what = format!(
+        "F1 25 needs {} free on {drive} and found {}, so it showed Insufficient Storage and closed.",
+        gb(need, f64::round),
+        gb(free, f64::floor)
+    );
+    if drive == "drive C" {
+        what.push_str(" It checks drive C even when the game is installed on another drive.");
+    }
+    Diagnosis {
+        id: "low_disk",
+        title: format!("F1 25 needs more free space on {drive}"),
+        what,
+        steps: vec![
+            format!(
+                "Free up at least {} on {drive}: empty the Recycle Bin, and delete temporary files in Windows \
+                 Settings, System, Storage, Temporary files.",
+                gb(need.saturating_sub(free).max(1), f64::ceil)
+            ),
+            "Press Play again.".to_owned(),
+        ],
+    }
+}
+
+/// When the game's fatal exception happened, from its first-chance line or
+/// else the line where it reached the top-level filter.
+fn crash_time(e: &Evidence, f: &Fatal) -> Option<f64> {
+    f.at.and_then(|at| raw_crash_lines(&e.loader).get(at).copied())
+        .or_else(|| {
+            e.loader
+                .lines()
+                .find(|l| l.contains("[crash] unhandled ") && l.contains("reached the top-level filter"))
+        })
+        .and_then(stamp)
+}
+
+/// Whether the game crashed as Manual Pit Lane took the car in the pit lane:
+/// it decoded the car's control mode to garbage around the crash, or kept
+/// control just before the game crashed where this crash happens.
+fn pitlane_crash(e: &Evidence, f: &Fatal) -> bool {
+    if f.module.as_deref() != Some("f1_25.exe") {
+        return false;
+    }
+    let Some(end) = crash_time(e, f) else {
+        return false;
+    };
+    let within = |l: &str, after: f64| stamp(l).is_some_and(|t| t >= end - PITLANE_SECS && t <= end + after);
+    let (mut kept, mut garbage) = (false, false);
+    for l in e.loader.lines().filter(|l| l.contains("] [pitlane] ")) {
+        kept |= l.contains("] [pitlane] pit lane: control kept")
+            && !l.contains("the AI keeps the car")
+            && within(l, 0.0);
+        garbage |= l
+            .split_once(", mode ")
+            .and_then(|(_, m)| m.split_once(" -> "))
+            .and_then(|(_, to)| to.trim().parse::<u64>().ok())
+            .is_some_and(|mode| mode > PITLANE_MODES)
+            && within(l, PITLANE_AFTER_SECS);
+    }
+    let at = e
+        .loader
+        .lines()
+        .any(|l| l.contains("[crash] unhandled ") && l.contains(PITLANE_CRASH));
+    garbage || (kept && at)
+}
+
+fn pitlane(e: &Evidence) -> Diagnosis {
+    let addon = e
+        .names
+        .get(PITLANE)
+        .cloned()
+        .unwrap_or_else(|| "Manual Pit Lane".to_owned());
+    Diagnosis {
+        id: "pitlane_garage",
+        title: format!("{addon} crashed F1 25 in the pit lane"),
+        what: format!(
+            "F1 25 crashed as {addon} took over your car in the pit lane while the game was moving the car \
+             itself, for example for Return to Garage or a flashback."
+        ),
+        steps: vec![
+            format!("Turn off {addon} in your profile until its author fixes this crash."),
+            "If you keep it on, don't use Return to Garage or flashbacks while you are in the pit lane."
+                .to_owned(),
+        ],
+    }
+}
+
 /// The cause of a crash, from the first rule that recognises it.
 pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
+    if let Some((drive, free, need)) = low_disk(&e.loader) {
+        return Some(low_disk_space(&drive, free, need));
+    }
     if e.code == Some(APP_CONTROL) {
         return Some(app_control());
     }
@@ -1084,6 +1213,9 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
     }
     if hang_watchdog(e, &f) {
         return Some(hang(e, &f, &mods));
+    }
+    if pitlane_crash(e, &f) {
+        return Some(pitlane(e));
     }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
@@ -1677,6 +1809,89 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_games_low_disk_dialog_names_the_drive_and_the_space() {
+        let log = "2026-10-27 22:08:24.555 [ 3820] dialog shown: Insufficient Storage: 652/2048 MiB available on \
+                   'C:\\', please free some space.\n22:08:32.240 [stub] [offline] game exited with code 4294967295\n";
+        let d = diagnose(&ev(log, &[])).unwrap();
+        assert_eq!(d.id, "low_disk");
+        assert_eq!(d.title, "F1 25 needs more free space on drive C");
+        assert_eq!(
+            d.what,
+            "F1 25 needs 2 GB free on drive C and found 0.6 GB, so it showed Insufficient Storage and closed. It \
+             checks drive C even when the game is installed on another drive."
+        );
+        assert!(
+            d.steps[0].starts_with("Free up at least 1.4 GB on drive C: empty"),
+            "{}",
+            d.steps[0]
+        );
+        let other = log.replace("652/2048", "2000/2048").replace("'C:", "'d:");
+        let d = diagnose(&ev(&other, &[])).unwrap();
+        assert_eq!(
+            d.what,
+            "F1 25 needs 2 GB free on drive D and found 1.9 GB, so it showed Insufficient Storage and closed."
+        );
+        assert!(
+            d.steps[0].starts_with("Free up at least 0.1 GB on drive D: empty"),
+            "{}",
+            d.steps[0]
+        );
+        let path = log.replace("'C:\\'", "'\\\\server\\share'");
+        assert!(
+            diagnose(&ev(&path, &[]))
+                .unwrap()
+                .what
+                .contains("on the drive F1 25 saves to")
+        );
+        assert_eq!(diagnose(&ev(&log.replace("652/2048", "lots"), &[])), None);
+    }
+
+    fn pitlane_log(kept: &str, mode: &str, address: &str) -> String {
+        format!(
+            "2026-10-27 19:26:15.735 [30872] [pitlane] your car: flags 0 -> 0x1, mode 0 -> 1
+2026-10-27 19:26:15.741 [30872] [pitlane] pit lane: control kept (7 this session){kept}
+2026-10-27 19:26:15.761 [30872] [pitlane] your car: flags 0x1 -> 0, mode 1 -> {mode}
+2026-10-27 19:26:15.767 [12860] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 12860, 2079 s after load, at F1_25.exe+{address} .xtls fn base+0x389a120+0xb7
+2026-10-27 19:26:15.767 [12860] [crash]   reading 0x2d3bf4f40
+2026-10-27 19:26:15.767 [12860] [crash]   stack:
+2026-10-27 19:26:15.767 [12860] [crash]   #0  F1_25.exe+{address} .xtls fn base+0x389a120+0xb7
+2026-10-27 19:26:15.767 [12860] [crash]   #1  F1_25.exe+0x445b18c .xtls fn base+0x445aea0+0x2ec
+2026-10-27 19:26:15.768 [12860] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+{address} .xtls fn base+0x389a120+0xb7 reached the top-level filter; passing it to the game's filter
+"
+        )
+    }
+
+    #[test]
+    fn a_crash_as_manual_pit_lane_takes_the_car_names_it() {
+        let e = with_names(
+            ev(&pitlane_log("", "1474065524", "0x389a1d7"), &[]),
+            &[("kizi.pitlane", "Manual Pit Lane")],
+        );
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "pitlane_garage");
+        assert_eq!(d.title, "Manual Pit Lane crashed F1 25 in the pit lane");
+        assert!(d.what.contains("Return to Garage or a flashback"), "{}", d.what);
+        assert_eq!(
+            d.steps[0],
+            "Turn off Manual Pit Lane in your profile until its author fixes this crash."
+        );
+        let older_game = pitlane_log("", "1159247034", "0x38873a7");
+        assert_eq!(diagnose(&ev(&older_game, &[])).unwrap().id, "pitlane_garage");
+        let kept_only = pitlane_log("", "0", "0x389a1d7");
+        assert_eq!(diagnose(&ev(&kept_only, &[])).unwrap().id, "pitlane_garage");
+        let ai_kept = pitlane_log(
+            " - another flag is set too, so the AI keeps the car for now",
+            "0",
+            "0x389a1d7",
+        );
+        assert_eq!(diagnose(&ev(&ai_kept, &[])), None);
+        assert_eq!(diagnose(&ev(&pitlane_log("", "0", "0x1234567"), &[])), None);
+        let later = pitlane_log("", "1474065524", "0x389a1d7").replace("19:26:15.7", "19:26:19.7");
+        let later = later.replacen("19:26:19.7", "19:26:15.7", 3);
+        assert_eq!(diagnose(&ev(&later, &[])), None);
+    }
+
     /// The game folder's file names among the crash report's loaded modules.
     fn game_folder_modules(report: &str) -> Vec<String> {
         let exe = report
@@ -1745,7 +1960,10 @@ mod tests {
                     .iter()
                     .find_map(|rel| read_capped(&session.join(rel)))
                     .unwrap_or_default();
-                if !record.crashed() && !loader.contains("reached the top-level filter") {
+                if !record.crashed()
+                    && !loader.contains("reached the top-level filter")
+                    && !loader.contains(LOW_DISK)
+                {
                     continue;
                 }
                 let report = report_name(&loader).and_then(|n| read_capped(&logs.join("crash").join(n)));
