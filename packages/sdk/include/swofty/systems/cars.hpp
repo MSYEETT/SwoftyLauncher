@@ -4,6 +4,7 @@
 #include <map>
 #include <swofty/events.hpp>
 #include <swofty/registry.hpp>
+#include <swofty/systems/control.hpp>
 #include <swofty/systems/forward.hpp>
 
 // Cars: vehicle rows and their packages (boot), each car's handling file (applied as the car is built at
@@ -12,7 +13,8 @@
 // front_coeff_lift_multiplier); a key this header doesn't name is kept in the part's `extra`. cars::live
 // is the cars on track; the core that drives it ships later, and until then live::available() is false
 // and live::cars() is empty. A live::Car is a trivially copyable handle (the car's index and the game's
-// car), so event payloads carry it as is.
+// car), so event payloads carry it as is. control() reads the car's controller mode and flags fresh from the core
+// (nothing while the game rebuilds its controller sets, or on a core without session operations).
 
 namespace swofty::cars {
 
@@ -291,6 +293,7 @@ public:
     Ref<teams::Identity> team() const { return {}; }
     Ref<drivers::Identity> driver() const { return {}; }
     bool is_ai() const { return true; }
+    std::optional<sessions::ControlState> control() const { return swofty::detail::read_control(index_); }
     Engine &engine() const { return shadow().engine; }
     FuelTank &fuel_tank() const { return shadow().fuel_tank; }
     Ers &ers() const { return shadow().ers; }
@@ -358,6 +361,15 @@ struct Reset {
     uint32_t size, payload_version;
     live::Car car;
     bool upgrade;
+};
+
+struct ControllersRebuilt {
+    static constexpr const char *point = "car.controllers.rebuilt";
+    static constexpr uint32_t version = 1;
+    enum Reason : uint32_t { rebuild = 0, resettle = 1 };
+    uint32_t size, payload_version;
+    live::Car car;
+    uint32_t reason;
 };
 
 struct PartsRegister {

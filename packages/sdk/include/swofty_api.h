@@ -853,6 +853,32 @@ typedef struct SwoftyCareerOps {
     int (*set_logo)(const char *team_id, const char *logo_id);
 } SwoftyCareerOps;
 
+/* Session operations (standard library 1.6), from the core export SwoftyCoreSessionOps; not a SwoftyApi
+   field. Table version 1. Every call runs on the game's flow thread and reports SWOFTY_ASSET_UNAVAILABLE
+   when a game function it needs does not resolve on the running build. control: the mode (0 human, 1 AI)
+   and the game's controller flag bits (PIT_LANE is bit 0) of the car with that index, read fresh from its
+   controller set; SWOFTY_ASSET_LATE while the sets are not built (before the session's first build, or
+   between a destroy and the next build). set_control: mode 0 or 1 for the car; the core queues it to the
+   next frame when called from inside the controller swap, never applies it between the sets' destroy and
+   build, and returns SWOFTY_REFUSED when a flag the core did not set keeps the car on AI. It reaches the
+   game through Game_Set_VehicleController, so session.player.control fires for it. The spectator calls
+   work on the session's spectator director: spectator_set_active turns the director and its HUD on or
+   off; spectator_follow moves it to the car; spectator_set_camera takes 1 (TV pod) or 2 (broadcast);
+   spectator_current reads the car (index, or -1 for none) and the camera (-1 for none) while the director
+   is active, else SWOFTY_ASSET_LATE. */
+#define SWOFTY_SESSION_OPS_VERSION 1
+
+typedef struct SwoftySessionOps {
+    uint32_t version;
+    int (*available)(void);
+    int (*control)(uint32_t car, uint32_t *mode, uint32_t *flags);
+    int (*set_control)(uint32_t car, uint32_t mode);
+    int (*spectator_set_active)(int on);
+    int (*spectator_follow)(uint32_t car);
+    int (*spectator_set_camera)(int32_t camera);
+    int (*spectator_current)(int32_t *car, int32_t *camera);
+} SwoftySessionOps;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -893,6 +919,7 @@ typedef const SwoftyRegistry *(*SwoftyCoreRegistryFn)(void);
 typedef const SwoftyHooks *(*SwoftyCoreHooksFn)(void);
 typedef const SwoftyServices *(*SwoftyCoreServicesFn)(void);
 typedef const SwoftyCareerOps *(*SwoftyCoreCareerOpsFn)(void);
+typedef const SwoftySessionOps *(*SwoftyCoreSessionOpsFn)(void);
 
 #define SWOFTY_STAGE_WINDOW 1
 
@@ -909,6 +936,7 @@ SWOFTY_EXPORT const SwoftyRegistry *SwoftyCoreRegistry(void);
 SWOFTY_EXPORT const SwoftyHooks *SwoftyCoreHooks(void);
 SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
 SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
+SWOFTY_EXPORT const SwoftySessionOps *SwoftyCoreSessionOps(void);
 
 #ifdef __cplusplus
 }

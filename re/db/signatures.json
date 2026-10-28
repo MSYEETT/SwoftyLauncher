@@ -76535,6 +76535,34 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "session.controller_system_apply_record_call",
+   "section": ".xtls",
+   "pattern": "C5 F8 28 DE E8 ?? ?? ?? ?? 48 8B 96 90 00 00 00",
+   "match": "0x14389a213",
+   "anchor": "0x4",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14389a217",
+   "kind": "mid",
+   "expect": "E8 94 00 00 00",
+   "names": [
+    "site_Sess_ControllerSystem_ApplyRecordCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w25",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/hooks/session_points.cpp"
+   ],
+   "func_start": "0x14389a120"
   }
  ]
 }

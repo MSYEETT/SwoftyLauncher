@@ -74,7 +74,7 @@ public:
     void uninstall() override
     {
         std::lock_guard<std::recursive_mutex> g(lock_);
-        if (!hook_)
+        if (!hook_ || keep_)
             return;
         hook_.reset();
         state_ = State::idle;
@@ -95,6 +95,10 @@ public:
 
     unsigned installs() const { return installs_; }
     const std::string &point() const { return point_; }
+
+    // A point the core needs even with no subscriber (it observes the game's state): installed at the window
+    // stage by the core itself, and kept when the last subscriber leaves.
+    void keep(bool on) { keep_ = on; }
 
     template <class R, class... A> R original(A... args) { return hook_.call<R>(args...); }
 
@@ -126,6 +130,7 @@ private:
     safetyhook::InlineHook hook_;
     State state_ = State::idle;
     unsigned installs_ = 0;
+    bool keep_ = false;
 };
 
 }

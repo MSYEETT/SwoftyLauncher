@@ -258,7 +258,7 @@ struct ControllerUpdate {                      // the AI controller's update, ev
     float throttle;                            // 0 to 1
     float brake;                               // 0 to 1
     float steering;                            // -1 to 1
-    live::Car car() const;                     // the car, for reads
+    cars::live::Car car() const;               // the car, for reads
 };
 
 } // namespace swofty::ai::events
@@ -281,6 +281,8 @@ events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpda
 - **Phases:** a `before` handler sees the car before the game decides. A `replace` handler can decide instead of the game and returns true when it did. An `after` handler sees and changes the inputs the game wrote. Handlers run by priority, then load order.
 - **Every frame:** the point runs for every AI car each frame, so it dispatches directly with no context table, and handlers must be cheap. With no subscriber the core installs nothing.
 - **One hook per controller class.** The core hooks the class's vtable once, so addons stop cloning it per controller. An addon made for 1.5 that clones a controller's vtable keeps working as it does today: its clone calls the game's code directly, outside the point, until the addon moves to the point.
+- **Only AI cars.** The point runs for a car whose controller set is in AI mode, including the player's car while `sessions::set_control` has handed it to the AI. A handler gets no `events::Context` (the point builds none), so it reads the car through `u.car()`; `when()` and `in()` selectors still apply. A value a handler writes that is not a finite number is dropped.
+- **Where it runs.** By default the core writes its dispatcher into slot 1 of the AI controller's vtable while the point has a subscriber, and puts the game's function back with the last one. The core's config key `ai_controller_site` set to `"apply"` runs the point instead as a mid-hook on the record-apply call in `Sess_ControllerSystem_ApplyInputs`: there the record already holds the game's decision, so `before` and `after` see the same values and a `replace` handler decides on top of them. The default follows in-game check T145.
 
 ## Events and operations
 
@@ -299,7 +301,7 @@ ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], ai::track_p
 - **Events: partial.** The loaders (`Sess_Load_VehicleAiConfig`, `Ai_Resolve_GeneralSettings`, `Sess_Build_AiSystem`) are L2. The decision code is L1 or unexplored.
 - **Unknown:** where the 0 to 110 difficulty slider scales the controllers (so `ai::difficulty` has nothing to apply yet), the grip index source, and the AI path builder.
 - **When a changed config applies needs reverse engineering.** The game parses the configs in a startup loop (`Sess_Startup_VehicleAiLoop`) into a map keyed by stat id. The core applies a changed config at the next session load. Whether the game rereads that map for a later session is unverified; if it doesn't, a change applies from the next game start. The same goes for a career season that moves a team to another year's car.
-- **`ai.controller.update`: needs reverse engineering.** Slot 1 of the AI controller's vtable writes the inputs into the record at `[controller+8]`: throttle at +0xC, steering at +0x14 and brake at +0x18. The vehicle index is at `controller+0x18`. Addon developers found these; the KB doesn't have them yet, and every controller class needs checking.
+- **`ai.controller.update`: implemented, waiting on verification.** Slot 1 of the AI controller's vtable (`Sess_AiController_Update`, L2) writes the inputs into the record at `[controller+8]`: throttle at +0xC, steering at +0x14 and brake at +0x18 (the names are L1); the vehicle index is at `controller+0x18`. The core's hook binds only after an independent `agree` verify of the table, and whether the game calls slot 1 every frame is test T145. Until a binding resolves the point reports unavailable and its handlers do not run.
 - **Baked tables cap pace.** A car faster than its baked set gets nothing from more grip. Physics changes must keep the car inside the baked envelope.
 - **A missing AI folder hangs the load.** The core refuses a track pack whose folder isn't there. A box offers a track only where every car in it has AI data (see [Tracks](./tracks)).
 - **The AI table holds 30 cars.**

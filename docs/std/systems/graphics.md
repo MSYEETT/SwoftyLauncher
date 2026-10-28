@@ -233,7 +233,7 @@ Planned, with no header yet:
 ## Readiness and limits
 
 - **Looks and passes: ready** (shipped). They sit outside the KB. The core hooks D3D12 and DXGI by vtable.
-- **The spectator camera: needs reverse engineering.** `SpectatorDirector::setActive`, the requested and current driver (+0xDC, +0xD6) and camera type (+0xE0, +0xD8), the UI flag `session.spectator_mode.active` and the HUD visibility write come from addon developers; the KB has none of them yet.
+- **The spectator camera: implemented, waiting on verification.** `SpectatorDirector::setActive` (`Sess_SpectatorDirector_SetActive`, L2), the requested and current driver (+0xDC, +0xD6) and camera (+0xE0, +0xD8), the UI flag `session.spectator_mode.active` (+0xD0) and the HUD hide with reason 6 (`Sess_SpectatorHud_Hide`, L2) are in the KB. `follow` calls `Sess_SpectatorDirector_RequestDriver` (L1) and stays unavailable until it is verified. The core finds the director by watching the game's calls to it, so a spectator call answers late until the game has called the director once in the session. `hud.spectator.visible` fires on every hide with `following` filled in; a handler that sets `visible` skips the hide, and the HUD is not shown again if it was already hidden. Whether the director renders a usable camera in an offline race is in-game check 4.
 - **`render.present` runs every frame.** A look is graded into the LUT once when it changes, not per frame. A `Present` handler should only read state it already has.
 - **Settings: ready.** The hardware-setting sites are L2 (16 bool and 12 int), used by one addon.
 - **Replays and telemetry: partial.** `Sess_Recordable_Register` is L2; the rest is L1. UDP holds 22 cars; the live per-wheel values are unverified.

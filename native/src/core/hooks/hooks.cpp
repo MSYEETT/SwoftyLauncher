@@ -147,6 +147,7 @@ Table &the_table()
         auto *t = new Table(std::move(p));
         t->declare_core();
         declare_game_points(*t);
+        declare_session_points(*t);
         return t;
     }();
     return *t;
@@ -310,6 +311,7 @@ void window_stage()
     if (t.armed())
         return;
     t.arm();
+    arm_session_points();
     for (auto &[point, subs] : t.undefined())
         swofty::log("[hooks] %s: handlers from %s are attached, and no addon has defined it", point.c_str(), subs.c_str());
     if (runtime::enabled("events", nullptr))
