@@ -43,6 +43,7 @@ To follow the logs as you play, select the arrow next to **Play** and choose **P
 An antivirus such as Windows Defender can delete, quarantine or block the launcher's `version.dll` and its other DLLs, and F1 25 would then run without mods.
 
 - Before the game starts, the launcher checks that the files it put in the game folder are still there. If one is missing or changed, F1 25 is not started: the game folder goes back to vanilla and a **Your antivirus removed mod files** dialog names the files.
+- When `swofty.exe` is gone from the launcher's `bin` folder, **Play** shows **Could not launch F1 25** with how to restore it from quarantine, which folder to exclude, and to reinstall the launcher if it isn't there.
 - When the launcher's own `loader` folder is gone from its install, F1 25 is not started and a **Swofty Launcher's loader folder is missing** dialog says to reinstall the launcher. Your addons and settings are kept.
 - Once the game runs, the launcher checks that the mods loaded. If they did not, a **Mods did not load** dialog appears, and the game keeps running without mods.
 

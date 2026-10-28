@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use swofty_core::app_control::Block;
+use swofty_core::app_control::{self, Block};
 use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
@@ -228,7 +228,7 @@ impl Launch {
         mode: LaunchMode,
         netplay: bool,
     ) -> Result<Self, String> {
-        let cli = cli_path(store).ok_or("the swofty command was not found next to the launcher")?;
+        let cli = cli_path(store).ok_or_else(|| app_control::missing(&expected_cli(store)))?;
         let at = now_secs();
         let log = store.root.join("state/launcher-run.log");
         let out = std::fs::create_dir_all(store.root.join("state"))
@@ -323,17 +323,25 @@ pub fn cause_first(failure: &str) -> String {
     }
 }
 
-fn cli_path(store: &Store) -> Option<PathBuf> {
-    let name = if cfg!(windows) { "swofty.exe" } else { "swofty" };
-    let beside = std::env::current_exe()
+const CLI: &str = if cfg!(windows) { "swofty.exe" } else { "swofty" };
+
+fn beside_launcher() -> Option<PathBuf> {
+    std::env::current_exe()
         .ok()
-        .and_then(|e| Some(e.parent()?.join(name)));
+        .and_then(|e| Some(e.parent()?.join(CLI)))
+}
+
+fn cli_path(store: &Store) -> Option<PathBuf> {
     let path = std::env::var_os("PATH").unwrap_or_default();
-    beside
+    beside_launcher()
         .into_iter()
-        .chain([store.bin_dir().join(name)])
-        .chain(std::env::split_paths(&path).map(|d| d.join(name)))
+        .chain([store.bin_dir().join(CLI)])
+        .chain(std::env::split_paths(&path).map(|d| d.join(CLI)))
         .find(|p| p.is_file())
+}
+
+fn expected_cli(store: &Store) -> PathBuf {
+    beside_launcher().unwrap_or_else(|| store.bin_dir().join(CLI))
 }
 
 pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> Result<String, StartFailure> {
