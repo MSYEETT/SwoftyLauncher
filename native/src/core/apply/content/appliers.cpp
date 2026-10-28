@@ -570,11 +570,15 @@ public:
         std::map<std::string, Value> keep;
         Lookup lookup = own_lookup(st, keep);
         Plan plan;
+        BaseImage base_image = box_base_image(st, lookup);
         for (auto &id : in_load_order(st, "era.box"))
             if (const Value *rec = lookup("era.box", id))
-                lower_box(id, *rec, lookup, plan);
+                lower_box(id, *rec, lookup, plan, base_image);
         const SwoftyEra *era = runtime::era_table();
+        const SwoftyLang *lang = runtime::lang_table();
         for (auto &b : plan.boxes) {
+            if (!b.literal.empty() && lang)
+                lang->override_set("*", b.title.c_str(), b.literal.c_str());
             SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order};
             int rc = era ? era->add_box(&d) : SWOFTY_ASSET_UNAVAILABLE;
             if (rc == SWOFTY_ASSET_OK)

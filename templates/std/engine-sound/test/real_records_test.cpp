@@ -10,6 +10,7 @@
 #include "../../../../native/src/core/registry/declare_all.hpp"
 #include "../../../../native/src/core/registry/older.hpp"
 #include "../../../../native/src/core/registry/table.hpp"
+#include "../../../../native/src/core/apply/content/boot.hpp"
 
 static int failures = 0;
 
@@ -73,6 +74,51 @@ int main()
     auto ferrari = st.get("vehicle", "swofty.classic-seasons-2017/ferrari");
     check(ferrari.status == reg::Status::ok && ferrari.value["engine_sound"].as_string() == "mod.esp/v10_screamer",
           "the stand-in layer puts the V10 on the real 2017 Ferrari");
+    namespace content = swofty_core::apply::content;
+    std::map<std::string, swofty::json::Value> keep;
+    content::Lookup lookup = content::own_lookup(st, keep);
+    content::Plan plan;
+    content::BaseImage base_image = content::box_base_image(st, lookup);
+    for (auto &id : content::in_load_order(st, "era.box"))
+        if (const auto *rec = lookup("era.box", id))
+            content::lower_box(id, *rec, lookup, plan, base_image);
+    const content::Box *v10 = nullptr, *real = nullptr;
+    for (auto &b : plan.boxes) {
+        if (b.id == "mod.esp/f1_2017_v10")
+            v10 = &b;
+        if (b.id == "swofty.classic-seasons-2017/f1_2017")
+            real = &b;
+    }
+    check(v10 && real, "both boxes lower");
+    if (v10 && real) {
+        check(v10->image == real->image && !v10->image.empty(), "the variant box inherits the real box's tile art");
+        check(v10->image == "#overrides.home_screen.tiles_solo_6x6[cs_f1_2017]", "which is the 2017 tile");
+        check(v10->title == "lng_swofty_era_esp_f1_2017_v10" && v10->literal == "F1 2017 (V10)",
+              "its literal title becomes a language tag with the text");
+        check(real->title == "lng_cs_f1_2017" && real->literal.empty(), "the real box keeps its language tag");
+    }
+    for (const char *team : {"mercedes", "redbull"}) {
+        const auto *veh = lookup("vehicle", std::string("mod.esp/") + team + "_v10");
+        check(veh && (*veh)["team_from"].as_string() == std::string("cs17_") + team,
+              "a variant vehicle names the base team row it copies");
+        check(veh && (*veh)["label"].as_string() == std::string("esp_cs17_") + team, "under its own label");
+    }
+    const auto *toro = lookup("vehicle", "swofty.classic-seasons-2017/toro_rosso");
+    check(toro && !(*toro)["team_from"].is_string(), "a base vehicle copies nothing");
+    {
+        std::map<std::string, std::string> db = {
+            {"entrants.teams.team[_metadata_=cs17_redbull]._metadata_", "cs17_redbull"},
+            {"pit_lane.pit_times._team_pit_times_instancecount_", "0"}};
+        content::Read read = [&](const std::string &path) -> std::optional<std::string> {
+            auto it = db.find(path);
+            return it == db.end() ? std::nullopt : std::optional<std::string>(it->second);
+        };
+        content::Plan p;
+        content::lower_vehicle_team(*lookup("vehicle", "mod.esp/redbull_v10"), read, p);
+        check(!p.lines.empty() && p.lines[0].find("esp_cs17_redbull: row copied from cs17_redbull") != std::string::npos,
+              "its team row is copied from the real car's");
+        check(p.ops.size() >= 1, "as an operation");
+    }
     check(swofty::content::packages.schema().find("\"type\":[\"number\",\"null\"]") != std::string::npos,
           "an optional field's schema accepts null");
     return failures ? 1 : 0;

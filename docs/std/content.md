@@ -246,6 +246,8 @@ The pack can instead add a separate "F1 2017 (V10)" entry and leave the real one
 
 Every team, seat and field the variant doesn't change comes from the base, and later layers on the base flow in. The variant inherits the base package's [calendar and track data](#a-track-is-in-every-year).
 
+The variant's era box shows like the base's box. A box that sets no `image` uses the tile art of the nearest base package's box. A literal `title` is shown as written. A variant vehicle that gets its own label keeps its base car's team row and side rows (names, colours, pit times), so its team shows under the base's name and stays a separate team in team select.
+
 <template #example>
 <Example root="mod.esp" code-file="native/src/esp_variant.cpp" data-file="registry/content.json" files="swofty.json, sounds/v10_screamer.bdl, registry/sounds.json, lang/esp.json">
 <template #code>

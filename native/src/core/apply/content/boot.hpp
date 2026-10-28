@@ -102,6 +102,10 @@ inline Value own_value(registry::Store &st, const std::string &reg, const std::s
             v["label"] = Value(key_of(id));
         if (rec["audio_switch"].is_string() && inherited("audio_switch"))
             v["audio_switch"] = Value(std::string(static_cast<const Value &>(v)["label"].as_string()));
+        std::string own(static_cast<const Value &>(v)["label"].as_string());
+        std::string from = base["label"].is_string() ? std::string(base["label"].as_string()) : key_of(chain[1]);
+        if (own != from)
+            v["team_from"] = Value(from);
     } else if (reg == "engine_sound") {
         if (rec["bundle"].is_string() && inherited("bundle"))
             v["bundle"] = Value::object({{"stock", Value("audio/2025/bundles/" + bundle_name(rec) + ".bdl")}});
@@ -140,6 +144,26 @@ inline Lookup own_lookup(registry::Store &st, std::map<std::string, Value> &keep
         if (rec.status != registry::Status::ok)
             return nullptr;
         return &(keep[k] = own_value(st, reg, id, rec.value));
+    };
+}
+
+inline BaseImage box_base_image(registry::Store &st, const Lookup &lookup)
+{
+    return [&st, lookup](const std::string &package) -> std::string {
+        std::vector<std::string> chain = st.chain("content.package", package);
+        std::vector<std::string> boxes = in_load_order(st, "era.box");
+        for (std::size_t i = 1; i < chain.size(); i++)
+            for (auto &id : boxes) {
+                const Value *rec = lookup("era.box", id);
+                if (!rec || (*rec)["package"].as_string() != chain[i])
+                    continue;
+                if ((*rec)["image"].is_string() && !(*rec)["image"].as_string().empty())
+                    return std::string((*rec)["image"].as_string());
+                const Value *base = lookup("content.package", chain[i]);
+                if (base && (*base)["entrant_list"].is_string())
+                    return "#overrides.home_screen.tiles_solo_6x6[" + std::string((*base)["entrant_list"].as_string()) + "]";
+            }
+        return {};
     };
 }
 
@@ -258,8 +282,10 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_engine_sound(id, *rec, plan);
             else if (r == "vehicle.package")
                 lower_vehicle_package(id, *rec, plan, stat);
-            else if (r == "vehicle")
+            else if (r == "vehicle") {
                 lower_vehicle(id, *rec, lookup, source, plan, stat);
+                lower_vehicle_team(*rec, read, plan);
+            }
             else if (r == "livery")
                 lower_livery(id, *rec, worn[id], lookup, read, plan, stat, &slot);
             else if (r == "helmet" || r == "suit" || r == "gloves")
