@@ -76,16 +76,18 @@ int st_read(const char *path, void *buf, size_t cap, size_t *len)
     *len = s.size();
     return SWOFTY_ASSET_OK;
 }
-int st_none() { return SWOFTY_ASSET_UNAVAILABLE; }
+int st_write(const char *, const void *, size_t) { return SWOFTY_ASSET_UNAVAILABLE; }
+int st_remove(const char *) { return SWOFTY_ASSET_UNAVAILABLE; }
+int st_list(const char *, char *, size_t, size_t *) { return SWOFTY_ASSET_UNAVAILABLE; }
 
 const SwoftyStorage kStorage = {
     .available = st_available,
     .read = st_read,
-    .write = reinterpret_cast<int (*)(const char *, const void *, size_t)>(&st_none),
-    .append = reinterpret_cast<int (*)(const char *, const void *, size_t)>(&st_none),
-    .remove = reinterpret_cast<int (*)(const char *)>(&st_none),
+    .write = st_write,
+    .append = st_write,
+    .remove = st_remove,
     .size = st_size,
-    .list = reinterpret_cast<int (*)(const char *, char *, size_t, size_t *)>(&st_none),
+    .list = st_list,
 };
 
 std::optional<career::Season> season_of(const std::string &id) { return career::seasons.get(career::seasons[id]); }

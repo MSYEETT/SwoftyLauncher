@@ -389,6 +389,11 @@ jobs:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
           ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
         run: addons/progressive/native/test/register/run.sh
+      - name: Progressive effective records test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: addons/progressive/native/test/records/run.sh
       - name: Overlay draw-list unit test
         run: native/test/run_hud_test.sh
       - name: Shader look unit test
