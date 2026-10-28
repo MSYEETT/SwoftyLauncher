@@ -393,7 +393,8 @@ fn missing_files_are_told_to_update_an_older_game_and_verify_a_current_one() {
     assert_eq!(stock::fix_for(Some("1.0.138.5601")), stock::Fix::Update);
     assert_eq!(stock::fix_for(Some("1.0.141.7865")), stock::Fix::Verify);
     assert_eq!(stock::fix_for(None), stock::Fix::Both);
-    let r = stock::Report::missing(files, Path::new("/games/F1 25"), Some("1.0.138.5601".into()));
+    let mut r = stock::Report::missing(files, Path::new("/games/F1 25"), Some("1.0.138.5601".into()));
+    r.at = 1_793_144_157.5;
     let back: stock::Report = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
     assert_eq!(back, r);
     assert_eq!(back.fix(), stock::Fix::Update);
