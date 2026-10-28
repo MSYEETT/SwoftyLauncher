@@ -2,9 +2,12 @@
 // bag envelope, freezes and reads through the registry store, budgets, unknown majors and items kept
 // byte for byte, migration through an adapter, a career from before 1.6, Freeze::at_creation, corrupt
 // input, and the entry spliced into a profile save's containers block with the save splice's own
-// logic. --generate DIR writes the fixture entries of packages/sdk/std/fixtures; --fixtures DIR checks
+// logic; the season clock (clock.hpp): the year of a season index from the career.season records, the
+// owner-only career::report_season, career.created after a new-career route, career.season.start once per
+// career and year, and the dry save default. --generate DIR writes the fixture entries of packages/sdk/std/fixtures; --fixtures DIR checks
 // every fixture there loads and reads as its .json says. run_snapshots_test.sh builds and runs it.
 #include "../../src/core/save_splice_logic.hpp"
+#include "../../src/core/snapshots/clock.hpp"
 #include "../../src/core/snapshots/snapshots.hpp"
 
 #include <cstdio>
@@ -17,6 +20,7 @@ namespace snap = swofty_core::snapshots;
 namespace fmt = swofty_core::snapshots::format;
 namespace reg = swofty_core::registry;
 namespace sp = runtime::save_splice;
+namespace sn = swofty_core::snapshots::seasons;
 using swofty::json::Value;
 
 static int fails;
@@ -417,6 +421,159 @@ static void creation_tests()
     expect(book.saving(body), "the created career is due at the next save");
 }
 
+static void add_season(reg::Store &st, const std::string &addon, const std::string &key, const std::string &group,
+                       int year)
+{
+    st.add(addon, "career.season", key,
+           parse(R"({"data_group":")" + group + R"(","year":)" + std::to_string(year) + R"(,"teams":[]})"), nullptr);
+}
+
+static bool said(const sn::Moment &m, const std::string &needle)
+{
+    for (auto &l : m.lines)
+        if (l.find(needle) != std::string::npos)
+            return true;
+    return false;
+}
+
+static void year_map_tests()
+{
+    reg::Store st;
+    st.set_log([](const std::string &) {});
+    declare(st, "career.season", true);
+    for (int y = 2016; y <= 2026; y++)
+        add_season(st, "swofty.progressive", std::to_string(y), "f1_career_progressive", y);
+    add_season(st, "game", "f1_2025", "f1_career_2025", 2025);
+    add_season(st, "gap.addon", "2016", "f1_career_gap", 2016);
+    add_season(st, "gap.addon", "2017", "f1_career_gap", 2017);
+    add_season(st, "gap.addon", "2019", "f1_career_gap", 2019);
+    add_season(st, "dup.addon", "a", "f1_career_dup", 2020);
+    add_season(st, "dup.addon", "b", "f1_career_dup", 2020);
+    sn::YearMap pg = sn::year_map(st, "f1_career_progressive");
+    std::string why;
+    expect(pg.why.empty() && pg.years.size() == 11, "Progressive's 11 seasons map without a gap");
+    expect(sn::year_at(pg, 0, why) == 2016 && sn::year_at(pg, 10, why) == 2026, "index 0 is 2016 and index 10 is 2026");
+    expect(sn::year_at(pg, 11, why) == 0 && why.find("past the 11 career.season record(s)") != std::string::npos,
+           "an index past the last season has no year: " + why);
+    layer(st, "tails.whatif", "career.season", "swofty.progressive/2026", R"({"year":2027})");
+    sn::YearMap moved = sn::year_map(st, "f1_career_progressive");
+    expect(moved.why.find("skip from 2025 to 2027") != std::string::npos,
+           "the effective records count, with every addon's layers: " + moved.why);
+    st.clear_layer("tails.whatif", "career.season", "swofty.progressive/2026", reg::Scope::global);
+
+    sn::YearMap stock = sn::year_map(st, "f1_career_2025");
+    expect(sn::year_at(stock, 0, why) == 2025, "the stock 2025 data group maps its season 0 to 2025");
+    expect(sn::year_at(stock, 1, why) == 0, "and has no year for its second season");
+
+    sn::YearMap gap = sn::year_map(st, "f1_career_gap");
+    expect(sn::year_at(gap, 0, why) == 0 && why.find("skip from 2017 to 2019") != std::string::npos,
+           "a gap between years leaves every index without a year: " + why);
+    sn::YearMap dup = sn::year_map(st, "f1_career_dup");
+    expect(!dup.why.empty() && dup.why.find("two career.season records") != std::string::npos,
+           "two records for one year leave it ambiguous");
+    sn::YearMap none = sn::year_map(st, "f1_career_2026");
+    expect(none.why.find("no career.season record has data group f1_career_2026") != std::string::npos,
+           "a data group without records has no years");
+}
+
+static void clock_tests()
+{
+    reg::Store st;
+    st.set_log([](const std::string &) {});
+    declare(st, "career.season", true);
+    for (int y = 2016; y <= 2026; y++)
+        add_season(st, "swofty.progressive", std::to_string(y), "f1_career_progressive", y);
+    add_season(st, "game", "f1_2025", "f1_career_2025", 2025);
+    sn::YearMap pg = sn::year_map(st, "f1_career_progressive");
+    sn::YearMap stock = sn::year_map(st, "f1_career_2025");
+
+    sn::Clock clock;
+    clock.starting(true);
+    expect(clock.loaded("dc-1"), "the first career loaded after a new-career route is created");
+    expect(!clock.loaded("dc-1"), "loading it again creates nothing");
+    clock.starting(false);
+    expect(!clock.loaded("dc-2"), "a continued career is not created");
+    clock.starting(true);
+    clock.unloaded();
+    expect(!clock.loaded("dc-3"), "a new-career route that ends without a load creates nothing later");
+
+    sn::Season s{"stock-1", "f1_career_2025", "", 0, false, "the season has no race weekends yet"};
+    sn::Moment m = clock.hub(s, stock);
+    expect(!m.fire && said(m, "not ready (the season has no race weekends yet)"), "no season start before the weekends");
+    s.ready = true;
+    m = clock.hub(s, stock);
+    expect(m.fire && m.year == 2025 && m.index == 0, "a stock career no addon owns starts 2025 from its records");
+    m = clock.hub(s, stock);
+    expect(!m.fire, "the next Team HQ of the same season fires nothing");
+    s.index = 1;
+    m = clock.hub(s, stock);
+    expect(!m.fire && said(m, "past the 1 career.season record(s)"), "a season past the records fires nothing");
+    m = clock.hub(s, stock);
+    expect(!m.fire && m.lines.empty(), "and says so once");
+
+    sn::Season p{"pg-1", "f1_career_progressive", "swofty.progressive", 0, true, ""};
+    m = clock.hub(p, pg);
+    expect(!m.fire && said(m, "takes its year from swofty.progressive's career::report_season (the records put 2016 here)"),
+           "an owned career waits for its owner's report");
+    sn::Report r = clock.report("tails.whatif", p, 2016, pg, m);
+    expect(r == sn::Report::refused && !m.fire && said(m, "only swofty.progressive"), "another addon's report is refused");
+    r = clock.report("swofty.progressive", sn::Season{"pg-1", "f1_career_2025", "", 0, true, ""}, 2025, stock, m);
+    expect(r == sn::Report::refused && said(m, "no addon owns data group f1_career_2025"),
+           "nobody reports a career no addon owns");
+    r = clock.report("swofty.progressive", sn::Season{}, 2016, pg, m);
+    expect(r == sn::Report::late, "a report with no career loaded is late");
+    r = clock.report("swofty.progressive", p, 1900, pg, m);
+    expect(r == sn::Report::invalid, "a year out of range is invalid");
+    r = clock.report("swofty.progressive", p, 2016, pg, m);
+    expect(r == sn::Report::ok && m.fire && m.year == 2016 && m.index == 0, "the owner's report starts its season");
+    m = clock.hub(p, pg);
+    expect(!m.fire && m.lines.empty(), "the Team HQ after the report adds nothing");
+    r = clock.report("swofty.progressive", p, 2016, pg, m);
+    expect(r == sn::Report::ok && !m.fire && said(m, "already started"), "once per career and year");
+    p.index = 1;
+    r = clock.report("swofty.progressive", p, 2018, pg, m);
+    expect(r == sn::Report::ok && m.fire && m.year == 2018 && said(m, "the records put 2017 at this index"),
+           "a test season: the reported year wins over the records' order");
+    p.career = "pg-2";
+    p.index = 0;
+    r = clock.report("swofty.progressive", p, 2020, pg, m);
+    expect(r == sn::Report::ok && m.fire && m.year == 2020, "a career that starts later starts its first year");
+    sn::Season other{"pg-3", "f1_career_progressive", "swofty.progressive", 0, true, ""};
+    r = clock.report("swofty.progressive", other, 2016, pg, m);
+    expect(r == sn::Report::ok && m.fire, "the same year starts again in another career");
+
+    logs.clear();
+    reg::Store bs;
+    world(bs);
+    snap::Book book(bs, [](const std::string &l) { logs.push_back(l); });
+    bs.set_snapshot_source(book.source());
+    book.loaded(nullptr);
+    book.career_loaded("dc-7", career_ctx());
+    book.season_start(2016, career_ctx());
+    expect(book.started("dc-7", 2016) && !book.started("dc-7", 2017), "the book knows which seasons a career froze");
+    sn::Clock next;
+    next.set_started([&](const std::string &c, int y) { return book.started(c, y); });
+    sn::YearMap three = sn::year_map(bs, "f1_career_progressive");
+    m = next.hub(sn::Season{"dc-7", "f1_career_progressive", "", 0, true, ""}, three);
+    expect(!m.fire && said(m, "already started"), "a season the saved entry froze does not start again next session");
+    m = next.hub(sn::Season{"dc-7", "f1_career_progressive", "", 1, true, ""}, three);
+    expect(m.fire && m.year == 2017, "the next season does");
+    book.career_created("dc-8", fmt::Freeze::at_creation, career_ctx());
+    expect(!book.started("dc-8", 2016), "a career frozen at creation still gets each season's start");
+
+    expect(sn::save_blocked("", true, "").find("defaults to dry") != std::string::npos, "saving defaults to dry");
+    expect(sn::save_blocked("off", true, "").find("SWOFTY_REGISTRY_SAVE=off") != std::string::npos, "off is dry");
+    expect(sn::save_blocked("dry", true, "") != "", "dry is dry");
+    expect(sn::save_blocked("on", true, "").empty() && sn::save_blocked("1", true, "").empty(), "on and 1 write");
+    expect(sn::save_blocked("on", false, "") == "the save splice is off", "on without the splice writes nothing");
+    expect(sn::save_blocked("on", true, "the bag type differs") == "the bag type differs", "nor when it is blocked");
+    fmt::Bytes body;
+    expect(book.saving(body), "a frozen season is due at the next save");
+    expect(sn::entry_growth(15, body.size(), false, 0) == (long long)(20 + body.size()),
+           "a new entry adds its body and its 20-byte root child head");
+    expect(sn::entry_growth(15, 900, true, 1000) == -100, "a smaller entry over a loaded one adds less than nothing");
+}
+
 static void fuzz_tests()
 {
     reg::Store st;
@@ -699,6 +856,8 @@ int main(int argc, char **argv)
     migration_tests();
     budget_tests();
     creation_tests();
+    year_map_tests();
+    clock_tests();
     fuzz_tests();
     splice_tests();
     if (argc == 3 && std::string(argv[1]) == "--fixtures")

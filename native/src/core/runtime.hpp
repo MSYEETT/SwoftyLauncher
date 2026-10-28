@@ -136,6 +136,10 @@ std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
 // W4 career snapshots (native/src/core/snapshots/runtime.cpp): started once the save splice settles.
 void snapshots_start(bool splice_live);
+// career::report_season from caller (an addon id): SWOFTY_ASSET_OK, _LATE, _INVALID or SWOFTY_REFUSED.
+int snapshots_report_season(const std::string &caller, int year, int season_index);
+// The addon that registered the career content of data_group, or empty.
+std::string career_content_owner(const std::string &data_group);
 std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> track_acclim_mixins();

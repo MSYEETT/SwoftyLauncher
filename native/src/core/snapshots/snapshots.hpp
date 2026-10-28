@@ -62,6 +62,8 @@ public:
 
     std::string active() const;
     bool has_career(const std::string &id) const;
+    // A per-season career whose entry already holds a snapshot for that year: its season started before.
+    bool started(const std::string &id, int year) const;
     format::Entry entry() const;
     std::string state() const;
 

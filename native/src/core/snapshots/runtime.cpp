@@ -12,26 +12,30 @@
 #include <mutex>
 
 #include "../apply/moments.hpp"
+#include "../hooks/core_events.hpp"
 #include "../hooks/hooks.hpp"
 #include "../registry/table.hpp"
 #include "../save_splice_logic.hpp"
+#include "clock.hpp"
 #include "snapshots.hpp"
 
 // Career snapshots in game: the book (snapshots.cpp) on the core's registry store, fed by the career
 // moments on the hooks table and by the save splice's root loads and profile saves.
 //
-// Moments: career.loaded and career.unloaded (fired by the core's career tracker), career.created
-// and career.season.start (declared by the core with firing helpers in hooks/core_events.cpp; the
-// core does not yet see those moments, so nothing fires them until an apply path or the career mode's
-// owner does: hooks::events::career_season_start(year, season_index) at the season's start, and
-// hooks::events::career_created() once the new career's id is in the facts). At a season start the
-// apply scheduler activates the season (apply::moments::career_season) and then the freeze runs, so
-// both see the same season; this runs first among each moment's after handlers, so addons that read
-// the season there read the snapshot. The career's stat-id map comes from apply::moments.
+// Moments: career.loaded and career.unloaded (fired by the core's career tracker). career.created: the
+// first career loaded after a new-career route (career.starting, kind new). career.season.start: when
+// the clock (clock.hpp) knows the season's year, either from the owner's career::report_season
+// (SwoftyCareerOps.report_season, on the owner's own Team HQ moment) or, for a career no addon owns, from
+// the career.season records at an idle Team HQ (career.hub, after every other handler) whose current
+// Season has its weekends and a current weekend. At a season start the apply scheduler activates the
+// season (apply::moments::career_season) and then the freeze runs, so both see the same season; this runs
+// first among each moment's after handlers, so addons that read the season there read the snapshot. The
+// career's stat-id map comes from apply::moments.
 //
-// Writing: only through the save splice, and only when it is armed and the game's bag type id is
-// the one the entry's layout assumes (save_splice::entry_blocked). SWOFTY_REGISTRY_SAVE=0 (or off,
-// dry) keeps the snapshots in memory for the session and logs what each save would have written.
+// Writing: only through the save splice, only when it is armed and the game's bag type id is the one the
+// entry's layout assumes (save_splice::entry_blocked), and only with SWOFTY_REGISTRY_SAVE=on (or 1). By
+// default (dry) the snapshots stay in memory for the session and each profile save logs the entry it
+// would have written and how many bytes it would add to the save.
 
 namespace runtime {
 namespace {
@@ -41,11 +45,17 @@ namespace snap = swofty_core::snapshots;
 namespace sp = runtime::save_splice;
 namespace hk = swofty_core::hooks;
 
+namespace g = swofty::game;
+namespace sn = swofty_core::snapshots::seasons;
+
 std::once_flag started;
 std::unique_ptr<snap::Book> the_book;
 bool writes = false;
 std::string blocked;
-size_t dry_logged = 0;
+std::mutex clock_mu;
+sn::Clock the_clock;
+size_t loaded_entry = 0;
+bool loaded_has_entry = false;
 
 snap::Book &book() { return *the_book; }
 
@@ -93,6 +103,120 @@ std::string facts_career()
     return f && f->career ? f->career->id : std::string();
 }
 
+std::string owner_of_data_group(const std::string &data_group)
+{
+    if (data_group.empty())
+        return {};
+    std::string owner = runtime::career_content_owner(data_group);
+    reg::Store &st = reg::store();
+    if (owner.empty())
+        for (auto &id : st.list("career.mode", "")) {
+            reg::Record r = st.get("career.mode", id);
+            if (r.status == reg::Status::ok && r.value["data_group"].as_string() == data_group) {
+                owner = id.substr(0, id.find('/'));
+                break;
+            }
+        }
+    return owner == "game" || owner == "swofty.core" ? std::string() : owner;
+}
+
+template <class T> T rdv(uintptr_t a, T def = T{})
+{
+    T v{};
+    return swofty::mem::read(a, v) ? v : def;
+}
+
+uintptr_t resolved(const char *id) { return swofty::api && swofty::api->resolve ? swofty::api->resolve(id) : 0; }
+
+bool championship_season(int &index, std::string &not_ready)
+{
+    index = -1;
+    const SwoftyCareer *c = runtime::career_table();
+    auto e = c && c->entity ? reinterpret_cast<uintptr_t>(c->entity()) : 0;
+    g::CareerEntity ent{};
+    if (!e || !swofty::mem::object_like(e) || !swofty::mem::read(e, ent)) {
+        not_ready = "no career entity";
+        return false;
+    }
+    uintptr_t want = resolved("vt_Career_Championship");
+    uintptr_t cand[2] = {rdv<uintptr_t>(e + offsetof(g::CareerEntity, current_championship)), 0};
+    if (uintptr_t desc = resolved("k_Career_ChampionshipDesc"); desc && c->component_by_desc)
+        cand[1] = reinterpret_cast<uintptr_t>(c->component_by_desc(reinterpret_cast<void *>(desc)));
+    uintptr_t ch = 0;
+    for (uintptr_t x : cand)
+        if (want && x && rdv<uintptr_t>(x) == want)
+            ch = x;
+    g::Championship champ{};
+    if (!ch || !swofty::mem::read(ch, champ)) {
+        not_ready = want ? "the championship is not readable" : "vt_Career_Championship does not resolve";
+        return false;
+    }
+    auto b = reinterpret_cast<uintptr_t>(champ.seasons_begin), en = reinterpret_cast<uintptr_t>(champ.seasons_end);
+    size_t n = en > b && !((en - b) % sizeof(g::ChampionshipSeasonEntry)) ? (en - b) / sizeof(g::ChampionshipSeasonEntry) : 0;
+    if (!n || n > 64 || champ.season_index >= n) {
+        not_ready = "the championship's seasons are not built";
+        return false;
+    }
+    index = int(champ.season_index);
+    if (ent.entrant_update_busy) {
+        not_ready = "the career is busy";
+        return false;
+    }
+    g::ChampionshipSeasonEntry entry{};
+    uintptr_t season_vt = resolved("vt_Career_Season"), weekend_vt = resolved("vt_Career_Weekend");
+    if (!swofty::mem::read(b + champ.season_index * sizeof entry, entry) || !entry.season || !season_vt ||
+        rdv<uintptr_t>(reinterpret_cast<uintptr_t>(entry.season)) != season_vt) {
+        not_ready = "the current season is not readable";
+        return false;
+    }
+    g::Season season{};
+    if (!swofty::mem::read(reinterpret_cast<uintptr_t>(entry.season), season)) {
+        not_ready = "the current season is not readable";
+        return false;
+    }
+    auto wb = reinterpret_cast<uintptr_t>(season.weekends_begin), we = reinterpret_cast<uintptr_t>(season.weekends_end);
+    size_t weekends = wb && we > wb && !((we - wb) % sizeof(void *)) ? (we - wb) / sizeof(void *) : 0;
+    if (!weekends || weekends > 64) {
+        not_ready = "the season has no race weekends yet";
+        return false;
+    }
+    for (size_t i = 0; i < weekends; i++) {
+        uintptr_t w = rdv<uintptr_t>(wb + i * sizeof(void *));
+        if (!w || !weekend_vt || rdv<uintptr_t>(w) != weekend_vt) {
+            not_ready = "the season's race weekends are not built";
+            return false;
+        }
+    }
+    if (season.current_weekend >= weekends) {
+        not_ready = "the season has no current weekend";
+        return false;
+    }
+    return true;
+}
+
+sn::Season season_now(bool read_game)
+{
+    sn::Season s;
+    s.career = facts_career();
+    s.data_group = facts_context().data_group;
+    s.owner = owner_of_data_group(s.data_group);
+    if (read_game && !s.career.empty())
+        s.ready = championship_season(s.index, s.not_ready);
+    return s;
+}
+
+void say(const std::vector<std::string> &lines)
+{
+    for (auto &l : lines)
+        swofty::log("%s", l.c_str());
+}
+
+void season_start(const sn::Moment &m)
+{
+    if (m.fire)
+        hk::events::career_season_start(m.year, m.index);
+}
+
 snap::format::Freeze freeze_of(const std::string &data_group)
 {
     reg::Store &st = reg::store();
@@ -107,14 +231,52 @@ snap::format::Freeze freeze_of(const std::string &data_group)
 
 int on_loaded(void *, SwoftyHookCall *)
 {
-    book().career_loaded(facts_career(), facts_context());
+    std::string career = facts_career();
+    book().career_loaded(career, facts_context());
+    bool created;
+    {
+        std::lock_guard g(clock_mu);
+        created = the_clock.loaded(career);
+    }
+    if (created) {
+        swofty::log("[registry] career %s is new (a new-career route started it); career.created", career.c_str());
+        hk::events::career_created();
+    }
     return 0;
 }
 
 int on_unloaded(void *, SwoftyHookCall *)
 {
+    {
+        std::lock_guard g(clock_mu);
+        the_clock.unloaded();
+    }
     book().career_unloaded();
     return 0;
+}
+
+int on_hub(void *, SwoftyHookCall *)
+{
+    sn::Season s = season_now(true);
+    if (s.career.empty())
+        return 0;
+    sn::YearMap map = sn::year_map(reg::store(), s.data_group);
+    sn::Moment m;
+    {
+        std::lock_guard g(clock_mu);
+        m = the_clock.hub(s, map);
+    }
+    say(m.lines);
+    season_start(m);
+    return 0;
+}
+
+void on_starting(const SwoftyEvent *ev, void *)
+{
+    if (!ev || ev->b == SWOFTY_CAREER_START_PICK)
+        return;
+    std::lock_guard g(clock_mu);
+    the_clock.starting(ev->b == SWOFTY_CAREER_START_NEW);
 }
 
 int on_created(void *, SwoftyHookCall *)
@@ -144,7 +306,12 @@ int on_season_start(void *, SwoftyHookCall *call)
     return 0;
 }
 
-void entry_loaded(const std::vector<uint8_t> *body) { book().loaded(body); }
+void entry_loaded(const std::vector<uint8_t> *body)
+{
+    loaded_has_entry = body != nullptr;
+    loaded_entry = body ? body->size() : 0;
+    book().loaded(body);
+}
 
 bool entry_saving(std::vector<uint8_t> &body)
 {
@@ -153,12 +320,16 @@ bool entry_saving(std::vector<uint8_t> &body)
     if (writes)
         return true;
     book().written(false);
-    if (body.size() != dry_logged) {
-        dry_logged = body.size();
-        swofty::log("[registry] swofty_registry: would write %zu bytes with this profile save, but %s; the career "
-                    "snapshots stay in memory for this session",
-                    body.size(), blocked.c_str());
-    }
+    snap::format::Entry e = book().entry();
+    size_t seasons = 0;
+    for (auto &c : e.careers)
+        seasons += c.seasons.size();
+    size_t name = std::strlen(sp::ENTRY_NAME);
+    long long added = sn::entry_growth(name, body.size(), loaded_has_entry, loaded_entry);
+    swofty::log("[registry] swofty_registry dry: this profile save would write a %zu-byte entry (%zu career(s), %zu "
+                "season snapshot(s)), adding %lld bytes to the save%s; nothing written (%s)",
+                size_t(sn::entry_growth(name, body.size(), false, 0)), e.careers.size(), seasons, added,
+                loaded_has_entry ? " over the entry it loaded" : "", blocked.c_str());
     return false;
 }
 
@@ -187,16 +358,50 @@ void snapshots_start(bool splice_live)
         attach("career.unloaded", on_unloaded);
         attach("career.created", on_created);
         attach("career.season.start", on_season_start);
+        uint32_t token = 0;
+        hk::core().attach("swofty.core", "career.hub", SWOFTY_PHASE_AFTER, -1000000, "", on_hub, nullptr, &token);
+        if (const SwoftyEvents *ev = runtime::events_table(); ev && ev->subscribe)
+            ev->subscribe(SWOFTY_EVENT_CAREER_STARTING, on_starting, nullptr, &token);
+        {
+            std::lock_guard g(clock_mu);
+            the_clock.set_started([](const std::string &career, int year) { return book().started(career, year); });
+        }
         char v[16] = {};
         DWORD n = GetEnvironmentVariableA("SWOFTY_REGISTRY_SAVE", v, sizeof v);
-        bool off = n && n < sizeof v && (!strcmp(v, "0") || !strcmp(v, "off") || !strcmp(v, "dry"));
-        blocked = off ? std::string("SWOFTY_REGISTRY_SAVE=") + v : splice_live ? sp::entry_blocked() : "the save splice is off";
+        std::string mode = n && n < sizeof v ? v : "";
+        blocked = sn::save_blocked(mode, splice_live, splice_live ? sp::entry_blocked() : std::string());
         writes = blocked.empty();
         if (splice_live)
             sp::set_entry_hooks({entry_loaded, entry_saving, entry_written});
         swofty::log("[registry] career snapshots on: %s", writes ? "saved in swofty_registry through the save splice"
                                                                  : ("not saved (" + blocked + ")").c_str());
     });
+}
+
+
+int snapshots_report_season(const std::string &caller, int year, int season_index)
+{
+    if (!the_book) {
+        swofty::log("[registry] career::report_season(%d, %d) from %s: unavailable (the career snapshots are not "
+                    "started)",
+                    year, season_index, caller.c_str());
+        return SWOFTY_ASSET_UNAVAILABLE;
+    }
+    sn::Season s = season_now(false);
+    s.index = season_index;
+    sn::YearMap map = sn::year_map(reg::store(), s.data_group);
+    sn::Moment m;
+    sn::Report r;
+    {
+        std::lock_guard g(clock_mu);
+        r = the_clock.report(caller, s, year, map, m);
+    }
+    say(m.lines);
+    season_start(m);
+    return r == sn::Report::ok        ? SWOFTY_ASSET_OK
+           : r == sn::Report::late    ? SWOFTY_ASSET_LATE
+           : r == sn::Report::refused ? SWOFTY_REFUSED
+                                      : SWOFTY_ASSET_INVALID;
 }
 
 }

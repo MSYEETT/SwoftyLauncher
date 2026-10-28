@@ -220,6 +220,16 @@ bool Book::has_career(const std::string &id) const
     return const_cast<fmt::Entry &>(entry_).career(id) != nullptr;
 }
 
+bool Book::started(const std::string &id, int year) const
+{
+    std::lock_guard g(mu_);
+    const fmt::Career *c = const_cast<fmt::Entry &>(entry_).career(id);
+    if (!c || c->unreadable || c->freeze != fmt::Freeze::per_season)
+        return false;
+    const fmt::Season *s = c->season(year);
+    return s && !s->frozen.empty();
+}
+
 fmt::Entry Book::entry() const
 {
     std::lock_guard g(mu_);
