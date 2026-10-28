@@ -70,6 +70,12 @@ struct Platform {
     std::function<void(const std::string &event, bool hot)> fired;
 };
 
+// A direct point's handlers by phase, already ordered (priority, then load order), rebuilt when a handler
+// attaches or detaches. fire_direct reads it with one short lock and builds no context.
+struct DirectLine {
+    std::vector<std::shared_ptr<Handler>> before, replace, after;
+};
+
 struct Point {
     std::string name;
     uint32_t kind = SWOFTY_POINT_CANCEL;
@@ -80,6 +86,8 @@ struct Point {
     std::vector<std::shared_ptr<Handler>> handlers;
     std::atomic<bool> fired{false};
     GameLink *game = nullptr;
+    std::shared_ptr<const DirectLine> line;
+    bool line_dirty = true;
 };
 
 class Table {
@@ -192,6 +200,7 @@ public:
             h->token = ++next_token_;
             h->order = rank(addon, module) << 32 | ++next_order_;
             p.handlers.push_back(h);
+            p.line_dirty = true;
             tokens_[h->token] = name;
             if (p.game && p.handlers.size() == 1 && armed_ && !p.game->installed())
                 install = p.game;
@@ -233,6 +242,7 @@ public:
                 if (p.handlers[i]->token == token) {
                     p.handlers[i]->live = false;
                     p.handlers.erase(p.handlers.begin() + i);
+                    p.line_dirty = true;
                     break;
                 }
             if (p.game && p.handlers.empty() && p.game->installed())
@@ -437,6 +447,130 @@ public:
         return SWOFTY_ASSET_OK;
     }
 
+    // The point a hot game hook point fires through fire_direct, found once.
+    Point *direct_point(const std::string &name)
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        return &point(name);
+    }
+
+    bool has_handlers(const Point &p)
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        return !p.handlers.empty();
+    }
+
+    // The same phases as fire() for a point that fires every frame for every car: no context table and no
+    // allocation. Handlers see a null SwoftyHookCall::context (hooks->context needs one), selectors on
+    // when()/in() still match against the current facts, and the content owner gets no precedence. original
+    // runs between replace and after when no replace handler handled the call.
+    int fire_direct(Point &p, void *payload, int *replaced, void (*original)(void *), void *user)
+    {
+        if (replaced)
+            *replaced = 0;
+        std::shared_ptr<const DirectLine> line;
+        bool first;
+        {
+            std::lock_guard<std::mutex> g(lock_);
+            if (p.line_dirty) {
+                auto next = std::make_shared<DirectLine>();
+                for (auto &h : p.handlers) {
+                    if (!h->live || !catalogue::has_phase(p.kind, h->phase))
+                        continue;
+                    (h->phase == SWOFTY_PHASE_BEFORE ? next->before : h->phase == SWOFTY_PHASE_REPLACE ? next->replace : next->after)
+                        .push_back(h);
+                }
+                auto ordered = [](const std::shared_ptr<Handler> &a, const std::shared_ptr<Handler> &b) {
+                    return a->priority != b->priority ? a->priority > b->priority : a->order < b->order;
+                };
+                std::stable_sort(next->before.begin(), next->before.end(), ordered);
+                std::stable_sort(next->replace.begin(), next->replace.end(), ordered);
+                std::stable_sort(next->after.begin(), next->after.end(), ordered);
+                p.line = std::move(next);
+                p.line_dirty = false;
+            }
+            line = p.line;
+            first = !p.fired.exchange(true);
+        }
+        auto run_original = [&] {
+            if (original)
+                original(user);
+        };
+        if (!line || (line->before.empty() && line->replace.empty() && line->after.empty())) {
+            run_original();
+            return SWOFTY_ASSET_OK;
+        }
+        for (auto *a : active())
+            if (a == &p) {
+                run_original();
+                return SWOFTY_ASSET_OK;
+            }
+        Active on(&p);
+        std::shared_ptr<const Facts> snap;
+        auto in_scope = [&](const Handler &h) {
+            if (h.scope.empty())
+                return true;
+            if (!snap)
+                snap = current();
+            return h.scope.match(*snap);
+        };
+        SwoftyHookCall call{sizeof(SwoftyHookCall), SWOFTY_PHASE_BEFORE, p.name.c_str(), payload, 0, nullptr};
+        size_t ran_before = 0, ran_replace = 0, ran_after = 0;
+        for (auto &h : line->before) {
+            if (!h->live || !in_scope(*h))
+                continue;
+            call.phase = SWOFTY_PHASE_BEFORE;
+            Fault f;
+            p_.call(*h, &call, false, &f);
+            ran_before++;
+        }
+        const Handler *handled = nullptr;
+        for (auto &h : line->replace) {
+            if (!h->live || !in_scope(*h))
+                continue;
+            call.phase = SWOFTY_PHASE_REPLACE;
+            Fault f;
+            ran_replace++;
+            if (p_.call(*h, &call, false, &f)) {
+                handled = h.get();
+                break;
+            }
+        }
+        call.replaced = handled ? 1 : 0;
+        if (!handled)
+            run_original();
+        std::vector<std::string> faults;
+        for (auto &h : line->after) {
+            if (!h->live || !in_scope(*h))
+                continue;
+            call.phase = SWOFTY_PHASE_AFTER;
+            Fault f;
+            p_.call(*h, &call, true, &f);
+            ran_after++;
+            if (f.faulted) {
+                detach(h->token);
+                h->live = false;
+                faults.push_back("[hooks] " + p.name + ": after handler from " + who(h->addon) + " faulted (" + f.what +
+                                 "); handler detached for this session");
+                if (p_.faulted)
+                    p_.faulted(p.name, "after", h->addon, f.what);
+            }
+        }
+        if (replaced)
+            *replaced = call.replaced;
+        if (first) {
+            std::string l = "[hooks] " + p.name + ": first fire, " + counts(ran_before, ran_replace, ran_after);
+            if (handled)
+                l += "; replace by " + who(handled->addon) + " -> handled";
+            else if (ran_replace)
+                l += "; no replace handled it";
+            log(l + "; later fires are not logged");
+        }
+        for (auto &f : faults)
+            log(f);
+        return SWOFTY_ASSET_OK;
+    }
+
     int context_part(const void *handle, std::string_view part, std::string &out)
     {
         auto ctx = find_context(handle);
@@ -625,6 +759,7 @@ private:
             h->live = false;
             tokens_.erase(h->token);
             p.handlers.erase(p.handlers.begin() + i);
+            p.line_dirty = true;
         }
         return lines;
     }
