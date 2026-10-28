@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define SWOFTY_API_VERSION 8
+#define SWOFTY_API_VERSION 9
 
 enum {
     SWOFTY_MIXIN_WRAP = 1,
@@ -512,6 +512,176 @@ typedef struct SwoftyEra {
     int (*count)(void);
 } SwoftyEra;
 
+/* Standard library 1.6 (API v9): the registry, hook points and services. Each table is appended to
+   SwoftyApi and also returned by a core export (SwoftyCoreRegistry, SwoftyCoreHooks, SwoftyCoreServices),
+   so an addon built against this header also loads on an older core and reads the three libraries as
+   unavailable there. A table's version is the number of the last layout the core fills; fields are only
+   ever appended. Results are the SWOFTY_ASSET_* codes plus SWOFTY_TOO_SMALL: *len then holds the size
+   needed, and the caller retries with a bigger buffer. The core copies every string and JSON text it is
+   given; values come back in the caller's buffer. A refusal leaves its reason in last_error for the
+   calling thread. Records, edits and selectors cross the ABI as JSON text: a record is its struct's
+   SWOFTY_RECORD fields by name, a Ref is the record's full id ("game/ferrari_2025") or null, a keyed
+   list is an array matched by its x-key fields, and a pointer names a keyed element as "slot=1"
+   ("/teams/slot=1/seats/0"). Selectors (layer filters, handler scopes) are a JSON array whose entries
+   must all match: {"content": id}, {"content_exact": id}, {"owner": addon}, {"data_group": name},
+   {"mode": "time_trial"}, {"session_type": ["race"]}, {"track": id}, {"year": [from, to]},
+   {"setup_mode": id}, {"vehicle_package": id}, {"any": [selector, ...]}, {"not": selector}. */
+#define SWOFTY_REGISTRY_VERSION 1
+#define SWOFTY_HOOKS_VERSION 1
+#define SWOFTY_SERVICES_VERSION 1
+
+enum { SWOFTY_TOO_SMALL = 4 };
+
+enum { SWOFTY_SCOPE_GLOBAL = 0, SWOFTY_SCOPE_PROFILE = 1, SWOFTY_SCOPE_CAREER = 2 };
+enum { SWOFTY_APPLIES_BOOT = 0, SWOFTY_APPLIES_CONTENT = 1, SWOFTY_APPLIES_SESSION = 2, SWOFTY_APPLIES_READ = 3 };
+enum {
+    SWOFTY_STATUS_OK = 0,
+    SWOFTY_STATUS_NO_RECORD = 1,
+    SWOFTY_STATUS_NO_REGISTRY = 2,
+    SWOFTY_STATUS_INVALID = 3,
+    SWOFTY_STATUS_LATE = 4,
+};
+enum { SWOFTY_PHASE_BEFORE = 0, SWOFTY_PHASE_REPLACE = 1, SWOFTY_PHASE_AFTER = 2 };
+enum { SWOFTY_POINT_NOTIFY = 0, SWOFTY_POINT_MODIFY = 1, SWOFTY_POINT_CANCEL = 2 };
+
+typedef struct SwoftyText {
+    const char *data;
+    size_t size;
+} SwoftyText;
+
+typedef int (*SwoftyProvideFn)(void *user, const char *registry, const char *id, char *out, size_t cap, size_t *len);
+typedef void (*SwoftyListFn)(void *user, const char *registry, void (*add)(void *ctx, const char *id), void *ctx);
+typedef void (*SwoftyRecordFn)(void *user, const char *registry, const char *id);
+typedef int (*SwoftyConvertFn)(void *user, SwoftyText in, char *out, size_t cap, size_t *len);
+typedef void (*SwoftyCheckFn)(void *user, SwoftyText value, void (*error)(void *ctx, const char *path, const char *msg),
+                              void *ctx);
+typedef int (*SwoftyEditFn)(void *user, SwoftyText in, char *out, size_t cap, size_t *len);
+typedef int (*SwoftyMatchFn)(void *user, SwoftyText base);
+
+/* One layer, as layer_ex takes it. id names one record; otherwise the layer is a selector over every
+   record that passes all of match (run on the base value), prefix, tag (with tag_field, the JSON pointer
+   of a Ref field whose target must be in the tag; NULL for the record itself) and is not in except.
+   The change is edit (code) or patch (a JSON merge patch with keyed arrays and $delete). in is a
+   selector array (LayerHandle::in), empty for everywhere. */
+typedef struct SwoftyLayerDesc {
+    uint32_t size;
+    uint32_t scope;
+    const char *registry;
+    const char *id;
+    SwoftyMatchFn match;
+    void *match_user;
+    const char *prefix;
+    const char *const *except;
+    size_t except_count;
+    const char *tag;
+    const char *tag_field;
+    SwoftyText in;
+    SwoftyEditFn edit;
+    void *user;
+    SwoftyText patch;
+} SwoftyLayerDesc;
+
+/* Registry table, version 1. declare: a registry's schema (JSON Schema subset with x-registry, x-version,
+   x-applies, x-snapshot, x-snapshot-budget, x-key, x-ref); idempotent, the core keeps the highest minor of
+   each major and its own schema for the registries it owns. add, variant, provide: records under the
+   calling addon's own keys, the id comes back as "<addon id>/<key>". layer, layer_fn, layer_select,
+   layer_ex: changes to any record, run on its effective value in load order. get takes
+   "<name>@<major>" or "<name>". status returns a SWOFTY_STATUS_* value (not a result code). first and
+   next list ids under a prefix in id order. option is the calling addon's option; called inside an
+   edit it also records that the edit re-runs when the option changes. layer_ex returns the layer's
+   handle; layer_in narrows it to where its selector array matches (refused on an Applies::boot
+   registry). protect names fields of an own record that other addons' selectors skip. tag_* work on
+   shared tags ("c/f1_cars"); tag_members writes a JSON array of ids. variant_patch is variant with a
+   JSON merge patch. stat_id is the record's allocated stat id. */
+typedef struct SwoftyRegistry {
+    uint32_t version;
+    int (*available)(void);
+    int (*declare)(const char *registry, SwoftyText schema_json);
+    int (*check)(const char *registry, SwoftyCheckFn fn, void *user);
+    int (*adapter)(const char *registry, uint32_t from_major, uint32_t to_major, SwoftyConvertFn up,
+                   SwoftyConvertFn down, void *user);
+    int (*provide)(const char *registry, const char *id, SwoftyText value_json);
+    int (*provide_fn)(const char *registry, SwoftyProvideFn fn, SwoftyListFn list, void *user);
+    int (*invalidate)(const char *registry, const char *id);
+    int (*layer)(const char *registry, const char *id, SwoftyText patch_json, uint32_t scope);
+    int (*clear_layer)(const char *registry, const char *id, uint32_t scope);
+    int (*get)(const char *registry_at_major, const char *id, char *out, size_t cap, size_t *len);
+    int (*status)(const char *registry, const char *id);
+    int (*origin)(const char *registry, const char *id, const char *pointer, char *addon, size_t cap);
+    int (*first)(const char *registry, const char *prefix, char *id, size_t cap);
+    int (*next)(const char *registry, const char *prefix, const char *after, char *id, size_t cap);
+    int (*watch)(const char *registry, SwoftyRecordFn fn, void *user, uint32_t *token);
+    int (*unwatch)(uint32_t token);
+    int (*last_error)(char *out, size_t cap);
+    int (*add)(const char *registry, const char *key, SwoftyText value_json, char *id, size_t cap);
+    int (*variant)(const char *registry, const char *key, const char *base_id, SwoftyEditFn edit, void *user,
+                   char *id, size_t cap);
+    int (*layer_fn)(const char *registry, const char *id, SwoftyEditFn edit, void *user, uint32_t scope);
+    int (*layer_select)(const char *registry, SwoftyMatchFn match, const char *prefix, const char *const *except,
+                        size_t except_count, SwoftyEditFn edit, void *user, uint32_t scope);
+    int (*option)(const char *id, uint32_t type, SwoftySettingValue *out);
+    int (*migrate)(const char *registry, uint32_t from_major, uint32_t to_major, SwoftyConvertFn fn, void *user);
+    int (*layer_ex)(const SwoftyLayerDesc *desc, uint32_t *layer);
+    int (*layer_in)(uint32_t layer, SwoftyText selectors_json);
+    int (*protect)(const char *registry, const char *id, const char *const *fields, size_t count);
+    int (*tag_add)(const char *registry, const char *tag, const char *id);
+    int (*tag_contains)(const char *registry, const char *tag, const char *id, int *out);
+    int (*tag_members)(const char *registry, const char *tag, char *out, size_t cap, size_t *len);
+    int (*variant_patch)(const char *registry, const char *key, const char *base_id, SwoftyText patch_json, char *id,
+                         size_t cap);
+    int (*stat_id)(const char *registry, const char *id, int64_t *out);
+} SwoftyRegistry;
+
+/* One call of a hook point or event, as a SwoftyHookFn sees it. payload is the point's struct, which
+   starts with uint32_t size and uint32_t payload_version. replaced is set by the core after the replace
+   phase. context is the moment's context, for the hooks table's context and context_in. */
+typedef struct SwoftyHookCall {
+    uint32_t size;
+    uint32_t phase;
+    const char *point;
+    void *payload;
+    int replaced;
+    const void *context;
+} SwoftyHookCall;
+
+typedef int (*SwoftyHookFn)(void *user, SwoftyHookCall *call);
+
+/* Hooks table, version 1. Events are hook points: attach a handler to a phase (SWOFTY_PHASE_*) with a
+   priority (higher first); in the replace phase a non-zero return means handled. attach_in also takes a
+   selector array: the core calls the handler only where it matches. define declares an addon point
+   under the addon's own id (define_in with its kind, SWOFTY_POINT_*, and the scope it fires in). fire
+   runs the chain on payload; *replaced is non-zero when a replace handler handled it. live is OK when
+   the point is installed and runs its subscribers. context writes one part of a call's context as JSON:
+   "mode", "content", "career", "weekend", "session", "player", "participants", or "record:<registry>";
+   context_in sets *out to 1 when the context matches the selector array. */
+typedef struct SwoftyHooks {
+    uint32_t version;
+    int (*available)(void);
+    int (*live)(const char *point, uint32_t *payload_version);
+    int (*attach)(const char *point, uint32_t phase, int32_t priority, SwoftyHookFn fn, void *user, uint32_t *token);
+    int (*detach)(uint32_t token);
+    int (*define)(const char *point, uint32_t payload_version);
+    int (*fire)(const char *point, void *payload, int *replaced);
+    int (*attach_in)(const char *point, uint32_t phase, int32_t priority, SwoftyText selectors_json, SwoftyHookFn fn,
+                     void *user, uint32_t *token);
+    int (*define_in)(const char *point, uint32_t payload_version, uint32_t kind, SwoftyText scope_json);
+    int (*context)(const void *context, const char *part, char *out, size_t cap, size_t *len);
+    int (*context_in)(const void *context, SwoftyText selectors_json, int *out);
+} SwoftyHooks;
+
+typedef void (*SwoftyServiceFn)(void *user, const void *table, size_t size, uint32_t version);
+
+/* Services table, version 1. publish: a table of function pointers under a name and version (the table
+   starts with uint32_t size and stays valid while the addon is loaded). when: fn runs on the flow thread
+   once a table of that name, of at least min_version and min_size, is published; at once when it
+   already is. */
+typedef struct SwoftyServices {
+    uint32_t version;
+    int (*available)(void);
+    int (*publish)(const char *name, uint32_t version, const void *table, size_t size);
+    int (*when)(const char *name, uint32_t min_version, size_t min_size, SwoftyServiceFn fn, void *user);
+} SwoftyServices;
+
 typedef struct SwoftyApi {
     uint32_t version;
     void (*log)(const char *fmt, ...);
@@ -535,6 +705,9 @@ typedef struct SwoftyApi {
     const SwoftyCharacters *characters;
     const SwoftyCareerWizard *career_wizard;
     const SwoftyEra *era;
+    const SwoftyRegistry *registry;
+    const SwoftyHooks *hooks;
+    const SwoftyServices *services;
 } SwoftyApi;
 
 typedef int (*SwoftyAddonInitFn)(const SwoftyApi *api);
@@ -544,6 +717,10 @@ typedef int (*SwoftyCoreAttachFn)(SwoftyApi *api);
 typedef int (*SwoftyCoreInitFn)(const wchar_t *name, SwoftyAddonInitFn init);
 typedef int (*SwoftyCoreCommitFn)(void);
 typedef int (*SwoftyCoreStageFn)(int stage);
+typedef int (*SwoftyAddonRegisterFn)(const SwoftyApi *api);
+typedef const SwoftyRegistry *(*SwoftyCoreRegistryFn)(void);
+typedef const SwoftyHooks *(*SwoftyCoreHooksFn)(void);
+typedef const SwoftyServices *(*SwoftyCoreServicesFn)(void);
 
 #define SWOFTY_STAGE_WINDOW 1
 
@@ -552,6 +729,13 @@ typedef int (*SwoftyCoreStageFn)(int stage);
 #else
 #define SWOFTY_EXPORT __attribute__((visibility("default")))
 #endif
+
+/* Core exports for feature detection (API v9), and the addon export SWOFTY_ADDON() emits when the file
+   that expands it includes swofty/registry.hpp: the loader calls SwoftyAddonRegister at the early stage,
+   in load order, and SwoftyAddonInit at the stage the manifest asks for. */
+SWOFTY_EXPORT const SwoftyRegistry *SwoftyCoreRegistry(void);
+SWOFTY_EXPORT const SwoftyHooks *SwoftyCoreHooks(void);
+SWOFTY_EXPORT const SwoftyServices *SwoftyCoreServices(void);
 
 #ifdef __cplusplus
 }
