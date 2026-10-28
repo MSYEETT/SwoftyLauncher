@@ -132,6 +132,31 @@ class Merge(unittest.TestCase):
         patch = {"teams": [{"slot": 1, "n": {"b": None, "c": 3}}, {"slot": 2, "$delete": True}, {"slot": 9, "n": None}]}
         self.assertEqual(self.merge(base, patch), {"teams": [{"slot": 1, "n": {"a": 1, "c": 3}}, {"slot": 9}]})
 
+    def test_empty_keyed_list_changes_nothing(self):
+        base = {"teams": [{"slot": 1}, {"slot": 2}]}
+        self.assertEqual(self.merge(base, {"teams": []}), base)
+        self.assertEqual(self.merge({}, {"teams": []}), {"teams": []})
+
+    def test_element_without_its_key_is_an_error(self):
+        base = {"teams": [{"slot": 1}]}
+        for element in ({"n": {}}, {"slot": None}, {"slot": [1]}, 3):
+            with self.assertRaises(S.MergeError, msg=element):
+                self.merge(base, {"teams": [{"slot": 2}, element]})
+        self.assertEqual(base, {"teams": [{"slot": 1}]}, "a failed merge changes nothing")
+
+    def test_delete(self):
+        base = {"teams": [{"slot": 1}, {"slot": 2}]}
+        self.assertEqual(self.merge(base, {"teams": [{"slot": 1, "$delete": True}, {"slot": 7, "$delete": True}]}),
+                         {"teams": [{"slot": 2}]})
+        self.assertEqual(self.merge(base, {"teams": [{"slot": 1, "$delete": False, "n": {}}]}),
+                         {"teams": [{"slot": 1, "n": {}}, {"slot": 2}]})
+        with self.assertRaises(S.MergeError):
+            self.merge(base, {"teams": [{"slot": 1, "$delete": "yes"}]})
+
+    def test_lists_without_key_replace_whole(self):
+        self.assertEqual(self.merge({"seats": [1, 2]}, {"seats": []}), {"seats": []})
+        self.assertEqual(self.merge({"seats": [1, 2]}, {"seats": [{"a": 1}]}), {"seats": [{"a": 1}]})
+
     def test_keys_with_slashes(self):
         for key in ("2017/game/lewis_hamilton", "f1_2017/monaco", "f1_1990/r01", "v10_screamer", "2017"):
             self.assertTrue(S.valid_key(key), key)

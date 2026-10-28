@@ -129,7 +129,10 @@ class Corpus:
         base_value = self.effective(registry, root, base, (*seen, base_id))
         if base_value is None:
             return None
-        return S.merge_patch(root, root, base_value, own)
+        try:
+            return S.merge_patch(root, root, base_value, own)
+        except S.MergeError:
+            return None
 
 
 def validate_variant(record, schemas, name, versions, path, result, corpus):

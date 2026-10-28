@@ -95,14 +95,10 @@ public:
     const std::string &adapter() const noexcept;
 
     // The keyed lists, for swofty::json::merge_patch: "/teams" -> {"slot"}, "/teams/*/drivers" -> ...
+    // They are found through properties and the items of keyed lists, as stdschema.merge_patch finds them.
     const swofty::json::Keys &keys() const noexcept;
     // The same as (path, fields) pairs.
     const std::vector<std::pair<std::string, std::vector<std::string>>> &keyed_lists() const noexcept;
-
-    // A variant's value merged onto its base the way tools/std/stdschema.merge_patch does it: null removes
-    // a field, objects merge, a keyed list merges element by element ("$delete": true removes one, an
-    // element without its key fields is appended, an empty list changes nothing), any other value replaces.
-    swofty::json::Value merge(const swofty::json::Value &base, const swofty::json::Value &patch) const;
 
     struct Impl;
 
@@ -120,7 +116,9 @@ private:
 // - A record with "extends" is a variant (validate.py's validate_variant): "extends" must be a full
 //   record id, the rest is checked in patch mode, and, when DataOptions::base finds the base, the
 //   effective value (the base's own effective value, through variants of variants, with this record
-//   merged on by Schema::merge) is checked as a record too. A loop of bases is a problem at /extends.
+//   merged on by swofty::json::merge_patch with keys()) is checked as a record too. A merge that fails
+//   (an element without its key fields) skips that check, as the patch check already names it. A loop of
+//   bases is a problem at /extends.
 struct DataSchemas {
     // The schemas to check a registry's records against (every minor of a major in CI; the core's one).
     std::vector<std::pair<std::string, const Schema *>> versions;
