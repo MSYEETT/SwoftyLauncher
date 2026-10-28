@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
 use std::time::Duration;
@@ -26,6 +27,7 @@ struct Fake {
     root: PathBuf,
     game: PathBuf,
     launches: Vec<(String, Vec<String>)>,
+    envs: Vec<Vec<(String, String)>>,
 }
 
 impl Launcher for Fake {
@@ -33,9 +35,11 @@ impl Launcher for Fake {
         &mut self,
         profile: &str,
         game_args: &[String],
+        env: &[(String, String)],
         dir: &Path,
     ) -> anyhow::Result<Box<dyn Running>> {
         self.launches.push((profile.to_owned(), game_args.to_vec()));
+        self.envs.push(env.to_vec());
         let script = self.scripts.remove(0);
         let session = self.root.join(format!("sessions/{}", self.launches.len()));
         std::fs::create_dir_all(&session)?;
@@ -46,6 +50,7 @@ impl Launcher for Fake {
             .arg("sh")
             .args(game_args)
             .env("GAME", &self.game)
+            .envs(env.iter().map(|(k, v)| (k, v)))
             .stdin(Stdio::null())
             .stdout(log.try_clone()?)
             .stderr(log)
@@ -208,6 +213,7 @@ fn a_fake_game_runs_every_batch_and_puts_the_folder_back() {
         root: root.clone(),
         game: game.clone(),
         launches: Vec::new(),
+        envs: Vec::new(),
     };
     let mut report = Report::new("r1", &out.display().to_string());
     report.game_starts = plan.game_starts();
@@ -218,6 +224,10 @@ fn a_fake_game_runs_every_batch_and_puts_the_folder_back() {
         profile: "test-r1",
         launcher: &mut fake,
         times: quick(),
+        run_id: "r1",
+        bases: BTreeMap::new(),
+        exe_sha: None,
+        live_saves: None,
     }
     .run(&plan, &mut report);
     report.exit_code = report.compute_exit();
@@ -243,7 +253,7 @@ fn a_fake_game_runs_every_batch_and_puts_the_folder_back() {
     );
     assert_eq!(
         status_of(&report, "career").reason.as_deref(),
-        Some("needs the save sandbox")
+        Some(career::NEEDS)
     );
 
     let crash = status_of(&report, "crashes");
@@ -346,6 +356,7 @@ fn a_game_that_never_reaches_the_menu_is_an_error_and_is_closed() {
         root: root.clone(),
         game: game.clone(),
         launches: Vec::new(),
+        envs: Vec::new(),
     };
     let mut report = Report::new("r2", "out");
     let mut times = quick();
@@ -357,6 +368,10 @@ fn a_game_that_never_reaches_the_menu_is_an_error_and_is_closed() {
         profile: "test-r2",
         launcher: &mut fake,
         times,
+        run_id: "r2",
+        bases: BTreeMap::new(),
+        exe_sha: None,
+        live_saves: None,
     }
     .run(&plan, &mut report);
     let t = &report.tests[0];
@@ -398,6 +413,7 @@ fn a_missing_addon_stops_the_batch_before_the_game_starts() {
         root: root.clone(),
         game: game.clone(),
         launches: Vec::new(),
+        envs: Vec::new(),
     };
     let mut report = Report::new("r3", "out");
     Harness {
@@ -407,6 +423,10 @@ fn a_missing_addon_stops_the_batch_before_the_game_starts() {
         profile: "test-r3",
         launcher: &mut fake,
         times: quick(),
+        run_id: "r1",
+        bases: BTreeMap::new(),
+        exe_sha: None,
+        live_saves: None,
     }
     .run(&plan, &mut report);
     assert!(fake.launches.is_empty());
@@ -570,4 +590,260 @@ fn the_owner_line_has_a_clock_time() {
     let t = hh_mm();
     assert_eq!(t.len(), 5, "{t}");
     assert_eq!(&t[2..3], ":");
+}
+
+const CAREER_SUITE: &str = r#"{
+  "schema": 1,
+  "suite": "my.career",
+  "tests": [
+    { "id": "hq", "env": { "kind": "career", "fixture": "fixtures/r3", "at": "team_hq" }, "fn": "hq" }
+  ]
+}"#;
+
+fn sandbox_bindings(loader: &Path, sha: &str, ids: &[&str]) {
+    let core = loader.join("swofty/addons/core");
+    std::fs::create_dir_all(&core).unwrap();
+    let b: Vec<serde_json::Value> = ids
+        .iter()
+        .map(|id| serde_json::json!({"id": id, "kind": "func", "status": "experimental"}))
+        .collect();
+    std::fs::write(
+        core.join("bindings.json"),
+        serde_json::to_vec(&serde_json::json!({"build": {"sha256": sha}, "bindings": b})).unwrap(),
+    )
+    .unwrap();
+}
+
+fn fixture_at(tests_dir: &Path, name: &str, sha: &str) {
+    let remote = tests_dir.join("captured-remote");
+    std::fs::create_dir_all(&remote).unwrap();
+    std::fs::write(remote.join(fixture::PROFILE_FILES[0]), [7u8; 900]).unwrap();
+    std::fs::write(remote.join(fixture::PROFILE_FILES[1]), [8u8; 416]).unwrap();
+    let meta = fixture::Meta {
+        exe: fixture::Exe {
+            sha256: sha.into(),
+            version: None,
+        },
+        created: "now".into(),
+        ..Default::default()
+    };
+    fixture::capture(name, &tests_dir.join("fixtures"), &remote, &[], meta).unwrap();
+}
+
+#[test]
+fn a_career_run_is_refused_unless_the_sandbox_is_verified_for_the_exe() {
+    let root = temp("sandbox-preflight");
+    let tests_dir = root.join("addon/tests");
+    std::fs::create_dir_all(&tests_dir).unwrap();
+    let file = tests_dir.join("c.test.json");
+    let s = suite::parse(CAREER_SUITE, &file, None).unwrap();
+    let suites = vec![s];
+    let plan = plan::plan(&suites, &Selector::default());
+    let batches: Vec<&Batch> = plan.batches.iter().collect();
+    let b = bases(&suites);
+    let store = root.join("store");
+    let none = check_sandbox(None, "aa", &batches, &b, &store).unwrap_err();
+    assert!(none.contains("loader"), "{none}");
+    let loader = root.join("loader");
+    sandbox_bindings(&loader, "aa", &["Ne_SaveSystem2Win_Start"]);
+    let lacking = check_sandbox(Some(&loader), "aa", &batches, &b, &store).unwrap_err();
+    assert!(
+        lacking.starts_with("a career environment needs the save sandbox")
+            && lacking.contains("lack Ne_SaveSystem2Win_Mount"),
+        "{lacking}"
+    );
+    sandbox_bindings(&loader, "aa", sandbox::BINDINGS);
+    let other = check_sandbox(Some(&loader), "bb", &batches, &b, &store).unwrap_err();
+    assert!(other.contains("not verified for this build"), "{other}");
+    let missing = check_sandbox(Some(&loader), "aa", &batches, &b, &store).unwrap_err();
+    assert!(missing.contains("fixture \"fixtures/r3\" not found"), "{missing}");
+    fixture_at(&tests_dir, "r3", "aa");
+    check_sandbox(Some(&loader), "aa", &batches, &b, &store).unwrap();
+    std::fs::write(
+        tests_dir.join("fixtures/r3/save").join(fixture::PROFILE_FILES[1]),
+        [0u8; 416],
+    )
+    .unwrap();
+    let edited = check_sandbox(Some(&loader), "aa", &batches, &b, &store).unwrap_err();
+    assert!(edited.contains("does not match fixture.json"), "{edited}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn a_career_batch_runs_in_its_own_sandbox_and_fails_closed_on_any_doubt() {
+    let root = temp("sandbox-batch");
+    let (data, game, out) = (root.join("data"), root.join("game"), root.join("out"));
+    std::fs::create_dir_all(&game).unwrap();
+    let tests_dir = root.join("addon/tests");
+    std::fs::create_dir_all(&tests_dir).unwrap();
+    fixture_at(&tests_dir, "r3", "aa");
+    let storage = tests_dir.join("fixtures/r3/storage/my.addon");
+    std::fs::create_dir_all(&storage).unwrap();
+    std::fs::write(storage.join("careers.json"), "{}").unwrap();
+    let f = tests_dir.join("fixtures/r3/fixture.json");
+    let mut m: fixture::Manifest = serde_json::from_slice(&std::fs::read(&f).unwrap()).unwrap();
+    m.files.insert(
+        "storage/my.addon/careers.json".into(),
+        fixture::FileSum {
+            size: 2,
+            sha256: swofty_core::baseline::sha256_bytes(b"{}"),
+        },
+    );
+    std::fs::write(&f, serde_json::to_vec(&m).unwrap()).unwrap();
+    let s = suite::parse(CAREER_SUITE, &tests_dir.join("c.test.json"), None).unwrap();
+    let suites = vec![s];
+    let plan = plan::plan(&suites, &Selector::default());
+    let live = root.join("live-remote");
+    std::fs::create_dir_all(&live).unwrap();
+    std::fs::write(live.join(fixture::PROFILE_FILES[1]), [1u8; 416]).unwrap();
+    let store = Store::new(&data);
+    let mut fake = Fake {
+        scripts: Vec::new(),
+        root: root.clone(),
+        game: game.clone(),
+        launches: Vec::new(),
+        envs: Vec::new(),
+    };
+    let h = Harness {
+        store: &store,
+        game: &game,
+        out: &out,
+        profile: "test-r9",
+        launcher: &mut fake,
+        times: quick(),
+        run_id: "r9",
+        bases: bases(&suites),
+        exe_sha: Some("aa".into()),
+        live_saves: Some(live.clone()),
+    };
+    let b = &plan.batches[0];
+    let sb = h.open_sandbox(1, b, "test-r9-1").unwrap();
+    assert_eq!(sb.run.root, data.join("test-runs/r9-1"));
+    assert_eq!(
+        std::fs::read(sb.run.remote().join(fixture::PROFILE_FILES[1])).unwrap(),
+        [8u8; 416],
+        "the fixture's saves are in the sandbox"
+    );
+    assert_eq!(
+        std::fs::read_to_string(
+            addon_storage::profile_dir(&data, "my.addon", "test-r9-1").join("careers.json")
+        )
+        .unwrap(),
+        "{}",
+        "the fixture's storage is the batch profile's copy"
+    );
+    let env = sb.run.env();
+    assert!(
+        env.iter()
+            .any(|(k, v)| k == sandbox::RUN_ENV && Path::new(v) == sb.run.root)
+    );
+    assert!(env.iter().any(|(k, v)| k == sandbox::TOKEN_ENV && v.len() == 32));
+
+    let mut br = Harness::blank(b, 1).0;
+    br.started_game = true;
+    let mut reports = Harness::blank(b, 1).1;
+    reports[0].status = Status::Pass;
+    h.close_sandbox(sb, b, "test-r9-1", &mut br, &mut reports, &[0]);
+    assert_eq!(
+        br.error.as_deref(),
+        Some(
+            "the core never reported the save sandbox (no sandbox.json): the save device may not have started"
+        )
+    );
+    assert_eq!(reports[0].status, Status::Error);
+    let doc: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(data.join("test-runs/r9-1/run.json")).unwrap()).unwrap();
+    assert!(
+        doc.get("token").is_none(),
+        "the run token is retired after the batch"
+    );
+
+    let sb = h.open_sandbox(2, b, "test-r9-2").unwrap();
+    std::fs::write(
+        sb.run.root.join(sandbox::STATUS_FILE),
+        r#"{"state":"failed","why":"Ne_SaveSystem2Win_Start does not resolve on this build"}"#,
+    )
+    .unwrap();
+    let mut br = Harness::blank(b, 2).0;
+    let mut reports = Harness::blank(b, 2).1;
+    h.close_sandbox(sb, b, "test-r9-2", &mut br, &mut reports, &[0]);
+    assert_eq!(
+        br.error.as_deref(),
+        Some("the save sandbox did not arm: Ne_SaveSystem2Win_Start does not resolve on this build")
+    );
+
+    let sb = h.open_sandbox(3, b, "test-r9-3").unwrap();
+    std::fs::write(sb.run.root.join(sandbox::STATUS_FILE), r#"{"state":"armed"}"#).unwrap();
+    std::fs::write(sb.run.remote().join("savegame@profile#QKRHMYXE"), [5u8; 416]).unwrap();
+    let mut br = Harness::blank(b, 3).0;
+    let mut reports = Harness::blank(b, 3).1;
+    reports[0].status = Status::Pass;
+    h.close_sandbox(sb, b, "test-r9-3", &mut br, &mut reports, &[0]);
+    assert_eq!(
+        br.error, None,
+        "an armed sandbox and an unchanged live folder pass"
+    );
+    assert_eq!(reports[0].status, Status::Pass);
+    assert_eq!(
+        std::fs::read_to_string(data.join("test-runs/r9-3/storage/my.addon/careers.json")).unwrap(),
+        "{}",
+        "the batch's addon storage is kept in the run folder for a capture"
+    );
+
+    let sb = h.open_sandbox(4, b, "test-r9-4").unwrap();
+    std::fs::write(sb.run.root.join(sandbox::STATUS_FILE), r#"{"state":"armed"}"#).unwrap();
+    std::fs::write(live.join(fixture::PROFILE_FILES[1]), [2u8; 417]).unwrap();
+    let mut br = Harness::blank(b, 4).0;
+    let mut reports = Harness::blank(b, 4).1;
+    h.close_sandbox(sb, b, "test-r9-4", &mut br, &mut reports, &[0]);
+    let why = br.error.unwrap();
+    assert!(
+        why.starts_with("THE PLAYER'S STEAM SAVE FOLDER CHANGED")
+            && why.contains("savegame@profile#QKRHMYXE changed"),
+        "{why}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn a_capture_from_a_run_records_the_runs_exe_and_addons() {
+    let root = temp("capture-run");
+    let data = root.join("data");
+    let store = Store::new(&data);
+    let run = RunDir::create(&data, "r5-1", Some("cafe")).unwrap();
+    std::fs::write(run.remote().join(fixture::PROFILE_FILES[0]), [1u8; 10]).unwrap();
+    std::fs::write(run.remote().join(fixture::PROFILE_FILES[1]), [2u8; 416]).unwrap();
+    std::fs::write(run.root.join("addons.json"), r#"{"swofty.progressive":"1.6.0"}"#).unwrap();
+    std::fs::create_dir_all(run.storage().join("swofty.progressive")).unwrap();
+    std::fs::write(run.storage().join("swofty.progressive/careers.json"), "{}").unwrap();
+    let fixtures = root.join("fixtures");
+    let cli = crate::Cli::try_parse_from([
+        "swofty",
+        "test",
+        "fixture",
+        "capture",
+        "prog-r1",
+        "--run",
+        "r5-1",
+        "--career",
+        "driver_career_progressive:2",
+        "--store",
+        fixtures.to_str().unwrap(),
+    ])
+    .unwrap();
+    let crate::Command::Test(TestCommand::Fixture(FixtureCommand::Capture(a))) = cli.command else {
+        panic!("not a capture");
+    };
+    assert_eq!(capture_command(&store, a).unwrap(), ExitCode::SUCCESS);
+    let f = fixture::load(&fixtures.join("prog-r1")).unwrap();
+    assert_eq!(f.manifest.exe.sha256, "cafe");
+    assert_eq!(f.manifest.addons["swofty.progressive"], "1.6.0");
+    assert_eq!(f.manifest.holds.careers[0].slot, Some(2));
+    assert!(
+        f.manifest
+            .files
+            .contains_key("storage/swofty.progressive/careers.json")
+    );
+    assert_eq!(f.manifest.source, "test run r5-1");
+    std::fs::remove_dir_all(&root).ok();
 }

@@ -3,10 +3,13 @@
 //! tested without one.
 
 pub mod bench;
+pub mod career;
 pub mod checks;
+pub mod fixture;
 pub mod lock;
 pub mod plan;
 pub mod report;
+pub mod sandbox;
 pub mod suite;
 
 #[cfg(test)]

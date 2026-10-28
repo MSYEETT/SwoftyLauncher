@@ -63,7 +63,7 @@ fn the_documented_test_file_parses() {
     assert_eq!(t.checks[2], Check::NoCrash);
     assert_eq!(t.addons, ["my.addon"], "the addon whose folder holds the tests");
     assert_eq!(t.skip_reason(), Some(suite::NEEDS_AGENT));
-    assert_eq!(s.tests[1].skip_reason(), Some("needs the save sandbox"));
+    assert_eq!(s.tests[1].skip_reason(), Some(super::career::NEEDS));
 }
 
 #[test]
@@ -346,7 +346,9 @@ fn tests_with_the_same_environment_share_a_game_start() {
         "{text}"
     );
     assert!(
-        text.contains("c1                           skipped: needs the save sandbox"),
+        text.contains(
+            "c1                           skipped: needs the test agent to continue the fixture's career"
+        ),
         "{text}"
     );
 
@@ -617,7 +619,7 @@ fn report() -> Report {
         evidence: Some("batches/1/loader.log".into()),
     });
     let mut skipped = test("rnd_tab_hidden_in_team_hq", 2, Status::Skipped);
-    skipped.reason = Some("needs the save sandbox".into());
+    skipped.reason = Some(super::career::NEEDS.into());
     r.tests = vec![pass, fail, skipped];
     r
 }
@@ -630,7 +632,7 @@ fn the_summary_reads_like_the_docs() {
         "swofty test: 3 tests in 2 game starts\n\
          \x20 benchmark bahrain 3 laps ......... tyre_temps_rise_on_track     pass   (1 m 52 s)\n\
          \x20                                    rnd_upgrade_applies          FAIL   expected log /\\[x\\] <on>/ at least 1 time(s), got 0 times\n\
-         \x20 career fixtures/my-team-r3 ....... rnd_tab_hidden_in_team_hq    skipped: needs the save sandbox\n\
+         \x20 career fixtures/my-team-r3 ....... rnd_tab_hidden_in_team_hq    skipped: needs the test agent to continue the fixture's career\n\
          1 passed, 1 failed, 1 skipped  ·  report: swofty-test/20261028-1402/report.json, junit.xml\n"
     );
 }
@@ -672,7 +674,7 @@ fn junit_escapes_and_counts() {
         x.contains("<failure message=\"expected log /\\[x\\] &lt;on&gt;/ at least 1 time(s), got 0 times\">")
     );
     assert!(x.contains("(batches/1/loader.log)</failure>"));
-    assert!(x.contains("<skipped message=\"needs the save sandbox\"/>"));
+    assert!(x.contains("<skipped message=\"needs the test agent to continue the fixture&apos;s career\"/>"));
     assert_eq!(x.matches("<testcase ").count(), 3);
     assert_eq!(x.matches("</testcase>").count(), 2);
 }
@@ -694,4 +696,294 @@ fn durations_read_as_minutes_and_seconds() {
     assert_eq!(duration(112_000), "1 m 52 s");
     assert_eq!(duration(40_400), "40 s");
     assert_eq!(duration(59_600), "1 m 0 s");
+}
+
+fn sandbox_temp(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("swofty-ts3-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn noise(n: usize, seed: u32) -> Vec<u8> {
+    let mut x = seed.wrapping_mul(2_654_435_761).max(1);
+    (0..n)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x as u8
+        })
+        .collect()
+}
+
+#[test]
+fn a_run_folder_carries_a_fresh_token_until_it_is_retired() {
+    use super::sandbox::{self, RunDir};
+    let data = sandbox_temp("run");
+    let run = RunDir::create(&data, "20261028-1702-1", Some("d873")).unwrap();
+    assert!(run.remote().is_dir());
+    let doc: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(run.root.join(sandbox::RUN_FILE)).unwrap()).unwrap();
+    let env = run.env();
+    let token = &env.iter().find(|(k, _)| k == sandbox::TOKEN_ENV).unwrap().1;
+    assert_eq!(token.len(), 32);
+    assert_eq!(doc["token"].as_str(), Some(token.as_str()));
+    assert_eq!(
+        (
+            doc["schema"].as_u64(),
+            doc["saves"].as_str(),
+            doc["exe_sha256"].as_str()
+        ),
+        (Some(1), Some("saves"), Some("d873"))
+    );
+    assert_eq!(
+        env.iter()
+            .find(|(k, _)| k == sandbox::RUN_ENV)
+            .map(|(_, v)| PathBuf::from(v)),
+        Some(run.root.clone())
+    );
+    assert!(env.contains(&(sandbox::EARLY_ENV.to_owned(), "1".to_owned())));
+    let again = RunDir::create(&data, "20261028-1702-2", None).unwrap();
+    assert_ne!(again.env()[1].1, *token, "every run has its own token");
+    assert_eq!(run.status(), None);
+    std::fs::write(
+        run.root.join(sandbox::STATUS_FILE),
+        r#"{"schema":1,"run":"20261028-1702-1","state":"armed","pid":42,"remote":"Z:\\x\\saves\\remote","why":""}"#,
+    )
+    .unwrap();
+    assert!(run.status().unwrap().armed());
+    run.retire().unwrap();
+    let doc: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(run.root.join(sandbox::RUN_FILE)).unwrap()).unwrap();
+    assert!(
+        doc.get("token").is_none(),
+        "a retired run folder can't switch test mode on: {doc}"
+    );
+    assert!(RunDir::create(&data, "../x", None).is_err());
+    assert_eq!(RunDir::latest(&data).map(|r| r.root.exists()), Some(true));
+    std::fs::remove_dir_all(&data).ok();
+}
+
+fn loader_with(dir: &Path, sets: &[(&str, &str, &[&str])]) {
+    let core = dir.join("swofty/addons/core");
+    std::fs::create_dir_all(&core).unwrap();
+    for (file, sha, ids) in sets {
+        let bindings: Vec<serde_json::Value> = ids
+            .iter()
+            .map(|id| serde_json::json!({"id": id, "kind": "func", "status": "experimental"}))
+            .collect();
+        let doc = serde_json::json!({"schema": 1, "build": {"sha256": sha}, "bindings": bindings});
+        std::fs::write(core.join(file), serde_json::to_vec(&doc).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn the_sandbox_is_verified_only_for_an_exe_whose_bindings_carry_its_install_point() {
+    use super::sandbox;
+    let dir = sandbox_temp("verify");
+    let none = sandbox::verified(&dir, "aa").unwrap_err();
+    assert!(none.contains("no binding sets"), "{none}");
+    loader_with(
+        &dir,
+        &[
+            (
+                "bindings.json",
+                "aa",
+                &[
+                    "Ne_SaveSystem2Win_Start",
+                    "Ne_SaveSystem2Win_Mount",
+                    "Ne_SaveSystem2Win_WriteInfoXml",
+                ],
+            ),
+            ("bindings.ea.json", "bb", &["Ne_SaveSystem2Win_Start", "Other"]),
+        ],
+    );
+    let ok = sandbox::verified(&dir, "aa").unwrap();
+    assert!(
+        ok.contains("bindings.json") && ok.contains("Ne_SaveSystem2Win_Start experimental"),
+        "{ok}"
+    );
+    let lacking = sandbox::verified(&dir, "bb").unwrap_err();
+    assert!(
+        lacking.contains("lack Ne_SaveSystem2Win_Mount, Ne_SaveSystem2Win_WriteInfoXml"),
+        "{lacking}"
+    );
+    let other = sandbox::verified(&dir, "cc").unwrap_err();
+    assert!(
+        other.contains("no binding set") && other.contains("not verified for this build"),
+        "{other}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_player_save_folder_listing_reports_every_change() {
+    use super::sandbox;
+    let dir = sandbox_temp("listing");
+    std::fs::write(dir.join("savegame@profile#QKRHMYXE"), [1u8; 4]).unwrap();
+    std::fs::write(dir.join("savegame@profile#NXDSMWW.BWW"), [2u8; 8]).unwrap();
+    let before = sandbox::listing(&dir);
+    assert_eq!(before.len(), 2);
+    assert!(sandbox::changed(&before, &sandbox::listing(&dir)).is_empty());
+    std::fs::write(dir.join("savegame@profile#QKRHMYXE"), [1u8; 5]).unwrap();
+    std::fs::remove_file(dir.join("savegame@profile#NXDSMWW.BWW")).unwrap();
+    std::fs::write(dir.join("savegame@swtest#QKRHMYXE"), [3u8; 1]).unwrap();
+    let ch = sandbox::changed(&before, &sandbox::listing(&dir));
+    assert_eq!(
+        ch,
+        [
+            "savegame@profile#NXDSMWW.BWW was removed",
+            "savegame@profile#QKRHMYXE changed",
+            "savegame@swtest#QKRHMYXE appeared"
+        ]
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+fn fake_sandbox(remote: &Path) -> (Vec<u8>, Vec<u8>) {
+    std::fs::create_dir_all(remote).unwrap();
+    let (data, index) = (noise(894_408, 1), noise(416, 2));
+    std::fs::write(remote.join(super::fixture::PROFILE_FILES[0]), &data).unwrap();
+    std::fs::write(remote.join(super::fixture::PROFILE_FILES[1]), &index).unwrap();
+    std::fs::write(
+        remote.join("savegame@highlights000#FOVUPTYXSA000.PSX"),
+        noise(64, 3),
+    )
+    .unwrap();
+    std::fs::write(remote.join("corrupt_saves#76561198803768583.zip"), noise(64, 4)).unwrap();
+    std::fs::write(remote.join("savegame@midsessions0#QKRHMYXE"), noise(32, 5)).unwrap();
+    (data, index)
+}
+
+#[test]
+fn a_capture_copies_the_saves_and_storage_and_installs_back_byte_for_byte() {
+    use super::fixture::{self, Meta};
+    let root = sandbox_temp("capture");
+    let (remote, store) = (root.join("remote"), root.join("store"));
+    let (data, index) = fake_sandbox(&remote);
+    let storage = root.join("storage/swofty.progressive");
+    std::fs::create_dir_all(storage.join("sub")).unwrap();
+    std::fs::write(storage.join("careers.json"), br#"{"pg-1-bottas":{}}"#).unwrap();
+    std::fs::write(storage.join("sub/x.bin"), [9u8; 3]).unwrap();
+    std::fs::write(storage.join(".swofty-data-folder"), "").unwrap();
+    let meta = Meta {
+        description: "a Progressive 2018 career".into(),
+        created: "20261028-1702".into(),
+        exe: fixture::Exe {
+            sha256: "d873".into(),
+            version: Some("1.0.141.7865".into()),
+        },
+        addons: [("swofty.progressive".to_owned(), "1.6.0".to_owned())].into(),
+        holds: fixture::Holds {
+            careers: vec![fixture::Career {
+                mode: "driver_career_progressive".into(),
+                slot: Some(1),
+                ..Default::default()
+            }],
+            notes: String::new(),
+        },
+        source: "test run r1-1".into(),
+    };
+    let f = fixture::capture(
+        "progressive-2018-r1",
+        &store,
+        &remote,
+        &[("swofty.progressive".into(), storage.clone())],
+        meta.clone(),
+    )
+    .unwrap();
+    let files: Vec<&str> = f.manifest.files.keys().map(String::as_str).collect();
+    assert_eq!(
+        files,
+        [
+            "save/savegame@midsessions0#QKRHMYXE",
+            "save/savegame@profile#NXDSMWW.BWW",
+            "save/savegame@profile#QKRHMYXE",
+            "storage/swofty.progressive/careers.json",
+            "storage/swofty.progressive/sub/x.bin",
+        ],
+        "highlights, corrupt-save bundles and the storage mark are left out"
+    );
+    assert_eq!(f.manifest.exe.sha256, "d873");
+    assert_eq!(f.manifest.addons["swofty.progressive"], "1.6.0");
+    assert_eq!(f.manifest.files["save/savegame@profile#QKRHMYXE"].size, 416);
+    let again = fixture::capture("progressive-2018-r1", &store, &remote, &[], meta.clone()).unwrap_err();
+    assert!(again.contains("never overwritten"), "{again}");
+    let empty = root.join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    let none = fixture::capture("x", &store, &empty, &[], meta).unwrap_err();
+    assert!(none.contains("has not saved its profile"), "{none}");
+
+    let found = fixture::resolve("progressive-2018-r1", None, &store).unwrap();
+    assert_eq!(found, store.join("progressive-2018-r1"));
+    assert_eq!(
+        fixture::resolve("fixtures/progressive-2018-r1", Some(&root), &store).unwrap(),
+        found
+    );
+    assert!(fixture::resolve("../progressive-2018-r1", None, &store).is_err());
+    assert!(
+        fixture::resolve("missing", None, &store)
+            .unwrap_err()
+            .contains("not found")
+    );
+
+    let f = fixture::load(&found).unwrap();
+    assert_eq!(f.storage_ids(), ["swofty.progressive"]);
+    let sandbox = root.join("sandbox/remote");
+    std::fs::create_dir_all(&sandbox).unwrap();
+    let kept = root.join("profile-copy");
+    let copied = f.install(&sandbox, &|id| kept.join(id)).unwrap();
+    assert_eq!(copied.len(), 5);
+    assert_eq!(
+        std::fs::read(sandbox.join(fixture::PROFILE_FILES[0])).unwrap(),
+        data
+    );
+    assert_eq!(
+        std::fs::read(sandbox.join(fixture::PROFILE_FILES[1])).unwrap(),
+        index
+    );
+    assert_eq!(
+        std::fs::read(kept.join("swofty.progressive/sub/x.bin")).unwrap(),
+        [9u8; 3]
+    );
+    let busy = f.install(&sandbox, &|id| kept.join(id)).unwrap_err();
+    assert!(busy.contains("is not empty"), "{busy}");
+
+    std::fs::write(found.join("save").join(fixture::PROFILE_FILES[1]), noise(416, 99)).unwrap();
+    let edited = fixture::load(&found).unwrap_err();
+    assert!(edited.contains("does not match fixture.json"), "{edited}");
+    std::fs::write(found.join("save/extra"), "x").unwrap();
+    std::fs::write(found.join("save").join(fixture::PROFILE_FILES[1]), &index).unwrap();
+    let extra = fixture::load(&found).unwrap_err();
+    assert!(extra.contains("save/extra is not listed"), "{extra}");
+    assert_eq!(fixture::list(&store).len(), 1);
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn a_career_environment_takes_a_known_place_and_asks_the_agent_for_it() {
+    let parse = |env: &str| {
+        let doc = format!(r#"{{"schema":1,"suite":"s","tests":[{{"id":"t","fn":"f","env":{env}}}]}}"#);
+        suite::parse(&doc, Path::new("tests/x.test.json"), None)
+    };
+    let s =
+        parse(r#"{"kind":"career","fixture":"fixtures/my-team-r3","at":"weekend_hub","slot":3}"#).unwrap();
+    let env = &s.tests[0].env;
+    assert_eq!(super::career::at(env), "weekend_hub");
+    assert_eq!(
+        super::career::agent_commands(env),
+        ["career load 3 at weekend_hub"]
+    );
+    assert_eq!(
+        super::career::ready_line(env),
+        "[test] career ready at weekend_hub"
+    );
+    let s = parse(r#"{"kind":"career","fixture":"f"}"#).unwrap();
+    assert_eq!(
+        super::career::agent_commands(&s.tests[0].env),
+        ["career load newest at team_hq"]
+    );
+    let bad = parse(r#"{"kind":"career","fixture":"f","at":"garage"}"#).unwrap_err();
+    assert!(bad.0.contains("unknown place \"garage\""), "{bad}");
 }

@@ -106,7 +106,7 @@ impl Kind {
         match self {
             Kind::None | Kind::Boot | Kind::Benchmark => None,
             Kind::Route | Kind::GrandPrix | Kind::TimeTrial => Some(NEEDS_AGENT),
-            Kind::Career => Some("needs the save sandbox"),
+            Kind::Career => Some(super::career::NEEDS),
         }
     }
 }
@@ -634,6 +634,15 @@ fn env(at: &At, v: &Value) -> Result<Env, Error> {
             }
         }
         params.insert(key.to_owned(), v.clone());
+    }
+    if kind == Kind::Career
+        && let Some(a) = params.get("at").and_then(Value::as_str)
+        && !super::career::AT.contains(&a)
+    {
+        return Err(at.at("at").err(format!(
+            "unknown place \"{a}\" (expected one of: {})",
+            super::career::AT.join(", ")
+        )));
     }
     if kind == Kind::Benchmark {
         if let Some(w) = params.get("weather").and_then(Value::as_str)
