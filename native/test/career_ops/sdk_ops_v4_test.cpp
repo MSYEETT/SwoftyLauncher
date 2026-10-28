@@ -59,9 +59,9 @@ static int set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len
 }
 
 static const SwoftyCareerOps kOps2 = {2,       available, driver_stat, nullptr, nullptr,       nullptr, nullptr, nullptr,
-                                      nullptr, set_seat,  set_car_number, set_track_fuel};
+                                      nullptr, set_seat,  set_car_number, set_track_fuel, nullptr};
 static const SwoftyCareerOps kOps4 = {4,       available, driver_stat, nullptr, nullptr,       nullptr, nullptr, nullptr,
-                                      nullptr, set_seat,  set_car_number, set_track_fuel};
+                                      nullptr, set_seat,  set_car_number, set_track_fuel, nullptr};
 
 int main()
 {

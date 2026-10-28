@@ -830,8 +830,13 @@ typedef struct SwoftyServices {
    qualifying fuel), {"track", "set", "burn_per_lap": <kg>}, or {"copy": [{"set", "from"}, ...], "track"}
    (every pair checked before anything is written), or {"restore": true}; "why" names the reason in the
    log. The data sets are f1_2025, sprint_f1_2025, f1_2026 and sprint_f1_2026. The core puts the bytes
-   back on career.unloaded and on restore. */
-#define SWOFTY_CAREER_OPS_VERSION 4
+   back on career.unloaded and on restore.
+   Table version 5 adds set_look: the driver (a driver reference: "game/<label>", "person/<key>" or an addon's
+   driver.identity id) wears the look (a look reference: "game/<label>" or an addon's driver.look id) in Driver
+   Career: his entrant row's look, which every place that shows his body reads (grid presentation, portraits,
+   cutscenes, the garage). The call refuses a look the game did not load (SWOFTY_ASSET_INVALID) and a driver the
+   career does not seat. The report is one [career-ops] log line. */
+#define SWOFTY_CAREER_OPS_VERSION 5
 enum { SWOFTY_REFUSED = 5 };
 enum { SWOFTY_NUMBER_SWAP = 1 };
 
@@ -848,6 +853,7 @@ typedef struct SwoftyCareerOps {
     int (*set_seat)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_car_number)(uint32_t driver_stat, int32_t number, uint32_t flags);
     int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_look)(const char *driver_ref, const char *look_ref);
 } SwoftyCareerOps;
 
 typedef struct SwoftyApi {

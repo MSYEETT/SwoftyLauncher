@@ -29,3 +29,8 @@ mkdir -p "$OUT"
 "$OUT/sdk_ops_v4_test"
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness \
     -Wno-missing-designated-field-initializers -I../../packages/sdk/include -o "$OUT/sdk_ops_v4_test.exe" career_ops/sdk_ops_v4_test.cpp
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness \
+    -Wno-missing-designated-field-initializers -I../../packages/sdk/include -o "$OUT/sdk_ops_v5_test" career_ops/sdk_ops_v5_test.cpp
+"$OUT/sdk_ops_v5_test"
+"${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O1 -Wall -Wextra -Werror -Wno-nullability-completeness \
+    -Wno-missing-designated-field-initializers -I../../packages/sdk/include -o "$OUT/sdk_ops_v5_test.exe" career_ops/sdk_ops_v5_test.cpp

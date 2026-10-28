@@ -1,4 +1,5 @@
 #include "../runtime.hpp"
+#include "../registry/table.hpp"
 
 #include <swofty/game.hpp>
 #include <swofty/mem.hpp>
@@ -494,6 +495,7 @@ bool finalise(uintptr_t e, const Baseline &baseline, uint64_t &changes)
 struct Labels {
     bool loaded = false;
     std::unordered_map<std::string, uint32_t> driver_by_label;
+    std::unordered_map<std::string, uint32_t> look_by_label;
     std::unordered_map<uint32_t, std::string> driver_by_stat;
     std::unordered_map<uint32_t, std::string> team_by_stat;
 };
@@ -543,6 +545,9 @@ bool labels()
         t.driver_by_label.emplace(n, s);
         t.driver_by_stat.emplace(s, n);
     });
+    for (int folder = 0; folder < 4; ++folder)
+        each_row(db, "entrants.driver_customisations.folder_" + std::to_string(folder), "preloaded_driver_customisation_properties",
+                 [&](uint32_t s, const std::string &n) { t.look_by_label.emplace(n, s); });
     each_row(db, "entrants.teams", "team", [&](uint32_t s, const std::string &n) { t.team_by_stat.emplace(s, n); });
     t.loaded = !t.driver_by_label.empty();
     if (t.loaded)
@@ -564,17 +569,58 @@ std::string team_name(uint32_t stat)
     return (it == g_labels.team_by_stat.end() ? std::string("?") : it->second) + "(" + std::to_string(stat) + ")";
 }
 
+std::string record_label_of(const char *registry, const std::string &id)
+{
+    auto rec = swofty_core::registry::store().get(registry, id);
+    if (rec.status == swofty_core::registry::Status::ok && rec.value["label"].is_string() &&
+        !rec.value["label"].as_string().empty())
+        return std::string(rec.value["label"].as_string());
+    size_t slash = id.rfind('/');
+    return slash == std::string::npos ? id : id.substr(slash + 1);
+}
+
+std::string person_driver_label(const std::string &ref)
+{
+    auto &st = swofty_core::registry::store();
+    std::string found;
+    for (auto &id : st.list("driver.identity", "")) {
+        if (id.rfind("game/", 0) == 0)
+            continue;
+        auto rec = st.get("driver.identity", id);
+        if (rec.status == swofty_core::registry::Status::ok && rec.value["person"].is_string() &&
+            rec.value["person"].as_string() == ref)
+            found = record_label_of("driver.identity", id);
+    }
+    return found;
+}
+
 int resolve_driver(const std::string &ref)
 {
     size_t slash = ref.find('/');
     if (ref.empty() || slash == std::string::npos || !labels())
         return -1;
-    std::string ns = ref.substr(0, slash);
-    if (ns != "game" && ns != "person")
-        return -1;
+    std::string ns = ref.substr(0, slash), label = ref.substr(slash + 1);
+    if (ns == "person") {
+        std::string own = person_driver_label(ref);
+        if (!own.empty())
+            label = own;
+    } else if (ns != "game") {
+        label = record_label_of("driver.identity", ref);
+    }
     std::lock_guard<std::mutex> l(g_lock);
-    auto it = g_labels.driver_by_label.find(ref.substr(slash + 1));
+    auto it = g_labels.driver_by_label.find(label);
     return it == g_labels.driver_by_label.end() ? -1 : static_cast<int>(it->second);
+}
+
+int resolve_look(const std::string &ref)
+{
+    size_t slash = ref.find('/');
+    if (ref.empty() || slash == std::string::npos || !labels())
+        return -1;
+    std::string label = ref.substr(0, slash) == "game" ? ref.substr(slash + 1) : record_label_of("driver.look", ref);
+    std::lock_guard<std::mutex> l(g_lock);
+    auto it = g_labels.look_by_label.find(label);
+    return it == g_labels.look_by_label.end() ? -1 : static_cast<int>(it->second);
 }
 
 std::string quote(const std::string &s)
@@ -1543,9 +1589,38 @@ int api_set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len)
     return career_ops::set_track_fuel(who, request, out, cap, len);
 }
 
+int api_set_look(const char *driver_ref, const char *look_ref)
+{
+    if (!driver_ref || !look_ref || !*driver_ref || !*look_ref)
+        return SWOFTY_ASSET_INVALID;
+    if (!on_flow_thread()) {
+        swofty::log("[career-ops] set_look %s %s: late: called off the flow thread", driver_ref, look_ref);
+        return SWOFTY_ASSET_LATE;
+    }
+    if (!labels()) {
+        swofty::log("[career-ops] set_look %s %s: the drivers table is not loaded yet", driver_ref, look_ref);
+        return SWOFTY_ASSET_LATE;
+    }
+    int driver = resolve_driver(driver_ref), look = resolve_look(look_ref);
+    if (driver < 0 || look <= 0) {
+        swofty::log("[career-ops] set_look %s %s: refused: %s is not a driver or look the game loaded", driver_ref, look_ref,
+                    driver < 0 ? driver_ref : look_ref);
+        return SWOFTY_ASSET_INVALID;
+    }
+    std::string request = "{\"lineup\":{\"visuals\":true,\"why\":\"set_look\",\"looks\":[{\"driver\":" +
+                          std::to_string(driver) + ",\"look\":" + std::to_string(look) + "}]}}";
+    char report[512];
+    size_t len = 0;
+    int r = api_apply_lineup({request.data(), request.size()}, report, sizeof report, &len);
+    swofty::log("[career-ops] set_look %s -> look %s: %s", driver_name(static_cast<uint32_t>(driver)).c_str(), look_ref,
+                r == SWOFTY_ASSET_OK ? "applied" : "not applied");
+    return r == SWOFTY_TOO_SMALL ? SWOFTY_ASSET_OK : r;
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
     api_swap_drivers,          api_report_season, nullptr,      api_set_seat,  api_set_car_number, api_set_track_fuel,
+    api_set_look,
 };
 
 void setup()
