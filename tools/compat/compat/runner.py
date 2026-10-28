@@ -1,3 +1,6 @@
+import fcntl
+import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -24,6 +27,8 @@ class Side:
     cli: Path
     loader: Path = None
     version: str = ""
+    dxc: Path = None
+    source: str = ""
 
     def env(self):
         env = {k: v for k, v in os.environ.items() if not k.startswith("SWOFTY_")}
@@ -33,7 +38,25 @@ class Side:
         env["SWOFTY_USAGE_URL"] = DEAD_URL
         if self.loader:
             env["SWOFTY_LOADER_DIR"] = str(self.loader)
+        if self.dxc:
+            env["SWOFTY_DXC"] = str(self.dxc)
         return env
+
+    def bundled_dxc(self):
+        d = Path(self.cli).resolve().parent.parent / "dxc" / "bin" / "dxc"
+        return d if d.is_file() else None
+
+    def freeze(self, dest):
+        dest = Path(dest)
+        if dest.exists():
+            shutil.rmtree(dest)
+        (dest / "bin").mkdir(parents=True)
+        cli = dest / "bin" / Path(self.cli).name
+        shutil.copy2(self.cli, cli)
+        loader = dest / "loader"
+        shutil.copytree(self.loader_dir(), loader, symlinks=True)
+        return Side(self.name, cli, loader, self.version, self.dxc,
+                    f"{self.cli} (sha256 {sha256_path(self.cli)[:16]}), loader {self.loader_dir()}")
 
     def loader_dir(self):
         if self.loader:
@@ -43,6 +66,14 @@ class Side:
             if (d / "version.dll").is_file():
                 return d
         return None
+
+
+def sha256_path(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
 
 
 def cli_version(cli):
@@ -67,14 +98,27 @@ def link_tree(src, dst):
             s, d = Path(root) / f, dst / rel / f
             if d.exists():
                 continue
-            try:
-                os.link(s, d)
-            except OSError:
-                shutil.copy2(s, d)
+            link_or_copy(s, d)
 
 
 def seed_baseline(source_data, seed):
     seed = Path(seed)
+    seed.parent.mkdir(parents=True, exist_ok=True)
+    with open(seed.parent / f".{seed.name}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _seed_baseline(source_data, seed)
+
+
+def link_or_copy(s, d):
+    try:
+        os.link(s, d)
+    except OSError:
+        tmp = d.with_name(f".{d.name}.{os.getpid()}.part")
+        shutil.copy2(s, tmp)
+        os.replace(tmp, d)
+
+
+def _seed_baseline(source_data, seed):
     src = Path(source_data) / "baseline"
     if not src.is_dir():
         return None
@@ -176,6 +220,17 @@ def build_set(side, addons, data_dir, game, seed=None, cache=None, timeout=3600,
     return snap
 
 
+def canonical_json_hash(path, norm):
+    if Path(path).suffix.lower() != ".json":
+        return None
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    text = json.dumps(norm.json(value), sort_keys=True, separators=(",", ":"))
+    return "json:" + hashlib.sha256(text.encode()).hexdigest()
+
+
 def generated_inputs(data_dir, since_ns, norm):
     out = {}
     for sub in GENERATED_DIRS:
@@ -191,5 +246,5 @@ def generated_inputs(data_dir, since_ns, norm):
                 except OSError:
                     continue
                 rel = p.relative_to(data_dir).as_posix()
-                out[rel] = snapshot.hash_file(p, norm).get("sha256", "missing")
+                out[rel] = canonical_json_hash(p, norm) or snapshot.hash_file(p, norm).get("sha256", "missing")
     return dict(sorted(out.items()))

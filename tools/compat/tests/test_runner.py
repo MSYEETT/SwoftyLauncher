@@ -98,6 +98,24 @@ class Running(unittest.TestCase):
             runner.cli_version(silent)
 
 
+class Generated(unittest.TestCase):
+    def test_json_written_during_the_build_compares_without_key_order(self):
+        from compat import snapshot
+
+        with tempfile.TemporaryDirectory() as tmp:
+            norm = snapshot.Normaliser({"data": tmp})
+            out = []
+            for i, text in enumerate(['{"b": 1, "a": [1, 2]}', '{"a": [1, 2], "b": 1}', '{"a": [2, 1], "b": 1}']):
+                d = Path(tmp) / str(i) / "cache/addons/x"
+                d.mkdir(parents=True)
+                (d / "made.json").write_text(text)
+                out.append(runner.generated_inputs(Path(tmp) / str(i), 0, norm)["cache/addons/x/made.json"])
+            self.assertEqual(out[0], out[1])
+            self.assertNotEqual(out[0], out[2])
+            (Path(tmp) / "0/cache/addons/x/raw.txt").write_text("not json")
+            self.assertFalse(runner.generated_inputs(Path(tmp) / "0", 0, norm)["cache/addons/x/raw.txt"].startswith("json:"))
+
+
 class Files(unittest.TestCase):
     def test_pin_mtimes(self):
         with tempfile.TemporaryDirectory() as tmp:

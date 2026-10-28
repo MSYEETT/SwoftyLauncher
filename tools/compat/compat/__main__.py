@@ -66,6 +66,8 @@ def cmd_fetch(args):
 def _sets(args, entries, launcher):
     only = catalog.parse_only(args.only)
     picked = catalog.select(entries, launcher, latest=args.latest, only=only)
+    excluded = {a for a, _ in catalog.parse_only(getattr(args, "exclude", None))}
+    picked = [e for e in picked if e.id not in excluded]
     sets = []
 
     def make(name, roots):
@@ -162,6 +164,8 @@ def cmd_run(args):
         side.version = runner.cli_version(side.cli)
         if side.loader_dir() is None:
             raise runner.ToolError(f"{side.cli}: no loader found next to it; pass --loader-{side.name}")
+    dxc = Path(args.dxc) if args.dxc else (a.bundled_dxc() or b.bundled_dxc())
+    a.dxc = b.dxc = dxc
     game = Path(args.game)
     if not (game / "F1_25.exe").is_file():
         raise runner.ToolError(f"{game}: no F1_25.exe; pass --game")
@@ -172,7 +176,14 @@ def cmd_run(args):
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     out = Path(args.out) if args.out else Path(args.cache) / "runs" / stamp
     out.mkdir(parents=True, exist_ok=True)
-    notes = []
+    a, b = a.freeze(out / "sides" / "a"), b.freeze(out / "sides" / "b")
+    for side in (a, b):
+        frozen = runner.cli_version(side.cli)
+        if frozen != side.version:
+            raise runner.ToolError(f"{side.source}: changed while it was copied ({side.version} -> {frozen})")
+    notes = [f"{s.name} runs a copy of {s.source}" for s in (a, b)]
+    if dxc:
+        notes.append(f"both sides compile shaders with {dxc}")
     seed = None
     if args.baseline_from:
         seed = runner.seed_baseline(args.baseline_from, Path(args.cache) / "baseline-seed")
@@ -181,8 +192,8 @@ def cmd_run(args):
         else:
             notes.append(f"originals come from the baseline in {args.baseline_from} (hard-linked)")
     meta = {
-        "a": {"cli": str(a.cli), "version": a.version, "loader": str(a.loader_dir())},
-        "b": {"cli": str(b.cli), "version": b.version, "loader": str(b.loader_dir())},
+        "a": {"cli": str(a.cli), "version": a.version, "loader": str(a.loader_dir()), "source": a.source},
+        "b": {"cli": str(b.cli), "version": b.version, "loader": str(b.loader_dir()), "source": b.source},
         "game": str(game),
         "launcher_version": launcher,
         "catalog_url": args.catalog_url,
@@ -216,6 +227,7 @@ def cmd_run(args):
     (out / "summary.txt").write_text(text)
     if not args.keep:
         shutil.rmtree(out / "work", ignore_errors=True)
+        shutil.rmtree(out / "sides", ignore_errors=True)
     print()
     print(text, end="")
     print(f"report: {out / 'report.json'}")
@@ -307,6 +319,7 @@ def parser():
     r.add_argument("--cli-b", required=True, help="the swofty binary under test")
     r.add_argument("--loader-a", help="loader dir for CLI A (default: next to the binary)")
     r.add_argument("--loader-b", help="loader dir for CLI B (default: next to the binary)")
+    r.add_argument("--dxc", help="the dxc both sides compile shaders with (default: the one bundled with A or B)")
     r.add_argument("--game", default=DEFAULT_GAME, help="the game folder, read only (default %(default)s)")
     r.add_argument("--baseline-from", default=str(DEFAULT_DATA) if (DEFAULT_DATA / "baseline").is_dir() else None,
                    help="a launcher data dir whose baseline holds the stock originals (default %(default)s)")
@@ -314,6 +327,7 @@ def parser():
     r.add_argument("--profile", action="append", metavar="NAME=ID[@V],ID[@V]",
                    help="also build this whole profile (repeatable)")
     r.add_argument("--all-latest", action="store_true", help="also build one profile of every selected addon")
+    r.add_argument("--exclude", action="append", metavar="ID", help="leave this addon out of every set (repeatable)")
     r.add_argument("--no-per-version", action="store_true", help="skip the one-addon sets")
     r.add_argument("--jobs", type=int, default=2, help="sets built at once (default %(default)s)")
     r.add_argument("--timeout", type=int, default=3600, help="seconds per CLI call (default %(default)s)")
