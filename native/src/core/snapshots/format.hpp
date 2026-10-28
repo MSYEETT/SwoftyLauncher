@@ -30,6 +30,7 @@ constexpr uint16_t ENTRY_MAJOR = 1, ENTRY_MINOR = 0;
 constexpr const char *ENTRY_NAME = "swofty_registry";
 constexpr const char *FORMAT_TAG = "swofty_registry/1";
 constexpr size_t CAREER_CAP = 256 * 1024;
+constexpr size_t ENTRY_CAP = 4u << 20;
 constexpr size_t CHUNK = 32000;
 constexpr size_t MAX_CHUNKS = 1000;
 constexpr size_t MAX_PAYLOAD = 16u << 20;

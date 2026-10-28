@@ -108,6 +108,12 @@ void years()
     EXPECT(season::year_for(2026, 3) == 2026);
     EXPECT(season::year_for(2010, 0) == 2016);
     EXPECT(season::year_for(2030, 0) == 2026);
+    EXPECT(season::season_moment(-1, 0, true, false));
+    EXPECT(!season::season_moment(-1, 0, false, false));
+    EXPECT(!season::season_moment(0, 0, true, false));
+    EXPECT(!season::season_moment(-1, 0, true, true));
+    EXPECT(season::season_moment(0, 1, true, false));
+    EXPECT(season::season_moment(1, 3, true, false));
 }
 
 void parsed()

@@ -19,6 +19,10 @@ struct Totals {
     int appliers = 0, applied = 0, put_back = 0, refused = 0;
 };
 
+struct SessionFacts {
+    std::string mode, type, session, track;
+};
+
 class Scheduler {
 public:
     explicit Scheduler(Store &store);
@@ -38,10 +42,14 @@ public:
     Totals career_season(int year);
     Totals career_unloaded();
     Totals content_picked(const std::string &entrant_list);
+    Totals content_picked(const std::string &entrant_list, const std::string &mode);
     Totals activate(const std::string &content, const std::string &why);
     Totals deactivate(const std::string &why);
 
     Totals session_load(const std::string &type, const std::string &track);
+    Totals session_load(const SessionFacts &facts);
+    std::string session_name() const;
+    std::string facts_line() const;
     Totals session_end(const std::string &why);
     bool in_session() const;
 
@@ -65,6 +73,8 @@ private:
     Totals activate_locked(Lock &, const std::string &content, const std::string &label, const std::string &why);
     Totals deactivate_locked(Lock &, const std::string &why);
     Totals session_end_locked(Lock &, const std::string &why);
+    Totals content_picked_locked(Lock &, const std::string &entrant_list, const std::string *mode);
+    void log_facts();
 
     Store &store_;
     mutable std::recursive_mutex mu_;
@@ -77,6 +87,7 @@ private:
     bool work_ = false;
     std::string active_, active_label_;
     int career_year_ = 0;
+    std::string session_name_;
     std::vector<Applier *> activated_, sessioned_;
 };
 

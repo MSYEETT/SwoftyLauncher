@@ -841,6 +841,22 @@ const SwoftyCareerContent table = {api_available, api_add, api_info, api_data_gr
 
 }
 
+namespace runtime {
+
+std::string career_content_owner(const std::string &data_group, std::string *save_name)
+{
+    std::lock_guard<std::mutex> g(lock);
+    for (size_t i = 0; i < used(); i++)
+        if (slots[i].desc.data_group == data_group) {
+            if (save_name)
+                *save_name = slots[i].desc.mode;
+            return slots[i].owner;
+        }
+    return {};
+}
+
+}
+
 extern "C" __declspec(dllexport) const SwoftyCareerContent *SwoftyCoreCareerContent(void)
 {
     return &table;

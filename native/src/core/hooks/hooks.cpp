@@ -323,7 +323,7 @@ void bridge_legacy(const char *event, int64_t a, int64_t b, const void *data)
             if (!f.career)
                 f.career.emplace();
             if (s)
-                f.career->id = std::string(s->key, strnlen(s->key, sizeof s->key));
+                f.career->id = runtime::snapshots_career_id(std::string(s->key, strnlen(s->key, sizeof s->key)).c_str());
         });
     }
     if (id == "career.hub" && a != 1)

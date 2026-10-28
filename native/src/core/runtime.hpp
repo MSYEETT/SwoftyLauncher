@@ -137,6 +137,16 @@ std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
 // W4 career snapshots (native/src/core/snapshots/runtime.cpp): started once the save splice settles.
 void snapshots_start(bool splice_live);
+// career::report_season from caller (an addon id): SWOFTY_ASSET_OK, _LATE, _INVALID or SWOFTY_REFUSED.
+int snapshots_report_season(const std::string &caller, int year, int season_index);
+// The addon that registered the career content of data_group (and its save container name), or empty.
+std::string career_content_owner(const std::string &data_group, std::string *save_name = nullptr);
+// The save slot a career load selects (site_Game_SaveSlot_Selected), the career id committed when the
+// career tracker sees the career loaded (<mode>:<slot guid>, else the tracker's key), and that id for a
+// tracker key.
+void snapshots_slot_selected(uintptr_t manager, uint64_t slot_id, uint64_t slot_guid);
+std::string snapshots_career_loaded(const char *key, unsigned mode);
+std::string snapshots_career_id(const char *key);
 std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> track_acclim_mixins();

@@ -14,9 +14,9 @@
 // Career: modes, contents, seasons and their boxes, calendars, ratings, the market, contracts, R&D,
 // facilities, economy, sponsors, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
-// mode, so the career.mode record struct is ModeRecord. apply_lineup, set_driver_ratings and swap_drivers call
-// the core's career operations (SwoftyCoreCareerOps) and return unavailable on a core without them; set_seat,
-// set_car_number and apply_dropped_scores return unavailable.
+// mode, so the career.mode record struct is ModeRecord. apply_lineup, set_driver_ratings, swap_drivers and
+// report_season call the core's career operations (SwoftyCoreCareerOps) and return unavailable on a core
+// without them; set_seat, set_car_number and apply_dropped_scores return unavailable.
 
 namespace swofty::career {
 
@@ -329,6 +329,7 @@ inline Result ops_result(int r)
     return r == SWOFTY_ASSET_OK ? Result::ok
            : r == SWOFTY_ASSET_LATE ? Result::late
            : r == SWOFTY_ASSET_UNAVAILABLE ? Result::unavailable
+           : r == SWOFTY_REFUSED ? Result::refused
                                            : Result::invalid;
 }
 
@@ -410,5 +411,16 @@ inline Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b)
 }
 
 inline Result apply_dropped_scores(const events::StandingsRebuild &, int) { return Result::unavailable; }
+
+// The season at the Championship's season_index is year, from the addon that owns the active career's data
+// group: the core fires career.season.start once per career and year, activates the season's records and
+// freezes the season. refused from any other addon; unavailable on a core without the call (table version 2).
+inline Result report_season(int year, int season_index)
+{
+    auto t = detail::live_ops();
+    if (!t || t->version < 2 || !t->report_season)
+        return Result::unavailable;
+    return detail::ops_result(t->report_season(year, season_index));
+}
 
 }

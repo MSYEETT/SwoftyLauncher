@@ -30,6 +30,7 @@ re/trace_plugin/build/
 
 *.erp
 *.bin
+!/packages/sdk/std/fixtures/*.bin
 *.exe
 !/installer/SwoftyLauncherInstaller.exe
 *.dll
@@ -40,3 +41,4 @@ re/trace_plugin/build/
 *.swoftymod
 templates/addon/native/build/
 re/db/*.tmp
+!packages/sdk/std/fixtures/*.bin

@@ -17,8 +17,11 @@
 #include "lineup_plan.hpp"
 #include "stats.hpp"
 
+std::string settings_addon(const void *from, std::string &dll);
+
 // The core's career operations (standard library 1.6, SwoftyCareerOps): apply_lineup, set_driver_ratings and
-// swap_drivers. The line-up executor is Progressive Career's season batch (addons/progressive/native/src/
+// swap_drivers, and (table version 2) report_season, which the career snapshots answer
+// (snapshots/runtime.cpp). The line-up executor is Progressive Career's season batch (addons/progressive/native/src/
 // season.cpp apply(), seats.cpp) moved into the core: one batch of entrant writes through the Driver Career
 // sequence, read back and written back on a mismatch, the seated drivers' contracts, numbers and one
 // finalise. Every binding resolves when an operation first needs it; a missing one makes the operation
@@ -1280,9 +1283,22 @@ int api_swap_drivers(uint32_t a, uint32_t b)
     return r;
 }
 
+int api_report_season(int32_t year, int32_t season_index)
+{
+    std::string dll, who = settings_addon(__builtin_return_address(0), dll);
+    if (who.empty())
+        who = dll.empty() ? std::string("an unknown module") : dll;
+    if (!on_flow_thread()) {
+        swofty::log("[career-ops] report_season(%d, %d) from %s: late: called off the flow thread", year, season_index,
+                    who.c_str());
+        return SWOFTY_ASSET_LATE;
+    }
+    return runtime::snapshots_report_season(who, year, season_index);
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
-    api_swap_drivers,
+    api_swap_drivers,          api_report_season,
 };
 
 void setup()

@@ -1,6 +1,7 @@
 #include "scheduler.hpp"
 
 #include "../registry/table.hpp"
+#include "facts.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -134,6 +135,7 @@ void Scheduler::reset()
     active_.clear();
     active_label_.clear();
     career_year_ = 0;
+    session_name_.clear();
     activated_.clear();
     sessioned_.clear();
 }
@@ -369,12 +371,44 @@ Totals Scheduler::deactivate(const std::string &why)
     return deactivate_locked(g, why);
 }
 
+Totals Scheduler::content_picked_locked(Lock &g, const std::string &entrant_list, const std::string *mode)
+{
+    if (mode && ctx_.career.empty())
+        ctx_.mode = mode->empty() ? std::string("unknown") : *mode;
+    std::string id = find_package(entrant_list);
+    std::string label = id.empty() ? "stock box " + entrant_list : "content " + id;
+    Totals t = activate_locked(g, id, label, "box " + entrant_list + " picked");
+    log_facts();
+    return t;
+}
+
 Totals Scheduler::content_picked(const std::string &entrant_list)
 {
     Lock g(mu_);
-    std::string id = find_package(entrant_list);
-    std::string label = id.empty() ? "stock box " + entrant_list : "content " + id;
-    return activate_locked(g, id, label, "box " + entrant_list + " picked");
+    return content_picked_locked(g, entrant_list, nullptr);
+}
+
+Totals Scheduler::content_picked(const std::string &entrant_list, const std::string &mode)
+{
+    Lock g(mu_);
+    return content_picked_locked(g, entrant_list, &mode);
+}
+
+std::string Scheduler::session_name() const
+{
+    Lock g(mu_);
+    return session_name_;
+}
+
+std::string Scheduler::facts_line() const
+{
+    Lock g(mu_);
+    return facts::line(ctx_.mode, ctx_.session_type, session_name_, ctx_.track);
+}
+
+void Scheduler::log_facts()
+{
+    log(facts_line());
 }
 
 Totals Scheduler::career_loaded(const std::string &career, const std::string &mode, const std::string &data_group)
@@ -385,7 +419,9 @@ Totals Scheduler::career_loaded(const std::string &career, const std::string &mo
     ctx_.career = career;
     ctx_.mode = mode;
     ctx_.data_group = data_group;
-    return activate_locked(g, "", "career " + (career.empty() ? std::string("(no key)") : career), "career loaded");
+    Totals t = activate_locked(g, "", "career " + (career.empty() ? std::string("(no key)") : career), "career loaded");
+    log_facts();
+    return t;
 }
 
 Totals Scheduler::career_season(int year)
@@ -395,7 +431,9 @@ Totals Scheduler::career_season(int year)
     ctx_.year = year;
     ctx_.has_year = year != 0;
     std::string label = active_label_.empty() ? "career " + ctx_.career : active_label_;
-    return activate_locked(g, active_, label, "season " + std::to_string(year) + " started");
+    Totals t = activate_locked(g, active_, label, "season " + std::to_string(year) + " started");
+    log_facts();
+    return t;
 }
 
 Totals Scheduler::career_unloaded()
@@ -414,18 +452,28 @@ Totals Scheduler::career_unloaded()
     publish(g);
     t.put_back += p.put_back;
     t.appliers += p.appliers;
+    log_facts();
     return t;
 }
 
 Totals Scheduler::session_load(const std::string &type, const std::string &track)
 {
+    return session_load(SessionFacts{"", type, "", track});
+}
+
+Totals Scheduler::session_load(const SessionFacts &f)
+{
     Lock g(mu_);
     if (session_)
         session_end_locked(g, "another session loads");
     session_ = true;
-    ctx_.session_type = type;
-    ctx_.track = track;
+    if (!f.mode.empty() && ctx_.career.empty())
+        ctx_.mode = f.mode;
+    ctx_.session_type = f.type;
+    ctx_.track = f.track;
+    session_name_ = f.session;
     publish(g);
+    log_facts();
     Totals t = run(Moment::session_load, Applies::session,
                    [&](Applier &a, Report &r) { a.session_load(store_, ctx_, r); }, &sessioned_, false, nullptr);
     log("[apply] session load: " + std::to_string(t.appliers) + " applier(s); " + counts(t) + " (" + summary(ctx_) +
@@ -444,8 +492,10 @@ Totals Scheduler::session_end_locked(Lock &g, const std::string &why)
     session_ = false;
     ctx_.session_type.clear();
     ctx_.track.clear();
+    session_name_.clear();
     publish(g);
     log("[apply] session end (" + why + "): " + std::to_string(t.appliers) + " applier(s); " + counts(t));
+    log_facts();
     return t;
 }
 

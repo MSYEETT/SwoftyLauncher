@@ -1,6 +1,7 @@
 // The SDK's career operations (swofty/systems/career.hpp) against a stand-in SwoftyCareerOps table on the host:
 // apply_lineup sends {"season": record} and reads the report, set_driver_ratings and swap_drivers resolve the
-// driver references first, and every call is unavailable without a table.
+// driver references first, report_season needs table version 2 and maps SWOFTY_REFUSED to refused, and every
+// call is unavailable without a table.
 
 #include <cstdio>
 #include <cstring>
@@ -60,7 +61,16 @@ static int swap(uint32_t a, uint32_t b)
     return SWOFTY_ASSET_LATE;
 }
 
-static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap};
+static int g_report_year = 0, g_report_index = -1;
+static int report_season(int32_t year, int32_t index)
+{
+    g_report_year = year, g_report_index = index;
+    return year == 2099 ? int(SWOFTY_REFUSED) : int(SWOFTY_ASSET_OK);
+}
+
+static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap, nullptr};
+static const SwoftyCareerOps kOps2 = {2,  available,         driver_stat, set_slots, apply_lineup, set_driver_ratings,
+                                      swap, report_season};
 
 int main()
 {
@@ -95,12 +105,21 @@ int main()
           career::Result::late);
     CHECK(g_swap_a == 7 && g_swap_b == 9);
     CHECK(career::set_seat(1, 0, {}) == career::Result::unavailable);
+    CHECK(career::report_season(2017, 1) == career::Result::unavailable);
+    CHECK(g_report_index == -1);
+
+    career::detail::set_ops_table(&kOps2);
+    CHECK(career::report_season(2017, 1) == career::Result::ok);
+    CHECK(g_report_year == 2017 && g_report_index == 1);
+    CHECK(career::report_season(2099, 3) == career::Result::refused);
+    CHECK(std::strcmp(career::name(career::Result::refused), "refused") == 0);
     career::detail::set_ops_table(nullptr);
+    CHECK(career::report_season(2017, 1) == career::Result::unavailable);
 
     if (failures) {
         std::printf("sdk_ops_test: %d failure(s)\n", failures);
         return 1;
     }
-    std::printf("sdk_ops_test: apply_lineup request and report, set_driver_ratings ids, swap_drivers, no table: ok\n");
+    std::printf("sdk_ops_test: apply_lineup request and report, set_driver_ratings ids, swap_drivers, report_season on table versions 1 and 2, no table: ok\n");
     return 0;
 }

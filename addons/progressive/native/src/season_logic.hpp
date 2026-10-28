@@ -57,6 +57,14 @@ inline int year_for(int start, uint32_t season_index)
     return y > kLastYear ? kLastYear : static_cast<int>(y);
 }
 
+// The season moment the core hears of (career::report_season, standard library 1.6): the first idle Team HQ
+// of a season (game season index plus test seasons) not applied yet whose Season has its race weekends and a
+// current weekend, once per career and season in a session.
+inline bool season_moment(int applied_season, uint32_t index, bool weekends_ready, bool reported)
+{
+    return applied_season != static_cast<int>(index) && weekends_ready && !reported;
+}
+
 struct Look {
     std::string label;
     int stat = -1;

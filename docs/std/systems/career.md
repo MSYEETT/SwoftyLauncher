@@ -268,6 +268,7 @@ Result set_seat(int slot, int seat, Ref<drivers::Identity> driver);
 Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
 Result set_car_number(Ref<drivers::Identity> driver, int number);
 Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b);   // the game's full move sequence
+Result report_season(int year, int season_index);   // the career's owner: the season at season_index is year
 Result apply_dropped_scores(const events::StandingsRebuild &s, int best_results);   // keeps gross totals for the UI
 
 } // namespace swofty::career
@@ -417,6 +418,38 @@ The career's hub can offer the same choice to the player as a **Freeze content**
 
 The frozen data is the career's snapshot, saved in its `swofty_registry` entry. Each snapshot registry has a budget of 64 KB per season, and a career has 256 KB in all.
 
+### When a season starts
+
+The core fires `career.created` for the first career loaded after a new-career route. It fires `career.season.start` once per career and year, then activates the season's records and freezes the season.
+
+The season's year comes from one of two places:
+
+- **The career's owner reports it.** The addon that owns the data group, through its career content or its `career.mode` record, calls `career::report_season(year, season_index)` at the season's start. Any other addon gets `Result::refused`. A career an addon owns takes its years from these reports only.
+- **The core works it out.** For a career no addon owns, such as the stock 2025 and 2026 careers, the core reads the Championship's `season_index` at an idle Team HQ once the season has its race weekends and a current weekend. The effective `career.season` records of the career's data group, sorted by year, give the year: index 0 is the first year, index 1 the second. With no records, two records for one year or a gap between years, nothing fires and the log says why.
+
+```cpp
+// Progressive, at the first idle Team HQ of a season it hasn't applied, once the season has its weekends:
+// year is the career's first year plus season_index and its test seasons
+career::report_season(year, season_index);
+```
+
+```text
+[progressive] season 2017: reported to the core as season index 1 of career 1f2a: ok
+[registry] career::report_season(2017, 1) from swofty.progressive: ok, career 1f2a season index 1 is 2017; career.season.start
+[registry] career season 2017 starts in 1f2a/f1_career_progressive: snapshot of career.season, career.driver_ratings (39 record(s), 12.0 KB -> 2.4 KB compressed); saved with the next profile save
+[registry] career 7c01 season index 1: no career.season.start (no career.season record has data group f1_career_2026)
+```
+
+A career's id is its mode and its save slot: `<mode>:<slot guid>`, or `<mode>:<slot id>` for a slot without a guid. The mode is the save container name of the career content that owns the data group, else `<data group>.<driver_career|my_team>`. The core reads the slot when the game selects it for a load and keeps the id once `career.loaded` fires. An entry saved under a career's older `dc-<driver>` key moves to the new id the first time that career loads.
+
+A career's snapshot has 256 KB, and the whole entry 4 MB of payload. An entry past 4 MB isn't written with that save.
+
+The core writes the entry with a profile save only with `SWOFTY_REGISTRY_SAVE=on`. Every profile save logs the entry's size. By default each profile save logs the entry it would write and how many bytes it would add, and writes nothing:
+
+```text
+[registry] swofty_registry dry: this profile save would write a 2591-byte entry (1 career(s), 1 season snapshot(s)), adding 2591 bytes to the save; nothing written (SWOFTY_REGISTRY_SAVE is unset, and saving defaults to dry)
+```
+
 ## After the last year
 
 A career can run past the last season record its addon provides: Progressive past 2026, or Classic Career past its last pack. By default (`AfterLast::market`) the career keeps the last year's box, with its cars and looks, and hands the line-up to the game's driver market. The core extends the retirement schedules past their last stock date, December 2035, so drivers keep retiring.
@@ -503,9 +536,10 @@ career::set_slots("f1_career_progressive", { 476, 477, 478, 484, 480, 481, 479, 
 career::apply_lineup(*career::seasons.get(career::seasons["swofty.progressive/2017"]), &report);
 career::set_driver_ratings(drivers::identities["game/lando_norris"], { .experience = 70, .racecraft = 88, .awareness = 85, .pace = 90 });
 career::swap_drivers(drivers::identities["game/alex_albon"], drivers::identities["game/logan_sargeant"]);
+career::report_season(2017, 1);
 ```
 
-`apply_lineup`, `set_driver_ratings` and `swap_drivers` are in the core from 1.6.0, in Driver Career. `set_seat`, `set_car_number` and `apply_dropped_scores` return `unavailable`.
+`apply_lineup`, `set_driver_ratings`, `swap_drivers` and `report_season` are in the core from 1.6.0, in Driver Career. `set_seat`, `set_car_number` and `apply_dropped_scores` return `unavailable`.
 
 - **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
 - **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied.

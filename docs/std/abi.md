@@ -181,14 +181,17 @@ The core exports `SwoftyCoreCareerOps`. The table isn't a `SwoftyApi` field: `sw
 
 ```c
 typedef struct SwoftyCareerOps {
-    uint32_t version;                                                          /* 1 */
+    uint32_t version;                                                          /* 2 */
     int (*available)(void);
     int (*driver_stat)(const char *driver_ref, uint32_t *out);                 /* "game/<label>", "person/<label>" */
     int (*set_slots)(const char *data_group, const uint32_t *team_stats, size_t count);
     int (*apply_lineup)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
     int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
+    int (*report_season)(int32_t year, int32_t season_index);                  /* version 2 */
 } SwoftyCareerOps;
+
+enum { SWOFTY_REFUSED = 5 };
 
 SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
 ```
@@ -197,6 +200,21 @@ SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
 - **Threads:** every call runs on the flow thread. From another thread it returns `SWOFTY_ASSET_LATE`.
 - **Bindings:** a call that needs a binding the running build doesn't resolve returns `SWOFTY_ASSET_UNAVAILABLE` and logs the binding's id.
 - **Logs:** each call writes one `[career-ops]` line with what changed.
+- **Versions:** version 2 appends `report_season`. A caller checks `version >= 2` before it calls it.
+
+`report_season` says the season at the Championship's `season_index` is `year`. Only the addon that owns the active career's data group calls it: the addon whose career content or `career.mode` record has that data group. The core then fires `career.season.start` once per career and year, activates the season's records and freezes its snapshot, in that order, before it returns.
+
+| Result | When |
+| --- | --- |
+| `SWOFTY_ASSET_OK` | the season started, or that year already started in this career |
+| `SWOFTY_REFUSED` | the caller doesn't own the data group, or no addon owns it |
+| `SWOFTY_ASSET_INVALID` | a year outside 1950-2100, or a negative season index |
+| `SWOFTY_ASSET_LATE` | no career is loaded, or the call came off the flow thread |
+
+```text
+[registry] career::report_season(2018, 2) from swofty.progressive: ok, career 1f2a season index 2 is 2018; career.season.start
+[registry] career::report_season(2018, 2) from tails.whatif: refused (only swofty.progressive, which owns data group f1_career_progressive, reports its seasons)
+```
 
 `apply_lineup` takes one of two requests. `{"season": ...}` is a `career.season` record, which the core plans against the slot table. `{"lineup": ...}` is a line-up in stat ids, which the core writes as given:
 
@@ -251,6 +269,7 @@ career::set_slots                career ops set_slots
 career::apply_lineup             career ops apply_lineup    {"season": the record}; the report fills ApplyReport
 career::set_driver_ratings       career ops driver_stat, set_driver_ratings   ids 0, 1, 3, 4
 career::swap_drivers             career ops driver_stat, swap_drivers
+career::report_season            career ops report_season   version 2; SWOFTY_REFUSED is Result::refused
 ```
 
 An edit crosses the ABI as JSON:

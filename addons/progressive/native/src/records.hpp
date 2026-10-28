@@ -9,6 +9,9 @@
 //                  its effective record: 0 apply as planned, 1 a before handler changed the season (text is
 //                  years.json with the changed season), 2 a replace handler applied it.
 //   core_ops       the core's career operations (SwoftyCoreCareerOps) on a 1.6 core, else null.
+//   report_season  tells the core the year of the career's season at the Championship's season_index
+//                  (career::report_season), so it fires career.season.start and freezes the season; the
+//                  result's name.
 //   publish        the progressive.history service (api/progressive_api/history.hpp) and the hook point.
 
 #pragma once
@@ -26,6 +29,7 @@ namespace pg::records {
 bool read_years(std::string &text, const char *who, const swofty::career::Season *season = nullptr);
 int season_apply(int year, std::string &text);
 const SwoftyCareerOps *core_ops();
+const char *report_season(int year, int season_index);
 void publish(uint32_t (*real_team)(uint32_t driver_stat_id, int year), int (*career_year)(void), int (*follow_mode)(void));
 
 }

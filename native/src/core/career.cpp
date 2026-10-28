@@ -154,7 +154,8 @@ void publish(const runtime::career::Edges &e, const SwoftyCareerState &s)
                     : s.components == SWOFTY_CAREER_COMPONENTS_FALLBACK ? "fallback to flow"
                                                                         : "unseen",
                     mode_name(s.component_mode), mode_name(s.team_hq_mode));
-        swofty_core::apply::moments::career_loaded(s.key, s.mode);
+        std::string id = runtime::snapshots_career_loaded(s.key, s.mode);
+        swofty_core::apply::moments::career_loaded(id.c_str(), s.mode);
         fire(SWOFTY_EVENT_CAREER_LOADED, s.mode, 0, &s);
     }
     if (e.hub == 1) {

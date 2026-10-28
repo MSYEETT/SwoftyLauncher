@@ -193,6 +193,11 @@ bool Book::saving(Bytes &body)
     if (loaded_state_ == fmt::Decoded::newer || dirty_.empty())
         return false;
     Bytes payload = entry_.encode();
+    if (payload.size() > fmt::ENTRY_CAP) {
+        note("[registry] swofty_registry: the entry's payload of " + kb(payload.size()) + " is past the " +
+             kb(fmt::ENTRY_CAP) + " cap; not written with this save");
+        return false;
+    }
     if (!fmt::bag_body(payload, body))
         return false;
     pending_ = dirty_;
@@ -218,6 +223,33 @@ bool Book::has_career(const std::string &id) const
 {
     std::lock_guard g(mu_);
     return const_cast<fmt::Entry &>(entry_).career(id) != nullptr;
+}
+
+bool Book::rename(const std::string &from, const std::string &to)
+{
+    if (from.empty() || to.empty() || from == to)
+        return false;
+    std::lock_guard g(mu_);
+    fmt::Career *c = entry_.career(from);
+    if (!c || entry_.career(to))
+        return false;
+    c->id = to;
+    dirty_.erase(from);
+    dirty_.insert(to);
+    if (active_ == from)
+        active_ = to;
+    cache_->seasons.clear();
+    return true;
+}
+
+bool Book::started(const std::string &id, int year) const
+{
+    std::lock_guard g(mu_);
+    const fmt::Career *c = const_cast<fmt::Entry &>(entry_).career(id);
+    if (!c || c->unreadable || c->freeze != fmt::Freeze::per_season)
+        return false;
+    const fmt::Season *s = c->season(year);
+    return s && !s->frozen.empty();
 }
 
 fmt::Entry Book::entry() const
