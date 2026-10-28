@@ -10,9 +10,9 @@ OUT=${1:-$PWD/../build/registry-test}
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 CASES=../../packages/sdk/std/tests/cases
 mkdir -p "$OUT"
-SRC=(../src/core/registry/store.cpp ../src/core/registry/table.cpp ../src/core/registry/validate.cpp ../src/core/registry/schema.cpp)
+SRC=(../src/core/registry/store.cpp ../src/core/registry/table.cpp ../src/core/registry/validate.cpp ../src/core/registry/schema.cpp ../src/core/registry/engine.cpp)
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness \
-    -I../../packages/sdk/include -o "$OUT/corpus_test" registry/corpus_test.cpp "${SRC[@]}"
+    -I../../packages/sdk/include -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine -o "$OUT/corpus_test" registry/corpus_test.cpp "${SRC[@]}"
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include \
     -c ../src/core/registry/store.cpp -o "$OUT/store.windows.o"
 "${PIN[@]}" zig cc -target x86_64-linux-musl -O2 -Wall -Wextra -I../src/loader -o "$OUT/pe_exports_test" \
@@ -22,6 +22,7 @@ SRC=(../src/core/registry/store.cpp ../src/core/registry/table.cpp ../src/core/r
 "$OUT/pe_exports_test" "$OUT/with_register.dll" "$OUT/without_register.dll"
 python3 "$CASES/../check_cases.py"
 "$OUT/corpus_test" "$CASES"
+"$OUT/corpus_test" --fake "$CASES"
 python3 registry/ref.py "$CASES"
 python3 registry/random_stacks.py --runner "$OUT/corpus_test" --count "${REGISTRY_STACKS:-300}" --seed "${REGISTRY_SEED:-1606}"
 "$OUT/corpus_test" --bench "$OUT/perf.log"

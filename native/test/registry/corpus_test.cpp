@@ -1,11 +1,15 @@
 #include "../../src/core/registry/table.hpp"
 
+#include <swofty/fake_core.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <memory>
+#include <optional>
 #include <fstream>
 #include <regex>
 #include <sstream>
@@ -157,10 +161,10 @@ int steps_edit(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
     }
     std::string text = swofty::json::dump(v);
     if (len)
-        *len = text.size() + 1;
-    if (cap < text.size() + 1)
+        *len = text.size();
+    if (cap < text.size())
         return SWOFTY_TOO_SMALL;
-    std::memcpy(out, text.c_str(), text.size() + 1);
+    std::memcpy(out, text.data(), text.size());
     return SWOFTY_ASSET_OK;
 }
 
@@ -196,11 +200,10 @@ int when_edit(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
     }
     if (!on) {
         if (len)
-            *len = in.size + 1;
-        if (cap < in.size + 1)
+            *len = in.size;
+        if (cap < in.size)
             return SWOFTY_TOO_SMALL;
         std::memcpy(out, in.data, in.size);
-        out[in.size] = 0;
         return SWOFTY_ASSET_OK;
     }
     if (!w->is_patch)
@@ -209,10 +212,10 @@ int when_edit(void *user, SwoftyText in, char *out, size_t cap, size_t *len)
     swofty::json::merge_patch(v, w->patch, w->keys);
     std::string text = swofty::json::dump(v);
     if (len)
-        *len = text.size() + 1;
-    if (cap < text.size() + 1)
+        *len = text.size();
+    if (cap < text.size())
         return SWOFTY_TOO_SMALL;
-    std::memcpy(out, text.c_str(), text.size() + 1);
+    std::memcpy(out, text.data(), text.size());
     return SWOFTY_ASSET_OK;
 }
 
@@ -268,10 +271,10 @@ int provide_cb(void *user, const char *, const char *id, char *out, size_t cap, 
         return SWOFTY_ASSET_INVALID;
     std::string text = swofty::json::dump(*v);
     if (len)
-        *len = text.size() + 1;
-    if (cap < text.size() + 1)
+        *len = text.size();
+    if (cap < text.size())
         return SWOFTY_TOO_SMALL;
-    std::memcpy(out, text.c_str(), text.size() + 1);
+    std::memcpy(out, text.data(), text.size());
     return SWOFTY_ASSET_OK;
 }
 
@@ -316,15 +319,24 @@ swofty::json::Keys keys_of(const Value &reg)
     return k;
 }
 
+bool g_fake = false;
+std::unique_ptr<swofty::fake::Core> g_core;
+
 void setup(const Value &cs, const Value &ectx, CaseValidator &validator)
 {
+    const SwoftyFakeEngine *engine = nullptr;
+    if (g_fake) {
+        g_core.reset();
+        g_core = std::make_unique<swofty::fake::Core>("game");
+        engine = swofty_registry_engine();
+    }
     reset_store();
     keep_steps.clear();
     keep_when.clear();
     keep_where.clear();
     keep_provided.clear();
     Store &st = store();
-    const SwoftyRegistry *t = table();
+    const SwoftyRegistry *t = g_fake ? g_core->api().registry : table();
     std::vector<std::string> order;
     for (auto &a : *cs["addons"].if_array())
         order.emplace_back(a["id"].as_string());
@@ -384,13 +396,21 @@ void setup(const Value &cs, const Value &ectx, CaseValidator &validator)
         for (auto &x : *d)
             disabled.emplace(x.as_string());
     for (int stage = 0; stage < 2; stage++) {
-        if (stage == 1)
-            st.end_register();
+        if (stage == 1) {
+            if (engine)
+                engine->end_register();
+            else
+                st.end_register();
+        }
         for (auto &a : *cs["addons"].if_array()) {
             std::string addon(a["id"].as_string());
             if (!a["enabled"].as_bool(true) || disabled.count(addon))
                 continue;
-            AsAddon as(addon);
+            std::optional<AsAddon> as;
+            if (engine)
+                engine->begin_addon(addon.c_str());
+            else
+                as.emplace(addon);
             tl_addon = addon;
             const Value &ops = a["ops"];
             for (std::size_t i = 0; i < ops.size(); i++) {
@@ -564,6 +584,13 @@ bool equal(const Value &a, const Value &b)
 Value result_of(const std::string &reg, const std::string &id)
 {
     Record r = store().get(reg, id);
+    if (g_fake && r.status == Status::ok) {
+        auto v = g_core->effective(reg, id);
+        if (!v)
+            r.status = Status::invalid;
+        else
+            r.value = *v;
+    }
     Value o = Value::object();
     o["status"] = Value(status_name(r.status));
     if (r.status == Status::ok) {
@@ -635,7 +662,7 @@ std::vector<std::string> tags_via_table(const std::string &reg, const std::strin
     std::vector<std::string> out;
     if (table()->tag_members(reg.c_str(), tag.c_str(), buf, sizeof buf, &len) != SWOFTY_ASSET_OK)
         return out;
-    Value a = swofty::json::parse(buf);
+    Value a = swofty::json::parse(std::string_view(buf, len));
     for (auto &x : *a.if_array())
         out.emplace_back(x.as_string());
     return out;
@@ -771,10 +798,10 @@ int edit_copy(void *, SwoftyText in, char *out, size_t cap, size_t *len)
     Value v = swofty::json::parse(std::string_view(in.data, in.size));
     v["n"] = Value(v["n"].as_int() + 1);
     std::string text = swofty::json::dump(v);
-    *len = text.size() + 1;
+    *len = text.size();
     if (cap < *len)
         return SWOFTY_TOO_SMALL;
-    std::memcpy(out, text.c_str(), *len);
+    std::memcpy(out, text.data(), *len);
     return SWOFTY_ASSET_OK;
 }
 
@@ -844,6 +871,11 @@ int main(int argc, char **argv)
         std::fputs("\n", stdout);
         return 0;
     }
+    if (argc >= 2 && !std::strcmp(argv[1], "--fake")) {
+        g_fake = true;
+        argv++;
+        argc--;
+    }
     if (argc >= 2 && !std::strcmp(argv[1], "--bench"))
         return bench(argc >= 3 ? argv[2] : "");
     std::string dir = argc >= 2 ? argv[1] : "../../packages/sdk/std/tests/cases";
@@ -858,6 +890,8 @@ int main(int argc, char **argv)
     int failed = 0;
     for (auto &f : files)
         failed += run_case(f, argc >= 3);
-    std::printf("registry corpus: %zu case(s), %d failure(s)\n", files.size(), failed);
+    g_core.reset();
+    std::printf("registry corpus%s: %zu case(s), %d failure(s)\n", g_fake ? " through swofty/fake_core.hpp" : "",
+                files.size(), failed);
     return failed ? 1 : 0;
 }

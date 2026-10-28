@@ -291,9 +291,8 @@ template <class F> int call_sized(std::string &buf, F f)
         }
         if (r != SWOFTY_ASSET_OK)
             return r;
-        auto n = len && len <= cap ? len : std::strlen(buf.c_str()) + 1;
-        buf.resize(n > 0 ? n - 1 : 0);
-        if (!buf.empty() && buf.back() == '\0')
+        buf.resize(len && len <= cap ? len : std::strlen(buf.c_str()));
+        while (!buf.empty() && buf.back() == '\0')
             buf.pop_back();
         return r;
     }

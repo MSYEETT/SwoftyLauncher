@@ -38,10 +38,12 @@ Value parse_text(SwoftyText t, bool &ok)
 int put(const std::string &s, char *out, size_t cap, size_t *len)
 {
     if (len)
-        *len = s.size() + 1;
-    if (!out || cap < s.size() + 1)
+        *len = s.size();
+    if (!out || cap < s.size())
         return SWOFTY_TOO_SMALL;
-    std::memcpy(out, s.c_str(), s.size() + 1);
+    std::memcpy(out, s.data(), s.size());
+    if (cap > s.size())
+        out[s.size()] = 0;
     return SWOFTY_ASSET_OK;
 }
 
