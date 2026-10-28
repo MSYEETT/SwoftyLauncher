@@ -203,7 +203,7 @@ SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
 ```json
 { "lineup": {
     "year": 2017, "why": "season start", "visuals": true, "player_team": 476,
-    "moves": [ { "driver": 7, "team": 476, "seat": 0, "car": 212 } ],
+    "moves": [ { "driver": 7, "team": 476, "seat": 0, "car": 212, "holder": 5, "mate": 9 } ],
     "repositions": [ { "driver": 9, "seat": 1 } ],
     "releases": [ 5 ],
     "numbers": [ { "driver": 7, "number": 14 } ],
@@ -211,7 +211,7 @@ SWOFTY_EXPORT const SwoftyCareerOps *SwoftyCoreCareerOps(void);
     "looks": [ { "driver": 7, "look": 455 } ] } }
 ```
 
-- **moves:** the driver takes `seat` (0 or 1) of `team`, with that seat's row as the template, else his new teammate's, else any row of the team. `car` is used when the template row has none (-1: none given).
+- **moves:** the driver takes `seat` (0 or 1) of `team`, with that seat's row as the template, else his new teammate's, else any row of the team. `holder` and `mate` name the seat's row and the teammate's row by driver; without them, or at -1, they're the team's rows on that position and the other. `car` is used when the template row has none (-1: none given).
 - **cars and looks:** written only when `visuals` is true.
 - **numbers:** never written on the player's row.
 - **player_team:** the team the line-up seats the player at, or -1. A moved player signs with that team only.

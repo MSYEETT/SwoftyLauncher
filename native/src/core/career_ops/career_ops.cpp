@@ -629,6 +629,7 @@ struct Lineup {
     struct Move {
         uint32_t driver;
         int team, seat, car;
+        int holder = -1, mate = -1;
     };
     struct Reposition {
         uint32_t driver;
@@ -669,7 +670,7 @@ bool read_lineup(const json::Value &j, Lineup &l, std::string &err)
         int d = stat(m["driver"], "moves[].driver"), t = stat(m["team"], "moves[].team"), k = number(m["seat"]);
         if (k < 0 || k > 1)
             err = "moves[].seat must be 0 or 1";
-        l.moves.push_back({static_cast<uint32_t>(d), t, k, number(m["car"])});
+        l.moves.push_back({static_cast<uint32_t>(d), t, k, number(m["car"]), number(m["holder"]), number(m["mate"])});
     }
     for (auto &m : j["repositions"].a) {
         int d = stat(m["driver"], "repositions[].driver"), k = number(m["seat"]);
@@ -738,17 +739,27 @@ EntrantRecord expected(const Row &r, const Write &w)
     return x;
 }
 
-bool seat_template(const std::vector<Row> &rows, const Row &driver, uint32_t team, int seat, int car, EntrantWriteData &data,
-                   uint16_t &position, std::string &why)
+int named_or_holder(const std::vector<Row> &rows, int named, uint32_t team, int seat)
 {
-    int h = holder_of(rows, team, seat);
+    if (named >= 0) {
+        int idx = row_index(rows, static_cast<uint32_t>(named));
+        if (idx >= 0)
+            return idx;
+    }
+    return holder_of(rows, team, seat);
+}
+
+bool seat_template(const std::vector<Row> &rows, const Row &driver, uint32_t team, int seat, int car, int holder, int mate_of,
+                   EntrantWriteData &data, uint16_t &position, std::string &why)
+{
+    int h = named_or_holder(rows, holder, team, seat);
     if (h >= 0) {
         data = seat_data(driver, rows[h]);
         position = rows[h].rec.team_position;
         return true;
     }
     const Row *tpl = nullptr;
-    int mate = holder_of(rows, team, 1 - seat);
+    int mate = named_or_holder(rows, mate_of, team, 1 - seat);
     if (mate >= 0)
         tpl = &rows[mate];
     for (size_t i = 0; !tpl && i < rows.size(); ++i)
@@ -823,7 +834,7 @@ int execute(const Lineup &p, Report &rep, std::string &summary)
         EntrantWriteData data{};
         uint16_t position = 0;
         std::string bad;
-        if (!seat_template(rows, rows[idx], static_cast<uint32_t>(m.team), m.seat, m.car, data, position, bad)) {
+        if (!seat_template(rows, rows[idx], static_cast<uint32_t>(m.team), m.seat, m.car, m.holder, m.mate, data, position, bad)) {
             rep.result = "refused";
             summary = seat_text(static_cast<uint32_t>(m.team), m.seat) + " is empty and cannot be written: " + bad;
             return SWOFTY_ASSET_INVALID;
@@ -838,7 +849,7 @@ int execute(const Lineup &p, Report &rep, std::string &summary)
         w.why = (teamless(rows[idx].rec) || !has_car(rows[idx].rec) ? std::string("free agent")
                                                                       : seat_text(stat_of(rows[idx].rec.team_stat_id), from)) +
                 " -> " + seat_text(static_cast<uint32_t>(m.team), m.seat) +
-                (holder_of(rows, static_cast<uint32_t>(m.team), m.seat) < 0 ? " (an empty seat)" : "");
+                (named_or_holder(rows, m.holder, static_cast<uint32_t>(m.team), m.seat) < 0 ? " (an empty seat)" : "");
     }
     for (auto &m : p.repositions) {
         int idx = row_index(rows, m.driver);
@@ -1171,7 +1182,7 @@ int api_apply_lineup(SwoftyText request, char *out, size_t cap, size_t *len)
             l.why = "season record";
             l.player_team = p.player_team;
             for (auto &m : p.moves)
-                l.moves.push_back({m.driver, m.team, m.seat, -1});
+                l.moves.push_back({m.driver, m.team, m.seat, -1, -1, -1});
             l.releases = p.releases;
             rep.refusals = p.refusals;
             rep.refused = p.refusals.size();
@@ -1258,8 +1269,10 @@ int api_swap_drivers(uint32_t a, uint32_t b)
             for (auto &row : rows)
                 if (human(row.rec) && !teamless(row.rec))
                     l.player_team = static_cast<int>(stat_of(row.rec.team_stat_id));
-            l.moves.push_back({a, static_cast<int>(stat_of(rows[ib].rec.team_stat_id)), position_of(rows[ib].rec), -1});
-            l.moves.push_back({b, static_cast<int>(stat_of(rows[ia].rec.team_stat_id)), position_of(rows[ia].rec), -1});
+            l.moves.push_back({a, static_cast<int>(stat_of(rows[ib].rec.team_stat_id)), position_of(rows[ib].rec), -1,
+                               static_cast<int>(b), -1});
+            l.moves.push_back({b, static_cast<int>(stat_of(rows[ia].rec.team_stat_id)), position_of(rows[ia].rec), -1,
+                               static_cast<int>(a), -1});
             r = execute(l, rep, summary);
         }
     }
