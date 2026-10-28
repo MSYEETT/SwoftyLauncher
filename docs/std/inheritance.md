@@ -65,99 +65,284 @@ ai::vehicle_configs.layer(f1, [](ai::VehicleConfig &c) { c.racecraft.overtake_ag
 - Behaviour and tuning changes, such as AI, damage, physics fixes and difficulty, use a selector. They reach every year.
 - The importer layers the base by default. Car ports and season packs ask once whether they go everywhere or only into Grand Prix and Time Trial, and default to Grand Prix and Time Trial. **Applies to** adds a box's own record as another target and keeps the base one.
 
-## Cars
+## Each system
 
-The base holds the stock `game/<team>_<year>` cars. Car ports and imports layer them: the model, the livery, the handling.
+Every system makes the same choice in code: change what every year shares, set a year's own value, or scope the change to a box, a career or a session. Each example below shows where that change goes. The system pages have the full records.
 
-A year pack makes its own cars as variants of a **donor**, the stock car each one inherits from. They can set their own model, livery, engine sound and power unit. Classic Seasons' 2017 Red Bull inherits a stock car and supplies its own period livery and sound.
+### Cars
 
-A career uses the cars of its current season's box. Progressive switches the box each season. Handling and damage changes apply when the game starts: a change to Heavier Damage's options takes effect at the next game start.
+A car's model, livery, sound, power unit and handling are fields on its `cars::Vehicle` record. Handling applies when the game starts.
 
-## Liveries
+```cpp
+// Every year that uses the stock McLaren: layer the base record.
+cars::vehicles.layer(cars::vehicles["game/mclaren_2025"], [](cars::Vehicle &v) {
+    v.model = file("models/mcl39/");
+});
 
-A livery layered on a base car appears wherever that car's livery is inherited. A year pack's own livery on its own car wins. A stock Red Bull repaint reaches every box that uses the stock livery, and the 2017 Red Bull keeps its 2017 design.
+// One year: your own car, a variant of a stock donor. What you set wins in your box.
+auto mclaren08 = cars::vehicles.variant("mclaren", cars::vehicles["game/mclaren_2025"], [](cars::Vehicle &v) {
+    v.performance_tier = 1;
+});
+cars::vehicles.protect(mclaren08, { "performance_tier" });   // other addons' selectors leave it alone
 
-Special liveries, the extra choices in the livery picker, add to the list in every box that uses the car.
+// Every F1 car's handling, years included: a selector over the core tag.
+cars::handling.layer(tagged<cars::Handling>(cars::handling.tag("c/f1_cars")), [](cars::Handling &h) {
+    h.damage_scale *= 1.5f;
+});
+```
 
-## Teams
+### Liveries
 
-Stock teams are base records. Name and logo mods layer them in every year. A year pack can give its own team records their own names, logos and colours.
+A livery names the car it fits. Put it on the car record to replace the livery, or mark it special to add a choice to the livery picker.
 
-A team logo update reaches every year that inherits the logo, and a year with its own logo keeps it. Team names that Classic Career sets belong to that career and never apply across the whole profile.
+```cpp
+auto repaint = liveries::liveries.add("repaint", {
+    .vehicle = cars::vehicles["game/redbull_2025"],
+    .textures = file("liveries/redbull/"),
+});
 
-## Drivers
+// Every year that inherits the stock Red Bull's livery. A year with its own livery keeps it.
+cars::vehicles.layer(cars::vehicles["game/redbull_2025"], [=](cars::Vehicle &v) { v.livery = repaint; });
 
-Stock drivers are base records. Changes to their heads, looks and helmets reach every year that inherits those values. A year pack can set its own helmets, numbers and suits: Classic Seasons sets Vettel's 2017 helmet.
+// Or an extra choice in the livery picker, in every box that uses the car.
+liveries::liveries.add("repaint_special", {
+    .vehicle = cars::vehicles["game/redbull_2025"],
+    .archive = file("liveries/redbull_special.erp"),
+    .special = true,
+});
+```
 
-Career ratings come from `career.driver_ratings` for each season and are frozen when that season starts. New drivers from Driver Manager join the base, so they're free agents in every box and on every career's driver market.
+### Teams
 
-## Helmets and suits
+```cpp
+// Every year: change the stock team's colours.
+teams::identities.layer(teams::identities["game/williams"], [](teams::Identity &t) {
+    t.colours.primary = Colour("#00A0DE");
+});
 
-A helmet on a base driver appears in every year that doesn't set its own. A helmet replacement reaches the stock driver across every box and leaves Classic Seasons' 2017 Vettel helmet alone.
+// One year: the year's own team record, a variant of the stock team.
+auto williams90 = teams::identities.variant("williams", teams::identities["game/williams"], [](teams::Identity &t) {
+    t.names.title = Text::key("lng_1990_williams");
+    t.colours.primary = Colour("#1E3A8A");
+});
 
-A season's own team kits win over base kits.
+// One box or one career: scope the name's text, not the team.
+ui::strings.add("lng_team_williams", {
+    .text = { { "*", "Canon Williams" } },
+    .within = events::data_group("f1_career_decades"),
+});
+```
 
-## Engine sounds
+### Drivers
 
-An engine sound on a base car follows that car wherever its sound is inherited. Replacing the stock 2025 Ferrari's sound changes it in every box that uses that car without setting its own.
+A driver's number and look in one year go in that year's box (see [Seasons and GP/TT content](/std/content)). A new driver joins the base, so they're a free agent in every box and on every career's market.
 
-A year pack's own sound on its own car wins. Cars with their own 2016–2018 period sounds keep them.
+```cpp
+// Every year: a new head on the stock driver.
+drivers::identities.layer(drivers::identities["game/lewis_hamilton"], [](drivers::Identity &d) {
+    d.head = drivers::heads["mod.faces/hamilton"];
+});
 
-Some year packs point their cars at the stock sound files, such as Classic Seasons 2024's cars. An imported mod that overwrites those files would reach them, so a year pack can pin a stock file with `stock("...")`. A pinned file is served from the game's original, whatever an import replaced.
+// A new driver, in every year.
+drivers::identities.add("jack_crawford", {
+    .donor = drivers::identities["game/oliver_bearman"],
+    .names = { .first = Text::key("lng_jack"), .last = Text::key("lng_crawford") },
+    .nationality = "US",
+    .number = 33,
+});
 
-## Tracks
+// One career season: the driver's ratings that year, frozen when the season starts.
+career::ratings.add("2008/game/lewis_hamilton", {
+    .season = career::seasons["mod.decades/2008"],
+    .driver = drivers::identities["game/lewis_hamilton"],
+    .experience = 70, .racecraft = 88, .awareness = 84, .pace = 92,
+});
+```
 
-The base track list holds every stock and added track. An added track starts from a copy of the track it names as its base: the Hockenheim example above starts from Austria.
+### Helmets and suits
 
-A box offers every track in the base that fits it: enough garages for its teams, room for its grid, AI data for its cars, and Time Trial support where the box has Time Trial. It shows the season's real calendar first, then every other fitting track under **More tracks**. It can also set its own layout, lap count, fuel, tyres, names and dates for each track, applied when the player picks the box.
+```cpp
+auto helmet = wearables::helmets.add("hamilton_2008", {
+    .archive = file("helmets/hamilton_2008.erp"),
+    .driver = drivers::identities["game/lewis_hamilton"],
+});
 
-A career's calendar picks tracks by venue. A history career can race each season's real calendar, rebuilt at the season break, with venues that aren't installed left out. Once a track has been raced, the career depends on it. Track data for one session, such as fuel and lap count, applies when the session loads.
+// Every year that doesn't set its own helmet for him.
+drivers::looks.layer(drivers::looks["game/lewis_hamilton"], [=](drivers::Look &l) { l.helmet = helmet; });
 
-## Tyres
+// One career: the helmet only that career uses.
+drivers::looks.layer(drivers::looks["game/lewis_hamilton"], [=](drivers::Look &l) { l.helmet = helmet; }, Scope::career);
 
-The base holds the stock compounds and classes, plus added compounds: a visual a player can select, or a set of physics.
+// One season's team kit, which wins over the base kit.
+wearables::season_sets.add("mclaren_2008", {
+    .team = teams::identities["mod.season-2008/mclaren"],
+    .season = 2008,
+    .suit = wearables::suits["mod.season-2008/mclaren"],
+    .gloves = wearables::gloves["mod.season-2008/mclaren"],
+});
+```
 
-A box picks its tyre class and allocations: a 2016 box runs 2016 compounds, scoped to that box. A career freezes each season's tyre rules, such as mandatory compounds and the sets each driver gets.
+### Engine sounds
 
-The class each car runs is answered once per session by `session.tyres.class_of`.
+```cpp
+auto v10 = sounds::engine_sounds.add("v10", {
+    .bundle = file("sounds/v10.bdl"),
+    .settings_from = sounds::engine_sounds["game/ferrari_2025"],
+});
 
-## Power units
+// Every year that inherits the stock Ferrari's sound. A car with its own sound keeps it.
+cars::vehicles.layer(cars::vehicles["game/ferrari_2025"], [=](cars::Vehicle &v) { v.engine_sound = v10; });
 
-The base holds the stock 2025 and 2026 power units. Each box picks its power unit and its DRS and ERS rules.
+// A year pack whose cars use a stock sound file pins it. An import that overwrites the file can't reach them.
+sounds::engine_sounds.add("ferrari", {
+    .bundle = stock("audio/2025/bundles/ferrari_2025.bdl"),
+    .settings_from = sounds::engine_sounds["game/ferrari_2025"],
+});
+```
 
-Classic Seasons uses the 2025 power unit with 2016 DRS rules. Progressive takes each season's power unit from that season's box.
+### Tracks
 
-## Session rules
+A new track joins the base. Each box offers it where it fits: enough garages for its teams, room for its grid, AI data for its cars, and Time Trial support where the box has Time Trial. A career's calendar picks tracks by venue, and a raced track becomes one of the career's dependencies.
 
-The base holds the stock weekend formats, points systems, rules profiles and grid size. A box can set its own format and points, scoped to its setup mode.
+```cpp
+// Every year: a new track.
+tracks::tracks.add("hockenheim", {
+    .base = tracks::tracks["game/austria"],
+    .provides = { tracks::venues["venue/hockenheimring"] },
+});
 
-A year can run two qualifying sessions and score 9-6-4-3-2-1. A career freezes each season's championship rules, such as counting only a driver's best results.
+// One box: its own lap count at one track.
+tracks::per_package.add("f1_2008/monaco", {
+    .package = content::packages["mod.season-2008/f1_2008"],
+    .track = tracks::tracks["game/monaco"],
+    .laps = 78,
+});
 
-## Weather
+// Track data applies when a session loads: the fuel for every session at this track.
+tracks::data.layer(tracks::data["mod.hockenheim/hockenheim/f1_2025"], [](tracks::TrackData &d) {
+    d.fuel.burn_per_lap = 1.62f;
+});
+```
 
-Each track has a base climate. A box can set its own climate for a track in its year, though few do. A scripted forecast belongs to a session or a career.
+### Tyres
 
-## AI
+A new compound joins the base. A box picks its tyre class, which applies when its session loads. A career freezes each season's tyre rules when the season starts.
 
-The base holds each car's AI config. A selector reaches every matching car, including the cars year packs own: the aggression example above changes every F1 car, except fields a year pack protects.
+```cpp
+// Every year: a new compound's physics.
+tyres::physical.add("c6", {
+    .package = cars::packages["game/f1_2025"],
+    .code = tyres::Code::hso,
+    .vcmpd = file("tyres/c6.vcmpd"),
+    .slick = true,
+});
 
-A year can also pick an AI track pack for each car: which folder of baked AI data it uses, by pace.
+// One box: its tyre class.
+content::packages.layer(content::packages["mod.season-2008/f1_2008"], [](content::Package &p) {
+    p.rules.tyre_class = tyres::classes["mod.season-2008/bridgestone"];
+});
+```
 
-## Career data
+### Power units and DRS
 
-The base holds the stock career modes and data groups. New career modes are variants of a stock mode, so they inherit changes to it.
+A car's power unit is a field on its record. A box's DRS rule is part of its rules and applies when its session loads.
 
-Each box supplies its career season: the line-up, the swaps and the ratings. A historical season brings its own drivers and ratings. A career freezes each season's data when that season starts.
+```cpp
+// One year's car: its power unit.
+cars::vehicles.layer(cars::vehicles["mod.season-2008/ferrari"], [](cars::Vehicle &v) {
+    v.power_unit = power::units["game/pu_2025"];
+});
 
-## Menu text and screens
+// One box: no DRS.
+auto no_drs = power::drs_rules.add("none", { .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 });
+content::packages.layer(content::packages["mod.season-2008/f1_2008"], [=](content::Package &p) {
+    p.rules.drs = no_drs;
+});
+```
 
-The stock strings and screens are base records. Text mods layer them. Text for one year, such as a team's name that season or a box's title, is scoped to its box or career, so a historical team name shows in its season without becoming the name everywhere.
+### Session rules
 
-Menu tiles and boxes add to the menus. They never replace another addon's.
+A box's points, refuelling and format are its rules. A career freezes each season's championship rules when the season starts.
 
-## Graphics
+```cpp
+auto points = sessions::points.add("2008", { .points = { 10, 8, 6, 5, 4, 3, 2, 1 } });
 
-Graphics exist only in the base. Looks and rendering passes stack in load order, and their settings are global: turning on a look changes every box.
+content::packages.layer(content::packages["mod.season-2008/f1_2008"], [=](content::Package &p) {
+    p.rules.points = points;
+    p.rules.refuelling = true;
+});
+```
+
+### Weather
+
+```cpp
+// Every year: a track's climate.
+weather::climates.layer(weather::climates["game/silverstone"], [](weather::Climate &c) {
+    c.temperature_max = 24;
+});
+
+// One session: a scripted forecast.
+weather::forecasts.add("spa_race", {
+    .within = events::track("game/spa"),
+    .session = sessions::Session::race,
+    .slots = { { weather::Kind::clear, 20min, 0min }, { weather::Kind::heavy_rain, 60min, 3min } },
+});
+```
+
+### AI
+
+A selector reaches every matching car, years included, except fields a year pack protects. `.in(...)` limits where a layer applies.
+
+```cpp
+auto f1_cars = tagged(&ai::VehicleConfig::vehicle, cars::vehicles.tag("c/f1_cars"));
+
+// Every F1 car, in every box and career.
+ai::vehicle_configs.layer(f1_cars, [](ai::VehicleConfig &c) { c.racecraft.overtake_aggression = 0.85f; });
+
+// Only in Grand Prix and Time Trial.
+ai::vehicle_configs.layer(f1_cars, [](ai::VehicleConfig &c) { c.racecraft.defend_aggression = 0.8f; })
+    .in(events::setup_mode("swofty_f1"));
+
+// A year pack keeps its own tuning from other addons' selectors.
+ai::vehicle_configs.protect(ai::vehicle_configs["mod.season-2008/ferrari"], { "racecraft" });
+```
+
+### Career data
+
+```cpp
+// A career mode of your own: a variant of a stock mode, so it inherits changes to it.
+career::modes.variant("decades", career::modes["game/f1_career_2026"], [](career::Mode &m) {
+    m.data_group = "f1_career_decades";
+});
+
+// One career: a change saved with that career only.
+career::seasons.layer(career::seasons["mod.decades/2009"], [](career::Season &s) {
+    s.teams.at(1).seats[0] = drivers::identities["game/fernando_alonso"];
+}, Scope::career);
+```
+
+### Menu text and screens
+
+A string with no `within` changes the text everywhere. A string with `within` changes it only there. Menu tiles and boxes add to the menus and never replace another addon's.
+
+```cpp
+// Everywhere.
+ui::strings.add("lng_team_haas", { .text = { { "*", "Haas F1 Team" } } });
+
+// Only in one box.
+ui::strings.add("lng_team_alpine", {
+    .text = { { "*", "Renault" } },
+    .within = events::content_exact("mod.season-2008/f1_2008"),
+});
+```
+
+### Graphics
+
+Graphics exist only in the base. A look applies in every box, and looks stack in load order.
+
+```cpp
+graphics::looks.add("warm", { .lut = file("looks/warm.cube"), .strength = 0.8f });
+```
 
 ## When two addons change the same thing
 
