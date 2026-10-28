@@ -1,0 +1,242 @@
+#pragma once
+
+#include "lower.hpp"
+#include "rows.hpp"
+
+#include "../../registry/store.hpp"
+
+#include <map>
+#include <set>
+#include <string>
+#include <tuple>
+#include <vector>
+
+// The boot apply of the content registries, shared by the core (appliers.cpp) and the host tools: each registry's
+// effective records, by owner in load order, lowered to operations and run through one row engine over the database
+// the game loads. A record whose operations fail is taken back whole.
+
+namespace swofty_core::apply::content {
+
+inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound", "vehicle.package", "vehicle", "content.package"};
+
+inline Lookup store_lookup(registry::Store &st, std::map<std::string, Value> &keep)
+{
+    return [&st, &keep](const std::string &reg, const std::string &id) -> const Value * {
+        std::string k = reg + "|" + id;
+        auto it = keep.find(k);
+        if (it != keep.end())
+            return &it->second;
+        auto rec = st.get(reg, id);
+        if (rec.status != registry::Status::ok)
+            return nullptr;
+        return &(keep[k] = rec.value);
+    };
+}
+
+// The addon records of a registry (stock "game/" records are the game's own rows), by owner in load order.
+inline std::vector<std::string> in_load_order(registry::Store &st, const std::string &reg)
+{
+    std::vector<std::string> ids = st.list(reg, "");
+    ids.erase(std::remove_if(ids.begin(), ids.end(), [](const std::string &id) { return id.rfind("game/", 0) == 0; }),
+              ids.end());
+    std::vector<std::string> order = st.order();
+    auto rank = [&](const std::string &id) {
+        std::string owner = addon_of(id);
+        auto it = std::find(order.begin(), order.end(), owner);
+        return it == order.end() ? order.size() : std::size_t(it - order.begin());
+    };
+    std::stable_sort(ids.begin(), ids.end(), [&](const std::string &a, const std::string &b) {
+        auto ra = rank(a), rb = rank(b);
+        return ra != rb ? ra < rb : a < b;
+    });
+    return ids;
+}
+
+// A variant has stat ids of its own: an explicit stat_id it only inherits from its base counts as "auto".
+inline Value own_ids(registry::Store &st, const std::string &reg, const std::string &id, const Value &rec)
+{
+    if (!rec["stat_id"].is_int())
+        return rec;
+    std::vector<std::string> chain = st.chain(reg, id);
+    if (chain.size() < 2 || chain[0] != id)
+        return rec;
+    registry::Record base = st.get(reg, chain[1]);
+    if (base.status != registry::Status::ok || !(base.value["stat_id"] == rec["stat_id"]))
+        return rec;
+    Value v = rec;
+    v["stat_id"] = Value("auto");
+    return v;
+}
+
+struct Pin {
+    std::string registry, id;
+    int64_t stat_id;
+};
+
+// Every explicit stat id the content records ship: vehicles, vehicle packages, entrant lists and the scenario ids
+// of packages whose database block is their own.
+inline std::vector<Pin> pins(registry::Store &st)
+{
+    std::vector<Pin> out;
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    for (const char *reg : {"vehicle.package", "vehicle", "content.package"})
+        for (auto &id : in_load_order(st, reg)) {
+            const Value *found = lookup(reg, id);
+            if (!found)
+                continue;
+            Value own = own_ids(st, reg, id, *found);
+            const Value *rec = &own;
+            if (int64_t p = pin_of(*rec); p >= 0)
+                out.push_back({reg, id, p});
+            if (std::string_view(reg) != "content.package")
+                continue;
+            const Value &db = (*rec)["database"];
+            bool mine = !db["entrant_list"].is_string() || db["entrant_list"].as_string() == (*rec)["entrant_list"].as_string();
+            if (mine && db["scenario_stat_id"].is_int())
+                out.push_back({SCENARIO_IDS, id, db["scenario_stat_id"].as_int()});
+        }
+    return out;
+}
+
+struct Expansion {
+    explicit Expansion(rows::Base base) : engine(std::move(base)) {}
+
+    rows::Engine engine;
+    std::map<std::string, std::size_t> fresh, addon_fresh;
+    std::map<std::string, std::vector<std::string>> lines;
+    std::map<std::string, int> records, refused;
+    std::vector<Redirect> redirects;
+    std::set<std::string> owners;
+};
+
+inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const std::set<std::string> &skip = {})
+{
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    Source source = [&x](const std::string &key) -> std::optional<Stock> {
+        auto r = x.engine.get(gvdb::fnv64(key));
+        if (!r)
+            return std::nullopt;
+        return Stock{r->tag, r->text};
+    };
+    for (const char *reg : ROW_REGISTRIES) {
+        auto &lines = x.lines[reg];
+        for (auto &id : in_load_order(st, reg)) {
+            const Value *found = lookup(reg, id);
+            if (!found)
+                continue;
+            std::string owner = addon_of(id);
+            if (skip.count(owner))
+                continue;
+            Value own = own_ids(st, reg, id, *found);
+            const Value *rec = &own;
+            Plan plan;
+            std::string r = reg;
+            if (r == "engine_sound")
+                lower_engine_sound(id, *rec, plan);
+            else if (r == "vehicle.package")
+                lower_vehicle_package(id, *rec, plan, stat);
+            else if (r == "vehicle")
+                lower_vehicle(id, *rec, lookup, source, plan, stat);
+            else
+                lower_package(id, *rec, lookup, plan, stat);
+            x.engine.add_fields(plan.fields);
+            x.engine.attribute(owner, reg);
+            std::size_t mark = x.engine.mark();
+            std::string why;
+            for (std::size_t i = 0; i < plan.ops.size() && why.empty(); i++)
+                why = x.engine.apply(plan.ops[i]);
+            if (!why.empty() || (plan.refused && plan.ops.size() == 0)) {
+                x.engine.rollback(mark);
+                x.refused[reg]++;
+                lines.push_back(std::string(reg) + " " + id + ": not applied: " +
+                                (why.empty() ? (plan.lines.empty() ? std::string("it lowers to nothing")
+                                                                   : plan.lines.back())
+                                             : why));
+                continue;
+            }
+            x.engine.commit();
+            x.records[reg]++;
+            x.owners.insert(owner);
+            for (auto &l : plan.lines)
+                lines.push_back(l);
+            for (auto &rd : plan.redirects)
+                x.redirects.push_back(rd);
+        }
+    }
+    for (auto &l : x.engine.lines)
+        x.lines["content.package"].push_back(l);
+    for (auto &w : x.engine.writes())
+        if (w.fresh) {
+            x.fresh[w.registry]++;
+            x.addon_fresh[w.owner]++;
+        }
+}
+
+// Whole addons in load order while their new keys fit the room; the rest are left out before anything is
+// expanded, so the rows of the addons after a refused one stay contiguous.
+struct Admission {
+    std::set<std::string> skip;
+    std::vector<std::pair<std::string, std::size_t>> refused;
+};
+
+inline Admission admit(const std::vector<std::string> &order, const std::map<std::string, std::size_t> &fresh,
+                       uint64_t room)
+{
+    Admission a;
+    uint64_t left = room;
+    for (auto &addon : order) {
+        auto it = fresh.find(addon);
+        if (it == fresh.end() || !it->second)
+            continue;
+        if (it->second <= left) {
+            left -= it->second;
+            continue;
+        }
+        a.skip.insert(addon);
+        a.refused.push_back({addon, it->second});
+    }
+    return a;
+}
+
+inline const char *tag_name(int tag)
+{
+    switch (tag) {
+    case 0:
+        return "int";
+    case 1:
+        return "float";
+    case 2:
+        return "string";
+    case 3:
+        return "enum";
+    case 4:
+        return "id";
+    case 5:
+        return "bool";
+    case 6:
+        return "time";
+    case 7:
+        return "t7";
+    case 8:
+        return "t8";
+    case 9:
+        return "curve";
+    case 11:
+        return "colour";
+    case 12:
+        return "t12";
+    case 13:
+        return "list";
+    case 14:
+        return "vector";
+    case 17:
+        return "t17";
+    case 18:
+        return "t18";
+    }
+    return "";
+}
+
+}

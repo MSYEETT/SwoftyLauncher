@@ -3,6 +3,7 @@
 #include "../hooks/hooks.hpp"
 #include "../registry/table.hpp"
 #include "../runtime.hpp"
+#include "content/appliers.hpp"
 #include "database.hpp"
 #include "facts.hpp"
 #include "scheduler.hpp"
@@ -391,6 +392,7 @@ void on_stage(int stage)
 void attach()
 {
     std::call_once(attached, [] {
+        content::register_appliers();
         Scheduler &s = scheduler();
         s.set_log([](const std::string &line) { swofty::log("%s", line.c_str()); });
         s.set_facts(facts);

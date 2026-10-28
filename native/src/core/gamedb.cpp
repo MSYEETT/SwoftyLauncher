@@ -77,6 +77,7 @@ namespace room = swofty_core::apply::room;
 room::Report room_report;
 std::string reserve_off = "the reserve site is not hooked";
 std::atomic<bool> done{false};
+bool older_refused = false;
 std::mutex edits_lock;
 std::map<int, void *> class_vt;
 uintptr_t base;
@@ -396,6 +397,7 @@ void apply(uint8_t *db, const char *when)
         return;
     runtime::Robin map{db + DB_MAP};
     if (!map.sane()) {
+        older_refused = true;
         swofty::log("[assets] gamedb: database at %p (%s): its map looks wrong; no edit applied", static_cast<void *>(db), when);
         return;
     }
@@ -411,6 +413,7 @@ void apply(uint8_t *db, const char *when)
     room_report.older_new = fresh;
     uint64_t slots = map.mask() + 1;
     if (!dbread::fits_without_growing(before, fresh + PROBE_RECORDS, slots, 0)) {
+        older_refused = true;
         swofty::log("[assets] gamedb: the edits add %zu record(s) to %llu, and the game's database map grows at %llu "
                     "(80%% of %llu slots); growing it after the game has loaded crashes the game at boot, so no edit "
                     "applied and the database is the game's own",
@@ -498,11 +501,30 @@ void boot16(uint8_t *db)
         return;
     runtime::Robin map{db + DB_MAP};
     bool sane = map.sane();
-    ap::db::staging().open([db, sane](const std::string &path) {
-        return sane && !path.empty() && value_of(db, runtime::fnv64(path)) != nullptr;
-    });
+    uint64_t slots = sane ? map.mask() + 1 : 0, before = sane ? map.count() : 0;
+    uint64_t left = sane ? room::left(slots, before) : 0;
+    uint64_t usable = left > room::PROBE_RECORDS ? left - room::PROBE_RECORDS : 0;
+    ap::db::staging().open(
+        [db, sane](const std::string &path) {
+            return sane && !path.empty() && value_of(db, runtime::fnv64(path)) != nullptr;
+        },
+        usable);
     ap::moments::boot_load(room_report);
     std::vector<ap::db::Row> rows = ap::db::staging().close();
+    uint64_t early_refused = 0;
+    for (auto &r : ap::db::staging().take_refusals()) {
+        std::string names;
+        for (auto &reg : r.registries)
+            names += (names.empty() ? "" : ", ") + reg;
+        std::string why = names + " database record(s) refused: " + std::to_string(r.keys) +
+                          " new key(s), past the database room (" + std::to_string(left) + " records left this game start)";
+        swofty::log("[registry] register: %s %s", r.addon.c_str(), why.c_str());
+        for (auto &reg : r.registries)
+            swofty_core::registry::store().note_refusal(r.addon, reg, "", "room", why);
+        ap::moments::status(r.addon, why);
+        room_report.addons[r.addon] = {r.keys, 0};
+        early_refused += r.keys;
+    }
     std::vector<std::string> order = swofty_core::registry::store().order();
     std::map<std::string, std::vector<Edit>> by;
     std::map<std::string, std::set<std::string>> regs;
@@ -537,9 +559,7 @@ void boot16(uint8_t *db)
                 fresh.insert(e.key);
         asks.push_back({a, fresh.size(), by[a].size()});
     }
-    uint64_t slots = sane ? map.mask() + 1 : 0, before = sane ? map.count() : 0;
-    uint64_t left = sane ? room::left(slots, before) : 0;
-    room::Budget budget = room::admit(left > room::PROBE_RECORDS ? left - room::PROBE_RECORDS : 0, asks);
+    room::Budget budget = room::admit(usable, asks);
     Tally t;
     for (auto &v : budget.addons) {
         room_report.addons[v.addon] = {v.asked, v.admitted ? v.asked : 0};
@@ -559,9 +579,9 @@ void boot16(uint8_t *db)
         for (auto &e : by[v.addon])
             apply_one(db, e, t);
     }
-    room_report.registry_asked = std::max<uint64_t>(budget.asked_keys, ap::scheduler().planned_keys());
+    room_report.registry_asked = std::max<uint64_t>(budget.asked_keys + early_refused, ap::scheduler().planned_keys());
     room_report.registry_new = sane ? map.count() - before : 0;
-    room_report.registry_refused = budget.refused_keys;
+    room_report.registry_refused = budget.refused_keys + early_refused;
     room_report.loaded = sane;
     room_report.slots = slots;
     room_report.count = sane ? map.count() : 0;
@@ -661,6 +681,15 @@ void window_stage(int stage)
     }
 }
 
+}
+
+void runtime::db_older_edits(const std::function<void(uint64_t key, int tag, const std::string &text)> &fn)
+{
+    std::lock_guard<std::mutex> g(edits_lock);
+    if (older_refused)
+        return;
+    for (auto &e : edits)
+        fn(e.key, e.tag, e.value);
 }
 
 int runtime::db_add(const json::Value &entry)

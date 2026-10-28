@@ -1,159 +1,276 @@
+#include "appliers.hpp"
+
 #include "../applier.hpp"
+#include "../database.hpp"
+#include "../ids.hpp"
+#include "boot.hpp"
 #include "gvdb.hpp"
-#include "lower.hpp"
 
 #include "../../runtime.hpp"
 
 #include <swofty/mixin.hpp>
 
-#include <cstdio>
-
+#include <ctime>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <set>
+#include <unordered_map>
 
-// The core's appliers for the content registries. In 1.6.0 the rows of a package, its vehicles and their
-// packages come from the addon's build operations (db/records.json, which every launcher builds), so at
-// boot these appliers put in the records the game database edit path can take as they are: each car's
-// audio.audio_car_data records, with the bundle of the engine sound its effective record names. Era boxes
-// go into the core's era picker. Row copies (new vehicles, packages and entrant lists from layers and
-// variants) wait for the row engine of the live apply paths; the plan logs each one it leaves.
+// The core's appliers for the content registries. At boot, inside the game database load, the engine sound,
+// vehicle package, vehicle and package records become database rows: each is lowered to operations and run through
+// the row engine (rows.hpp) over the database the game loaded (the database file in the game folder under the older
+// addons' edits), and every record it writes is staged for gamedb.cpp, which applies them per addon in load order.
+// Before the load, the same expansion without stat ids counts the new keys for the value map's size. Stat ids:
+// explicit ones are pinned in the install's store, "auto" ones are allocated from the pools scan_pools finds. An
+// addon whose new keys don't fit the room left is left out whole before anything is staged, so the rows of the
+// addons after it stay contiguous. Era boxes go into the core's era picker at the window stage.
 
 namespace swofty_core::apply::content {
 
 namespace {
 
-std::unordered_map<uint64_t, gvdb::Record> &stock()
+std::recursive_mutex mu;
+
+struct Database {
+    gvdb::File file;
+    std::unordered_map<uint64_t, rows::Rec> edits;
+    bool loaded = false, ok = false;
+};
+
+struct State {
+    std::unique_ptr<Database> db;
+    std::unique_ptr<Expansion> plan, boot;
+    std::vector<std::string> boot_lines;
+    std::map<std::string, std::set<std::string>> refused;
+};
+
+State &state()
 {
-    static std::unordered_map<uint64_t, gvdb::Record> db;
-    static bool loaded = false;
-    if (!loaded) {
-        loaded = true;
-        std::wstring path = runtime::game_root() + L"\\game_package\\gamedatabases\\gamedatabases.2025.bin";
-        std::string bin;
-        if (FILE *f = _wfopen(path.c_str(), L"rb")) {
-            char buf[1 << 16];
-            for (std::size_t n; (n = fread(buf, 1, sizeof buf, f)) > 0;)
-                bin.append(buf, n);
-            fclose(f);
-        }
-        if (!gvdb::read(reinterpret_cast<const unsigned char *>(bin.data()), bin.size(), db)) {
-            swofty::log("[apply] content: the game database file is unreadable; audio copies skipped");
-            db.clear();
-        }
-    }
-    return db;
+    static State s;
+    return s;
 }
 
-Source game_source()
+std::string today()
 {
-    return [](const std::string &key) -> std::optional<Stock> {
-        auto &db = stock();
-        auto it = db.find(gvdb::fnv64(key));
-        if (it == db.end())
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+    localtime_s(&tm, &t);
+    char b[16];
+    std::strftime(b, sizeof b, "%Y-%m-%d", &tm);
+    return b;
+}
+
+void read_edits(Database &d)
+{
+    d.edits.clear();
+    runtime::db_older_edits([&d](uint64_t key, int tag, const std::string &text) {
+        rows::Rec r{tag, text};
+        if (r.tag < 0)
+            if (auto f = d.file.get(key))
+                r.tag = f->tag;
+        d.edits[key] = std::move(r);
+    });
+}
+
+Database &database()
+{
+    State &s = state();
+    if (!s.db)
+        s.db = std::make_unique<Database>();
+    Database &d = *s.db;
+    if (d.loaded)
+        return d;
+    d.loaded = true;
+    std::wstring path = runtime::game_root() + L"\\game_package\\gamedatabases\\gamedatabases.2025.bin";
+    d.ok = d.file.load(runtime::read_file(path));
+    if (!d.ok) {
+        swofty::log("[apply] content: the game database file is unreadable; no content rows are applied");
+        return d;
+    }
+    read_edits(d);
+    swofty::log("[apply] content: read %zu record(s) from the game database file and %zu older addon edit(s)",
+                d.file.size(), d.edits.size());
+    return d;
+}
+
+rows::Base base_of(Database &d)
+{
+    return [&d](uint64_t key) -> std::optional<rows::Rec> {
+        if (auto it = d.edits.find(key); it != d.edits.end())
+            return it->second;
+        if (auto r = d.file.get(key))
+            return rows::Rec{r->tag, std::move(r->text)};
+        return std::nullopt;
+    };
+}
+
+bool has_records(Store &st)
+{
+    for (const char *reg : ROW_REGISTRIES)
+        if (!in_load_order(st, reg).empty())
+            return true;
+    return false;
+}
+
+Expansion &plan_run(Store &st)
+{
+    State &s = state();
+    if (!s.plan) {
+        Database &d = database();
+        s.plan = std::make_unique<Expansion>(base_of(d));
+        if (d.ok)
+            expand(st, *s.plan, {});
+    }
+    return *s.plan;
+}
+
+void define_pools(Database &d, std::vector<std::string> &lines, std::map<std::string, PoolScan> &scans)
+{
+    rows::Base base = base_of(d);
+    auto text = [&base](const std::string &path) -> std::optional<std::string> {
+        auto r = base(gvdb::fnv64(path));
+        if (!r)
             return std::nullopt;
-        return Stock{it->second.tag, it->second.text};
+        return r->text;
     };
-}
-
-Lookup store_lookup(Store &st, std::map<std::string, Value> &keep)
-{
-    return [&st, &keep](const std::string &reg, const std::string &id) -> const Value * {
-        std::string k = reg + "|" + id;
-        auto it = keep.find(k);
-        if (it != keep.end())
-            return &it->second;
-        auto rec = st.get(reg, id);
-        if (rec.status != registry::Status::ok)
-            return nullptr;
-        return &(keep[k] = rec.value);
-    };
-}
-
-Plan lower(Store &st, const char *registry)
-{
-    std::map<std::string, Value> keep;
-    Lookup lookup = store_lookup(st, keep);
-    Source source = game_source();
-    Plan plan;
-    std::string reg = registry;
-    for (auto &id : st.list(reg, "")) {
-        const Value *rec = lookup(reg, id);
-        if (!rec)
-            continue;
-        if (reg == "engine_sound")
-            lower_engine_sound(id, *rec, plan);
-        else if (reg == "vehicle.package")
-            lower_vehicle_package(id, *rec, plan);
-        else if (reg == "vehicle")
-            lower_vehicle(id, *rec, lookup, source, plan);
-        else if (reg == "content.package")
-            lower_package(id, *rec, lookup, plan);
-        else if (reg == "era.box")
-            lower_box(id, *rec, lookup, plan);
+    for (auto &scan : scan_pools(text)) {
+        ids::Pool pool;
+        if (scan.lo <= scan.hi)
+            pool.ranges.push_back({scan.lo, scan.hi});
+        ids::store().define_pool(scan.registry, pool);
+        lines.push_back("stat-id pool for " + scan.registry + ": " +
+                        (scan.lo <= scan.hi ? std::to_string(scan.lo) + "-" + std::to_string(scan.hi) : std::string("none")) +
+                        " (" + scan.table + " holds ids to " + std::to_string(scan.lo - 1) + ")");
+        scans[scan.registry] = std::move(scan);
     }
-    return plan;
 }
 
-std::string unhex(std::string_view h)
+void pin_all(Store &st, const std::map<std::string, PoolScan> &scans, std::vector<std::string> &lines)
 {
-    std::string out;
-    for (std::size_t i = 0; i + 1 < h.size(); i += 2)
-        out += char(std::stoi(std::string(h.substr(i, 2)), nullptr, 16));
-    return out;
-}
-
-void submit(Plan &plan, Report &report)
-{
-    std::size_t rows = 0;
-    for (std::size_t i = 0; i < plan.ops.size(); i++) {
-        const Value &op = plan.ops[i];
-        if (op["op"].as_string() != "put-record") {
-            rows++;
+    std::string day = today();
+    for (auto &p : pins(st)) {
+        ids::Result had = ids::store().get(p.registry, p.id);
+        ids::Result r = ids::store().pin(p.registry, p.id, p.stat_id, day);
+        if (had.id != p.stat_id || r.line.find("also holds") != std::string::npos)
+            swofty::log("%s", r.line.c_str());
+        auto scan = scans.find(p.registry);
+        if (scan == scans.end())
             continue;
-        }
-        json::Value e;
-        std::string text = "{\"key\":" + swofty::json::dump(op["key"]) + ",\"type\":" + std::to_string(op["type"].as_int()) +
-                           ",\"value\":" + swofty::json::dump(Value(unhex(op["value"].as_string()))) + "}";
-        if (!json::parse(text, e) || runtime::db_add(e) != SWOFTY_ASSET_OK) {
-            report.refused++;
-            report.lines.push_back("db " + std::string(op["key"].as_string()) + " refused (late or invalid)");
-            continue;
-        }
-        report.applied++;
+        auto held = scan->second.used.find(p.stat_id);
+        if (held != scan->second.used.end())
+            lines.push_back(p.registry + " " + p.id + ": stat id " + std::to_string(p.stat_id) + " is also " +
+                            scan->second.table + " row " + held->second + "'s, which the game or an older addon added");
     }
-    if (rows)
-        report.lines.push_back(std::to_string(rows) +
-                               " row operation(s) left to the addon's build operations (the core's row engine is not in "
-                               "this build)");
-    for (auto &l : plan.lines)
-        report.lines.push_back(l);
+}
+
+int64_t stat_id(const std::string &registry, const std::string &id, int64_t pin)
+{
+    if (pin >= 0)
+        return ids::store().pin(registry, id, pin, today()).id;
+    ids::Result r = ids::store().allocate(registry, id, today());
+    if (r.how != "kept" && !r.line.empty())
+        swofty::log("%s", r.line.c_str());
+    return r.id;
+}
+
+void run_boot(Store &st)
+{
+    State &s = state();
+    Database &d = database();
+    Expansion &plan = plan_run(st);
+    s.boot = std::make_unique<Expansion>(base_of(d));
+    if (!d.ok)
+        return;
+    read_edits(d);
+    std::map<std::string, PoolScan> scans;
+    define_pools(d, s.boot_lines, scans);
+    pin_all(st, scans, s.boot_lines);
+    Admission adm = admit(st.order(), plan.addon_fresh, db::staging().room());
+    for (auto &[addon, keys] : adm.refused) {
+        db::Refusal r{addon, {}, keys};
+        for (const char *reg : ROW_REGISTRIES)
+            for (auto &id : st.list(reg, addon + "/"))
+                if (addon_of(id) == addon) {
+                    r.registries.push_back(reg);
+                    s.refused[reg].insert(addon);
+                    break;
+                }
+        db::staging().refuse(std::move(r));
+    }
+    expand(st, *s.boot, stat_id, adm.skip);
+}
+
+void release_database()
+{
+    State &s = state();
+    s.boot.reset();
+    s.plan.reset();
+    s.db.reset();
 }
 
 class Rows : public Applier {
 public:
-    explicit Rows(const char *registry, Applies applies) : registry_(registry), applies_(applies) {}
+    explicit Rows(const char *registry) : registry_(registry) {}
     const char *registry() const override { return registry_; }
-    Applies applies() const override { return applies_; }
-    std::size_t database_keys(Store &st) override { return lower(st, registry_).keys; }
+    Applies applies() const override { return Applies::boot; }
+
+    std::size_t database_keys(Store &st) override
+    {
+        std::lock_guard g(mu);
+        if (!has_records(st))
+            return 0;
+        Expansion &x = plan_run(st);
+        auto it = x.fresh.find(registry_);
+        return it == x.fresh.end() ? 0 : it->second;
+    }
+
     void boot(Store &st, Report &report) override
     {
-        Plan plan = lower(st, registry_);
-        submit(plan, report);
+        std::lock_guard g(mu);
+        State &s = state();
+        if (!has_records(st))
+            return;
+        if (!db::staging().available()) {
+            for (auto &id : st.list(registry_, ""))
+                if (id.rfind("game/", 0) != 0)
+                    report.refused++;
+            report.lines.push_back("the game database is not reachable at this boot; no rows applied");
+            return;
+        }
+        bool first = !s.boot;
+        if (first)
+            run_boot(st);
+        if (first)
+            for (auto &l : s.boot_lines)
+                report.lines.push_back(l);
+        Expansion &x = *s.boot;
+        std::size_t staged = 0;
+        for (auto &w : x.engine.writes()) {
+            if (w.registry != registry_)
+                continue;
+            const char *type = tag_name(w.tag);
+            if (!*type) {
+                report.lines.push_back(w.path + ": tag " + std::to_string(w.tag) + " stores nothing; not staged");
+                continue;
+            }
+            staged += db::staging().set(w.owner, w.registry, w.path, type, w.text);
+        }
+        report.applied = int(x.records[registry_]);
+        report.refused = int(x.refused[registry_]);
+        for (auto &addon : s.refused[registry_]) {
+            report.refused++;
+            report.lines.push_back(addon + ": left out for room (see the [registry] room line)");
+        }
+        report.lines.push_back(std::to_string(staged) + " database record(s) staged");
+        for (auto &l : x.lines[registry_])
+            report.lines.push_back(l);
+        if (std::string_view(registry_) == ROW_REGISTRIES[std::size(ROW_REGISTRIES) - 1])
+            release_database();
     }
 
 private:
     const char *registry_;
-    Applies applies_;
-};
-
-class Packages : public Rows {
-public:
-    Packages() : Rows("content.package", Applies::content) {}
-    void activate(Store &, const Context &, Report &report) override
-    {
-        report.lines.push_back("content.package: no box rules to apply in this build");
-    }
-    void deactivate(Store &, Report &) override {}
 };
 
 class Boxes : public Applier {
@@ -162,7 +279,12 @@ public:
     Applies applies() const override { return Applies::read; }
     void install_read(Store &st, Report &report) override
     {
-        Plan plan = lower(st, "era.box");
+        std::map<std::string, Value> keep;
+        Lookup lookup = store_lookup(st, keep);
+        Plan plan;
+        for (auto &id : in_load_order(st, "era.box"))
+            if (const Value *rec = lookup("era.box", id))
+                lower_box(id, *rec, lookup, plan);
         const SwoftyEra *era = runtime::era_table();
         for (auto &b : plan.boxes) {
             SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order};
@@ -171,7 +293,9 @@ public:
                 report.applied++;
             else
                 report.refused++;
-            report.lines.push_back("era.box " + b.id + ": " + b.entrant_list + (rc == SWOFTY_ASSET_OK ? " registered" : " not registered (a box for it exists or the picker is off)"));
+            report.lines.push_back("era.box " + b.id + ": " + b.entrant_list +
+                                   (rc == SWOFTY_ASSET_OK ? " registered"
+                                                          : " not registered (a box for it exists or the picker is off)"));
         }
         for (auto &l : plan.lines)
             report.lines.push_back(l);
@@ -182,11 +306,12 @@ public:
 
 void register_appliers()
 {
-    make<Rows>("engine_sound", Applies::boot);
-    make<Rows>("vehicle.package", Applies::boot);
-    make<Rows>("vehicle", Applies::boot);
-    make<Packages>();
-    make<Boxes>();
+    static std::once_flag once;
+    std::call_once(once, [] {
+        for (const char *reg : ROW_REGISTRIES)
+            make<Rows>(reg);
+        make<Boxes>();
+    });
 }
 
 }

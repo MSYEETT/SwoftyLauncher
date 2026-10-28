@@ -59,6 +59,11 @@ game folders (build_helmets.py, old_helmets.py). The core addon holds the season
 (assets/helmets.json), then the rows of the designs a look wears. Item ids, in data/helmets.json order, an "off"
 entry's id unused: the first FIRST_SEASON_HELMETS season helmets from HELMET_IDS.stop, then the designs, then the later
 season helmets.
+
+Each season also registers its engine sounds, vehicle packages, vehicles, package and era box as 1.6 records in
+registry/content.json. db/records.json holds the operations those records cover, which launchers before 1.6 build;
+registry.json names it in replaced_operations, and a 1.6 launcher leaves it to the core. A record's stat_id is the id
+its row had in 0.6.4 (data/stat_ids.json, tools/stat_ids.py), and a package's database.scenario_stat_id its scenario's.
 """
 
 import json
@@ -79,6 +84,7 @@ STOCK = json.loads((ROOT / "data" / "stock_looks.json").read_text())
 DRIVER_FIELDS = json.loads((ROOT / "data" / "driver_fields.json").read_text())
 SETUP_PRESET_FIELDS = json.loads((ROOT / "data" / "setup_preset_fields.json").read_text())
 TEAM_COLOURS = json.loads((ROOT / "data" / "team_colours.json").read_text())
+STAT_IDS = json.loads((ROOT / "data" / "stat_ids.json").read_text())
 REAL_HEADS = heads.shipped()
 HEAD_ROWS = "entrants.animation.driver_heads"
 
@@ -291,11 +297,18 @@ def own_helmet(driver):
     raise SystemExit(f"{driver}: no period helmet, stock helmet or design in data/helmets.json")
 
 
+def stat_id(registry, label):
+    if label not in STAT_IDS[registry]:
+        raise SystemExit(f"{registry} {label}: no stat id in data/stat_ids.json (tools/stat_ids.py)")
+    return STAT_IDS[registry][label]
+
+
 def package_ops(records, label, resource_path, shared, animation, halo):
     blob = f"eaid://{shared}/shared/ao/materials/blobshadowdecal.material"
     records["vehicle.package"][label] = {"donor": "game/f1_2025", "resource_path": resource_path,
                                          "driver_animation_set": animation, "halo": halo,
-                                         "setups_from": "game/f1_2025", "blob_shadow_decal": blob}
+                                         "setups_from": "game/f1_2025", "blob_shadow_decal": blob,
+                                         "stat_id": stat_id("vehicle.package", label)}
     return [{"op": "add-row", "table": "entrants.vehicles.vehicle_packages",
              "from": "entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]",
              "set": {"_metadata_": label, "resource_path": resource_path, "blob_shadow_decal": blob,
@@ -307,7 +320,7 @@ def package_ops(records, label, resource_path, shared, animation, halo):
 
 def vehicle_record(own, donor, row, car):
     record = {"label": row["_metadata_"], "donor": f"game/{donor}", "performance_tier": int(row["performance_tier"]),
-              "tyre_wear_scale": float(row["tyre_wear_scale"])}
+              "tyre_wear_scale": float(row["tyre_wear_scale"]), "stat_id": stat_id("vehicle", row["_metadata_"])}
     if "vehicle_package" in row:
         record["package"] = f"{own}/{row['vehicle_package']}"
     if "asset_filename" in row:
@@ -334,8 +347,9 @@ def package_record(own, season, year, list_label, standings, wide, index):
     if wide:
         rows.update(season="season_2025", ui_path="f1_2023")
     return {"title": f"lng_cs_f1_{year}", "entrant_list": list_label, "season": year, "teams": teams,
-            "stat_id": SCENARIO_STAT_BASE + index,
-            "database": {"entrant_list_from": "f1_2026" if wide else "f1_2025", "entrant_list_set": rows,
+            "stat_id": stat_id("content.package", list_label),
+            "database": {"entrant_list": list_label, "scenario_stat_id": SCENARIO_STAT_BASE + index,
+                         "entrant_list_from": "f1_2026" if wide else "f1_2025", "entrant_list_set": rows,
                          "standings": standings, "standings_from": "f1_teams_2026" if wide else "f1_teams_2024",
                          "entrant_prefix": f"cs{year}-", "looks": looks, "content_sets": list(CONTENT_SETS)}}
 
@@ -595,6 +609,7 @@ def build():
         write_json(folder / "db" / "season.json", {"schema_version": 1, "fields": season_fields, "ops": ops})
         write_json(folder / "db" / "records.json", {"schema_version": 1, "fields": season_fields, "ops": covered})
         write_json(folder / "registry" / "content.json", {k: v for k, v in records.items() if v})
+        write_json(folder / "registry.json", {"replaced_operations": ["db/records.json"]})
         write_json(folder / "lang" / "season.json", {"schema_version": 1, "ops": text})
         (folder / ".gitignore").write_text("cars/\nsuits/\nhelmets/\nsounds/\n")
         cars = built(year)

@@ -565,6 +565,24 @@ pub fn named(store: &Store, game: &Path, e: Error) -> Error {
     e
 }
 
+/// The `registry.json` of each addon whose `replaced_operations` the core in
+/// `loader` applies instead: the core lists the rows feature and the addon has
+/// data files, which reach the core through the registry index.
+fn replaced_operations<'a>(
+    std16: &'a BTreeMap<String, crate::stdlib::deps::Std>,
+    loader: Option<&Path>,
+) -> BTreeMap<&'a str, &'a crate::stdlib::manifest::RegistryManifest> {
+    if !loader.is_some_and(crate::stdlib::manifest::core_applies_rows) {
+        return BTreeMap::new();
+    }
+    std16
+        .iter()
+        .filter(|(_, s)| !s.data_files.is_empty())
+        .filter_map(|(id, s)| Some((id.as_str(), s.registry.as_ref()?)))
+        .filter(|(_, r)| !r.replaced_operations.is_empty())
+        .collect()
+}
+
 /// A `checking` build gives addon build hooks a host that lists addons but
 /// cannot install, remove, turn on or move them.
 pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool) -> Result<Built> {
@@ -739,6 +757,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     }
     let mut head_puts = crate::heads::Puts::default();
     let mut outputs = BTreeMap::new();
+    let replaced = replaced_operations(&std16, loader_dir().as_deref());
+    let mut left_to_core = false;
     for id in &resolved.order {
         let m = &addons[id];
         let mut out = OutputBuilder::default();
@@ -770,6 +790,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         for (kind, rel) in m.operations.op_files() {
             if package.is_some() && kind == FileKind::Database {
+                continue;
+            }
+            if replaced.get(id.as_str()).is_some_and(|r| r.replaces(rel)) {
+                left_to_core = true;
+                hasher.update(format!("replaced {rel};"));
+                built.lines.push(format!(
+                    "registry: {}: {rel} is applied by the core from the addon's registry records",
+                    m.name
+                ));
                 continue;
             }
             let file = render_file(&dir.join(rel), kind, m, &p, &mut hasher)?;
@@ -894,6 +923,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         outputs.insert(id.clone(), out.finish());
     }
+    // The core applies registry records at boot only when it loads at the early stage.
+    runtime.assets.early_stage |= left_to_core;
     if head_puts.pending() {
         let path = original(&store.root, game, GVDB);
         let stock = crate::heads::labels(&Gvdb::parse(&std::fs::read(&path).map_err(io_err(&path))?)?);
@@ -2129,6 +2160,52 @@ mod tests {
     use crate::asset::{FileOp, Root, Source};
     use crate::baseline::Identity;
     use crate::launcher::{Addon, Builtin};
+
+    #[test]
+    fn only_a_core_with_the_rows_feature_takes_the_replaced_operations_of_addons_with_data_files() {
+        let root = std::env::temp_dir().join(format!("swofty-replaced-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let features = root.join(crate::planner::FEATURES_FILE);
+        std::fs::create_dir_all(features.parent().unwrap()).unwrap();
+        let std = |id: &str, data: bool, registry: Option<&str>| crate::stdlib::deps::Std {
+            id: id.into(),
+            name: id.into(),
+            version: semver::Version::new(1, 0, 0),
+            registry: registry.map(|r| crate::stdlib::manifest::RegistryManifest::parse(r).unwrap()),
+            lock: None,
+            data_files: match data {
+                true => vec!["registry/content.json".into()],
+                false => Vec::new(),
+            },
+            records: Vec::new(),
+            unreadable: Vec::new(),
+        };
+        let replaces = r#"{ "replaced_operations": ["db/records.json"] }"#;
+        let std16 = BTreeMap::from([
+            ("a.season".to_owned(), std("a.season", true, Some(replaces))),
+            ("b.nodata".to_owned(), std("b.nodata", false, Some(replaces))),
+            (
+                "c.plain".to_owned(),
+                std("c.plain", true, Some(r#"{ "requires": [] }"#)),
+            ),
+            ("d.old".to_owned(), std("d.old", true, None)),
+        ]);
+        assert!(replaced_operations(&std16, None).is_empty(), "no loader");
+        std::fs::write(&features, r#"{ "schema": 1, "features": { "db": "stable" } }"#).unwrap();
+        assert!(
+            replaced_operations(&std16, Some(&root)).is_empty(),
+            "a core without the rows feature"
+        );
+        std::fs::write(
+            &features,
+            r#"{ "schema": 1, "features": { "db": "stable", "registry_rows": "stable" } }"#,
+        )
+        .unwrap();
+        let r = replaced_operations(&std16, Some(&root));
+        assert_eq!(r.keys().copied().collect::<Vec<_>>(), ["a.season"]);
+        assert!(r["a.season"].replaces("db/records.json") && !r["a.season"].replaces("db/season.json"));
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     #[test]
     fn a_missing_or_cut_short_file_names_its_addon_or_the_game() {

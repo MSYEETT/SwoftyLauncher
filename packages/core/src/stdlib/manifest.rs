@@ -1,8 +1,9 @@
 //! `registry.json`, next to an addon's `swofty.json`: what the addon needs
 //! and recommends, the addon versions it breaks or conflicts with, the ids it
-//! was published under before, and guards for addons without code. Launchers
-//! of 1.5 and earlier never open it. Every field is optional; a field or an
-//! entry this launcher doesn't know is kept in `extra` and ignored.
+//! was published under before, guards for addons without code, and the build
+//! operation files its data files replace. Launchers of 1.5 and earlier never
+//! open it. Every field is optional; a field or an entry this launcher doesn't
+//! know is kept in `extra` and ignored.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -12,6 +13,10 @@ use serde_json::Value;
 use super::range::Range;
 
 pub const FILE: &str = "registry.json";
+
+/// The capability in the loader's `features.json` of a core that applies the
+/// content registries' data-file records as database rows at boot.
+pub const ROWS_FEATURE: &str = "registry_rows";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {
@@ -65,6 +70,10 @@ pub struct RegistryManifest {
     pub aliases: Vec<String>,
     pub saves_careers: Option<String>,
     pub guards: Vec<Value>,
+    /// Build operation files (paths as `swofty.json`'s `operations` lists
+    /// them) that the addon's data files replace: a launcher whose core
+    /// applies those records leaves them out of the build.
+    pub replaced_operations: Vec<String>,
     /// Entries this launcher couldn't read, as `<field>[<index>]: <why>`; they are ignored.
     pub skipped: Vec<String>,
     /// Top-level fields this launcher doesn't know, kept as they are.
@@ -112,6 +121,16 @@ impl RegistryManifest {
                     out.saves_careers = v.get("careers").and_then(Value::as_str).map(str::to_owned);
                 }
                 "guards" => out.guards = array(&v).map(|(_, g)| g.clone()).collect(),
+                "replaced_operations" => {
+                    for (i, f) in array(&v) {
+                        match f.as_str().map(op_path).filter(|f| !f.is_empty()) {
+                            Some(f) => out.replaced_operations.push(f),
+                            None => out
+                                .skipped
+                                .push(format!("replaced_operations[{i}]: not a file path")),
+                        }
+                    }
+                }
                 _ => {
                     out.extra.insert(key, v);
                 }
@@ -128,7 +147,41 @@ impl RegistryManifest {
             && self.aliases.is_empty()
             && self.saves_careers.is_none()
             && self.guards.is_empty()
+            && self.replaced_operations.is_empty()
     }
+
+    /// Whether `rel`, an operation file of the addon's `swofty.json`, is one
+    /// its data files replace.
+    pub fn replaces(&self, rel: &str) -> bool {
+        let rel = op_path(rel);
+        self.replaced_operations.contains(&rel)
+    }
+}
+
+/// An operation file path as `swofty.json` lists it, compared without a
+/// leading `./` and with `/` separators.
+pub fn op_path(rel: &str) -> String {
+    let rel = rel.trim().replace('\\', "/");
+    rel.strip_prefix("./").unwrap_or(&rel).to_owned()
+}
+
+/// Whether the core in `loader` (a loader folder) applies the content
+/// registries' data-file records itself: its `features.json` lists
+/// [`ROWS_FEATURE`].
+pub fn core_applies_rows(loader: &Path) -> bool {
+    let path = loader.join(crate::planner::FEATURES_FILE);
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return false;
+    };
+    serde_json::from_str::<Value>(&text)
+        .ok()
+        .and_then(|v| {
+            v.get("features")?
+                .get(ROWS_FEATURE)?
+                .as_str()
+                .map(|l| l == "stable")
+        })
+        .unwrap_or(false)
 }
 
 fn array(v: &Value) -> impl Iterator<Item = (usize, &Value)> {
@@ -293,6 +346,42 @@ mod tests {
                 .unwrap_err()
                 .contains("not valid JSON")
         );
+    }
+
+    #[test]
+    fn replaced_operations_name_files_as_swofty_json_lists_them() {
+        let m = RegistryManifest::parse(
+            r#"{ "replaced_operations": ["db/records.json", "./db\\more.json", 3, ""] }"#,
+        )
+        .unwrap();
+        assert_eq!(m.replaced_operations, ["db/records.json", "db/more.json"]);
+        assert_eq!(m.skipped.len(), 2, "{:?}", m.skipped);
+        assert!(m.replaces("db/records.json") && m.replaces("./db/records.json"));
+        assert!(m.replaces("db/more.json") && !m.replaces("db/season.json"));
+        assert!(!m.is_empty());
+    }
+
+    #[test]
+    fn only_a_core_that_lists_the_rows_feature_applies_rows() {
+        let dir = std::env::temp_dir().join(format!("swofty-rowsfeature-{}", std::process::id()));
+        let file = dir.join(crate::planner::FEATURES_FILE);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        assert!(!core_applies_rows(&dir), "no features.json");
+        std::fs::write(&file, r#"{ "schema": 1, "features": { "db": "stable" } }"#).unwrap();
+        assert!(!core_applies_rows(&dir), "a 1.5 core");
+        std::fs::write(
+            &file,
+            r#"{ "schema": 1, "features": { "db": "stable", "registry_rows": "experimental" } }"#,
+        )
+        .unwrap();
+        assert!(!core_applies_rows(&dir));
+        std::fs::write(
+            &file,
+            r#"{ "schema": 1, "features": { "db": "stable", "registry_rows": "stable" } }"#,
+        )
+        .unwrap();
+        assert!(core_applies_rows(&dir));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
