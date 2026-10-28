@@ -99,6 +99,11 @@ public:
     // The same as (path, fields) pairs.
     const std::vector<std::pair<std::string, std::vector<std::string>>> &keyed_lists() const noexcept;
 
+    // A variant's value merged onto its base the way tools/std/stdschema.merge_patch does it: null removes
+    // a field, objects merge, a keyed list merges element by element ("$delete": true removes one, an
+    // element without its key fields is appended, an empty list changes nothing), any other value replaces.
+    swofty::json::Value merge(const swofty::json::Value &base, const swofty::json::Value &patch) const;
+
     struct Impl;
 
 private:
@@ -110,10 +115,12 @@ private:
 // or, for a layers file, {"<registry>": {"<namespace>/<key>": merge patch, "$select": [selector entries]}}.
 // Mirrors validate_data in tools/std/validate.py, with two rules of 1.6:
 //
-// - A record's key is the addon's own and may hold "/" ("2017/game/lewis_hamilton"), but not an empty
-//   part (a leading, trailing or doubled "/").
-// - A record with "extends" is a variant: its value is a merge patch on the base, so it is checked in
-//   patch mode, and, when DataOptions::base knows the base, the merged result is checked as a record.
+// - A record's key is the addon's own and may hold "/" ("2017/game/lewis_hamilton"), but no whitespace,
+//   '?', '|' or '*', no leading '/' or '$', and no empty part (stdschema.valid_key).
+// - A record with "extends" is a variant (validate.py's validate_variant): "extends" must be a full
+//   record id, the rest is checked in patch mode, and, when DataOptions::base finds the base, the
+//   effective value (the base's own effective value, through variants of variants, with this record
+//   merged on by Schema::merge) is checked as a record too. A loop of bases is a problem at /extends.
 struct DataSchemas {
     // The schemas to check a registry's records against (every minor of a major in CI; the core's one).
     std::vector<std::pair<std::string, const Schema *>> versions;
@@ -122,8 +129,9 @@ struct DataSchemas {
     std::string missing;
 };
 
-// The current value of a variant's base (registry, the base's full id), or null when it isn't known yet.
-// The value only needs to live through the call.
+// A variant's base by (registry, the base's full id): the record as written, which may extend another
+// (the check follows the chain), or null when it isn't known. The value only needs to live through the
+// call.
 using BaseResolver = std::function<const swofty::json::Value *(std::string_view registry, std::string_view id)>;
 
 struct DataOptions {

@@ -2028,6 +2028,97 @@ const std::vector<std::pair<std::string, std::vector<std::string>>> &Schema::key
     return impl_->keyed;
 }
 
+namespace schema_detail {
+
+int child_of(const Schema::Impl &m, int node, std::string_view name)
+{
+    if (node < 0)
+        return -1;
+    const Node &n = m.nodes[static_cast<std::size_t>(node)];
+    if (n.kind != Node::Kind::check)
+        return -1;
+    int p = n.property(name);
+    if (p >= 0)
+        return p;
+    return n.extra >= 0 ? n.extra : -1;
+}
+
+Value merge_node(const Schema::Impl &m, int node, const Value &base, const Value &patch, int depth);
+
+std::optional<std::string> element_key(const Value &e, const std::vector<std::string> &fields)
+{
+    auto *o = e.if_object();
+    if (!o)
+        return std::nullopt;
+    std::string key;
+    for (auto &f : fields) {
+        auto *v = o->find(f);
+        if (!v)
+            return std::nullopt;
+        key += canonical(*v);
+        key += '\x1f';
+    }
+    return key;
+}
+
+Value merge_keyed(const Schema::Impl &m, int node, const Value &base, const Array &patch, int depth)
+{
+    const Node &n = m.nodes[static_cast<std::size_t>(node)];
+    Array out = base.is_array() ? *base.if_array() : Array();
+    for (auto &element : patch) {
+        auto k = element_key(element, n.key_fields);
+        if (!k) {
+            out.push_back(element);
+            continue;
+        }
+        std::size_t at = out.size();
+        for (std::size_t i = 0; i < out.size(); ++i)
+            if (element_key(out[i], n.key_fields) == k) {
+                at = i;
+                break;
+            }
+        auto *del = element.find("$delete");
+        if (del && del->is_bool() && del->as_bool()) {
+            if (at < out.size())
+                out.erase(out.begin() + static_cast<std::ptrdiff_t>(at));
+            continue;
+        }
+        if (at == out.size())
+            out.push_back(merge_node(m, n.items, Value::object(), element, depth + 1));
+        else
+            out[at] = merge_node(m, n.items, out[at], element, depth + 1);
+    }
+    return Value(std::move(out));
+}
+
+Value merge_node(const Schema::Impl &m, int node, const Value &base, const Value &patch, int depth)
+{
+    auto *p = patch.if_object();
+    if (!p || depth > 512)
+        return patch;
+    Value out = base.is_object() ? base : Value::object();
+    for (auto &[name, value] : *p) {
+        if (value.is_null()) {
+            out.erase(name);
+            continue;
+        }
+        int sub = child_of(m, node, name);
+        const Value *cur = out.find(name);
+        Value next = sub >= 0 && m.nodes[static_cast<std::size_t>(sub)].keyed && value.is_array()
+                         ? merge_keyed(m, sub, cur ? *cur : Value(), *value.if_array(), depth + 1)
+                         : merge_node(m, sub, cur ? *cur : Value(), value, depth + 1);
+        out[name] = std::move(next);
+    }
+    return out;
+}
+
+} // namespace schema_detail
+
+swofty::json::Value Schema::merge(const swofty::json::Value &base, const swofty::json::Value &patch) const
+{
+    return merge_node(*impl_, impl_->root, base, patch, 0);
+}
+
 bool is_record_id(std::string_view id)
 {
     return schema_detail::record_id_ok(id);
@@ -2035,7 +2126,25 @@ bool is_record_id(std::string_view id)
 
 bool is_record_key(std::string_view key)
 {
-    return !key.empty() && key.front() != '/' && key.back() != '/' && key.find("//") == std::string_view::npos;
+    if (!key.empty() && key.back() == '/')
+        return false;
+    if (key.find("//") != std::string_view::npos)
+        return false;
+    std::string_view body = key;
+    if (!body.empty() && body.back() == '\n')
+        body.remove_suffix(1);
+    std::u32string cps;
+    schema_detail::decode(body, cps);
+    if (cps.empty())
+        return false;
+    for (std::size_t i = 0; i < cps.size(); ++i) {
+        char32_t c = cps[i];
+        if (schema_detail::py_space(c) || c == '?' || c == '|' || c == '*')
+            return false;
+        if (i == 0 && (c == '/' || c == '$'))
+            return false;
+    }
+    return true;
 }
 
 std::string pointer_join(std::string_view base, std::string_view rel)
@@ -2112,41 +2221,121 @@ void add_errors(DataReport &report, const std::string &version, const std::vecto
         errs->push_back({path.empty() ? e.pointer : pointer_join(base, e.pointer), std::move(e.message)});
 }
 
-void validate_record(const swofty::json::Value &record, std::string_view registry, const DataSchemas &versions,
-                     const std::vector<std::string> &path, DataReport &report, bool patch, const DataOptions &options)
+void validate_plain(const swofty::json::Value &record, const DataSchemas &versions, const std::vector<std::string> &path,
+                    DataReport &report, bool patch, const DataOptions &options)
 {
-    const swofty::json::Value *extends = record.is_object() ? record.find("extends") : nullptr;
-    bool variant = !patch && extends && !extends->is_null();
     for (auto &[version, schema] : versions.versions) {
         report.touch(version);
         if (!schema)
             continue;
         Schema::Options o;
-        o.mode = patch || variant ? Schema::Mode::patch : Schema::Mode::records;
+        o.mode = patch ? Schema::Mode::patch : Schema::Mode::records;
         o.max_errors = options.max_errors;
         o.resolve = options.resolve;
         auto r = schema->validate(record, o);
-        bool clean = r.ok();
         add_errors(report, version, path, r);
-        if (!variant || !clean || !extends->is_string() || !options.base || !*options.base)
-            continue;
-        const swofty::json::Value *base = (*options.base)(registry, extends->as_string());
-        if (!base)
-            continue;
-        swofty::json::Value merged = *base;
-        swofty::json::Error merr;
-        if (!swofty::json::merge_patch(merged, record, schema->keys(), &merr)) {
-            Schema::Result m;
-            m.errors.push_back({"/", "can't be applied to its base " + std::string(extends->as_string()) + ": " + merr.message});
-            add_errors(report, version, path, m);
-            continue;
-        }
-        o.mode = Schema::Mode::records;
-        auto whole = schema->validate(merged, o);
-        for (auto &e : whole.errors)
-            e.message += " (on its base " + std::string(extends->as_string()) + ")";
-        add_errors(report, version, path, whole);
     }
+}
+
+enum class Effective { ok, unknown, loop, deep };
+
+constexpr std::size_t max_bases = 256;
+
+Effective effective(const Schema &schema, std::string_view registry, const swofty::json::Value &record,
+                    std::vector<std::string> &seen, const BaseResolver &resolve, swofty::json::Value &out, std::string &chain)
+{
+    auto *o = record.if_object();
+    if (!o)
+        return Effective::unknown;
+    swofty::json::Value own = record;
+    own.erase("extends");
+    own.erase("$protect");
+    auto *ext = o->find("extends");
+    if (!ext || ext->is_null()) {
+        out = std::move(own);
+        return Effective::ok;
+    }
+    if (!ext->is_string())
+        return Effective::unknown;
+    std::string id(ext->as_string());
+    if (std::find(seen.begin(), seen.end(), id) != seen.end()) {
+        for (auto &s : seen)
+            chain += s + " -> ";
+        chain += id;
+        return Effective::loop;
+    }
+    if (seen.size() > max_bases)
+        return Effective::deep;
+    const swofty::json::Value *base = resolve(registry, id);
+    if (!base)
+        return Effective::unknown;
+    seen.push_back(id);
+    swofty::json::Value base_value;
+    auto r = effective(schema, registry, *base, seen, resolve, base_value, chain);
+    seen.pop_back();
+    if (r != Effective::ok)
+        return r;
+    out = schema.merge(base_value, own);
+    return Effective::ok;
+}
+
+void validate_variant(const swofty::json::Value &record, std::string_view registry, const DataSchemas &versions,
+                      const std::vector<std::string> &path, DataReport &report, const DataOptions &options)
+{
+    const swofty::json::Value &ext = *record.find("extends");
+    auto at_extends = path;
+    at_extends.push_back("extends");
+    if (!(ext.is_string() && is_record_id(ext.as_string())))
+        report.problems.push_back({at_pointer(at_extends), "is the full id of the base record (<namespace>/<key>)"});
+    swofty::json::Value patch = record;
+    patch.erase("extends");
+    validate_plain(patch, versions, path, report, true, options);
+    if (!options.base || !*options.base || !ext.is_string())
+        return;
+    std::string id(ext.as_string());
+    for (auto &[version, schema] : versions.versions) {
+        if (!schema)
+            continue;
+        std::vector<std::string> seen{at_pointer(path)};
+        swofty::json::Value merged;
+        std::string chain;
+        auto r = effective(*schema, registry, record, seen, *options.base, merged, chain);
+        if (r == Effective::loop) {
+            report.problems.push_back({at_pointer(at_extends), "extends loops: " + chain});
+            return;
+        }
+        if (r == Effective::deep) {
+            report.problems.push_back({at_pointer(at_extends), "extends goes through more than " + std::to_string(max_bases) + " bases"});
+            return;
+        }
+        if (r != Effective::ok)
+            continue;
+        Schema::Options o;
+        o.max_errors = options.max_errors;
+        o.resolve = options.resolve;
+        auto whole = schema->validate(merged, o);
+        report.truncated = report.truncated || whole.truncated;
+        auto *errs = report.errors_of(version);
+        std::size_t before = errs->size();
+        std::string base = path.empty() ? std::string() : at_pointer(path);
+        for (auto &e : whole.errors) {
+            std::string where = path.empty() ? e.pointer : pointer_join(base, e.pointer);
+            bool known = false;
+            for (std::size_t i = 0; i < before && !known; ++i)
+                known = (*errs)[i].pointer == where && (*errs)[i].message == e.message;
+            if (!known)
+                errs->push_back({std::move(where), e.message + " (merged onto " + id + ")"});
+        }
+    }
+}
+
+void validate_record(const swofty::json::Value &record, std::string_view registry, const DataSchemas &versions,
+                     const std::vector<std::string> &path, DataReport &report, bool patch, const DataOptions &options)
+{
+    if (!patch && record.is_object() && record.contains("extends"))
+        validate_variant(record, registry, versions, path, report, options);
+    else
+        validate_plain(record, versions, path, report, patch, options);
 }
 
 void validate_select(const swofty::json::Value &entries, std::string_view registry, const DataSchemas &versions,
@@ -2263,7 +2452,7 @@ DataReport check_data(const swofty::json::Value &doc, const DataLookup &lookup, 
                 }
             } else if (!is_record_key(rk)) {
                 report.problems.push_back({pointer_of(path), swofty::json::dump(swofty::json::Value(rk)) +
-                                                                 ": a record's key is your own, with no empty part between '/'"});
+                                                                 " is not a record key (no spaces, '?', '|' or '*', no leading '/' or '$', no empty part)"});
             } else {
                 swofty::json::Value scratch;
                 const auto &record = strip_protect_into(value, path, report, scratch);
