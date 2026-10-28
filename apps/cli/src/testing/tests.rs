@@ -248,7 +248,10 @@ fn a_fake_game_runs_every_batch_and_puts_the_folder_back() {
 
     let crash = status_of(&report, "crashes");
     assert_eq!(crash.status, Status::Fail);
-    assert_eq!(crash.failures[0].actual, "not seen before the game exited");
+    assert_eq!(
+        crash.failures[0].text(),
+        "expected a log line /never/, got none before the game exited"
+    );
     assert_eq!(
         crash.failures[1].text(),
         "expected no crash, got the game crashed (exception 0xc0000005 in F1_25.exe)"
@@ -292,7 +295,7 @@ fn a_fake_game_runs_every_batch_and_puts_the_folder_back() {
         [
             ("boot", true, Some(true)),
             ("boot", true, Some(true)),
-            ("benchmark bahrain 1 laps 4 cars", true, Some(true)),
+            ("benchmark bahrain 1 lap 4 cars", true, Some(true)),
             ("career fixtures/f", false, None),
         ]
     );

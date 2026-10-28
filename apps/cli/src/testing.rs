@@ -840,7 +840,6 @@ impl Harness<'_> {
             }
             std::thread::sleep(self.times.poll);
         };
-        let mut views: Vec<Option<String>> = vec![None; b.tests.len()];
         match &ready {
             Err(why) => {
                 br.error = Some(why.clone());
@@ -854,7 +853,6 @@ impl Harness<'_> {
                     let t0 = Instant::now();
                     self.steps(&b.tests[i], &mut reports[i], &mut live, &mut *run);
                     reports[i].ms = Some(ms(t0));
-                    views[i] = Some(live.text().to_owned());
                 }
                 if kind == Kind::Benchmark {
                     let limit = runnable
@@ -865,7 +863,6 @@ impl Harness<'_> {
                     if until_polled(limit, self.times.poll, || run.finished()) {
                         for &i in &runnable {
                             reports[i].ms = Some(ms(race_start));
-                            views[i] = None;
                         }
                     } else {
                         let why = format!("the benchmark race did not end within {} s", limit.as_secs());
@@ -910,25 +907,20 @@ impl Harness<'_> {
             Some(e) => format!("the game crashed ({})", e.reason),
             None => format!("the game crashed (exit code {})", r.exit_code.unwrap_or(-1)),
         });
-        if let Some(c) = &crash {
-            br.notes.push(c.clone());
-        }
+        br.notes.extend(crash.clone());
         let rel = |f: &str| format!("batches/{index}/{f}");
+        let ev = Evidence {
+            log: final_log,
+            perf,
+            crash,
+            log_path: Some(rel("loader.log")),
+            perf_path: Some(rel("perf.log")),
+        };
         for &i in &runnable {
             let r = &mut reports[i];
             if r.status == Status::Error {
                 continue;
             }
-            let ev = Evidence {
-                log: views[i]
-                    .clone()
-                    .filter(|v| v.len() <= final_log.len())
-                    .unwrap_or_else(|| final_log.clone()),
-                perf: perf.clone(),
-                crash: crash.clone(),
-                log_path: Some(rel("loader.log")),
-                perf_path: Some(rel("perf.log")),
-            };
             for c in &b.tests[i].checks {
                 if let Err(f) = checks::evaluate(c, &ev) {
                     r.failures.push(f);
@@ -978,9 +970,9 @@ impl Harness<'_> {
             });
             if !seen {
                 let why = if run.finished() {
-                    "not seen before the game exited".to_owned()
+                    "none before the game exited".to_owned()
                 } else {
-                    format!("not seen within {} s", limit.as_secs())
+                    format!("none within {} s", limit.as_secs())
                 };
                 r.failures.push(Failure {
                     check: format!("wait {}", checks::wait_text(wait)),

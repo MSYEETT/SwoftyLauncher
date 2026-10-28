@@ -41,7 +41,10 @@ pub fn label(env: &Env) -> String {
         Kind::None | Kind::Boot => {}
         Kind::Benchmark => {
             out.extend(s("track"));
-            out.push(format!("{} laps", env.uint("laps").unwrap_or(super::bench::LAPS)));
+            out.push(match env.uint("laps").unwrap_or(super::bench::LAPS) {
+                1 => "1 lap".to_owned(),
+                n => format!("{n} laps"),
+            });
             out.extend(env.uint("cars").map(|c| format!("{c} cars")));
             out.extend(s("weather").filter(|w| w != "clear"));
             out.extend(s("box"));
