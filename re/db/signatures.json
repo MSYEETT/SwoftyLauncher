@@ -75357,6 +75357,60 @@
    "used_by": [
     "native/src/core/save_splice.cpp"
    ]
+  },
+  {
+   "id": "teams.timing_pill_badge_label",
+   "section": ".xtls",
+   "pattern": "49 8B 94 24 D8 04 00 00 48 89 F9 E8",
+   "match": "0x14176030b",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14176030b",
+   "kind": "mid",
+   "expect": "49 8B 94 24 D8 04 00 00",
+   "names": [
+    "site_Team_TimingPillBadgeLabel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-teams",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core"
+   ]
+  },
+  {
+   "id": "teams.session_car_badge_label",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 49 8B 96 D8 04 00 00",
+   "match": "0x141774eb9",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141774ebe",
+   "kind": "mid",
+   "expect": "49 8B 96 D8 04 00 00",
+   "names": [
+    "site_Team_SessionCarBadgeLabel"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "re-teams",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core"
+   ]
   }
  ]
 }
