@@ -134,6 +134,11 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+// Test save sandbox (save_sandbox.cpp): only under `swofty test` with a run token.
+std::vector<CoreMixins> save_sandbox_mixins();
+void save_sandbox_commit();
+bool save_sandbox_test_mode();
+bool save_sandbox_armed();
 // W4 career snapshots (native/src/core/snapshots/runtime.cpp): started once the save splice settles.
 void snapshots_start(bool splice_live);
 // career::report_season from caller (an addon id): SWOFTY_ASSET_OK, _LATE, _INVALID or SWOFTY_REFUSED.

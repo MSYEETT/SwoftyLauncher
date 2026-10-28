@@ -488,6 +488,9 @@ jobs:
       - name: Career UI Wine test
         run: native/test/run_career_ui_test.sh
 
+      - name: Save sandbox host and Wine test
+        run: native/test/run_save_sandbox_test.sh
+
       - name: Loader log fallback Wine test
         run: native/test/run_log_fallback_test.sh
 
