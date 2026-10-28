@@ -20,6 +20,7 @@
 #include "stats.hpp"
 #include "teams_plan.hpp"
 #include "teams_store.hpp"
+#include "../apply/content/teams.hpp"
 #include "../registry/table.hpp"
 #include "track_fuel.hpp"
 
@@ -1720,9 +1721,28 @@ int api_set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len)
     return career_ops::set_track_fuel(who, request, out, cap, len);
 }
 
+int api_set_logo(const char *team_id, const char *logo_id)
+{
+    if (!team_id || !logo_id || !*team_id || !*logo_id)
+        return SWOFTY_ASSET_INVALID;
+    namespace reg = swofty_core::registry;
+    reg::Store &st = reg::store();
+    bool stock = std::string_view(team_id).rfind("game/", 0) == 0;
+    if ((!stock && st.get("team.identity", team_id).status != reg::Status::ok) ||
+        st.get("team.logo", logo_id).status != reg::Status::ok) {
+        swofty::log("[career-ops] set_logo %s -> %s: refused: no such %s record", team_id, logo_id,
+                    !stock && st.get("team.identity", team_id).status != reg::Status::ok ? "team.identity" : "team.logo");
+        return SWOFTY_REFUSED;
+    }
+    swofty_core::apply::content::live().logo_override[team_id] = logo_id;
+    swofty::log("[career-ops] set_logo %s -> %s: the team's logo for this session", team_id, logo_id);
+    return SWOFTY_ASSET_OK;
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
     api_swap_drivers,          api_report_season, api_apply_teams, api_set_seat,  api_set_car_number, api_set_track_fuel,
+    api_set_logo,
 };
 
 void setup()

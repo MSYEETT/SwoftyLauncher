@@ -5,6 +5,7 @@
 #include <optional>
 #include <swofty/events.hpp>
 #include <swofty/registry.hpp>
+#include <swofty/systems/ops.hpp>
 #include <swofty/systems/forward.hpp>
 
 // Teams: real constructors (core-owned constructor/ ids), team identities (one entrants.teams row each),
@@ -12,7 +13,7 @@
 // (story_info included); a variant of a stock team copies its base's row the same way. A constructor/ id
 // works as a team reference and resolves to the last enabled team in load order that is that constructor.
 // What a row holds that this header doesn't name is kept in the record's `extra`. The operations return
-// unavailable until the core implements them.
+// unavailable until the core implements them. set_logo calls the core's career operations table (version 5).
 
 namespace swofty::teams {
 
@@ -87,7 +88,20 @@ inline Registry<Identity> identities{"team.identity", {.applies = Applies::boot}
 inline Registry<Logo> logos{"team.logo", {.applies = Applies::read}};
 inline Registry<PitTimes> pit_times{"team.pit_times", {.applies = Applies::boot}};
 
-inline Result set_logo(Ref<Identity>, Ref<Logo>) { return Result::unavailable; }
+inline Result set_logo(Ref<Identity> team, Ref<Logo> logo)
+{
+    auto t = career::detail::live_ops();
+    if (!t || t->version < 5 || !t->set_logo)
+        return Result::unavailable;
+    std::string team_id(team.id()), logo_id(logo.id());
+    if (team_id.empty() || logo_id.empty())
+        return Result::invalid;
+    int r = t->set_logo(team_id.c_str(), logo_id.c_str());
+    return r == SWOFTY_ASSET_OK ? Result::ok
+           : r == SWOFTY_ASSET_LATE ? Result::late
+           : r == SWOFTY_ASSET_UNAVAILABLE ? Result::unavailable
+                                           : Result::invalid;
+}
 inline Result set_name(Ref<Identity>, Names) { return Result::unavailable; }
 inline Result set_colours(Ref<Identity>, Colours) { return Result::unavailable; }
 
