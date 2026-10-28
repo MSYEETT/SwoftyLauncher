@@ -101,9 +101,16 @@ struct Change {
     Look look;
 };
 
+struct ExtraTeam {
+    int slot = 0;
+    std::string team_id;
+    std::array<std::string, 2> seats{};
+};
+
 struct Year {
     int year = 0;
     std::array<Team, kSlots> teams{};
+    std::vector<ExtraTeam> extra_teams;
     std::vector<int> real_tracks;
     std::vector<std::string> circuits;
     std::vector<Change> changes;
@@ -199,6 +206,16 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
         yr.year = year;
         for (auto &t : y["teams"].a) {
             int i = num(t["slot"]) - 1;
+            if (i >= kSlots && i < kSlots + 1 && t["team"].type == json::Value::Str && !t["team"].str().empty()) {
+                ExtraTeam x;
+                x.slot = i + 1;
+                x.team_id = t["team"].str();
+                const json::Value &ids = t["seats"];
+                for (size_t k = 0; k < x.seats.size() && k < ids.a.size(); ++k)
+                    x.seats[k] = ids.a[k].str();
+                yr.extra_teams.push_back(std::move(x));
+                continue;
+            }
             if (i < 0 || i >= kSlots)
                 continue;
             Team &o = yr.teams[i];
@@ -373,6 +390,8 @@ inline bool names_new_teams(const Data &d, int year)
     const Year *y = d.year(clamp_year(year));
     if (!y)
         return false;
+    if (!y->extra_teams.empty())
+        return true;
     for (int i = 0; i < kSlots; ++i)
         if (!y->teams[i].team_id.empty() && y->teams[i].team_id != d.slots[i].team)
             return true;
@@ -391,6 +410,28 @@ inline bool no_team(const Data &d, int year, int slot)
 {
     const Year *y = d.year(clamp_year(year));
     return y && slot >= 0 && slot < kSlots && y->teams[slot].kind == "filler" && y->teams[slot].drivers.empty();
+}
+
+struct TeamSlot {
+    int slot = 0;
+    std::string team;
+    std::vector<std::string> seats;
+};
+
+inline std::vector<TeamSlot> team_slots(const Data &d, const Plan &p)
+{
+    std::vector<TeamSlot> out;
+    for (int i = 0; i < kSlots; ++i)
+        out.push_back({i + 1, season_team(d, p, i), {}});
+    if (const Year *y = d.year(clamp_year(p.year)))
+        for (const ExtraTeam &x : y->extra_teams) {
+            TeamSlot t{x.slot, x.team_id, {}};
+            for (const std::string &id : x.seats)
+                if (!id.empty())
+                    t.seats.push_back(id);
+            out.push_back(std::move(t));
+        }
+    return out;
 }
 
 inline int closed_slots(const Plan &p)

@@ -12,6 +12,9 @@
 //             position only): his number and look come from the pool for that year. A driver a record
 //             seats in another seat of the same year leaves the seat years.json gives him, which the
 //             planner fills from the free agents. An empty record seat empties the seat.
+//   teams     a record team that names a team of its own (not the constructor chain register.cpp
+//             registers) is written as the slot's `team`; a slot 12 (a twelfth team) is added to the
+//             year with that team and its seats. season.cpp hands them to the core's apply_teams.
 //   changes   matched by (round, slot, seat): out, in, kind and until_round from the record, the rest
 //             (circuit, track, number, look) kept; a change only years.json has is dropped; a change
 //             only the record has is added with no track, so it is placed by its round.
@@ -45,9 +48,9 @@ inline constexpr std::string_view kRatingFields[] = {"experience", "racecraft", 
 
 struct Summary {
     int seasons = 0, ratings = 0;
-    int seats = 0, emptied = 0, changes = 0, ratings_changed = 0;
+    int seats = 0, emptied = 0, changes = 0, ratings_changed = 0, teams = 0;
     std::vector<std::string> notes;
-    bool changed() const { return seats || emptied || changes || ratings_changed; }
+    bool changed() const { return seats || emptied || changes || ratings_changed || teams; }
 };
 
 inline Stock stock_drivers(const json::Value &doc)
@@ -123,6 +126,60 @@ inline void unseat_elsewhere(json::Value &season, const std::string &label, int 
             }
             ++i;
         }
+    }
+}
+
+inline constexpr int kCareerSlots = 11;
+inline constexpr int kMaxSlots = 12;
+
+inline bool is_registered_team(const json::Value &doc, const json::Value &t, std::string_view name, int slot)
+{
+    if (name.rfind("constructor/", 0) == 0)
+        return true;
+    for (const json::Value *row : {&t["cs_team"], &t["stock_team"], &t["team"], &doc["slots"][static_cast<size_t>(slot - 1)]["team"]})
+        if (row->is_string() && row->as_string() == name)
+            return true;
+    return false;
+}
+
+inline std::string team_name(std::string_view id)
+{
+    return std::string(id.rfind("game/", 0) == 0 ? id.substr(5) : id);
+}
+
+inline void overlay_teams(const json::Value &doc, json::Value &season, const career::Season &s, Summary &n, const std::string &year)
+{
+    for (const career::SeasonTeam &rt : s.teams) {
+        if (rt.slot < 1 || rt.slot > kMaxSlots || rt.team.empty())
+            continue;
+        std::string team = team_name(rt.team.id());
+        json::Value *t = team_of(season, rt.slot);
+        if (t ? is_registered_team(doc, *t, team, rt.slot) : (rt.slot <= kCareerSlots || team.find('|') != std::string::npos))
+            continue;
+        if (!t && rt.slot > kCareerSlots) {
+            json::Value drivers = json::Value::array(), ids = json::Value::array();
+            for (int k = 0; k < 2; ++k) {
+                const auto &seat = rt.seats[static_cast<size_t>(k)];
+                if (seat.empty())
+                    continue;
+                ids.push_back(std::string(seat.id()));
+                drivers.push_back(json::Value::object({{"driver", label_of(seat.id())}, {"position", k}}));
+            }
+            json::Value entry = json::Value::object({{"slot", rt.slot}, {"kind", "added"}, {"drivers", std::move(drivers)},
+                                                     {"seats", std::move(ids)}});
+            json::Value *list = season.find("teams");
+            if (!list || !list->is_array())
+                continue;
+            list->push_back(std::move(entry));
+            t = team_of(season, rt.slot);
+        }
+        if (!t)
+            continue;
+        if (std::as_const(*t)["team"].is_string() && std::as_const(*t)["team"].as_string() == team)
+            continue;
+        (*t)["team"] = team;
+        ++n.teams;
+        n.notes.push_back(year + " slot " + std::to_string(rt.slot) + " is " + team + " (a record names the team)");
     }
 }
 
@@ -272,6 +329,7 @@ inline Summary overlay(json::Value &doc, const SeasonOf &season_of, const Rating
             if (!s)
                 continue;
             ++n.seasons;
+            overlay_teams(doc, season, *s, n, year);
             overlay_seats(season, *s, n, year);
             overlay_changes(season, *s, n, year);
         }

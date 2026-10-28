@@ -300,6 +300,35 @@ void choose_driver_lists_the_effective_seats(const sj::Value &file)
     EXPECT(!progressive::choose::reseat(same, base, eff, 2016).changed());
 }
 
+void a_layer_adds_teams(const sj::Value &file)
+{
+    sj::Value doc = file;
+    pr::Summary n = pr::overlay(doc, season_of, rating_of);
+    EXPECT(n.teams == 2);
+    season::Data base = parse_season(file), eff = parse_season(doc);
+    EXPECT(!season::names_new_teams(base, 2016));
+    EXPECT(season::names_new_teams(eff, 2016));
+    EXPECT(!season::names_new_teams(eff, 2017));
+    const season::Year *y = eff.year(2016);
+    EXPECT(y && y->teams[10].team_id == "ig.teampack/ig_racing");
+    EXPECT(y && y->teams[10].drivers.size() == 2);
+    EXPECT(y && y->teams[0].team_id.empty());
+    EXPECT(y && y->extra_teams.size() == 1 && y->extra_teams[0].slot == 12 &&
+           y->extra_teams[0].team_id == "ig.teampack/ig_twelve" && y->extra_teams[0].seats[0] == "game/lando_norris" &&
+           y->extra_teams[0].seats[1] == "person/ig_rookie");
+    EXPECT(base.year(2016)->extra_teams.empty());
+    season::Plan p = season::plan(eff, 2016, career_rows("max_verstappen"), resolver());
+    EXPECT(p.error.empty());
+    std::vector<season::TeamSlot> req = season::team_slots(eff, p);
+    EXPECT(req.size() == 12 && req[10].team == "ig.teampack/ig_racing" && req[11].slot == 12 &&
+           req[11].team == "ig.teampack/ig_twelve" && req[11].seats.size() == 2 && req[0].team == "mercedes_26");
+    std::vector<season::TeamSlot> plain = season::team_slots(base, season::plan(base, 2016, career_rows("max_verstappen"), resolver()));
+    EXPECT(plain.size() == 11 && plain[10].team == base.slots[10].team);
+    sj::Value once = doc;
+    pr::Summary again = pr::overlay(once, season_of, rating_of);
+    EXPECT(again.teams == 0);
+}
+
 void no_registry_changes_nothing(const sj::Value &file)
 {
     sj::Value doc = file;
@@ -349,6 +378,20 @@ int main(int argc, char **argv)
         engine->end_register();
         what_if_layer_changes_the_2017_seats(file);
         choose_driver_lists_the_effective_seats(file);
+
+        engine->begin_addon("ig.teampack");
+        career::seasons.layer(career::seasons["swofty.progressive/2016"], [](career::Season &s) {
+            if (auto *t = s.teams.find(11))
+                t->team = swofty::Ref<swofty::teams::Identity>("ig.teampack/ig_racing");
+            career::SeasonTeam extra;
+            extra.slot = 12;
+            extra.team = swofty::Ref<swofty::teams::Identity>("ig.teampack/ig_twelve");
+            extra.seats = {swofty::Ref<swofty::drivers::Identity>("game/lando_norris"),
+                           swofty::Ref<swofty::drivers::Identity>("person/ig_rookie")};
+            s.teams.push_back(extra);
+        }, swofty::Scope::profile);
+        engine->end_register();
+        a_layer_adds_teams(file);
         swofty::api = nullptr;
     }
     no_registry_changes_nothing(file);
