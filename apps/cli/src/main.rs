@@ -6,6 +6,7 @@ mod ea;
 mod offline;
 mod postfx;
 mod recover;
+mod registry;
 mod run;
 mod saves;
 mod send_logs;
@@ -163,6 +164,13 @@ enum Command {
         about = "Developer mode: make, link, run, check, test and pack an addon"
     )]
     Dev(dev::DevCommand),
+    #[command(
+        subcommand,
+        about = "The addon registry: check dependencies, and show the core's conflicts and status from your last session"
+    )]
+    Registry(registry::RegistryCommand),
+    #[command(about = "List every career in the career index, the profile that started it and what it needs")]
+    Careers,
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -267,7 +275,13 @@ fn main() -> ExitCode {
         Ok(code) => code,
         Err(e) => {
             eprintln!("swofty: {}", causes(&e));
-            ExitCode::FAILURE
+            let stopped = e
+                .chain()
+                .any(|c| matches!(c.downcast_ref(), Some(swofty_core::Error::Dependencies(_))));
+            match stopped {
+                true => ExitCode::from(swofty_core::stdlib::deps::STOP_EXIT),
+                false => ExitCode::FAILURE,
+            }
         }
     }
 }
@@ -499,6 +513,8 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Test(cmd) => testing::command(&store, cmd),
         Command::Dev(cmd) => dev::command(&store, &profile, cmd),
         Command::Update { check } => update::update(check),
+        Command::Registry(cmd) => registry::command(&store, &profile, cmd),
+        Command::Careers => registry::careers(&store, &profile).map(|_| ExitCode::SUCCESS),
     }
 }
 
@@ -562,6 +578,7 @@ fn game(store: &Store, cmd: GameCommand) -> Result<()> {
 fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
     match cmd {
         AddonsCommand::List => {
+            let status = registry::status(store);
             let p = store.profile(profile)?;
             let enabled: Vec<&str> = p.enabled().collect();
             for (id, m) in store.addons()? {
@@ -573,6 +590,9 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                     "disabled"
                 };
                 println!("{id:32} {:10} {state:9} {}", m.version.to_string(), m.name);
+                for line in status.get(&id).into_iter().flatten() {
+                    println!("{:32} {:10} {:9}   last session: {line}", "", "", "");
+                }
             }
             for u in store.unreadable_addons() {
                 let version = u.version.as_deref().unwrap_or("?");
@@ -588,6 +608,14 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
                 println!("installed {} {}", m.id, m.version);
                 for line in swofty_core::tracks::left_out_lines(store, &m) {
                     println!("warning: {line}");
+                }
+                for f in installed_check(store, &m) {
+                    let tag = if f.level == swofty_core::stdlib::deps::Level::Hint {
+                        "hint"
+                    } else {
+                        "warning"
+                    };
+                    println!("{tag}: {}", f.block());
                 }
             }
         }
@@ -615,6 +643,9 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
             if let Some(w) = store.registry()?.turn_off_warning(&p, &id) {
                 confirm_saves(&w, "turn off", yes)?;
             }
+            if p.enabled().any(|on| on == id) {
+                confirm_careers(store, &id, yes)?;
+            }
             toggle(store, profile, &id, false)?
         }
         AddonsCommand::Remove { id, yes } => {
@@ -624,6 +655,66 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
             store.remove_addon(&id)?;
             println!("removed {id}");
         }
+    }
+    Ok(())
+}
+
+fn installed_check(
+    store: &Store,
+    m: &swofty_core::manifest::AddonManifest,
+) -> Vec<swofty_core::stdlib::deps::Finding> {
+    use swofty_core::stdlib::deps;
+    let Ok(installed) = store.addons() else {
+        return Vec::new();
+    };
+    let all = deps::read_all(store, &installed);
+    let Some(new) = all.get(&m.id) else {
+        return Vec::new();
+    };
+    let others: Vec<deps::Std> = all.values().cloned().collect();
+    deps::at_install(new, &installed, &others).findings
+}
+
+fn confirm_careers(store: &Store, id: &str, yes: bool) -> Result<()> {
+    let careers = registry::careers_needing(store, id);
+    if careers.is_empty() || yes {
+        return Ok(());
+    }
+    let name = store
+        .addons()?
+        .get(id)
+        .map_or_else(|| id.to_owned(), |m| m.name.clone());
+    let n = careers.len();
+    let mut text = format!("{name} is in {n} career{}\n", if n == 1 { "" } else { "s" });
+    for c in &careers {
+        let label = if c.label.is_empty() {
+            c.career.as_str()
+        } else {
+            c.label.as_str()
+        };
+        let why = c
+            .addons
+            .iter()
+            .find(|a| a.id == id)
+            .and_then(|a| a.why.as_deref())
+            .map(|w| format!(" ({w})"))
+            .unwrap_or_default();
+        text.push_str(&format!("  {label}{why}\n"));
+    }
+    text.push_str(&format!(
+        "  {} won't load until {name} is back on. Your other careers aren't affected.",
+        if n == 1 { "That career" } else { "Those careers" }
+    ));
+    if !std::io::stdin().is_terminal() {
+        bail!("{text}\nstdin is not a terminal: pass --yes to turn off {id} anyway");
+    }
+    println!("{text}");
+    print!("Turn off {id} anyway? [y/N] ");
+    std::io::stdout().flush().ok();
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line)?;
+    if !matches!(line.trim(), "y" | "Y" | "yes") {
+        bail!("{id} is unchanged");
     }
     Ok(())
 }
