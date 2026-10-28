@@ -1298,7 +1298,7 @@ int api_report_season(int32_t year, int32_t season_index)
 
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
-    api_swap_drivers,          api_report_season,
+    api_swap_drivers,          api_report_season, nullptr,
 };
 
 void setup()

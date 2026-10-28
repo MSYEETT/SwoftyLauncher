@@ -1,7 +1,8 @@
 // The SDK's career operations (swofty/systems/career.hpp) against a stand-in SwoftyCareerOps table on the host:
 // apply_lineup sends {"season": record} and reads the report, set_driver_ratings and swap_drivers resolve the
-// driver references first, report_season needs table version 2 and maps SWOFTY_REFUSED to refused, and every
-// call is unavailable without a table.
+// driver references first, report_season needs table version 2 and maps SWOFTY_REFUSED to refused, apply_teams
+// needs table version 3 and sends {"season": record} like apply_lineup, and every call is unavailable without a
+// table.
 
 #include <cstdio>
 #include <cstring>
@@ -68,9 +69,24 @@ static int report_season(int32_t year, int32_t index)
     return year == 2099 ? int(SWOFTY_REFUSED) : int(SWOFTY_ASSET_OK);
 }
 
-static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap, nullptr};
-static const SwoftyCareerOps kOps2 = {2,  available,         driver_stat, set_slots, apply_lineup, set_driver_ratings,
-                                      swap, report_season};
+static std::string g_teams_request;
+static int apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
+{
+    g_teams_request.assign(request.data, request.size);
+    std::string r = "{\"result\":\"ok\",\"changed\":11,\"unchanged\":0,\"refused\":1,\"refusals\":[\"slot 12: constructor/hrt "
+                    "resolves to no team\"]}";
+    *len = r.size();
+    if (cap < r.size() + 1)
+        return SWOFTY_TOO_SMALL;
+    std::memcpy(out, r.c_str(), r.size() + 1);
+    return SWOFTY_ASSET_OK;
+}
+
+static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap, nullptr, nullptr};
+static const SwoftyCareerOps kOps2 = {2,    available,     driver_stat, set_slots, apply_lineup, set_driver_ratings,
+                                      swap, report_season, nullptr};
+static const SwoftyCareerOps kOps3 = {3,    available,     driver_stat, set_slots, apply_lineup, set_driver_ratings,
+                                      swap, report_season, apply_teams};
 
 int main()
 {
@@ -113,13 +129,27 @@ int main()
     CHECK(g_report_year == 2017 && g_report_index == 1);
     CHECK(career::report_season(2099, 3) == career::Result::refused);
     CHECK(std::strcmp(career::name(career::Result::refused), "refused") == 0);
+    CHECK(career::apply_teams(s, &report) == career::Result::unavailable);
+    CHECK(report.changed == 0 && g_teams_request.empty());
+
+    career::detail::set_ops_table(&kOps3);
+    s.teams.push_back({.slot = 12, .team = Ref<teams::Identity>("constructor/hrt"), .seats = {}});
+    CHECK(career::apply_teams(s, &report) == career::Result::ok);
+    CHECK(g_teams_request.rfind("{\"season\":{", 0) == 0);
+    CHECK(g_teams_request.find("\"slot\":12") != std::string::npos);
+    CHECK(g_teams_request.find("\"constructor/hrt\"") != std::string::npos);
+    CHECK(report.changed == 11 && report.unchanged == 0 && report.refused == 1);
+    CHECK(report.refusals.size() == 1 && report.refusals[0].find("slot 12") != std::string::npos);
+    CHECK(career::apply_lineup(s, &report) == career::Result::ok && report.changed == 2);
+
     career::detail::set_ops_table(nullptr);
     CHECK(career::report_season(2017, 1) == career::Result::unavailable);
+    CHECK(career::apply_teams(s, &report) == career::Result::unavailable);
 
     if (failures) {
         std::printf("sdk_ops_test: %d failure(s)\n", failures);
         return 1;
     }
-    std::printf("sdk_ops_test: apply_lineup request and report, set_driver_ratings ids, swap_drivers, report_season on table versions 1 and 2, no table: ok\n");
+    std::printf("sdk_ops_test: apply_lineup request and report, set_driver_ratings ids, swap_drivers, report_season on table versions 1 and 2, apply_teams on table versions 2 and 3, no table: ok\n");
     return 0;
 }
