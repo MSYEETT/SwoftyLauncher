@@ -535,10 +535,28 @@ impl SessionEnd {
             crash_code,
             reason,
         };
+        let named = |x: u32| {
+            crate::crash::fatal_name(x)
+                .map(|n| format!("{n}, "))
+                .unwrap_or_default()
+        };
         let Some(c) = code else {
-            return match stopped {
-                Some(who) => end(Ending::Stopped, None, format!("{who}; {unread}")),
-                None => end(Ending::Unknown, None, unread.to_owned()),
+            return match (stopped, loader.unhandled) {
+                (Some(who), _) => end(Ending::Stopped, None, format!("{who}; {unread}")),
+                (None, Some(x)) => end(
+                    Ending::Crash,
+                    Some(x),
+                    format!(
+                        "the mod loader saw an unhandled exception ({}{x:#010x}); {unread}",
+                        named(x)
+                    ),
+                ),
+                (None, None) if loader.low_disk => end(
+                    Ending::Crash,
+                    None,
+                    format!("F1 25 closed after its Insufficient Storage dialog; {unread}"),
+                ),
+                (None, None) => end(Ending::Unknown, None, unread.to_owned()),
             };
         };
         if let Some(who) = stopped {
@@ -551,11 +569,6 @@ impl SessionEnd {
         if c == 0 {
             return end(Ending::Quit, None, "F1 25 exited with code 0".into());
         }
-        let named = |x: u32| {
-            crate::crash::fatal_name(x)
-                .map(|n| format!("{n}, "))
-                .unwrap_or_default()
-        };
         if let Some(x) = loader.unhandled {
             return end(
                 Ending::Crash,
@@ -567,6 +580,13 @@ impl SessionEnd {
             );
         }
         let u = c as u32;
+        if loader.low_disk {
+            return end(
+                Ending::Crash,
+                None,
+                format!("F1 25 closed with code {c} after its Insufficient Storage dialog"),
+            );
+        }
         if crash_code(u) {
             return end(
                 Ending::Crash,
@@ -639,7 +659,8 @@ impl SessionRecord {
     }
 
     /// Whether to show the session as a crash: only an end with evidence of
-    /// one, a crash exit code or an exception the mod loader saw. F1 25 also
+    /// one, a crash exit code, an exception the mod loader saw or the game's
+    /// Insufficient Storage dialog. F1 25 also
     /// leaves -1 and other codes when it is closed, so an `Unknown` end shows
     /// as closed, not crashed.
     pub fn crashed(&self) -> bool {
@@ -1044,6 +1065,22 @@ mod tests {
         );
         let end = SessionEnd::resolve(Some(-1), "", None, None);
         assert!(end.reason.contains("not attached"), "{}", end.reason);
+        let full = format!(
+            "{ATTACHED}[3820] dialog shown: Insufficient Storage: 652/2048 MiB available on 'C:\\', please free \
+             some space.\n[stub] [offline] game exited with code 4294967295\n"
+        );
+        let end = SessionEnd::resolve(Some(-1), "", None, Some(&seen(&full)));
+        assert_eq!((end.end, end.crash_code), (Ending::Crash, None));
+        assert!(end.reason.contains("Insufficient Storage"), "{}", end.reason);
+        let end = SessionEnd::resolve(None, "no code", None, Some(&seen(&full)));
+        assert_eq!(end.end, Ending::Crash);
+        let stopped = SessionEnd::resolve(
+            Some(-1),
+            "",
+            Some("Stop in the launcher closed F1 25"),
+            Some(&seen(&full)),
+        );
+        assert_eq!(stopped.end, Ending::Stopped);
         for code in [1, 0x4001_0004, 255] {
             assert_eq!(
                 SessionEnd::resolve(Some(code), "", None, None).end,
@@ -1071,6 +1108,24 @@ mod tests {
                 reason: "the EA app started F1 25".into(),
             }
         );
+    }
+
+    #[test]
+    fn an_unhandled_exception_is_a_crash_when_the_ea_app_started_the_game() {
+        let log = format!("{ATTACHED}{UNHANDLED}");
+        let end = SessionEnd::resolve(None, "the EA app started F1 25", None, Some(&seen(&log)));
+        assert_eq!(
+            (end.end, end.exit_code, end.crash_code),
+            (Ending::Crash, None, Some(0xc000_0005))
+        );
+        assert!(end.reason.contains("access violation"), "{}", end.reason);
+        let stopped = SessionEnd::resolve(
+            None,
+            "",
+            Some("Stop in the launcher closed F1 25"),
+            Some(&seen(&log)),
+        );
+        assert_eq!(stopped.end, Ending::Stopped);
     }
 
     #[test]

@@ -181,6 +181,8 @@ pub struct Installer<'a> {
     pub session: bool,
     /// Where a long install says how far it got.
     pub out: &'a dyn Fn(&str),
+    /// Files copied so far, of how many, after each one.
+    pub progress: &'a dyn Fn(usize, usize),
     pub free_space: fn(&Path) -> Option<u64>,
 }
 
@@ -191,6 +193,8 @@ const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_secs(10);
 const STATE_PER_FILE: u64 = 2048;
 
 fn quiet(_: &str) {}
+
+fn unwatched(_: usize, _: usize) {}
 
 fn rel_parts(rel: &str) -> Vec<String> {
     let parts: Vec<&str> = rel.split('/').collect();
@@ -305,6 +309,7 @@ impl<'a> Installer<'a> {
             stop_after: None,
             session: false,
             out: &quiet,
+            progress: &unwatched,
             free_space: crate::disk::free_space,
         }
     }
@@ -608,6 +613,9 @@ impl<'a> Installer<'a> {
     }
 
     fn step(&self, n: &mut usize) -> Result<()> {
+        if self.session {
+            crate::busy::check(self.data)?;
+        }
         *n += 1;
         match self.stop_after {
             Some(limit) if *n > limit => Err(Error::Other(format!("stopped after {limit} step(s)"))),
@@ -679,12 +687,35 @@ impl<'a> Installer<'a> {
     }
 
     fn place(&self, plan: &Plan, hashes: &mut Hashes, loaded: Baseline) -> Result<()> {
+        crate::now_doing("checking the game files");
         let objects = self.objects();
         let mut baseline = loaded.clone();
         let mut placed = Placed::load(self.data)?;
         let mut after = BTreeMap::new();
         for (rel, src) in plan.data.iter().chain(&plan.added).chain(&plan.loader) {
             after.insert(rel.as_str(), hashes.sha256(src)?);
+        }
+        let (mut backed_up, mut missing) = (Vec::new(), Vec::new());
+        for rel in plan.data.keys() {
+            if std::fs::symlink_metadata(self.path(rel)).is_ok() {
+                continue;
+            }
+            match baseline.files.get(rel).filter(|r| objects.has(&r.sha256)) {
+                Some(rec) => backed_up.push((rel, rec.sha256.clone())),
+                None => missing.push(rel.clone()),
+            }
+        }
+        if !missing.is_empty() {
+            return Err(Error::MissingStock {
+                files: missing,
+                version: crate::exe_version::read(&self.path(crate::GAME_EXE)),
+            });
+        }
+        for (rel, sha) in backed_up {
+            self.restore_original(&sha, &self.path(rel))?;
+            (self.out)(&format!(
+                "{rel} was missing from the game folder; put back its backed-up original"
+            ));
         }
         let mut conflicts = Vec::new();
         let mut unproven = Vec::new();
@@ -832,6 +863,7 @@ impl<'a> Installer<'a> {
             .chain(&plan.loader)
             .map(|(rel, src)| (rel.as_str(), src))
             .collect();
+        crate::now_doing("copying the mods into the game folder");
         let (mut n, mut copied, mut told) = (0, 0, std::time::Instant::now());
         for i in 0..j.entries.len() {
             self.step(&mut n)?;
@@ -877,6 +909,7 @@ impl<'a> Installer<'a> {
                 copied += 1;
             }
             j.done(i)?;
+            (self.progress)(copied, sources.len());
             if told.elapsed() >= PROGRESS_EVERY {
                 (self.out)(&format!(
                     "installing: {copied} of {} file(s) copied",

@@ -16,7 +16,10 @@
 //      finalise against the line-up from before the batch;
 //   4. the team names of the year through swofty::lang (also on every career load), and the race
 //      weekend and season titles with the year in place of 2026 (titles_logic.hpp, data/titles.json);
-//   5. in a hybrid R&D career, each team's resource points for the season.
+//   5. in a hybrid R&D career, each team's resource points for the season;
+//   6. each driver's real ratings of the year (ratings.hpp, ratings_logic.hpp; option season_ratings):
+//      every AI driver of the year at the season's first apply and a mid-season driver when he
+//      comes in; the player only at the career's creation.
 // In a Real life R&D career every load and Team HQ also works out the in-season development of the
 // year at the season's current round (development_logic.hpp) for progressive_rnd.dll
 // (ProgressiveDevelopmentProgress), while the option season_development is on (the default), and
@@ -41,6 +44,11 @@
 // unique team keys of their rows and skip a teamless one, so they leave the slot out. A weekend
 // built before the apply is rebuilt by the game's Weekend::start when its first session's
 // entrants differ from the career rows with a car (rebuild_entrants, weekend_logic.hpp).
+// A plan that moves or releases drivers waits until the current Season has its weekends and
+// current_weekend is one of them: MessageDriverMovesFinalised (and the career load) ends a
+// teammate rivalry whose rival left the player's team, and the eTeammate reward (0x1412590b0)
+// reads Season.weekends[current_weekend] unchecked. After Finish Season the next season's first
+// Team HQ has no weekends yet, so the apply runs at a later Team HQ.
 
 #include <algorithm>
 #include <atomic>
@@ -70,6 +78,7 @@
 #include "player_logic.hpp"
 #include "titles_logic.hpp"
 #include "progressive.hpp"
+#include "ratings.hpp"
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
 #include "seats.hpp"
@@ -1869,6 +1878,18 @@ void season_hub(const swofty::career::State &state)
         contract_left_alone(before, c, year, "the season plan was refused");
         return;
     }
+    if ((!p.moves.empty() || !p.releases.empty()) && !(read && cal.current_ok)) {
+        static std::string waiting;
+        std::string now = c->key + "|" + std::to_string(year);
+        if (waiting != now) {
+            waiting = now;
+            swofty::log("[progressive] season %d: waiting for the season's race weekends before moving drivers (%s); "
+                        "the game ends a rivalry whose rival leaves the player's team against the current weekend",
+                        year, read ? "the current round is past the calendar" : "the calendar is not built yet");
+        }
+        contract_left_alone(before, c, year, "the season's race weekends are not built yet");
+        return;
+    }
     char why[256];
     if (new_season)
         std::snprintf(why, sizeof why, "season %u of career %s, start %d%s: not applied yet", index, c->key.c_str(),
@@ -1898,6 +1919,10 @@ void season_hub(const swofty::career::State &state)
         ++g_failures;
         return;
     }
+    std::vector<uint32_t> movers;
+    for (auto &m : p.moves)
+        movers.push_back(m.driver);
+    ratings::season(e, c, index, player, movers);
     if (wrote)
         ++g_applies[tries];
     record_mid();
@@ -2151,6 +2176,14 @@ SWOFTY_WRAP(Career_Rebuild_SeasonStandings, void, void *season, void *order_a, v
 extern "C" __declspec(dllexport) int ProgressiveRndMode()
 {
     return pg::g_rnd.load();
+}
+
+// progressive_teamlogos.dll: the year whose team names a Progressive career shows (2016-2025), 0 when
+// the stock 2026 names are shown (2026 careers, every other career and mode).
+extern "C" __declspec(dllexport) int ProgressiveNamesYear()
+{
+    int year = pg::g_names_year;
+    return year >= progressive::season::kFirstYear && year < progressive::season::kLastYear ? year : 0;
 }
 
 // progressive_rnd.dll: the downforce progress of a team's cars in a Real life career's session

@@ -49,8 +49,14 @@ void career_content_commit();
 const SwoftyEra *era_table();
 std::vector<CoreMixins> era_mixins();
 void era_commit();
+std::vector<CoreMixins> car_category_mixins();
+void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+std::vector<CoreMixins> ers_newlap_mixins();
+void ers_newlap_commit();
+std::vector<CoreMixins> track_acclim_mixins();
+void track_acclim_commit();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
 std::vector<CoreMixins> tile_route_mixins();
@@ -1722,7 +1728,8 @@ size_t offer_core_sets()
 {
     size_t before = addons.size();
     for (auto *sets : {runtime::career_content_mixins, runtime::characters_mixins, runtime::wizard_mixins,
-                       runtime::tile_route_mixins, runtime::era_mixins, runtime::save_splice_mixins})
+                       runtime::tile_route_mixins, runtime::era_mixins, runtime::car_category_mixins,
+                       runtime::save_splice_mixins, runtime::ers_newlap_mixins, runtime::track_acclim_mixins})
         add_core_sets(sets());
     return addons.size() - before;
 }
@@ -1734,7 +1741,10 @@ void settle_core_sets()
     runtime::characters_commit();
     runtime::wizard_commit();
     runtime::era_commit();
+    runtime::car_category_commit();
     runtime::save_splice_commit();
+    runtime::ers_newlap_commit();
+    runtime::track_acclim_commit();
 }
 
 void install_groups(size_t from, bool late, size_t *count)

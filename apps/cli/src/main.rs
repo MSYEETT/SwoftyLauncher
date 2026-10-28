@@ -254,10 +254,20 @@ fn main() -> ExitCode {
     match run_cli(&store, args) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("swofty: {e:#}");
+            eprintln!("swofty: {}", causes(&e));
             ExitCode::FAILURE
         }
     }
+}
+
+fn causes(e: &anyhow::Error) -> String {
+    let mut out = e.to_string();
+    for c in e.chain().skip(1).map(|c| c.to_string()) {
+        if !out.contains(&c) {
+            out = format!("{out}: {c}");
+        }
+    }
+    out
 }
 
 fn migrate(store: &Store) {
@@ -796,6 +806,18 @@ mod tests {
     use swofty_core::manifest::AddonManifest;
 
     use super::*;
+
+    #[test]
+    fn an_error_says_its_os_message_once() {
+        let e: anyhow::Error = swofty_core::Error::Io {
+            path: "F1 25/a.erp".into(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        }
+        .into();
+        assert_eq!(causes(&e), "F1 25/a.erp: entity not found");
+        let e = anyhow::Error::from(std::io::Error::from(std::io::ErrorKind::NotFound)).context("reading x");
+        assert_eq!(causes(&e), "reading x: entity not found");
+    }
 
     struct Mods(AddonManifest);
 

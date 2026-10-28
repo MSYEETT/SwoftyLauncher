@@ -12,6 +12,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const FILE: &str = "state/multiplayer.log";
 pub const PREVIOUS: &str = "state/multiplayer.1.log";
 pub const ROTATE_AT: u64 = 5 << 20;
+/// Where a session keeps both sides' fingerprints when they differ; see [`save_prints`].
+pub const PRINTS_DIR: &str = "state/multiplayer-prints";
+/// How many saved fingerprint comparisons are kept.
+pub const PRINTS_KEPT: usize = 10;
 
 const REDACTED: &str = "[redacted]";
 const SECRET_MIN: usize = 6;
@@ -45,6 +49,65 @@ pub fn open(data_root: &Path) {
 
 pub fn path(data_root: &Path) -> PathBuf {
     data_root.join(FILE)
+}
+
+/// Saves `doc` as `<data>/state/multiplayer-prints/<name>.json` in the data folder [`open`] named,
+/// with registered secrets redacted, and keeps the newest [`PRINTS_KEPT`]. Nothing happens
+/// before [`open`].
+pub fn save_prints(name: &str, doc: &serde_json::Value) {
+    let root = lock(&SINK)
+        .as_ref()
+        .and_then(|s| Some(s.path.parent()?.parent()?.to_path_buf()));
+    if let Some(root) = root
+        && let Err(e) = write_prints(&root, name, doc)
+    {
+        line(format!("fingerprint: saving the comparison failed: {e}"));
+    }
+}
+
+/// [`save_prints`] into the data folder `data_root`.
+pub fn write_prints(data_root: &Path, name: &str, doc: &serde_json::Value) -> std::io::Result<PathBuf> {
+    let dir = data_root.join(PRINTS_DIR);
+    std::fs::create_dir_all(&dir)?;
+    let name: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let path = dir.join(format!("{name}.json"));
+    let text = scrub(&serde_json::to_string_pretty(doc).unwrap_or_default());
+    std::fs::write(&path, text)?;
+    for old in newest_prints(data_root, usize::MAX).into_iter().skip(PRINTS_KEPT) {
+        let _ = std::fs::remove_file(old);
+    }
+    Ok(path)
+}
+
+/// The newest `n` saved fingerprint comparisons, newest first.
+pub fn newest_prints(data_root: &Path, n: usize) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(data_root.join(PRINTS_DIR)) else {
+        return Vec::new();
+    };
+    let mut files: Vec<(SystemTime, PathBuf)> = entries
+        .filter_map(|e| {
+            let path = e.ok()?.path();
+            let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
+            (path.extension()? == "json").then_some((modified, path))
+        })
+        .collect();
+    files.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
+    files.into_iter().take(n).map(|(_, p)| p).collect()
+}
+
+/// The current time as `YYYYMMDD-HHMMSS` in UTC, for file names.
+pub fn file_stamp() -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    crate::send_logs::utc_stamp(i64::try_from(now.as_secs()).unwrap_or(0))
 }
 
 pub fn secret(slot: &'static str, values: &[&str]) {
@@ -167,6 +230,23 @@ fn write_to(path: &Path, previous: &Path, rotate_at: u64, lines: &[&str]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_comparisons_keep_the_newest_and_have_safe_names() {
+        let root = std::env::temp_dir().join(format!("swofty-diag-prints-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        for i in 0..12 {
+            write_prints(&root, &format!("F1-ROOM-{i:02}"), &serde_json::json!({ "i": i })).unwrap();
+        }
+        let kept = newest_prints(&root, usize::MAX);
+        assert_eq!(kept.len(), PRINTS_KEPT);
+        assert!(kept[0].ends_with("F1-ROOM-11.json"), "{kept:?}");
+        assert!(!root.join(PRINTS_DIR).join("F1-ROOM-00.json").exists());
+        assert_eq!(newest_prints(&root, 3).len(), 3);
+        let odd = write_prints(&root, "a/b c", &serde_json::json!({})).unwrap();
+        assert_eq!(odd.file_name().unwrap(), "a_b_c.json");
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     #[test]
     fn registered_secrets_never_reach_a_line() {

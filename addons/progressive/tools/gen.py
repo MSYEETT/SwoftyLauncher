@@ -26,9 +26,13 @@ REPO = ROOT.parents[1]
 CS = REPO / "addons" / "classicseasons"
 CS_DATA = CS / "classic-seasons" / "data"
 CS_LOGOS = CS / "classic-seasons" / "erp" / "logos.json"
-LOGO_ARRAYS = ("team_logos.Contents.driver_career_2024_team_select", "teams.Contents.badges_broadcast",
-               "teams.Contents.driver_select_team_logos")
+LOGO_ARRAYS = ("team_logos.Contents.f1_2023", "team_logos.Contents.driver_career_2024_team_select",
+               "teams.Contents.mp_team_select_logos", "teams.Contents.driver_select_team_logos",
+               "teams.Contents.badges_broadcast", "broadcast_ui_generic.Contents.grid_team_logos",
+               "osd.Contents.timing_tower.Contents.team_badges_hud",
+               "osd.Contents.timing_tower.Contents.team_badges_broadcast")
 sys.path.insert(0, str(HERE))
+import ratings  # noqa: E402
 import stockdb  # noqa: E402
 
 YEARS = range(2016, 2027)
@@ -948,9 +952,8 @@ def main():
                                "resolve the label with swofty::db at run time",
             "look.stat_id": "Classic Seasons sets look stat ids explicitly (420-601), stock looks are stock ids",
             "filler": "slot 11 in 2017-2025: the 2016 Manor car, drivers chosen at run time (DESIGN D7)",
-            "logo_keys": "Classic Seasons team logo keys present in driver_career_2024_team_select, badges_broadcast "
-                         "and driver_select_team_logos; a season team's cs_team outside this list keeps its stock "
-                         "logo",
+            "logo_keys": "Classic Seasons team logo keys present in every team logo and badge array it extends "
+                         "(tools/gen.py LOGO_ARRAYS); a season team's cs_team outside this list keeps its stock logo",
             "rating": "Classic Seasons performance.json pace (2016-2024), stock_pace.json (2025-2026); null if none",
             "development": "in-season pace of a real team relative to the year's car: checkpoints {at: 0..1 of the "
                            "season, delta_pct: qualifying gap % minus the team's season mean, > 0 slower}; null "
@@ -966,10 +969,19 @@ def main():
             "previous_standings": "the previous year's final standings (data/standings.json, Jolpica): `slots` the "
                                   "career team slots in constructors' order, `drivers` the drivers in game labels; "
                                   "the season-start order of the career's standings",
+            "ratings": "per year, every driver of the season (line-up, stand-ins, mid-season changes): the base value "
+                       "of each driver statistic (`stats`: name, the game's stat_id and overall weight) and the "
+                       "overall rating they make, written into the career at each season's first Team HQ "
+                       "(tools/ratings.py: 2026 the stock 2026 dataset, 2025 the stock default = EA's F1 25 launch "
+                       "ratings, 2020-2024 EA's launch ratings of that season's game, 2016-2019 and drivers the "
+                       "launch tables leave out the model of tools/ratings_model.py; focus stock)",
         },
         "seasons": years,
         "pool": pool,
         "logo_keys": cs_logo_keys(),
+        "ratings": ratings.build(stock.db, years, performance()[0], rounds,
+                                 json.loads((ROOT / "data" / "official_ratings.json").read_text())["years"],
+                                 json.loads((ROOT / "data" / "ratings_model.json").read_text())),
     }
     write_json(ROOT / "data" / "years.json", doc)
     write_json(ROOT / "db" / "career.json", career_ops(stock))

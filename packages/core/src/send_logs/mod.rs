@@ -32,6 +32,8 @@ pub const KEPT: usize = 10;
 pub const LAUNCH_LOGS: [&str; 2] = ["state/launcher-run.log", "state/wrapper-run.log"];
 pub const NET_TRACE: &str = "swofty/net-trace.log";
 pub const NET_TRACE_CAP: u64 = 16 << 20;
+/// How many saved fingerprint comparisons a bundle carries, newest first.
+const PRINTS_SENT: usize = 3;
 
 const REDACTED: &str = "[redacted]";
 const SESSION_DEPTH: usize = 3;
@@ -392,6 +394,13 @@ impl Bundle {
                 .starts_with("multiplayer")
                 .then_some(crate::multiplayer::diag::scrub as fn(&str) -> String);
             c.file(format!("state/{name}"), &log, redact);
+        }
+        for print in crate::multiplayer::diag::newest_prints(&store.root, PRINTS_SENT) {
+            c.file(
+                format!("{}/{}", crate::multiplayer::diag::PRINTS_DIR, file_name(&print)),
+                &print,
+                Some(crate::multiplayer::diag::scrub as fn(&str) -> String),
+            );
         }
         let not_stock = store.root.join("state/not-stock.json");
         if not_stock.is_file() {
@@ -1463,18 +1472,70 @@ fn hardware() -> String {
         })
     }
     .unwrap_or_else(|| "unknown CPU".into());
-    let memory = std::fs::read_to_string("/proc/meminfo").ok().and_then(|m| {
-        let kb: u64 = m
-            .lines()
-            .find_map(|l| l.strip_prefix("MemTotal:"))?
-            .trim()
-            .trim_end_matches("kB")
-            .trim()
-            .parse()
-            .ok()?;
-        Some(format!(", {:.0} GB memory", kb as f64 / 1024. / 1024.))
-    });
+    let memory = windows_memory()
+        .map(|(ram, commit)| memory_text(ram, Some(commit)))
+        .or_else(|| {
+            let kb: u64 = std::fs::read_to_string("/proc/meminfo")
+                .ok()?
+                .lines()
+                .find_map(|l| l.strip_prefix("MemTotal:"))?
+                .trim()
+                .trim_end_matches("kB")
+                .trim()
+                .parse()
+                .ok()?;
+            Some(memory_text(kb * 1024, None))
+        });
     format!("{cpu} ({threads} threads){}", memory.unwrap_or_default())
+}
+
+/// `ram` and Windows' commit limit (`commit`, RAM plus the page file), in bytes.
+fn memory_text(ram: u64, commit: Option<u64>) -> String {
+    let gb = |b: u64| format!("{:.0} GB", b as f64 / 1024. / 1024. / 1024.);
+    match commit {
+        Some(c) => format!(
+            ", {} memory, {} page file ({} commit limit)",
+            gb(ram),
+            gb(c.saturating_sub(ram)),
+            gb(c)
+        ),
+        None => format!(", {} memory", gb(ram)),
+    }
+}
+
+/// The PC's RAM and commit limit in bytes.
+#[cfg(windows)]
+fn windows_memory() -> Option<(u64, u64)> {
+    #[repr(C)]
+    #[derive(Default)]
+    struct MemoryStatus {
+        length: u32,
+        load: u32,
+        total_phys: u64,
+        avail_phys: u64,
+        total_page_file: u64,
+        avail_page_file: u64,
+        total_virtual: u64,
+        avail_virtual: u64,
+        avail_extended_virtual: u64,
+    }
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
+    }
+    let mut status = MemoryStatus {
+        length: std::mem::size_of::<MemoryStatus>() as u32,
+        ..MemoryStatus::default()
+    };
+    // SAFETY: `status` is a MEMORYSTATUSEX with its length set, and it
+    // outlives the call.
+    let ok = unsafe { GlobalMemoryStatusEx(&mut status) } != 0;
+    ok.then_some((status.total_phys, status.total_page_file))
+}
+
+#[cfg(not(windows))]
+fn windows_memory() -> Option<(u64, u64)> {
+    None
 }
 
 #[cfg(test)]

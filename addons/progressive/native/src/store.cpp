@@ -81,6 +81,8 @@ bool load()
         x.dev_rounds = static_cast<int>(c["dev_rounds"].num());
         x.dev_applied = c["dev_applied"].str();
         x.trees_season = static_cast<int>(c["trees_season"].num(-1));
+        x.ratings_season = static_cast<int>(c["ratings_season"].num(-1));
+        x.player_ratings = static_cast<int>(c["player_ratings"].num(0));
         if (x.key.empty())
             continue;
         if (!x.driver && x.applied_season < 0) {
@@ -153,7 +155,8 @@ bool save()
         out += b;
         out += quoted(c.dev_applied) + ", \"mid_applied\": " + quoted(c.mid_applied) +
                ", \"mid_tracks\": " + quoted(c.mid_tracks) + ", \"trees_season\": " + std::to_string(c.trees_season) +
-               "}";
+               ", \"ratings_season\": " + std::to_string(c.ratings_season) +
+               ", \"player_ratings\": " + std::to_string(c.player_ratings) + "}";
     }
     out += "\n  ]\n}\n";
     swofty::storage::Result r = swofty::storage::write(kPath, out);

@@ -112,7 +112,9 @@ struct CareerEntity {
     EntrantRecord *entrants_end; // L2 experimental
     uint8_t _pad_0x2f0[0x8];
     uint8_t entrant_update_busy; // L2 experimental
-    uint8_t _pad_0x2f9[0xd37];
+    uint8_t _pad_0x2f9[0xc5f];
+    TrackDataSystem *track_data; // L2 experimental
+    uint8_t _pad_0xf60[0xd0];
     void **component_registry; // L2 experimental
     uint8_t _pad_0x1038[0x8];
     void *championships_begin; // L2 experimental
@@ -127,6 +129,7 @@ static_assert(offsetof(CareerEntity, vtable) == 0x0);
 static_assert(offsetof(CareerEntity, entrants_begin) == 0x2e0);
 static_assert(offsetof(CareerEntity, entrants_end) == 0x2e8);
 static_assert(offsetof(CareerEntity, entrant_update_busy) == 0x2f8);
+static_assert(offsetof(CareerEntity, track_data) == 0xf58);
 static_assert(offsetof(CareerEntity, component_registry) == 0x1030);
 static_assert(offsetof(CareerEntity, championships_begin) == 0x1040);
 static_assert(offsetof(CareerEntity, championships_end) == 0x1048);

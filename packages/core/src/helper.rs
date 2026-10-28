@@ -893,6 +893,47 @@ read -r l
         std::fs::remove_dir_all(&root).ok();
     }
 
+    #[test]
+    fn removing_an_addon_stops_its_helper_before_deleting_it() {
+        let root = tmp("remove");
+        let store = Store::new(root.join("data"));
+        let dir = store.addons_dir().join("t.helper");
+        addon(
+            &dir,
+            r#"echo $$ > pid
+read -r l; echo '{"id":0,"result":{"api":1}}'
+read -r l; echo '{"id":1,"result":{"subtitle":"s","body":{"blocks":[]}}}'
+exec sleep 60
+"#,
+        );
+        let h = store
+            .helpers()
+            .get(&AddonManifest::load(&dir).unwrap(), &dir)
+            .unwrap();
+        let state = Memory::default();
+        let (data, cache) = (root.join("state"), root.join("cache"));
+        std::fs::create_dir_all(&cache).unwrap();
+        let p = profile("default");
+        h.view(&Cx::new("t.helper", &p, &data, &cache, None, &state), "items")
+            .unwrap();
+        assert!(h.running());
+        let pid = std::fs::read_to_string(dir.join("pid")).unwrap();
+        store
+            .remove_addon_with("t.helper", |d| {
+                assert!(!h.running());
+                let alive = Command::new("kill")
+                    .args(["-0", pid.trim()])
+                    .stderr(Stdio::null())
+                    .status()
+                    .unwrap();
+                assert!(!alive.success(), "the helper still runs");
+                std::fs::remove_dir_all(d)
+            })
+            .unwrap();
+        assert!(!dir.exists());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     struct FakeGame(PathBuf);
 
     impl GameFiles for FakeGame {

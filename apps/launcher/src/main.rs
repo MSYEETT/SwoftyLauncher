@@ -2,8 +2,10 @@
 
 mod addons;
 mod admin_needed;
+mod app_log;
 mod blocks;
 mod browser;
+mod colour;
 mod console;
 mod crash_modal;
 mod db;
@@ -32,6 +34,7 @@ use gpui_kit::component::{TitleBar, v_flex};
 use gpui_kit::*;
 
 fn main() {
+    app_log::start();
     let app = gpui_kit::application().with_assets(gpui_kit::assets::AllAssets);
     let prepared = app.background_executor().spawn(async { shell::Prepared::load() });
     app.run(move |cx| {

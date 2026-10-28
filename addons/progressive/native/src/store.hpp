@@ -16,7 +16,9 @@
 // The mid-season changes in force at the last applied Team HQ (year, career race, change ids) are
 // kept too: the seats follow the round the save is at, the record names what changed since and
 // stands in when the calendar can't be read; the career calendar's tracks (the same every season)
-// scale a season break's first apply when the new season's calendar can't be read yet.
+// scale a season break's first apply when the new season's calendar can't be read yet. The season
+// index whose driver ratings were written (ratings_season) and the year whose ratings the player's
+// driver got at the career's creation (player_ratings, 0 for none) gate ratings.hpp.
 
 #pragma once
 #include <cstdint>
@@ -45,6 +47,8 @@ struct Career {
     int dev_rounds = 0;
     std::string dev_applied;
     int trees_season = -1;
+    int ratings_season = -1;
+    int player_ratings = 0;
     int mid_year = 0;
     int mid_round = 0;
     std::string mid_applied;

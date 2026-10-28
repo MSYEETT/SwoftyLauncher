@@ -273,6 +273,13 @@ inline std::vector<LogoMap> logo_map(const json::Value &doc, std::vector<std::st
     return out;
 }
 
+// The override arrays Classic Seasons adds a slice to for every season team (tools/gen.py
+// LOGO_ARRAYS, the logo_keys of data/years.json), as the UI's registry paths name them.
+constexpr std::string_view kLogoArrays[] = {
+    "team_logos.f1_2023",          "team_logos.driver_career_2024_team_select", "teams.mp_team_select_logos",
+    "teams.driver_select_team_logos", "teams.badges_broadcast",              "broadcast_ui_generic.grid_team_logos",
+    "osd.timing_tower.team_badges_hud", "osd.timing_tower.team_badges_broadcast"};
+
 inline const char *logo_for(const std::vector<LogoMap> &map, int year, const char *label)
 {
     if (!label)
@@ -281,6 +288,35 @@ inline const char *logo_for(const std::vector<LogoMap> &map, int year, const cha
         if (m.year == year && m.from == label)
             return m.to.c_str();
     return label;
+}
+
+// A registry path "[#]overrides.<array>.<label>" of a team logo array whose label the year maps
+// gets the year's key: out is the path with the label replaced. Anything else stays (false).
+inline bool logo_path(const std::vector<LogoMap> &map, int year, const char *path, std::string &out)
+{
+    if (!path)
+        return false;
+    std::string_view p(path);
+    constexpr std::string_view kRoot = "overrides.";
+    size_t at = !p.empty() && p[0] == '#' ? 1 : 0;
+    if (p.size() < at + kRoot.size() || p.substr(at, kRoot.size()) != kRoot)
+        return false;
+    size_t dot = p.rfind('.');
+    if (dot == std::string_view::npos || dot <= at + kRoot.size())
+        return false;
+    std::string_view array = p.substr(at + kRoot.size(), dot - at - kRoot.size());
+    bool logos = false;
+    for (std::string_view a : kLogoArrays)
+        logos = logos || a == array;
+    if (!logos)
+        return false;
+    std::string label(p.substr(dot + 1));
+    const char *to = logo_for(map, year, label.c_str());
+    if (to == label.c_str())
+        return false;
+    out.assign(p.substr(0, dot + 1));
+    out += to;
+    return true;
 }
 
 } // namespace progressive::cards

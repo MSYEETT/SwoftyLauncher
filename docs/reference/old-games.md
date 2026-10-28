@@ -181,6 +181,21 @@ Each season from 2016 to 2023 takes its makers' bundles from the game of that se
 
 A bundle that isn't stock is copied to the season addon's `sounds/` as `cs<yy>_<maker>.bdl`. `gen.py` ships it with `file.put` to `audio/2025/bundles/`, adds its `audio.audio_bundle_settings` row (a copy of its maker's 2025 row), and puts each car's records. `build_cars.py` sets the labels when it builds a season; run on its own, `sounds.py` sets them in the built cars. A rerun changes nothing.
 
+### Bundle parts
+
+A bundle (`bndl`) holds two engine parts and two exhaust parts (`egoe`, each with its own version), read one after the other by `Game_Load_AudioBundle` (`0x144528310`) and the part reader `0x144524b30`. A part's block, from its size field at part offset 68, holds 24 bytes, then the curves (1032 bytes each: count, flag, 128 float pairs) and one mask per variation layer. The layer curves come first, then 5 global curves.
+
+| Game | Part version | Layers | Curves | Block bytes |
+|---|---|---|---|---|
+| F1 2016 to F1 2018 | `0x71` | 8 | 13 | 13472 |
+| F1 2019 to F1 2021 | `0x72` | 16 | 21 | 21760 |
+| F1 22 | `0x76` | 16 | 21 | 21760 |
+| F1 23 to F1 25 | `0x77` | 16 | 21 | 21760 |
+
+F1 25's part reader always reads 21 curves and 16 masks, then jumps to the end of the block by its size field. On an 8-layer part it read 8 layer curves, the 5 global curves and all 16 masks from the part's samples. A mask picks the layers a state may play (the engine update `0x14452be10` picks one at random among the layers whose mask bit is clear), so those cars played random curves. `sounds.py` widens each 8-layer part to 16 layers: layers 8 to 15 copy layers 0 to 7 with their masks, the global curves follow, and the size field grows by 8288 bytes. The game then picks among the same curves as the old game. Bundles with 16 layers are copied unchanged.
+
+The bundle header differs too: F1 2016 to F1 2019 bundles hold 0 at offset `0x24`, which F1 25 reads as the RPM range mode (0 takes the range from the engine parts only, 2 from every part; stock and F1 2020 bundles hold 2). F1 2019 bundles and F1 2018's `mercedes_2018` hold 0 in the exhaust pair at `0x14` and `0x18`. The tools leave both as they are.
+
 ## Cars
 
 Tools: [`build_cars.py`](https://github.com/Swofty-Developments/SwoftyLauncher/blob/main/addons/classicseasons/classic-seasons/tools/build_cars.py), [`powerunit.py`](https://github.com/Swofty-Developments/SwoftyLauncher/blob/main/addons/classicseasons/classic-seasons/tools/powerunit.py), [`pace.py`](https://github.com/Swofty-Developments/SwoftyLauncher/blob/main/addons/classicseasons/classic-seasons/tools/pace.py), [`aislots.py`](https://github.com/Swofty-Developments/SwoftyLauncher/blob/main/addons/classicseasons/classic-seasons/tools/aislots.py).

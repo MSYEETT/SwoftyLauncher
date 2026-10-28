@@ -10,17 +10,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::Result;
+use crate::asset::Source as OpSource;
 use crate::baseline::{Hashes, Identity, hex, sha256_bytes};
 use crate::builtin::{CORE_DB, CORE_DLL, CORE_ID, CORE_MANIFEST, loader_dir, loader_files};
 use crate::catalog::{self, Addon};
 use crate::manifest::{AddonManifest, Kind, Multiplayer};
 use crate::profile::Profile;
 use crate::store::Store;
+use crate::{Result, read_json, write_json_shared};
 
 pub const VERSION: u32 = 1;
 /// Digests of the addon files [`fingerprint`] hashed, kept apart from the launch-time ones.
 pub const HASHES_FILE: &str = "state/fingerprint-hashes.json";
+/// What the last build of each profile made the game load, addon by addon; see [`Output`].
+pub const OUTPUTS_FILE: &str = "state/fingerprint-outputs.json";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Fingerprint {
@@ -50,14 +53,38 @@ pub struct AddonPrint {
     /// a fix installs; the digest and the comparison leave it out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registry: Option<String>,
-    /// For an addon with a build hook, a SHA-256 of what the hook reads: its addon data and its
-    /// state in the profile.
+    /// For a built-in addon, what its part of the profile's last build made the game load, as
+    /// [`Source::Built`] has it; until the profile is built, for an addon with a build hook, a
+    /// SHA-256 of what the hook reads: its addon data and its state in the profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inputs: Option<String>,
     /// Its place in the load order among the gameplay addons that change game data, where
     /// a later one can override an earlier one; `None` for one that only loads code.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<usize>,
+    /// What its part of the last build is made of, for naming what differs from another copy;
+    /// the digest leaves it out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<Detail>,
+}
+
+/// The parts and files of an addon's [`Output`], each as the first 12 hex digits of its
+/// SHA-256, so two copies whose outputs differ can name the part or file that does.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Detail {
+    /// Part label (an operation file kind, `declared`, `picks`, `fields`, `hook` or `native`)
+    /// to its hash.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub parts: BTreeMap<String, String>,
+    /// The hash of the read list (which files, not their contents) and its length.
+    pub read_list: String,
+    pub read_count: usize,
+    /// One hash per read, in the read list's order; left out of a blob that would be too big.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reads: Vec<String>,
+    /// The read paths, which stay on this side.
+    #[serde(skip)]
+    pub paths: Vec<String>,
 }
 
 /// What the installed copy of an addon is, as a SHA-256 in hex.
@@ -72,6 +99,10 @@ pub enum Source {
     /// Built into the launcher: its version and manifest, and for the core its database
     /// operations and DLL.
     Builtin(String),
+    /// What its part of the profile's last build made the game load: the [`Output`] it made,
+    /// with every file that output reads hashed by content. Taken in place of `Content` and
+    /// `Edits` once the profile has been built.
+    Built(String),
 }
 
 impl Fingerprint {
@@ -148,6 +179,9 @@ pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> R
     let installed = store.addons()?;
     let load = crate::resolver::resolve(profile, &installed)?.order;
     let mut hashes = Hashes::open(store.root.join(HASHES_FILE));
+    let mut outputs: BTreeMap<String, BTreeMap<String, Output>> =
+        read_json(&store.root.join(OUTPUTS_FILE)).unwrap_or_default();
+    let built = outputs.remove(&profile.name).unwrap_or_default();
     let mut addons = Vec::new();
     let mut options = BTreeMap::new();
     let mut place = 0;
@@ -159,16 +193,31 @@ pub fn fingerprint(store: &Store, profile: &Profile, game_build: &Identity) -> R
             place += 1;
             place - 1
         });
+        let output = built
+            .get(&m.id)
+            .map(|o| o.digest(store, &m.id, &mut hashes))
+            .transpose()?;
+        let detail = output.as_ref().map(|(_, d)| d.clone());
+        let builtin = store.is_builtin(&m.id);
+        let (source, inputs) = match output.map(|(digest, _)| digest) {
+            Some(o) if builtin => (source(store, m, &mut hashes)?, Some(o)),
+            Some(o) => (Source::Built(o), None),
+            None => (
+                source(store, m, &mut hashes)?,
+                hook_inputs(store, m, profile, &mut hashes)?,
+            ),
+        };
         addons.push(AddonPrint {
             id: m.id.clone(),
             name: m.name.clone(),
             version: m.version.clone(),
-            source: source(store, m, &mut hashes)?,
+            source,
             registry: (!crate::dbedit::package::is_package(store, &m.id))
                 .then(|| catalog::installed_from(store, m))
                 .flatten(),
-            inputs: hook_inputs(store, m, profile, &mut hashes)?,
+            inputs,
             order,
+            detail,
         });
         let values: BTreeMap<String, Value> = m
             .options
@@ -222,6 +271,124 @@ fn source(store: &Store, m: &AddonManifest, hashes: &mut Hashes) -> Result<Sourc
         return Ok(Source::Edits(sha256_bytes(&text)));
     }
     content_hash(&store.addons_dir().join(&m.id), hashes).map(Source::Content)
+}
+
+/// What one addon's part of a build made the game load: a SHA-256 of the operations, fields,
+/// screens and plugin list it produced, and the files those read. A fingerprint hashes the
+/// files by content, so an addon prints the same however it was installed, and files the
+/// build never reads, such as logs, import reports and import history, don't count.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Output {
+    pub made: String,
+    pub reads: Vec<Read>,
+    /// `made` split by part label, as [`Detail::parts`] carries them.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub parts: BTreeMap<String, String>,
+}
+
+/// A file or folder an [`Output`] reads, as the operation names it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Read {
+    pub addon: String,
+    pub source: OpSource,
+}
+
+impl Output {
+    /// The output's digest, and its [`Detail`]; `id` is the addon the output is of.
+    fn digest(&self, store: &Store, id: &str, hashes: &mut Hashes) -> Result<(String, Detail)> {
+        let mut h = Sha256::new();
+        let mut list = Sha256::new();
+        let mut detail = Detail {
+            parts: self.parts.iter().map(|(k, v)| (k.clone(), short(v))).collect(),
+            read_count: self.reads.len(),
+            ..Detail::default()
+        };
+        h.update(&self.made);
+        for r in &self.reads {
+            let (root, rel) = (r.source.root, &r.source.path);
+            let name = format!("\n{}\0{root:?}\0{rel}", r.addon);
+            h.update(&name);
+            list.update(&name);
+            let mut one = Sha256::new();
+            let path = r
+                .source
+                .resolve(&crate::build::source_dir(store, &r.addon, root))?;
+            let mut feed = |text: String| {
+                h.update(&text);
+                one.update(&text);
+            };
+            if path.is_dir() {
+                for (rel, file) in loader_files(&path)? {
+                    if !rel.split('/').any(|c| c.starts_with('.')) {
+                        feed(format!("\0{rel}\0{}", hashes.sha256(&file)?));
+                    }
+                }
+            } else if path.is_file() {
+                feed(format!("\0{}", hashes.sha256(&path)?));
+            } else {
+                feed("\0missing".into());
+            }
+            detail.reads.push(short(&hex(&one.finalize())));
+            detail.paths.push(match r.addon == id {
+                true => rel.clone(),
+                false => format!("{}:{rel}", r.addon),
+            });
+        }
+        detail.read_list = short(&hex(&list.finalize()));
+        Ok((hex(&h.finalize()), detail))
+    }
+}
+
+fn short(digest: &str) -> String {
+    digest.get(..12).unwrap_or(digest).to_owned()
+}
+
+/// Collects an addon's [`Output`] as the build makes it.
+#[derive(Default)]
+pub struct OutputBuilder {
+    made: Sha256,
+    parts: BTreeMap<String, Sha256>,
+    reads: BTreeMap<(String, String), OpSource>,
+}
+
+impl OutputBuilder {
+    pub fn made(&mut self, what: &str, value: &impl Serialize) {
+        let json = serde_json::to_vec(value).expect("serialisable");
+        for h in [&mut self.made, self.parts.entry(what.to_owned()).or_default()] {
+            h.update(format!("{what}\0"));
+            h.update(&json);
+            h.update(b"\n");
+        }
+    }
+
+    pub fn reads(&mut self, addon: &str, source: &OpSource) {
+        let key = format!("{:?}/{}", source.root, source.path);
+        self.reads.insert((addon.to_owned(), key), source.clone());
+    }
+
+    pub fn finish(self) -> Output {
+        Output {
+            made: hex(&self.made.finalize()),
+            reads: self
+                .reads
+                .into_iter()
+                .map(|((addon, _), source)| Read { addon, source })
+                .collect(),
+            parts: self
+                .parts
+                .into_iter()
+                .map(|(label, h)| (label, hex(&h.finalize())))
+                .collect(),
+        }
+    }
+}
+
+/// Keeps what the build of `profile` made the game load, in place of its previous build's.
+pub fn record_outputs(store: &Store, profile: &str, outputs: BTreeMap<String, Output>) -> Result<()> {
+    let path = store.root.join(OUTPUTS_FILE);
+    let mut all: BTreeMap<String, BTreeMap<String, Output>> = read_json(&path).unwrap_or_default();
+    all.insert(profile.to_owned(), outputs);
+    write_json_shared(&path, &all)
 }
 
 /// SHA-256 over each file under `dir` as `path\0sha256\n`, paths relative with `/`, in order.
@@ -322,6 +489,10 @@ pub struct Mismatch {
     /// The launcher can fix it on its own: turn an addon off, set an option, reorder, or
     /// install the host's exact version from the Addon Browser.
     pub fixable: bool,
+    /// For a copy or its data that differs, which part or file does, when both sides sent
+    /// their [`Detail`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub differences: Vec<String>,
 }
 
 /// How the local fingerprint differs from the host's; `local` is this player's side.
@@ -448,6 +619,89 @@ impl Mismatch {
     }
 }
 
+/// Files named before the rest are counted.
+const NAMED_FILES: usize = 5;
+
+/// What differs between two copies of an addon, from their [`Detail`]s: its parts, which files
+/// it reads, or the contents of those files, named by path.
+pub fn differences(local: &AddonPrint, host: &AddonPrint) -> Vec<String> {
+    let built = |s: &Source| matches!(s, Source::Built(_) | Source::Builtin(_));
+    let (l, h) = match (&local.detail, &host.detail) {
+        (Some(l), Some(h)) => (l, h),
+        (Some(_), None) if !built(&host.source) => {
+            return vec![
+                "the host's game wasn't built with it, so its files count instead; the host needs to start F1 25 again"
+                    .into(),
+            ];
+        }
+        (None, Some(_)) if !built(&local.source) => {
+            return vec![
+                "your game wasn't built with it, so its files count instead; start F1 25 again".into(),
+            ];
+        }
+        _ => return Vec::new(),
+    };
+    let mut out = Vec::new();
+    let labels: std::collections::BTreeSet<&String> = l.parts.keys().chain(h.parts.keys()).collect();
+    for label in labels {
+        let (a, b) = (l.parts.get(label), h.parts.get(label));
+        if a != b {
+            let what = part_name(label);
+            out.push(match (a, b) {
+                (Some(_), None) => format!("{what}: only yours has them"),
+                (None, Some(_)) => format!("{what}: only the host's has them"),
+                _ => format!("{what} differ"),
+            });
+        }
+    }
+    if l.read_list != h.read_list || l.read_count != h.read_count {
+        out.push(format!(
+            "it reads other files: {} here, {} at the host",
+            l.read_count, h.read_count
+        ));
+    } else if l.reads.len() == l.read_count && h.reads.len() == h.read_count {
+        let differ: Vec<usize> = (0..l.read_count).filter(|&i| l.reads[i] != h.reads[i]).collect();
+        let path = |i: usize| {
+            l.paths
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| format!("file {}", i + 1))
+        };
+        out.extend(
+            differ
+                .iter()
+                .take(NAMED_FILES)
+                .map(|&i| format!("{} differs", path(i))),
+        );
+        if differ.len() > NAMED_FILES {
+            out.push(format!("and {} more file(s) differ", differ.len() - NAMED_FILES));
+        }
+    } else if out.is_empty() {
+        out.push(format!(
+            "one of its {} file(s) may differ; the per-file hashes were left out",
+            l.read_count
+        ));
+    }
+    if out.is_empty() {
+        out.push("its parts and files match, but not their order".into());
+    }
+    out
+}
+
+fn part_name(label: &str) -> String {
+    match label {
+        "Database" => "its database operations".into(),
+        "Erp" => "its archive operations".into(),
+        "Assets" => "its asset operations".into(),
+        "declared" => "its file operations".into(),
+        "picks" => "its Driver Manager picks".into(),
+        "fields" => "its build step's fields".into(),
+        "hook" => "its build step's output".into(),
+        "native" => "its plugin list".into(),
+        other => format!("its {other}"),
+    }
+}
+
 fn build(i: &Identity) -> String {
     format!(
         "{} (exe {})",
@@ -478,7 +732,13 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
         })
     };
     let mut out = Vec::new();
-    let mut push = |kind, fixable| out.push(Mismatch { kind, fixable });
+    let mut push = |kind, fixable| {
+        out.push(Mismatch {
+            kind,
+            fixable,
+            differences: Vec::new(),
+        })
+    };
     if !local
         .game_build
         .exe_sha256
@@ -642,6 +902,13 @@ pub fn compare(local: &Fingerprint, host: &Fingerprint, catalog: &[Addon]) -> Ve
             );
         }
     }
+    for m in &mut out {
+        if let MismatchKind::SourceDiffers { id, .. } | MismatchKind::InputsDiffer { id, .. } = &m.kind
+            && let (Some(l), Some(h)) = (mine.get(id.as_str()), theirs.get(id.as_str()))
+        {
+            m.differences = differences(l, h);
+        }
+    }
     out
 }
 
@@ -718,6 +985,7 @@ mod tests {
             registry: None,
             inputs: None,
             order,
+            detail: None,
         }
     }
 
@@ -1063,6 +1331,108 @@ mod tests {
             .collect();
         assert!(prints[0].addons[1].inputs.is_some());
         assert_eq!(prints[0].digest, prints[1].digest);
+    }
+
+    fn detailed(id: &str, digest: &str, parts: &[(&str, &str)], reads: &[(&str, &str)]) -> AddonPrint {
+        let mut a = print(id, "1.0.0", Source::Built(digest.repeat(32)), Some(0));
+        let list: String = reads.iter().map(|(p, _)| *p).collect::<Vec<_>>().join("\n");
+        a.detail = Some(Detail {
+            parts: parts.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect(),
+            read_list: short(&sha256_bytes(list.as_bytes())),
+            read_count: reads.len(),
+            reads: reads.iter().map(|(_, h)| (*h).into()).collect(),
+            paths: reads.iter().map(|(p, _)| (*p).into()).collect(),
+        });
+        a
+    }
+
+    fn with(addons: Vec<AddonPrint>) -> Fingerprint {
+        Fingerprint::new(game(), addons, BTreeMap::new(), None)
+    }
+
+    #[test]
+    fn a_different_copy_names_the_part_and_the_files_that_differ() {
+        let reads = [("a.erp", "aaaa"), ("b.erp", "bbbb"), ("c.erp", "cccc")];
+        let local = with(vec![detailed(
+            "t.cars",
+            "aa",
+            &[("Database", "d1"), ("native", "n1")],
+            &reads,
+        )]);
+        let mut theirs = reads;
+        theirs[1].1 = "beef";
+        let host = with(vec![detailed(
+            "t.cars",
+            "bb",
+            &[("Database", "d2"), ("native", "n1")],
+            &theirs,
+        )]);
+        let found = compare(&local, &host, &[]);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(matches!(found[0].kind, MismatchKind::SourceDiffers { .. }));
+        assert_eq!(
+            found[0].differences,
+            ["its database operations differ", "b.erp differs"]
+        );
+        let blob = serde_json::to_value(&host).unwrap();
+        assert!(
+            blob.pointer("/addons/0/detail/paths").is_none(),
+            "paths stay local"
+        );
+        assert_eq!(
+            serde_json::from_value::<Fingerprint>(blob).unwrap().digest,
+            host.digest
+        );
+    }
+
+    #[test]
+    fn a_different_read_list_is_named_with_both_counts() {
+        let local = with(vec![detailed(
+            "t.cars",
+            "aa",
+            &[],
+            &[("a.erp", "aaaa"), ("b.erp", "bbbb")],
+        )]);
+        let host = with(vec![detailed("t.cars", "bb", &[], &[("a.erp", "aaaa")])]);
+        assert_eq!(
+            compare(&local, &host, &[])[0].differences,
+            ["it reads other files: 2 here, 1 at the host"]
+        );
+        let many: Vec<(String, String)> = (0..8).map(|i| (format!("f{i}.erp"), format!("{i:04}"))).collect();
+        let theirs: Vec<(String, String)> = many.iter().map(|(p, _)| (p.clone(), "ffff".into())).collect();
+        fn refs(v: &[(String, String)]) -> Vec<(&str, &str)> {
+            v.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect()
+        }
+        let found = compare(
+            &with(vec![detailed("t.cars", "aa", &[], &refs(&many))]),
+            &with(vec![detailed("t.cars", "bb", &[], &refs(&theirs))]),
+            &[],
+        );
+        assert_eq!(found[0].differences.len(), NAMED_FILES + 1);
+        assert_eq!(found[0].differences.last().unwrap(), "and 3 more file(s) differ");
+    }
+
+    #[test]
+    fn a_host_without_a_build_record_is_told_to_restart_and_an_old_peer_names_nothing() {
+        let local = with(vec![detailed("t.cars", "aa", &[("Database", "d1")], &[])]);
+        let unbuilt = with(vec![print("t.cars", "1.0.0", content("cc"), Some(0))]);
+        assert_eq!(
+            compare(&local, &unbuilt, &[])[0].differences,
+            [
+                "the host's game wasn't built with it, so its files count instead; the host needs to start F1 25 again"
+            ]
+        );
+        let old = with(vec![print(
+            "t.cars",
+            "1.0.0",
+            Source::Built("dd".repeat(32)),
+            Some(0),
+        )]);
+        let found = compare(&local, &old, &[]);
+        assert!(matches!(found[0].kind, MismatchKind::SourceDiffers { .. }));
+        assert!(found[0].differences.is_empty());
+        let json = serde_json::to_value(&found[0]).unwrap();
+        assert!(json.get("differences").is_none());
     }
 
     #[test]

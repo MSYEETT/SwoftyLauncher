@@ -513,7 +513,7 @@ pub fn original_lang(data: &Path, game: &Path, id: &Identity, code: &str) -> Res
 pub fn extract_lang(game: &Path, dir: &Path) -> Result<Vec<String>> {
     let exe_path = game.join(crate::GAME_EXE);
     let mut exe = std::fs::File::open(&exe_path).map_err(io_err(&exe_path))?;
-    let archive = swofty_formats::nefs::Archive::open_exe(&mut exe)?;
+    let archive = swofty_formats::nefs::Archive::open_exe(&mut exe).map_err(crate::formats_at(&exe_path))?;
     let data_path = game.join(&archive.volume);
     let mut data = std::fs::File::open(&data_path).map_err(io_err(&data_path))?;
     let tmp = dir.with_extension(format!("tmp-{}", std::process::id()));
@@ -530,7 +530,9 @@ pub fn extract_lang(game: &Path, dir: &Path) -> Result<Vec<String>> {
         else {
             continue;
         };
-        let bytes = archive.read(entry, &mut data)?;
+        let bytes = archive
+            .read(entry, &mut data)
+            .map_err(crate::formats_at(&data_path))?;
         if !swofty_formats::lng::is_lng(&bytes) {
             std::fs::remove_dir_all(&tmp).ok();
             return Err(Error::Other(format!(

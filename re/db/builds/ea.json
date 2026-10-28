@@ -605,6 +605,9 @@
   "Game_F1WorldActivityContainer_SelectEntrantList": {
    "match": "0x1a735f0"
   },
+  "Game_PracticeTrackAcclimatisation_RefreshState": {
+   "match": "0x2997720"
+  },
   "Game_Refresh_PerformanceComparison": {
    "match": "0x188aee0"
   },
@@ -1360,6 +1363,12 @@
   },
   "site_Game_DriverSelect_TeamLogoFormat": {
    "match": "0x169deb9"
+  },
+  "site_Game_ErsNewLap_NextVehicle": {
+   "match": "0x2511450"
+  },
+  "site_Game_ErsNewLap_VehicleLookup": {
+   "match": "0x2511450"
   },
   "site_Game_SaveData_ContainersChildren": {
    "match": "0x3641dd8"

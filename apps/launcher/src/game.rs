@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use swofty_core::app_control::Block;
+use swofty_core::app_control::{self, Block};
+use swofty_core::busy::Busy;
 use swofty_core::copies::{self, Found, GameCopy};
 use swofty_core::crash::{LogScan, StartFailure, Symbols, fatal_name};
 use swofty_core::install::{Game, Source};
@@ -80,6 +81,7 @@ pub struct Probe {
     pub blocked: Option<Blocked>,
     pub blocked_at: Option<f64>,
     pub launch_failed: Option<launch::Failure>,
+    pub busy: Option<Busy>,
 }
 
 pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe {
@@ -97,11 +99,29 @@ pub fn probe(store: &Store, rediscover: bool, seen: Option<SystemTime>) -> Probe
         blocked: Blocked::read(&store.root),
         blocked_at: blocked_at(&store.root),
         launch_failed: launch::Failure::read(&store.root),
+        busy: build_state(store),
         launch_stage: std::fs::read_to_string(store.root.join(steam_client::STAGE_FILE))
             .ok()
             .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty()),
     }
+}
+
+/// The build a Play is running. One whose process ended is rolled back
+/// here, as at launcher start.
+fn build_state(store: &Store) -> Option<Busy> {
+    Busy::read(&store.root)?;
+    let live = Busy::live(&store.root);
+    if live.is_none() {
+        match recover_stale(store) {
+            Ok(lines) => lines.iter().for_each(|l| eprintln!("swofty-launcher: {l}")),
+            Err(e) => eprintln!("swofty-launcher: could not clean up an unfinished build: {e}"),
+        }
+        if let Ok(Some(_lock)) = SessionLock::try_acquire(&store.root) {
+            Busy::clear(&store.root);
+        }
+    }
+    live
 }
 
 pub fn blocked_at(data: &Path) -> Option<f64> {
@@ -228,7 +248,7 @@ impl Launch {
         mode: LaunchMode,
         netplay: bool,
     ) -> Result<Self, String> {
-        let cli = cli_path(store).ok_or("the swofty command was not found next to the launcher")?;
+        let cli = cli_path(store).ok_or_else(|| app_control::missing(&expected_cli(store)))?;
         let at = now_secs();
         let log = store.root.join("state/launcher-run.log");
         let out = std::fs::create_dir_all(store.root.join("state"))
@@ -323,17 +343,25 @@ pub fn cause_first(failure: &str) -> String {
     }
 }
 
-fn cli_path(store: &Store) -> Option<PathBuf> {
-    let name = if cfg!(windows) { "swofty.exe" } else { "swofty" };
-    let beside = std::env::current_exe()
+const CLI: &str = if cfg!(windows) { "swofty.exe" } else { "swofty" };
+
+fn beside_launcher() -> Option<PathBuf> {
+    std::env::current_exe()
         .ok()
-        .and_then(|e| Some(e.parent()?.join(name)));
+        .and_then(|e| Some(e.parent()?.join(CLI)))
+}
+
+fn cli_path(store: &Store) -> Option<PathBuf> {
     let path = std::env::var_os("PATH").unwrap_or_default();
-    beside
+    beside_launcher()
         .into_iter()
-        .chain([store.bin_dir().join(name)])
-        .chain(std::env::split_paths(&path).map(|d| d.join(name)))
+        .chain([store.bin_dir().join(CLI)])
+        .chain(std::env::split_paths(&path).map(|d| d.join(CLI)))
         .find(|p| p.is_file())
+}
+
+fn expected_cli(store: &Store) -> PathBuf {
+    beside_launcher().unwrap_or_else(|| store.bin_dir().join(CLI))
 }
 
 pub fn crash_summary(session: &SessionRecord, game: Option<&Path>) -> Result<String, StartFailure> {
@@ -487,5 +515,24 @@ mod tests {
         ] {
             assert_eq!(cause_first(kept), kept);
         }
+    }
+
+    #[test]
+    fn an_addon_that_needs_a_newer_game_shows_the_update() {
+        let outdated = "Classic Seasons needs F1 25 1.0.141.7865, the latest update. Your F1 25 is 1.0.136.6820. \
+                        Update F1 25 in Steam or the EA app, then press Play again.";
+        let log = format!(
+            "[info] launching F1 25 directly; waiting for the wrapper, output in C:\\Swofty\\state/wrapper-run.log\n\
+             [wrapper] [info] installing profile default\n\
+             swofty: the wrapper exited (exit code: 1) before the game started: {outdated}\n\
+             (applying swofty.classic-seasons: eaid://ui_package/databases/overrides.uidb: \
+             overrides.Contents.teams.Contents.mp_team_select_logos.Contents: no entry [Name=vanamersfoort_26])\n"
+        );
+        let failure = failure_line(&log).unwrap();
+        assert_eq!(
+            failure,
+            format!("the wrapper exited (exit code: 1) before the game started: {outdated}")
+        );
+        assert_eq!(cause_first(&failure), outdated);
     }
 }

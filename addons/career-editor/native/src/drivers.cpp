@@ -49,6 +49,7 @@
 #include "race_numbers.hpp"
 #include "components.hpp"
 #include "lineup.hpp"
+#include "rating_solve.hpp"
 
 using namespace swofty::game;
 
@@ -112,6 +113,8 @@ constexpr size_t kMaxSets = 32;
 constexpr size_t kMaxPoints = 256;
 constexpr size_t kMaxInfos = 64;
 constexpr size_t kUndoCap = 64;
+constexpr float kNear = 0.5f;       // read-back distance that sends an edit to the search
+constexpr float kLevelTop = 100.0f; // highest dynamic level the search tries (the ratings scale)
 
 using GetStatFn = float (*)(void *self, void *data, const uint32_t *driver, const uint16_t *info, const uint8_t *ctx,
                             float x, bool patched, bool clamp, bool round);
@@ -1091,8 +1094,21 @@ void roll_back(const std::vector<Undo> &log)
     }
 }
 
-bool apply_one(const Comp &c, uint32_t key, uintptr_t driver, const Edit &e, const std::string &mode,
-               std::vector<Undo> &log, std::string &how)
+std::string reach_error(uint16_t info, const ce::rating::Solve &s, float target, bool own)
+{
+    std::string who = own ? "your own " + stat_name(info) : stat_name(info);
+    const char *when = own ? " right now" : " for this driver";
+    auto n = [](float v) { return std::to_string(std::lround(std::clamp(v, 0.0f, 100.0f))); };
+    if (target < s.low)
+        return "out_of_range: " + who + " can't go below " + n(s.low) + when + ", pick " + n(s.low) + " or higher";
+    if (target > s.high)
+        return "out_of_range: " + who + " can't go above " + n(s.high) + when + ", pick " + n(s.high) + " or lower";
+    return "write_failed: " + stat_name(info) + " reads " + std::to_string(s.value) + " after the write, wanted " +
+           std::to_string(target);
+}
+
+bool apply_one(const Comp &c, uint32_t key, uintptr_t driver, const Edit &e, const std::string &mode, bool own,
+               std::vector<Undo> &log, std::string &how, std::string &why)
 {
     uint8_t ctx[16];
     context(c, ctx);
@@ -1104,24 +1120,52 @@ bool apply_one(const Comp &c, uint32_t key, uintptr_t driver, const Edit &e, con
     float raw = stat_value(c, key, e.info, false, false);
     if (!std::isfinite(raw))
         return false;
+    float target = static_cast<float>(e.target);
     bool dyn = rdv<uint8_t>(ast + kStatDynamic) != 0;
     std::vector<uintptr_t> sets = sets_of(driver);
 
     if (dyn) {
-        float delta = static_cast<float>(e.target) - raw;
-        int n = 0;
+        struct Level {
+            uintptr_t st;
+            float old;
+        };
+        std::vector<Level> levels;
+        float active_old = rdv<float>(ast + kStatLevel);
         for (uintptr_t set : sets) {
             uintptr_t st = find_stat(set, e.info);
             if (!st || !rdv<uint8_t>(st + kStatDynamic))
                 continue;
             float old = rdv<float>(st + kStatLevel);
-            if (!wr(st + kStatLevel, old + delta))
-                return false;
             log.push_back({0, st, {}, old, false});
-            ++n;
+            levels.push_back({st, old});
         }
-        how = "dynamicLevel " + std::to_string(delta) + " in " + std::to_string(n) + " set(s)";
-        return n > 0;
+        if (levels.empty())
+            return false;
+        auto put = [&](float delta) {
+            for (auto &l : levels)
+                if (!wr(l.st + kStatLevel, l.old + delta))
+                    return NAN;
+            return stat_value(c, key, e.info, false, false);
+        };
+        float delta = target - raw;
+        float got = put(delta);
+        if (std::isnan(got))
+            return false;
+        bool searched = false;
+        if (std::fabs(got - target) > kNear) {
+            auto s = ce::rating::solve(-active_old, kLevelTop - active_old, target, put);
+            if (!s.reached) {
+                why = reach_error(e.info, s, target, own);
+                return false;
+            }
+            delta = s.p;
+            if (std::isnan(put(delta)))
+                return false;
+            searched = true;
+        }
+        how = "dynamicLevel " + std::to_string(delta) + " in " + std::to_string(levels.size()) + " set(s)" +
+              (searched ? ", searched" : "");
+        return true;
     }
 
     uintptr_t acurve = used_curve(c, ast);
@@ -1130,49 +1174,77 @@ bool apply_one(const Comp &c, uint32_t key, uintptr_t driver, const Edit &e, con
         return false;
     float cur_base = curve_at(acurve, av, x);
     float others = raw - cur_base;
-    float target_base = static_cast<float>(e.target) - others;
+    float target_base = target - others;
     float target_norm = std::clamp((target_base - av.miny) / (av.maxy - av.miny), 0.0f, 1.0f);
     float shift_norm = target_norm - eval_curve(acurve, x);
     bool patched = acurve == ast + kStatPatched;
+    bool shift = mode == "shift";
 
-    int n = 0;
+    struct Curve {
+        size_t set;
+        uintptr_t at;
+        CurveView v;
+        std::vector<float> old;
+        std::vector<float> saved;
+        bool restored = false;
+    };
+    std::vector<Curve> curves;
     for (size_t si = 0; si < sets.size(); ++si) {
         uintptr_t st = find_stat(sets[si], e.info);
         if (!st || rdv<uint8_t>(st + kStatDynamic))
             continue;
-        uintptr_t cv = patched && rdv<uint8_t>(st + kStatHasPatched) ? st + kStatPatched : st + kStatCurve;
-        CurveView v;
-        std::vector<float> old;
-        if (!curve_view(cv, v) || !curve_read_y(v, old))
+        Curve cv{si, patched && rdv<uint8_t>(st + kStatHasPatched) ? st + kStatPatched : st + kStatCurve, {}, {}, {}};
+        if (!curve_view(cv.at, cv.v) || !curve_read_y(cv.v, cv.old))
             continue;
-        std::vector<float> ys = old;
-        bool restored = false;
         if (mode == "restore") {
             for (auto it = g_undo.rbegin(); it != g_undo.rend(); ++it) {
                 if (it->key == key && it->info == e.info && it->set == si && it->patched == patched &&
-                    it->ys.size() == ys.size()) {
-                    ys = it->ys;
+                    it->ys.size() == cv.old.size()) {
+                    cv.saved = it->ys;
+                    cv.restored = true;
                     g_undo.erase(std::next(it).base());
-                    restored = true;
                     break;
                 }
             }
         }
-        if (!restored) {
-            for (float &y : ys)
-                y = mode == "shift" ? std::clamp(y + shift_norm, 0.0f, 1.0f) : target_norm;
+        log.push_back({cv.at, st, cv.old, 0.0f, true});
+        curves.push_back(std::move(cv));
+    }
+    if (curves.empty())
+        return false;
+
+    auto put = [&](float p) {
+        for (auto &cv : curves) {
+            std::vector<float> ys = cv.restored ? cv.saved : cv.old;
+            if (!cv.restored)
+                for (float &y : ys)
+                    y = shift ? std::clamp(y + p, 0.0f, 1.0f) : p;
+            if (!curve_write_y(cv.at, cv.v, ys))
+                return NAN;
         }
-        if (!curve_write_y(cv, v, ys)) {
-            curve_write_y(cv, v, old);
+        return stat_value(c, key, e.info, false, false);
+    };
+    float p = shift ? shift_norm : target_norm;
+    float got = put(p);
+    if (std::isnan(got))
+        return false;
+    bool searched = false;
+    if (mode != "restore" && std::fabs(got - target) > kNear) {
+        auto s = ce::rating::solve(shift ? -1.0f : 0.0f, 1.0f, target, put);
+        if (!s.reached) {
+            why = reach_error(e.info, s, target, own);
             return false;
         }
-        log.push_back({cv, st, old, 0.0f, true});
-        remember({key, e.info, si, patched, old, 0.0f});
-        ++n;
+        p = s.p;
+        if (std::isnan(put(p)))
+            return false;
+        searched = true;
     }
+    for (auto &cv : curves)
+        remember({key, e.info, cv.set, patched, cv.old, 0.0f});
     how = std::string(patched ? "patched" : "base") + " curve " + (mode.empty() ? "flat" : mode) + " in " +
-          std::to_string(n) + " set(s)";
-    return n > 0;
+          std::to_string(curves.size()) + " set(s)" + (searched ? ", searched" : "");
+    return true;
 }
 
 ce::OpResult op_ratings_set(const ce::Json &args)
@@ -1237,12 +1309,16 @@ ce::OpResult op_ratings_set(const ce::Json &args)
         before_vals.push_back(stat_value(c, key, e.info, true, true));
     float before_overall = overall(c, key);
 
+    ce::comp::Entrant me;
+    bool own = ce::comp::player(me) && me.driver == key;
     std::vector<Undo> log;
     std::string how_all;
     for (auto &e : edits) {
-        std::string how;
-        if (!apply_one(c, key, driver, e, mode, log, how)) {
+        std::string how, why;
+        if (!apply_one(c, key, driver, e, mode, own, log, how, why)) {
             roll_back(log);
+            if (!why.empty())
+                return fail(why.c_str());
             return fail("write_failed", stat_name(e.info) + " (curve empty or memory not writable)");
         }
         how_all += (how_all.empty() ? "" : "; ") + stat_name(e.info) + ": " + how;

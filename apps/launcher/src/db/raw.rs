@@ -1231,6 +1231,7 @@ impl Shell {
                             true
                         }
                         Err(e) => {
+                            crate::app_log::action("db editor: add a key").failed(&e);
                             window.push_notification(
                                 gpui_kit::component::notification::Notification::error(e).title("Could not add the key"),
                                 cx,

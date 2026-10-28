@@ -358,13 +358,26 @@ bool hook_factory(void **vt)
 
 using CreateFactoryFn = HRESULT(WINAPI *)(REFIID, void **);
 
+std::mutex probe_lock;
+ID3D12Device *probe_held;
+int probe_scopes;
+
 ID3D12Device *probe_device()
 {
+    std::lock_guard<std::mutex> g(probe_lock);
+    if (probe_held) {
+        probe_held->AddRef();
+        return probe_held;
+    }
     HMODULE d3d12 = LoadLibraryA("d3d12.dll");
     auto create = d3d12 ? reinterpret_cast<PFN_D3D12_CREATE_DEVICE>(GetProcAddress(d3d12, "D3D12CreateDevice")) : nullptr;
     ID3D12Device *dev = nullptr;
     if (!create || FAILED(create(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev))))
         return nullptr;
+    if (probe_scopes) {
+        dev->AddRef();
+        probe_held = dev;
+    }
     return dev;
 }
 
@@ -428,6 +441,19 @@ std::string module_of(const void *addr, HMODULE *mod)
     char path[MAX_PATH] = {};
     DWORD n = GetModuleFileNameA(m, path, MAX_PATH);
     return std::string(hud::guard::base_name(std::string_view(path, n)));
+}
+
+ProbeScope::ProbeScope()
+{
+    std::lock_guard<std::mutex> g(probe_lock);
+    ++probe_scopes;
+}
+
+ProbeScope::~ProbeScope()
+{
+    std::lock_guard<std::mutex> g(probe_lock);
+    if (--probe_scopes == 0)
+        release(probe_held);
 }
 
 bool arm_swapchain()

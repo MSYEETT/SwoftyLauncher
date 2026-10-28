@@ -1479,6 +1479,7 @@ void postfx_setup()
     d3d12hooks::on_barrier(on_barrier);
     d3d12hooks::on_exec(on_exec);
     d3d12hooks::on_present(on_present);
+    d3d12hooks::ProbeScope probe;
     bool hooked = d3d12hooks::arm_device();
     if (hooked && !d3d12hooks::arm_swapchain())
         swofty::log("[postfx] the swapchain hooks did not arm; passes stay before the HUD");

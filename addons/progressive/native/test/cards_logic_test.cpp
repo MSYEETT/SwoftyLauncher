@@ -297,6 +297,41 @@ void team_logos()
     EXPECT(logo_for(map, 2017, nullptr) == nullptr);
 }
 
+void logo_paths()
+{
+    const char *text = R"({
+      "slots": [{"slot": 5, "team": "forceindia_26"}, {"slot": 11, "team": "gm_cadillac_26"}],
+      "logo_keys": ["cs16_manor", "cs17_force_india"],
+      "seasons": {"2017": {"teams": [{"slot": 5, "cs_team": "cs17_force_india"}, {"slot": 11, "cs_team": "cs16_manor"}]},
+                  "2025": {"teams": [{"slot": 5, "cs_team": null}]}}})";
+    json::Value doc;
+    EXPECT(json::parse(text, doc));
+    std::vector<std::string> missing;
+    std::vector<LogoMap> map = logo_map(doc, missing);
+    std::string out;
+    EXPECT(logo_path(map, 2017, "#overrides.teams.badges_broadcast.forceindia_26", out) &&
+           out == "#overrides.teams.badges_broadcast.cs17_force_india");
+    EXPECT(logo_path(map, 2017, "overrides.osd.timing_tower.team_badges_hud.gm_cadillac_26", out) &&
+           out == "overrides.osd.timing_tower.team_badges_hud.cs16_manor");
+    EXPECT(logo_path(map, 2017, "#overrides.team_logos.driver_career_2024_team_select.forceindia_26", out) &&
+           out == "#overrides.team_logos.driver_career_2024_team_select.cs17_force_india");
+    EXPECT(logo_path(map, 2017, "#overrides.broadcast_ui_generic.grid_team_logos.forceindia_26", out));
+    EXPECT(logo_path(map, 2025, "#overrides.teams.driver_select_team_logos.forceindia_26", out) &&
+           out == "#overrides.teams.driver_select_team_logos.forceindia");
+    // Arrays Classic Seasons does not extend, other labels, other roots and other years stay.
+    EXPECT(!logo_path(map, 2017, "#overrides.team_logos.f1_2021.forceindia_26", out));
+    EXPECT(!logo_path(map, 2017, "#overrides.team_logos.f1_2026_showroom.forceindia_26", out));
+    EXPECT(!logo_path(map, 2017, "#overrides.teams.badges_broadcast.ferrari_26", out));
+    EXPECT(!logo_path(map, 2017, "#overrides.teams.badges_broadcast.cs17_force_india", out));
+    EXPECT(!logo_path(map, 2026, "#overrides.teams.badges_broadcast.forceindia_26", out));
+    EXPECT(!logo_path(map, 2017, "#view_model_data.hud.forceindia_26", out));
+    EXPECT(!logo_path(map, 2017, "#overrides.forceindia_26", out));
+    EXPECT(!logo_path(map, 2017, "#overrides.", out));
+    EXPECT(!logo_path(map, 2017, "#", out));
+    EXPECT(!logo_path(map, 2017, "", out));
+    EXPECT(!logo_path(map, 2017, nullptr, out));
+}
+
 } // namespace
 
 int main()
@@ -308,6 +343,7 @@ int main()
     take_back_policy();
     hidden_lists();
     team_logos();
+    logo_paths();
     if (failures) {
         std::printf("cards_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

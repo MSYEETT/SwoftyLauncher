@@ -24,10 +24,11 @@ use crate::install::{Game, LOADER_DIR, Plan};
 use crate::launcher::BuildCx;
 use crate::manifest::{AddonManifest, PassValue, PostFx, Strength, relative_inside};
 use crate::map::{TrackPackage, Unusable};
+use crate::multiplayer::fingerprint::{self, OutputBuilder};
 use crate::owned;
 use crate::placed::Placed;
 use crate::planner::{
-    Conflict, Features, Kind, Planner, Route, Target, load_features, stock_removals_line,
+    Conflict, Features, Kind, Planner, Route, Target, kept_lists_line, load_features, stock_removals_line,
     track_removals_line, waiting_lines,
 };
 use crate::profile::Profile;
@@ -44,8 +45,10 @@ use crate::{Error, Result, io_err};
 pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 pub const PLAN_FILE: &str = "plan.json";
 pub const SAVED_FILE: &str = "built.json";
-const SAVED_VERSION: u32 = 1;
+const SAVED_VERSION: u32 = 2;
 const PACKED_AGE: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 3600);
+const ARCHIVE_AGE: std::time::Duration = std::time::Duration::from_secs(3 * 24 * 3600);
+const ARCHIVE_BYTES: u64 = 10 << 30;
 pub const ADDONS_DIR: &str = "addons";
 const LOCK_FILE: &str = "build.lock";
 
@@ -399,7 +402,7 @@ impl Saved {
             buildhash: built.buildhash.clone(),
             data: built.plan.data.clone(),
             added: built.plan.added.clone(),
-            loader: built.plan.loader.clone(),
+            loader: built_files(&built.plan.loader, loader_dir().as_deref()),
             registry_override: built.plan.registry_override,
             sizes,
             settings: built.settings.clone(),
@@ -425,6 +428,7 @@ impl Saved {
             .iter()
             .all(|(p, len)| std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.len() == *len));
         if !sources
+            || !self.loader.values().all(|p| p.is_file())
             || self
                 .added
                 .keys()
@@ -440,15 +444,17 @@ impl Saved {
             .all(|rel| baseline.files.contains_key(rel) || game.dir.join(rel).is_file())
     }
 
-    /// The loader files come from the launcher's loader folder as it is now:
-    /// a launcher update changes them without changing what the build wrote.
+    /// The loader's own files come from the launcher's loader folder as it is
+    /// now: a launcher update changes them without changing what the build
+    /// wrote. The rest of the placed files, such as screens, runtime assets and
+    /// addon plugins, are the saved ones.
     fn restore(self, built: &mut Built) -> Result<()> {
         built.plan.data = self.data;
         built.plan.added = self.added;
-        built.plan.loader = match loader_dir() {
-            Some(dir) => loader_files(&dir)?,
-            None => BTreeMap::new(),
-        };
+        built.plan.loader = self.loader;
+        if let Some(dir) = loader_dir() {
+            built.plan.loader.extend(loader_files(&dir)?);
+        }
         built.plan.registry_override = self.registry_override;
         built.settings = self.settings;
         built.lines.push(format!(
@@ -466,6 +472,15 @@ impl Saved {
         built.waiting = self.waiting;
         Ok(())
     }
+}
+
+/// The placed files that do not come from the loader folder `loader`.
+fn built_files(placed: &BTreeMap<String, PathBuf>, loader: Option<&Path>) -> BTreeMap<String, PathBuf> {
+    placed
+        .iter()
+        .filter(|(_, src)| loader.is_none_or(|dir| !src.starts_with(dir)))
+        .map(|(rel, src)| (rel.clone(), src.clone()))
+        .collect()
 }
 
 /// Held while a build writes a profile's overlay; another build of the
@@ -490,6 +505,64 @@ pub fn lock(store: &Store, profile: &str) -> Result<BuildLock> {
 
 pub fn build(store: &Store, profile: &str, game: &Game) -> Result<Built> {
     build_as(store, profile, game, false)
+}
+
+/// A build or install that stopped on a missing or cut-short file, as the
+/// addon or game file it is and what to do about it. Any other error is
+/// returned as it is.
+pub fn named(store: &Store, game: &Path, e: Error) -> Error {
+    let (Error::Io { path, source } | Error::Formats(swofty_formats::Error::IoAt { path, source })) = &e
+    else {
+        return e;
+    };
+    let gone = source.kind() == std::io::ErrorKind::NotFound;
+    if !gone && source.kind() != std::io::ErrorKind::UnexpectedEof {
+        return e;
+    }
+    let rel = |rest: &Path| {
+        rest.components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    };
+    if let Ok(rest) = path.strip_prefix(store.addons_dir())
+        && let Some(id) = rest
+            .components()
+            .next()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        && let Ok(file) = rest.strip_prefix(&id)
+        && !file.as_os_str().is_empty()
+    {
+        let name = store
+            .addons()
+            .ok()
+            .and_then(|a| a.get(&id).map(|m| m.name.clone()))
+            .unwrap_or_else(|| id.clone());
+        let file = rel(file);
+        let what = match gone {
+            true => format!("{name} ({id}) is missing its file {file}"),
+            false => format!("{name} ({id}) has an incomplete or damaged {file}"),
+        };
+        return Error::Other(format!(
+            "{what}. Turn {name} off in this profile, or remove it on the Addons page and install or import it again."
+        ));
+    }
+    if let Ok(rest) = path.strip_prefix(game) {
+        let file = rel(rest);
+        let version = crate::exe_version::read(&game.join(crate::GAME_EXE));
+        return Error::Other(match gone {
+            true => format!(
+                "{file} is missing from the game folder; {}, then try again",
+                crate::stock::missing_fix(1, version.as_deref())
+            ),
+            false => format!(
+                "{file} in the game folder is incomplete or damaged; verify the game files in Steam (open {}) \
+                 or repair the game in the EA app, then try again",
+                crate::stock::STEAM_VERIFY_URL
+            ),
+        });
+    }
+    e
 }
 
 /// A `checking` build gives addon build hooks a host that lists addons but
@@ -524,12 +597,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         pairs: Vec::new(),
         order: p.enabled().map(str::to_owned).collect(),
         stock_removals: BTreeMap::new(),
+        kept_lists: BTreeMap::new(),
     };
     if p.is_vanilla() {
         built.plan = Plan::vanilla();
         return Ok(built);
     }
     let _lock = lock(store, profile)?;
+    crate::now_doing("reading the addons");
     let mut hasher = Sha256::new();
     let packed = store.root.join("cache").join(crate::cache::PACKED_DIR);
     swofty_formats::erp::cache_compressed(Some(packed.clone()));
@@ -645,8 +720,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
     }
     let mut head_puts = crate::heads::Puts::default();
+    let mut outputs = BTreeMap::new();
     for id in &resolved.order {
         let m = &addons[id];
+        let mut out = OutputBuilder::default();
         hasher.update(format!("{id}@{};", m.version));
         let dir = store.addons_dir().join(id);
         let origin = Origin {
@@ -659,6 +736,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             match package_ops(store, id) {
                 Ok((file, picks)) => {
                     hasher.update(serde_json::to_vec(&file).expect("serialisable"));
+                    out.made("picks", &picks);
                     files.push((FileKind::Database, file));
                     driver_picks.push((name.clone(), picks));
                 }
@@ -693,12 +771,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         let roots = |root: Root| source_dir(store, id, root);
         for (kind, file) in files {
+            out.made(&format!("{kind:?}"), &file);
             for op in &file.ops {
+                op.sources().into_iter().for_each(|src| out.reads(id, src));
                 head_puts.op(id, op, &roots);
             }
             planner.push_file(&origin, kind, file);
         }
         for op in declared {
+            out.made("declared", &op);
+            op.sources().into_iter().for_each(|src| out.reads(id, src));
             head_puts.op(id, &op, &roots);
             planner.push(Op {
                 op,
@@ -735,8 +817,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     .push(format!("{id}: ERP operations skipped; {op} is not built yet"));
                 ops.retain(|o| !matches!(o.op, AssetOp::Erp(_)));
             }
+            out.made("fields", &batch.fields);
             planner.add_fields(id, batch.fields);
             for op in ops {
+                out.made("hook", &op);
+                op.op
+                    .sources()
+                    .into_iter()
+                    .for_each(|src| out.reads(&op.origin.addon, src));
                 head_puts.op(&op.origin.addon, &op.op, &|root| {
                     source_dir(store, &op.origin.addon, root)
                 });
@@ -744,6 +832,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
         for s in m.operations.screens.iter().filter(|s| s.page.is_none()) {
+            out.reads(id, &Source::addon(s.file.clone()));
             let path = dir.join(&s.file);
             let data = std::fs::read(&path).map_err(io_err(&path))?;
             if swofty_formats::pkg::is_pkg(&data) {
@@ -777,6 +866,15 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 "{id}: {pending} UI operation file(s) skipped; that stage is not built yet"
             ));
         }
+        if !store.is_builtin(id) {
+            for n in &m.operations.native {
+                out.made("native", n);
+                for rel in std::iter::once(&n.dll).chain(&n.files) {
+                    out.reads(id, &Source::addon(rel.trim_end_matches('/')));
+                }
+            }
+        }
+        outputs.insert(id.clone(), out.finish());
     }
     if head_puts.pending() {
         let path = original(&store.root, game, GVDB);
@@ -887,17 +985,24 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         saved.restore(&mut built)?;
         built.report.order = p.enabled().map(str::to_owned).collect();
         crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
+        if !checking {
+            fingerprint::record_outputs(store, profile, outputs).ok();
+        }
         return Ok(built);
     }
-    let (ui_lists, ui_notes) = if ui_maps.is_empty() {
+    let cancel = || match checking {
+        true => Ok(()),
+        false => crate::busy::check(&store.root),
+    };
+    cancel()?;
+    crate::now_doing("editing the game database");
+    let ui_lists = if ui_maps.is_empty() {
         Default::default()
     } else {
-        plan_lists(&ui_maps, &resolve)?
+        plan_lists(&ui_maps, &resolve)?.0
     };
-    built
-        .warnings
-        .extend(ui_notes.into_iter().map(|n| format!("menus: {n}")));
     let mut stock_removals = BTreeMap::new();
+    let mut kept_lists = BTreeMap::new();
     if !maps.is_empty() || planner.has_db() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
@@ -935,6 +1040,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         };
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let mut db_report = crate::ops::DbReport::default();
+        planner.keep_entrant_lists(crate::entrant_lists::StockLists::new(&shipped_db));
         let added = planner.apply_db_report(&mut db, &stock, &tracked, &mut db_report)?;
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
@@ -977,6 +1083,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for (id, n) in planner.take_track_removals() {
             let name = addons.get(&id).map_or(id.as_str(), |m| m.name.as_str());
             built.warnings.push(track_removals_line(name, n));
+        }
+        kept_lists = planner.take_kept_lists();
+        for (id, lists) in &kept_lists {
+            let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
+            built.warnings.push(kept_lists_line(name, lists));
         }
         let mut copies = planner.take_copies();
         for c in &mut copies {
@@ -1123,6 +1234,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     if !ui_maps.is_empty() {
         let ui = build_ui(&ui_maps, &resolve, &store.root.join("cache/menus"))?;
         caches.push(ui.dir.clone());
+        built
+            .warnings
+            .extend(ui.notes.iter().map(|n| format!("menus: {n}")));
         for (code, lists) in &ui.lists {
             built.lines.push(format!(
                 "{code}: menu pictures in {} list(s), minimap and track-select scenes",
@@ -1216,6 +1330,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         let mut prebuilt: Vec<Prebuilt> = Vec::new();
         let slices = slice_merges(&erp_ops);
         for (at, op) in erp_ops.iter().enumerate() {
+            cancel()?;
+            crate::now_doing(format!("applying {}", op.origin));
             let id = &op.origin.addon;
             let resolve = |s: &Source| Ok(s.resolve(&source_dir(store, id, s.root))?);
             let origin = op.origin.to_string();
@@ -1352,7 +1468,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             resized
         } else {
             let resized = erps.resized();
-            let written = erps.write(&built.overlay)?;
+            let archives = store.root.join("cache").join(crate::cache::ARCHIVES_DIR);
+            let (written, reused) = erps.write_cached(&built.overlay, Some(&archives), &cancel)?;
+            if reused > 0 {
+                built.lines.push(format!(
+                    "erp: {reused} of {} archive(s) unchanged since an earlier build, linked from the cache",
+                    written.len()
+                ));
+            }
             stage_erps(&mut built, &staged, written)?;
             resized
         };
@@ -1363,6 +1486,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .cloned()
             .collect();
     }
+    cancel()?;
+    crate::now_doing("placing files");
     put_files(&mut built, store, game, mipmaps, file_ops, &built_over, &ers_maps)?;
     match loader_dir() {
         Some(dir) => {
@@ -1479,6 +1604,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     built.report = Report {
         order: built.report.order.clone(),
         stock_removals,
+        kept_lists,
         ..report
     };
     built.conflicts = planned.conflicts;
@@ -1502,6 +1628,8 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         });
         crate::write_json(&built.overlay.join(PLAN_FILE), &listing)?;
     }
+    cancel()?;
+    crate::now_doing("saving the build");
     let saved = (!built.plan.is_vanilla())
         .then(|| Saved::of(&built, lines_at, warnings_at))
         .transpose()?;
@@ -1518,10 +1646,18 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .push(format!("cache: {removed} stale build folder(s) removed"));
     }
     crate::cache::prune_packed(&packed, PACKED_AGE);
+    crate::cache::prune_archives(
+        &store.root.join("cache").join(crate::cache::ARCHIVES_DIR),
+        ARCHIVE_AGE,
+        ARCHIVE_BYTES,
+    );
     if let Some(saved) = saved {
         crate::write_json(&built.overlay.join(SAVED_FILE), &saved)?;
     }
     crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
+    if !checking {
+        fingerprint::record_outputs(store, profile, outputs).ok();
+    }
     Ok(built)
 }
 
@@ -1911,6 +2047,90 @@ mod tests {
     use crate::baseline::Identity;
     use crate::launcher::{Addon, Builtin};
 
+    #[test]
+    fn a_missing_or_cut_short_file_names_its_addon_or_the_game() {
+        let root = std::env::temp_dir().join(format!("swofty-named-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let store = Store::new(root.join("data"));
+        let game = root.join("game");
+        let addon = store.addons_dir().join("mod.miami24");
+        std::fs::create_dir_all(addon.join("track")).unwrap();
+        std::fs::write(
+            addon.join("swofty.json"),
+            r#"{"schema_version":1,"id":"mod.miami24","name":"Igora Drive","version":"0.9.13","author":"t","compat":{"game":"f1_25"}}"#,
+        )
+        .unwrap();
+        let io = |path: PathBuf, kind| Error::Io {
+            path,
+            source: std::io::Error::from(kind),
+        };
+        let gone = named(
+            &store,
+            &game,
+            io(
+                addon.join("track").join("miami24.erp"),
+                std::io::ErrorKind::NotFound,
+            ),
+        );
+        assert_eq!(
+            gone.to_string(),
+            "Igora Drive (mod.miami24) is missing its file track/miami24.erp. Turn Igora Drive off in this \
+             profile, or remove it on the Addons page and install or import it again."
+        );
+        let short = named(
+            &store,
+            &game,
+            Error::Formats(swofty_formats::Error::IoAt {
+                path: addon.join("track/mipmaps/a.mipmaps"),
+                source: std::io::Error::from(std::io::ErrorKind::UnexpectedEof),
+            }),
+        );
+        assert!(
+            short.to_string().starts_with(
+                "Igora Drive (mod.miami24) has an incomplete or damaged track/mipmaps/a.mipmaps."
+            ),
+            "{short}"
+        );
+        let stock = named(
+            &store,
+            &game,
+            io(
+                game.join("2025_asset_groups/a.erp"),
+                std::io::ErrorKind::UnexpectedEof,
+            ),
+        );
+        assert!(
+            stock
+                .to_string()
+                .starts_with("2025_asset_groups/a.erp in the game folder is incomplete or damaged; verify"),
+            "{stock}"
+        );
+        let missing = named(
+            &store,
+            &game,
+            io(
+                game.join("character_package/a.mipmaps"),
+                std::io::ErrorKind::NotFound,
+            ),
+        );
+        assert!(
+            missing
+                .to_string()
+                .starts_with("character_package/a.mipmaps is missing from the game folder; update F1 25"),
+            "{missing}"
+        );
+        let denied = named(
+            &store,
+            &game,
+            io(
+                addon.join("track/miami24.erp"),
+                std::io::ErrorKind::PermissionDenied,
+            ),
+        );
+        assert!(matches!(denied, Error::Io { .. }), "{denied}");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     struct Hook(AddonManifest);
 
     impl Addon for Hook {
@@ -2239,6 +2459,99 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
+    #[test]
+    fn fingerprints_count_what_the_build_made_not_the_rest_of_the_folders() {
+        if loader_dir().is_some() {
+            return;
+        }
+        let hook = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.hook", "name": "Hook", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" },
+                 "options": [{ "id": "cars", "type": "slider", "label": "Cars", "min": 22, "max": 30, "step": 2, "default": 22, "binds": "db" }] }"#,
+        )
+        .unwrap();
+        let prints = |name: &str, zip: &str, texture: &str| {
+            let root = std::env::temp_dir().join(format!("swofty-build-print-{name}-{}", std::process::id()));
+            std::fs::remove_dir_all(&root).ok();
+            let dir = root.join("game");
+            std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+            std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+            std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+            let game = Game {
+                identity: Identity::detect(&dir, Some(1)).unwrap(),
+                dir,
+                user_reg: None,
+            };
+            let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+                addon: Arc::new(Hook(hook.clone())),
+                locked: false,
+                default_on: true,
+            }]);
+            let src = root.join("src");
+            std::fs::create_dir_all(&src).unwrap();
+            std::fs::write(
+                src.join("swofty.json"),
+                format!(
+                    r#"{{ "schema_version": 1, "id": "mod.track", "name": "Track", "version": "1.0.0", "author": "t",
+                         "compat": {{ "game": "f1_25" }},
+                         "operations": {{ "assets": ["ops.json"], "files": [{{ "source": "a.dds", "target": "x/a.dds" }}] }},
+                         "origin": {{ "tool": "teamsimplified.mods", "tool_version": "0.11.6", "file": "{zip}", "sha256": "ab" }} }}"#
+                ),
+            )
+            .unwrap();
+            std::fs::write(src.join("ops.json"), r#"{ "schema_version": 1, "ops": [] }"#).unwrap();
+            std::fs::write(src.join("a.dds"), texture).unwrap();
+            std::fs::write(
+                src.join("import-report.txt"),
+                format!("{zip} -> mod.track (Track)"),
+            )
+            .unwrap();
+            store.install_addon(&src).unwrap();
+            store
+                .update_profile("default", |p| p.set_enabled("mod.track", true))
+                .unwrap();
+            let history = store.addon_data_dir("t.hook");
+            std::fs::create_dir_all(&history).unwrap();
+            std::fs::write(
+                history.join("importer.json"),
+                format!(r#"{{ "mods": {{ "{name}": {{ "made": {{ "id": "mod.{name}" }} }} }} }}"#),
+            )
+            .unwrap();
+            let print = || {
+                let p = store.profile("default").unwrap();
+                fingerprint::fingerprint(&store, &p, &game.identity).unwrap()
+            };
+            let before = print();
+            build(&store, "default", &game).unwrap();
+            let after = print();
+            std::fs::remove_dir_all(&root).ok();
+            (before, after)
+        };
+        let (a, b) = (
+            prints("a", "track.zip", "dds"),
+            prints("b", "track(1).zip", "dds"),
+        );
+        assert_ne!(a.0.digest, b.0.digest);
+        assert_eq!(a.1.digest, b.1.digest, "{:#?}\n{:#?}", a.1.addons, b.1.addons);
+        let track = a.1.addons.iter().find(|x| x.id == "mod.track").unwrap();
+        assert!(matches!(track.source, fingerprint::Source::Built(_)), "{track:?}");
+        let detail = track.detail.as_ref().unwrap();
+        assert!(
+            detail.parts.contains_key("Assets") && detail.parts.contains_key("declared"),
+            "{detail:?}"
+        );
+        assert_eq!(detail.paths, ["a.dds"]);
+        let (_, other) = prints("c", "track.zip", "another texture");
+        assert_ne!(other.digest, a.1.digest);
+        let found = fingerprint::compare(&other, &a.1, &[]);
+        assert!(
+            found
+                .iter()
+                .any(|m| m.differences == ["a.dds differs".to_owned()]),
+            "{found:?}"
+        );
+    }
+
     struct Rows(AddonManifest);
 
     impl Addon for Rows {
@@ -2548,6 +2861,117 @@ mod tests {
         let changed = build(&store, "default", &game).unwrap();
         assert!(!reused(&changed));
         assert_ne!(changed.buildhash, first.buildhash);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_cancelled_build_stops_and_the_next_one_starts_fresh() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-cancel-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let records = vec![
+            Record::new("entrants.teams._team_instancecount_", 0, "1"),
+            Record::new("entrants.teams.team_0._metadata_", 4, "mclaren_26"),
+            Record::new("entrants.teams.team_0.stat_id", 0, "100"),
+        ];
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.put", "name": "Put", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" } }"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Putter(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        std::fs::create_dir_all(store.addon_data_dir("t.put")).unwrap();
+        std::fs::write(store.addon_data_dir("t.put").join("mip"), "mip").unwrap();
+        let reused = |b: &Built| b.lines.iter().any(|l| l.starts_with("build: nothing changed"));
+
+        crate::busy::request_cancel(&store.root).unwrap();
+        assert!(matches!(build(&store, "default", &game), Err(Error::Cancelled)));
+        crate::busy::clear_cancel(&store.root);
+        let fresh = build(&store, "default", &game).unwrap();
+        assert!(!reused(&fresh), "{:?}", fresh.lines);
+        assert!(reused(&build(&store, "default", &game).unwrap()));
+        crate::busy::request_cancel(&store.root).unwrap();
+        build_as(&store, "default", &game, true).unwrap();
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_reused_build_keeps_its_screens_assets_and_plugins() {
+        let root = std::env::temp_dir().join(format!("swofty-build-saved-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let loader = root.join("loader");
+        let placed: BTreeMap<String, PathBuf> = [
+            (
+                "swofty/ui/swofty_settings.ui",
+                root.join("overlay/swofty/ui/swofty_settings.ui"),
+            ),
+            ("swofty/assets.json", root.join("overlay/swofty/assets.json")),
+            (
+                "swofty/addons/t.x/native/x.dll",
+                root.join("addons/t.x/native/x.dll"),
+            ),
+            (
+                "swofty/addons/core/swofty_core.dll",
+                loader.join("swofty/addons/core/swofty_core.dll"),
+            ),
+            ("version.dll", loader.join("version.dll")),
+        ]
+        .into_iter()
+        .map(|(rel, src)| (rel.to_owned(), src))
+        .collect();
+        for src in placed.values() {
+            std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+            std::fs::write(src, "x").unwrap();
+        }
+
+        let kept = built_files(&placed, Some(&loader));
+        assert_eq!(
+            kept.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "swofty/addons/t.x/native/x.dll",
+                "swofty/assets.json",
+                "swofty/ui/swofty_settings.ui"
+            ]
+        );
+        assert_eq!(built_files(&placed, None), placed);
+
+        let mut built = Built::default();
+        built.plan.loader = kept.clone();
+        let saved = Saved::of(&built, 0, 0).unwrap();
+        let store = Store::new(root.join("data"));
+        let game = Game {
+            identity: Identity {
+                build_id: "1".into(),
+                exe_sha256: "a".repeat(64),
+            },
+            dir: root.join("game"),
+            user_reg: None,
+        };
+        assert!(saved.usable(&store, &game));
+        let mut reused = Built::default();
+        Saved::of(&built, 0, 0).unwrap().restore(&mut reused).unwrap();
+        for rel in kept.keys() {
+            assert_eq!(reused.plan.loader.get(rel), kept.get(rel), "{rel}");
+        }
+
+        std::fs::remove_file(&kept["swofty/ui/swofty_settings.ui"]).unwrap();
+        assert!(!saved.usable(&store, &game));
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -3145,6 +3569,121 @@ mod tests {
         assert!(out.get("stock.key_4").is_none());
         assert!(out.get("stock.key_3").is_some());
         assert!(db_edits(&stock, &out).is_err());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn keeps_the_entrant_lists_an_addon_renames_or_removes() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-keeplists-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let lists = "entrants.entrant_lists";
+        let whitelist = "content_sets.content_set_0.available_entrant_lists_0.entrant_lists";
+        let mut records = vec![
+            Record::new(&format!("{lists}._entrant_list_instancecount_"), 0, "3"),
+            Record::new("content_sets._content_set_instancecount_", 0, "1"),
+            Record::new(
+                "content_sets.content_set_0._available_entrant_lists_instancecount_",
+                0,
+                "1",
+            ),
+            Record::new(whitelist, 13, "f1_2026,f2_2026,f2_2025"),
+        ];
+        for (i, (name, id)) in [("f1_2026", "67"), ("f2_2026", "104"), ("f2_2025", "95")]
+            .into_iter()
+            .enumerate()
+        {
+            records.push(Record::new(
+                &format!("{lists}.entrant_list_{i}._metadata_"),
+                4,
+                name,
+            ));
+            records.push(Record::new(&format!("{lists}.entrant_list_{i}.stat_id"), 0, id));
+            records.push(Record::new(
+                &format!("{lists}.entrant_list_{i}.display_name"),
+                4,
+                format!("lng_{name}"),
+            ));
+        }
+        let stock = Gvdb { records };
+        std::fs::write(dir.join(GVDB), stock.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let src = root.join("src").join("t.old");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            src.join("swofty.json"),
+            r#"{ "schema_version": 1, "id": "t.old", "name": "Old Team Pack", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" }, "operations": { "assets": ["ops.json"] } }"#,
+        )
+        .unwrap();
+        let put = |key: &str, value: &str| {
+            format!(
+                r#"{{"op":"db.put-record","key":"{key}","type":0,"value":"{}"}}"#,
+                hex(value.as_bytes())
+            )
+        };
+        let ops = [
+            put(&format!("{lists}._entrant_list_instancecount_"), "2"),
+            put(&format!("{lists}.entrant_list_1._metadata_"), "f2_2025"),
+            put(&format!("{lists}.entrant_list_1.stat_id"), "95"),
+            put(whitelist, "f1_2026,f2_2025"),
+        ]
+        .join(",");
+        std::fs::write(
+            src.join("ops.json"),
+            format!(r#"{{ "schema_version": 1, "ops": [{ops}] }}"#),
+        )
+        .unwrap();
+        store.install_addon(&src).unwrap();
+        store
+            .update_profile("default", |p| p.set_enabled("t.old", true))
+            .unwrap();
+
+        let built = build(&store, "default", &game).unwrap();
+        let line = "Old Team Pack: kept the entrant list(s) f2_2026 that it renames or removes; \
+                    the game crashes when a list it looks up by name is missing";
+        assert!(built.warnings.iter().any(|w| w == line), "{:?}", built.warnings);
+        assert_eq!(
+            built.report.kept_lists,
+            BTreeMap::from([("t.old".to_owned(), vec!["f2_2026".to_owned()])])
+        );
+        let out = Gvdb::parse(&std::fs::read(&built.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(
+            out.get_text(&format!("{lists}._entrant_list_instancecount_"))
+                .as_deref(),
+            Some("4")
+        );
+        assert_eq!(
+            out.get_text(&format!("{lists}.entrant_list_1._metadata_"))
+                .as_deref(),
+            Some("f2_2025")
+        );
+        for (field, value) in [
+            ("_metadata_", "f2_2026"),
+            ("stat_id", "104"),
+            ("display_name", "lng_f2_2026"),
+        ] {
+            assert_eq!(
+                out.get_text(&format!("{lists}.entrant_list_3.{field}"))
+                    .as_deref(),
+                Some(value)
+            );
+        }
+        assert_eq!(
+            out.get_text(whitelist).as_deref(),
+            Some("f1_2026,f2_2025,f2_2026")
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
