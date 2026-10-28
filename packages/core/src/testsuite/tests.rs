@@ -910,10 +910,15 @@ mod mailbox {
         assert_eq!(seq, 1);
         assert_eq!(c.send("hello", Value::Null, None).unwrap(), 2);
         let sent = std::fs::read_to_string(dir.join(agent::COMMANDS)).unwrap();
+        let lines: Vec<Value> = sent.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
         assert_eq!(
-            sent,
-            "{\"args\":{\"route\":\"career\"},\"cmd\":\"route\",\"seq\":1,\"timeout_ms\":100}\n{\"cmd\":\"hello\",\"seq\":2}\n"
+            lines,
+            vec![
+                json!({"args":{"route":"career"},"cmd":"route","seq":1,"timeout_ms":100}),
+                json!({"cmd":"hello","seq":2}),
+            ]
         );
+        assert!(sent.ends_with('\n'));
         let results = dir.join(agent::RESULTS);
         assert!(c.poll().is_empty(), "no results file yet");
         append(

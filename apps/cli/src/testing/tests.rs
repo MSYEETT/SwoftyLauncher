@@ -6,9 +6,11 @@ use std::time::Duration;
 use clap::{CommandFactory, Parser};
 use swofty_core::session::{Ending, LOADER_LOG, PERF_LOG, SessionEnd};
 use swofty_core::store::Store;
+#[cfg(unix)]
+use swofty_core::testsuite::agent;
+use swofty_core::testsuite::plan;
 use swofty_core::testsuite::report::{Report, Status, exit};
 use swofty_core::testsuite::suite::{self, Selector};
-use swofty_core::testsuite::{agent, plan};
 
 use super::*;
 
@@ -627,6 +629,15 @@ struct AgentPlay {
     career_ok: bool,
 }
 
+#[cfg(unix)]
+fn same_command(line: &str, cmd: &str, args: &str) -> bool {
+    let Some((got_cmd, got_args)) = line.split_once(' ') else {
+        return false;
+    };
+    let parse = |t: &str| serde_json::from_str::<serde_json::Value>(t).ok();
+    got_cmd == cmd && parse(got_args).is_some() && parse(got_args) == parse(args)
+}
+
 /// The in-game agent's part, played by a thread: it reads the run folder
 /// and token from the game's environment, checks run.json holds the same
 /// token, then answers commands in the run's agent/ folder.
@@ -783,17 +794,22 @@ fn steps_run_through_a_fake_agent_and_checks_use_what_it_read() {
     let seen = agent_thread.join().unwrap();
     let summary = report.summary();
 
-    assert_eq!(seen[0], "title null", "the title screen is passed without input");
-    assert_eq!(
-        seen[1], r#"route {"route":"career"}"#,
+    assert!(
+        same_command(&seen[0], "title", "null"),
+        "the title screen is passed without input"
+    );
+    assert!(
+        same_command(&seen[1], "route", r#"{"route":"career"}"#),
         "the route environment's route"
     );
     assert!(
-        seen.contains(&r#"wait {"event":"career.hub"}"#.to_owned()),
+        seen.iter()
+            .any(|l| same_command(l, "wait", r#"{"event":"career.hub"}"#)),
         "{seen:?}"
     );
     assert!(
-        seen.contains(&r#"run_test {"fn":"rnd_tab_hidden"}"#.to_owned()),
+        seen.iter()
+            .any(|l| same_command(l, "run_test", r#"{"fn":"rnd_tab_hidden"}"#)),
         "{seen:?}"
     );
     assert_eq!(
@@ -1205,8 +1221,12 @@ fn a_career_batch_loads_the_career_through_the_agent_and_keeps_its_saves() {
         report.tests,
         report.batches
     );
-    assert_eq!(
-        seen[0], r#"career {"at":"team_hq","op":"load","slot":"newest"}"#,
+    assert!(
+        same_command(
+            &seen[0],
+            "career",
+            r#"{"at":"team_hq","op":"load","slot":"newest"}"#
+        ),
         "the CLI asks the agent to continue the newest career into Team HQ"
     );
     assert_eq!(seen.last().unwrap(), "quit null");
@@ -1334,9 +1354,12 @@ fn the_title_falls_back_to_the_pad_only_when_the_agent_cannot_pass_it() {
         "{:#?}",
         report.tests
     );
-    assert_eq!(seen[0], "title null", "the title command comes first");
-    assert_eq!(
-        seen[1], r#"pad {"ms":150,"press":"a"}"#,
+    assert!(
+        same_command(&seen[0], "title", "null"),
+        "the title command comes first"
+    );
+    assert!(
+        same_command(&seen[1], "pad", r#"{"ms":150,"press":"a"}"#),
         "the pad only after the title answered unavailable"
     );
     assert_eq!(
