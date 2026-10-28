@@ -1097,7 +1097,8 @@ impl Harness<'_> {
             self.drop_profile(sandboxed, &profile, &mut br);
             return (br, reports);
         }
-        let needs_agent = sandboxed || runnable.iter().any(|&i| b.tests[i].needs_agent());
+        let tests_need_agent = sandboxed || runnable.iter().any(|&i| b.tests[i].needs_agent());
+        let needs_agent = tests_need_agent || b.env.kind == Kind::Boot;
         let mut agent = match needs_agent {
             false => None,
             true => match self.open_run(b, index, &dir, sandboxed) {
@@ -1242,11 +1243,19 @@ impl Harness<'_> {
             }
             std::thread::sleep(self.times.poll);
         };
+        let mut dropped_agent = false;
         let ready = ready.and_then(|()| match agent.as_mut() {
             None => Ok(()),
             Some(a) => {
                 let left = self.times.start.saturating_sub(started.elapsed());
-                a.hello(left, self.times.poll, &mut *run)?;
+                match a.hello(left, self.times.poll, &mut *run) {
+                    Err(why) if !tests_need_agent => {
+                        br.notes.push(format!("no test agent for this boot batch: {why}"));
+                        dropped_agent = true;
+                        return Ok(());
+                    }
+                    other => other?,
+                }
                 self.env_routes(&b.env, a, &mut *run)?;
                 self.env_career(
                     &b.env,
@@ -1256,6 +1265,9 @@ impl Harness<'_> {
                 )
             }
         });
+        if dropped_agent {
+            self.close_run(agent.take(), &mut br);
+        }
         match &ready {
             Err(why) => {
                 br.error = Some(why.clone());
