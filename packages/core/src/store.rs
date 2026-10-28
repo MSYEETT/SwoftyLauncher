@@ -753,7 +753,7 @@ pub struct Unreadable {
     pub name: String,
     pub version: Option<String>,
     pub dir: PathBuf,
-    /// Why, after "it": "needs a newer Swofty Launcher (unknown field `hud`)".
+    /// Why, after "it": "needs a newer Swofty Launcher (unknown field `widgets`)".
     pub reason: String,
     /// Made for a newer launcher rather than damaged.
     pub newer: bool,
@@ -813,7 +813,7 @@ impl Unreadable {
         }
     }
 
-    /// "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)".
+    /// "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `widgets`)".
     pub fn line(&self) -> String {
         if self.name == self.id {
             format!("{} {}", self.id, self.reason)
@@ -986,7 +986,7 @@ mod tests {
                 format!(
                     "Look (t.look) needs Swofty Launcher >=9.0.0; this is {launcher} (unknown value `holograms`)"
                 ),
-                "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)".to_owned(),
+                "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `widgets`)".to_owned(),
             ]
         );
         assert_eq!(
@@ -1008,7 +1008,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `hud`)"
+            "Race HUD (w3.hud) needs a newer Swofty Launcher (unknown field `widgets`)"
         );
         store.remove_addon("w3.hud").unwrap();
         assert!(store.unreadable_addons().iter().all(|u| u.id != "w3.hud"));

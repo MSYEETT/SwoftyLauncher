@@ -74158,6 +74158,60 @@
    ]
   },
   {
+   "id": "game.driver_select_number_result",
+   "section": ".xtls",
+   "pattern": "44 0F B6 F8 48 C7 44 24 38 00 00 00 00",
+   "match": "0x1416a3899",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1416a3899",
+   "kind": "mid",
+   "expect": "44 0F B6 F8 48 C7 44 24 38 00 00 00 00",
+   "names": [
+    "site_Game_DriverSelect_NumberResult"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "progressive-numbers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/numbers.cpp"
+   ]
+  },
+  {
+   "id": "game.team_select_number_result",
+   "section": ".xtls",
+   "pattern": "0F B6 C0 0D 00 01 00 00 66 89 44 24 6E",
+   "match": "0x141879cf2",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141879cf2",
+   "kind": "mid",
+   "expect": "0F B6 C0 0D 00 01 00 00",
+   "names": [
+    "site_Game_TeamSelect_NumberResult"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-27",
+     "by": "progressive-numbers",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "addons/progressive/native/src/ui/numbers.cpp"
+   ]
+  },
+  {
    "id": "vm.resolve_registry_node",
    "section": ".xtls",
    "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 03 00 00 C5 F8 29 B4 24 A0 03 00 00 4D 89 CC 48 89 CD",

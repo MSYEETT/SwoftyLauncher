@@ -52,6 +52,8 @@ These ops are trimmed from Classic Seasons, the R&D Tyres addon and the docs' li
 - `swofty build` applies every operation on this page. A `patch-pkg` edit other than `clone-entry` and `set-value` is not built, and an addon whose ERP files use one has its ERP files and `warn` ops skipped with `warning: <addon id>: ERP operations skipped; <edit> is not built yet`.
 - ERP files take `when` and <span v-pre>`{{id}}`</span> settings like [database operations](/reference/ops/database#settings). Only the archives a build changes are written to the overlay.
 
+The build skips an operation whose `erp` archive isn't in the game folder and no earlier addon adds, and warns `<addon>: archive changes skipped; <path> is not a file in F1 25`. Check each `erp` path against the game folder, such as `2025_asset_groups/environment_package/tracks/...`.
+
 ## Operations
 
 ### replace-resource

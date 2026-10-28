@@ -476,6 +476,8 @@ jobs:
       # The 1.6 handler guard, built as build.sh builds it, against faults and SDK handlers that throw.
       - name: Handler guard Wine test
         run: native/test/run_guard_test.sh
+      - name: Overlay toolkit Wine test
+        run: native/test/run_toolkit_test.sh
 
       # Without work/exe/F1_25.exe it runs the synthetic packed image only.
       - name: Binding resolver Wine test

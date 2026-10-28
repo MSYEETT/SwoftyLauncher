@@ -119,6 +119,8 @@ bool career_start_live();
 uint32_t career_start_picked();
 void popup_setup();
 void popup_tick();
+void mfd_setup();
+void mfd_tick();
 int popup_show(const std::string &title, const std::string &body, const std::string &by);
 int hud_toast(const std::string &text, const std::string &detail, float seconds, const std::string &by);
 const SwoftyCareerContent *career_content_table();

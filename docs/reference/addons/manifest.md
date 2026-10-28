@@ -310,6 +310,23 @@ The page template is `swofty_hub_<name>` and its data `view_model_data.hud_swoft
 
 The page needs your addon on in the profile. An addon has at most one `hub_tab`. A launcher before 1.5.13 rejects the field.
 
+## hud
+
+`hud.mfd` puts some of your options on an ADDONS page of the race MFD, after the game's own pages.
+
+```json
+"hud": { "mfd": { "title": "PIT LANE", "rows": ["limiter", "mode"] } }
+```
+
+| Field | Type | Value |
+|---|---|---|
+| `mfd.title` | string? | A heading row above the addon's rows, 1 to 32 characters. Defaults to the addon's `name`. |
+| `mfd.rows` | array | 1 to 8 option ids of this addon, in page order. Each must be a `toggle` or `choice` option whose label is at most 32 characters. |
+
+Each row shows the option's label and its current value. Launchers up to 1.5.26 reject a manifest with `hud`.
+
+Development switches in the game's environment: `SWOFTY_MFD_TEST=open` opens the ADDONS page every `SWOFTY_MFD_TEST_EVERY` seconds (6 by default) through the game's own MFD open call, and `SWOFTY_MFD_TEST=next` also steps the first row's option each time, which saves the value as a change in ADDON SETTINGS does. `SWOFTY_MFD_TEST_PANEL` opens another page of the main group by name, such as `car_settings_panel`. The launcher builds the page into the game's UI files when the addon is on; the core updates a row whenever the option changes. Rows from every addon with `hud.mfd` share the one page, at most 8 in all, in load order. Changing a value from the MFD is not built yet: players change the options in ADDON SETTINGS or on the **Addons** page.
+
 ## operations
 
 `operations` lists your data edits and code. The build applies them to the game's files, or the game applies them in memory while it boots. [Operations](/reference/data/operations) explains what each one changes. Write source paths relative to your addon folder, using `/`, and target paths relative to the game folder.

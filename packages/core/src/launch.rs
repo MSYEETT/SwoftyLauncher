@@ -415,7 +415,10 @@ mod tests {
     fn an_ea_app_repair_says_what_to_do_and_round_trips() {
         let root = std::env::temp_dir().join(format!("swofty-launch-ea-repaired-{}", std::process::id()));
         std::fs::create_dir_all(root.join("state")).unwrap();
-        let f = Failure::new(Cause::EaRepaired);
+        let f = Failure {
+            at: 1_792_594_036.5,
+            cause: Cause::EaRepaired,
+        };
         assert_eq!(f.title(), "The EA app repaired F1 25");
         assert!(f.text().contains("started without mods"), "{}", f.text());
         assert!(
