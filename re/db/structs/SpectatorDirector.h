@@ -12,6 +12,6 @@ struct SpectatorDirector {
     /* 0xd3 */ uint8_t should_quit;            // L2 decomp:re/decomp/142e18650.c;xref:0x142d6a590 cleared on activate; tested by SessionStateInGameSpectating (getShouldQuit)
     /* 0xd6 */ uint8_t current_driver;         // L2 decomp:re/decomp/142e19d50.c;xref:0x142e19d50 written by SetCurrent; 0xff none
     /* 0xd8 */ int32_t current_camera;         // L2 decomp:re/decomp/142e19d50.c;xref:0x142e19d50 written by SetCurrent; -1 none
-    /* 0xdc */ uint8_t requested_driver;       // L2 decomp:re/decomp/142e19950.c;xref:0x142e18650 written by RequestDriver and SetActive; 0xff none
+    /* 0xdc */ uint8_t requested_driver;       // L2 decomp:re/decomp/142e19950.c;xref:0x142e18650 written by SetActive, the HUD next/previous commands (0x141c24c63, 0x141c26725) and RequestDriver (which only steps off the current driver, V1535); 0xff none
     /* 0xe0 */ int32_t requested_camera;       // L2 decomp:re/decomp/142e18650.c;xref:0x141c244e0 SetActive writes 2 (broadcast); the HUD command toggles 1/2
 };

@@ -25,7 +25,7 @@
 //                             the config picks the "apply" site, a mid-hook on the record-apply call in
 //                             Sess_ControllerSystem_ApplyInputs
 //   session.player.control    Game_Set_VehicleController_Thunk(system, vehicle, ai, flag index)
-//   car.controllers.rebuilt   the return of the controller sets' build-all (Game_ControllerSet_ClearFlags)
+//   car.controllers.rebuilt   the return of the controller sets' build-all (Sess_ControllerSystem_BuildSets)
 //   hud.spectator.visible     Sess_SpectatorHud_Hide (hide reason 6)
 // The destroy-all (Sess_ControllerSystem_DestroySets) and build-all hooks stay installed from the window stage:
 // they tell the core when the sets exist, which the operations need whether or not an addon subscribes.
@@ -46,7 +46,7 @@ constexpr uintptr_t SET_MODE_MASKED = 0x10, SET_MODE_KEY = 0x18, SET_FLAGS = 0x3
 constexpr uintptr_t CTRL_INPUT = 0x08, CTRL_VEHICLE = 0x18;
 constexpr uintptr_t REC_THROTTLE = 0x0c, REC_STEERING = 0x14, REC_BRAKE = 0x18;
 constexpr uintptr_t DIR_ACTIVE = 0xd1, DIR_BLOCKED = 0xd2, DIR_CURRENT_DRIVER = 0xd6, DIR_CURRENT_CAMERA = 0xd8,
-                    DIR_REQUESTED_CAMERA = 0xe0;
+                    DIR_REQUESTED_DRIVER = 0xdc, DIR_REQUESTED_CAMERA = 0xe0;
 constexpr size_t AI_UPDATE_SLOT = 1;
 constexpr uint32_t NO_CAR = 0xffffffffu;
 
@@ -58,12 +58,11 @@ struct Spec {
 inline constexpr Spec AI_VTABLE{"ai.controller.update", "vt_Sess_AiController"};
 inline constexpr Spec AI_APPLY{"ai.controller.update", "site_Sess_ControllerSystem_ApplyRecordCall"};
 inline constexpr Spec CONTROL{"session.player.control", "Game_Set_VehicleController_Thunk"};
-inline constexpr Spec BUILD{"car.controllers.rebuilt", "Game_ControllerSet_ClearFlags"};
+inline constexpr Spec BUILD{"car.controllers.rebuilt", "Sess_ControllerSystem_BuildSets"};
 inline constexpr Spec DESTROY{"car.controllers.destroyed", "Sess_ControllerSystem_DestroySets"};
 inline constexpr Spec HIDE{"hud.spectator.visible", "Sess_SpectatorHud_Hide"};
 inline constexpr Spec DIRECTOR_UPDATE{"spectator.director", "Sess_SpectatorDirector_Update"};
 inline constexpr Spec DIRECTOR_SET_ACTIVE{"spectator.director", "Sess_SpectatorDirector_SetActive"};
-inline constexpr const char *REQUEST_DRIVER = "Sess_SpectatorDirector_RequestDriver";
 
 struct Env {
     std::function<bool(uintptr_t addr, void *out, size_t n)> read;
@@ -556,15 +555,12 @@ template <class Tag> struct Set {
         if (env.flow_thread && !env.flow_thread())
             return SWOFTY_ASSET_LATE;
         watch_director();
-        uintptr_t d = director.load(), fn = resolve(REQUEST_DRIVER);
-        if (!fn)
-            return SWOFTY_ASSET_UNAVAILABLE;
+        uintptr_t d = director.load();
         if (car > 0xfe)
             return SWOFTY_ASSET_INVALID;
         if (!director_active(d) || rd<uint8_t>(d + DIR_BLOCKED))
             return SWOFTY_ASSET_LATE;
-        reinterpret_cast<void (*)(void *, uint32_t)>(fn)(reinterpret_cast<void *>(d), car);
-        return SWOFTY_ASSET_OK;
+        return wr<uint8_t>(d + DIR_REQUESTED_DRIVER, uint8_t(car)) ? SWOFTY_ASSET_OK : SWOFTY_ASSET_INVALID;
     }
 
     static int op_spectator_set_camera(int32_t camera)
