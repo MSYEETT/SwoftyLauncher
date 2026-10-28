@@ -117,12 +117,32 @@ class Comparing(unittest.TestCase):
         self.assertTrue(out["same"])
         self.assertIn("explained", out["allowed"][0])
 
-    def test_generated_contents_must_match_for_the_hash_to_be_explained(self):
+    def test_different_build_program_files_with_the_same_outputs_are_explained(self):
         a, b = snap(), snap()
         a["generated"] = {"cache/addons/x/tab/copy.json": "c0"}
         b["generated"] = {"cache/addons/x/tab/copy.json": "c1"}
         b["buildhash"] = "fedcba9876543210"
-        self.assertEqual(sorted(self.categories(compare.compare(a, b))), ["buildhash", "generated"])
+        out = compare.compare(a, b)
+        self.assertTrue(out["same"])
+        self.assertEqual(sorted(d["category"] for d in out["allowed"]), ["buildhash", "generated"])
+        self.assertIn("wrote 1 file(s) differently", out["allowed"][0]["explained"])
+
+    def test_build_program_files_are_explained_next_to_allowed_categories(self):
+        a, b = snap(), snap()
+        a["generated"] = {"cache/addons/x/tab/copy.json": "c0"}
+        b["generated"] = {"cache/addons/x/tab/copy.json": "c1"}
+        b["files"]["version.dll"]["sha256"] = "ff"
+        self.assertFalse(compare.compare(a, b)["same"])
+        out = compare.compare(a, b, allow={"loader"})
+        self.assertTrue(out["same"])
+        self.assertEqual(sorted(d["category"] for d in out["allowed"]), ["generated", "loader"])
+
+    def test_different_build_program_files_with_different_outputs_count(self):
+        a, b = snap(), snap()
+        a["generated"] = {"cache/addons/x/tab/copy.json": "c0"}
+        b["generated"] = {"cache/addons/x/tab/copy.json": "c1"}
+        b["files"]["swofty/addons/x/native/x.dll"]["sha256"] = "zz"
+        self.assertEqual(sorted(self.categories(compare.compare(a, b))), ["file", "generated"])
 
     def test_a_hash_with_other_differences_is_not_explained(self):
         a, b = snap(), snap()
