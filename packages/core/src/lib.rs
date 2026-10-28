@@ -25,6 +25,7 @@ pub mod helper;
 pub mod import;
 pub mod install;
 pub mod journal;
+pub mod kept_rows;
 pub mod known_problems;
 pub mod launch;
 pub mod loader_check;

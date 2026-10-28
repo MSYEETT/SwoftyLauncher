@@ -28,8 +28,8 @@ use crate::multiplayer::fingerprint::{self, OutputBuilder};
 use crate::owned;
 use crate::placed::Placed;
 use crate::planner::{
-    Conflict, Features, Kind, Planner, Route, Target, kept_lists_line, load_features, stock_removals_line,
-    track_removals_line, waiting_lines,
+    Conflict, Features, Kind, Planner, Route, Target, kept_lists_line, kept_rows_line, load_features,
+    stock_removals_line, track_removals_line, waiting_lines,
 };
 use crate::profile::Profile;
 use crate::registry::Host;
@@ -1090,6 +1090,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for (id, lists) in &kept_lists {
             let name = addons.get(id).map_or(id.as_str(), |m| m.name.as_str());
             built.warnings.push(kept_lists_line(name, lists));
+        }
+        for (id, rows) in planner.take_kept_rows() {
+            let name = addons.get(&id).map_or(id.as_str(), |m| m.name.as_str());
+            built.warnings.push(kept_rows_line(name, &rows));
         }
         let mut copies = planner.take_copies();
         for c in &mut copies {

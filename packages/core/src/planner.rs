@@ -119,6 +119,13 @@ pub fn track_removals_line(name: &str, n: usize) -> String {
 }
 
 /// The build warning for the entrant `lists` addon `name` renamed or removed, which the build kept.
+pub fn kept_rows_line(name: &str, rows: &[String]) -> String {
+    format!(
+        "{name}: kept {} that it hides by lowering a row count; the game crashes when an entrant list names a row that is missing",
+        rows.join(", ")
+    )
+}
+
 pub fn kept_lists_line(name: &str, lists: &[String]) -> String {
     let shown: Vec<&str> = lists.iter().take(8).map(String::as_str).collect();
     let more = match lists.len() > shown.len() {
@@ -158,6 +165,7 @@ pub struct Planner<'a> {
     track_removals: BTreeMap<String, usize>,
     lists: Option<StockLists>,
     kept_lists: BTreeMap<String, Vec<String>>,
+    kept_rows: BTreeMap<String, Vec<String>>,
     copies: Vec<Copy>,
     lenient: BTreeMap<String, String>,
     touched: BTreeMap<String, Touched>,
@@ -249,6 +257,7 @@ impl<'a> Planner<'a> {
             track_removals: BTreeMap::new(),
             lists: None,
             kept_lists: BTreeMap::new(),
+            kept_rows: BTreeMap::new(),
             copies: Vec::new(),
             lenient: BTreeMap::new(),
             touched: BTreeMap::new(),
@@ -626,6 +635,7 @@ impl<'a> Planner<'a> {
             let mut ours = DbReport::default();
             let lists = self.lists.as_ref().filter(|l| l.touched(&ops));
             let was = lists.map(|l| l.before(db));
+            let rows = crate::kept_rows::counts(db);
             let replaced = if let Some(name) = self.lenient.get(&origin.addon) {
                 let (replaced, failed) = apply_db_ops_lenient(db, &ops, &names, &mut ours);
                 self.skipped.extend(
@@ -651,6 +661,13 @@ impl<'a> Planner<'a> {
             }
             if ours.track_removals > 0 {
                 *self.track_removals.entry(origin.addon.clone()).or_default() += ours.track_removals;
+            }
+            let hidden = crate::kept_rows::keep(db, &rows);
+            if !hidden.is_empty() {
+                self.kept_rows
+                    .entry(origin.addon.clone())
+                    .or_default()
+                    .extend(hidden);
             }
             if let (Some(lists), Some(was)) = (lists, was) {
                 let kept = lists.keep(db, &was);
@@ -708,6 +725,11 @@ impl<'a> Planner<'a> {
     /// Per addon id, the entrant lists the last `apply_db` kept that the addon renamed or removed.
     pub fn take_kept_lists(&mut self) -> BTreeMap<String, Vec<String>> {
         std::mem::take(&mut self.kept_lists)
+    }
+
+    /// Per addon id, the rows the last `apply_db` kept that the addon hid by lowering a table's row count.
+    pub fn take_kept_rows(&mut self) -> BTreeMap<String, Vec<String>> {
+        std::mem::take(&mut self.kept_rows)
     }
 
     /// The `add-row` copies the last `apply_db` made, in load order.
