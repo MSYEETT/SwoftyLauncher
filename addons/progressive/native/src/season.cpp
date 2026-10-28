@@ -79,6 +79,7 @@
 #include "titles_logic.hpp"
 #include "progressive.hpp"
 #include "ratings.hpp"
+#include "records.hpp"
 #include "resume_logic.hpp"
 #include "season_logic.hpp"
 #include "seats.hpp"
@@ -119,7 +120,7 @@ bool data()
     if (g_data_ok)
         return true;
     std::string text, err;
-    if (swofty::storage::read(kYearsPath, text) != swofty::storage::Result::ok) {
+    if (!records::read_years(text, "season")) {
         swofty::log("[progressive] season: %s is missing from swofty/addons/swofty.progressive/", kYearsPath);
         return false;
     }

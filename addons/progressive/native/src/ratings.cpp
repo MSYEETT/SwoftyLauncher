@@ -25,6 +25,7 @@
 #include "stats_mem.hpp"
 #include "ratings.hpp"
 #include "ratings_logic.hpp"
+#include "records.hpp"
 
 SWOFTY_SETTING(bool, season_ratings, true);
 
@@ -46,7 +47,7 @@ bool data()
     if (g_state)
         return g_state > 0;
     std::string text, err;
-    if (swofty::storage::read("data/years.json", text) != swofty::storage::Result::ok) {
+    if (!pg::records::read_years(text, "ratings")) {
         swofty::log("[progressive] ratings: data/years.json is missing; drivers keep the game's ratings");
         g_state = -1;
         return false;
