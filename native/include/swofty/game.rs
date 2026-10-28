@@ -53,11 +53,6 @@ pub struct CarDamageBodyPart {
 }
 
 #[repr(C)]
-pub struct CarDamageFrontWing {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct CarDamageSuspension {
     _opaque: [u8; 0],
 }
@@ -392,6 +387,19 @@ pub struct CarChassis {
 const _: () = assert!(core::mem::offset_of!(CarChassis, mass) == 0x150);
 
 #[repr(C)]
+pub struct CarDamageFrontWing {
+    _pad_0x0: [u8; 0xa8],
+    pub parts_allocator: *mut c_void,
+    pub parts_begin: *mut *mut c_void,
+    pub parts_end: *mut *mut c_void,
+    pub parts_capacity: u64,
+}
+const _: () = assert!(core::mem::offset_of!(CarDamageFrontWing, parts_allocator) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(CarDamageFrontWing, parts_begin) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(CarDamageFrontWing, parts_end) == 0xb8);
+const _: () = assert!(core::mem::offset_of!(CarDamageFrontWing, parts_capacity) == 0xc0);
+
+#[repr(C)]
 pub struct CarObfFloat {}
 
 #[repr(C)]
@@ -428,12 +436,21 @@ const _: () = assert!(core::mem::offset_of!(CarFuelTank, fuel_flow) == 0x108);
 pub struct CarGearBox {
     _pad_0x0: [u8; 0x680],
     pub gear_index: u32,
+    pub target_gear_index: u32,
 }
 const _: () = assert!(core::mem::offset_of!(CarGearBox, gear_index) == 0x680);
+const _: () = assert!(core::mem::offset_of!(CarGearBox, target_gear_index) == 0x684);
 
 #[repr(C)]
 pub struct CarLive {
-    _pad_0x0: [u8; 0xe8],
+    pub teleport_tag: *mut c_char,
+    pub teleport_priority: i32,
+    _pad_0xc: [u8; 0x4],
+    pub teleport_prev_mtx: [f32; 16],
+    pub teleport_new_mtx: [f32; 16],
+    pub teleport_dt: f32,
+    pub teleport_flags: u32,
+    _pad_0x98: [u8; 0x50],
     pub vehicle_id: u8,
     _pad_0xe9: [u8; 0x2af],
     pub system_count: u32,
@@ -457,6 +474,12 @@ pub struct CarLive {
     _pad_0x5b0: [u8; 0x9990],
     pub handling_version: u32,
 }
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_tag) == 0x0);
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_priority) == 0x8);
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_prev_mtx) == 0x10);
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_new_mtx) == 0x50);
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_dt) == 0x90);
+const _: () = assert!(core::mem::offset_of!(CarLive, teleport_flags) == 0x94);
 const _: () = assert!(core::mem::offset_of!(CarLive, vehicle_id) == 0xe8);
 const _: () = assert!(core::mem::offset_of!(CarLive, system_count) == 0x398);
 const _: () = assert!(core::mem::offset_of!(CarLive, engine) == 0x530);
@@ -1493,6 +1516,21 @@ const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retain_unknown_ke
 const _: () = assert!(core::mem::offset_of!(SaveDataContainer, retained_count) == 0x1c8);
 
 #[repr(C)]
+pub struct SaveSlotInfo {
+    pub slot_id: u64,
+    pub slot_guid: u64,
+}
+const _: () = assert!(core::mem::offset_of!(SaveSlotInfo, slot_id) == 0x0);
+const _: () = assert!(core::mem::offset_of!(SaveSlotInfo, slot_guid) == 0x8);
+
+#[repr(C)]
+pub struct SaveSlotManager {
+    _pad_0x0: [u8; 0x280],
+    pub current: *mut SaveSlotInfo,
+}
+const _: () = assert!(core::mem::offset_of!(SaveSlotManager, current) == 0x280);
+
+#[repr(C)]
 pub struct ScheduleComponent {
     _pad_0x0: [u8; 0x410],
     pub seasons_begin: *mut ScheduleSeason,
@@ -2047,6 +2085,21 @@ const _: () = assert!(core::mem::offset_of!(Weekend, progress_state) == 0x23c);
 const _: () = assert!(core::mem::offset_of!(Weekend, track_stat_id) == 0x278);
 const _: () = assert!(core::mem::size_of::<Weekend>() == 0x4f0);
 
+pub type Car_Create_DetachablePart_t = unsafe extern "C" fn(
+    part_manager: *mut c_void,
+    cb: *mut *mut c_void,
+    name_id: *mut u32,
+    params: *mut i32,
+    k: f32,
+) -> *mut c_void;
+pub type Car_FrontWing_Init_t = unsafe extern "C" fn(front_wing: *mut c_void, reset: c_char);
+pub type Car_Register_DetachablePart_Thunk_t = unsafe extern "C" fn(
+    front_wing: *mut c_void,
+    cb: *mut *mut c_void,
+    name_id: *mut u32,
+    params: *mut c_void,
+    k: f32,
+);
 pub type Car_Reset_LastFittedUpgrade_t = unsafe extern "C" fn(inst: *mut c_void);
 pub type Career_Add_SeasonWeekend_t = unsafe extern "C" fn(season: *mut c_void, weekend: *mut c_void) -> u64;
 pub type Career_Add_TeamModifier_t = unsafe extern "C" fn(list: *mut c_void, key: u32, value: f32);
@@ -2461,6 +2514,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Car_Create_DetachablePart: Binding = Binding {
+        id: "Car_Create_DetachablePart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Car_FrontWing_Init: Binding = Binding {
+        id: "Car_FrontWing_Init",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Car_FrontWing_OnCollision: Binding = Binding {
         id: "Car_FrontWing_OnCollision",
         kind: "func",
@@ -2498,6 +2561,11 @@ pub mod bindings {
     };
     pub const Car_Read_GearBox: Binding = Binding {
         id: "Car_Read_GearBox",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Car_Register_DetachablePart_Thunk: Binding = Binding {
+        id: "Car_Register_DetachablePart_Thunk",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4510,6 +4578,11 @@ pub mod bindings {
         id: "site_Game_SaveData_UnclaimedChild",
         kind: "site",
         status: Status::Stable,
+    };
+    pub const site_Game_SaveSlot_Selected: Binding = Binding {
+        id: "site_Game_SaveSlot_Selected",
+        kind: "site",
+        status: Status::Experimental,
     };
     pub const site_Game_TeamSelect_TeamLogoFormat: Binding = Binding {
         id: "site_Game_TeamSelect_TeamLogoFormat",

@@ -129,6 +129,8 @@ struct RenownConfig;
 struct ResourcePointsComponent;
 struct RnDDepartmentConfig;
 struct SaveDataContainer;
+struct SaveSlotInfo;
+struct SaveSlotManager;
 struct ScheduleComponent;
 struct ScheduleSeason;
 struct Season;

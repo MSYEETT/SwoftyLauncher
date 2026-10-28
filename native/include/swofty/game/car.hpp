@@ -17,6 +17,18 @@ struct CarChassis {
 };
 static_assert(offsetof(CarChassis, mass) == 0x150);
 
+struct CarDamageFrontWing {
+    uint8_t _pad_0x0[0xa8];
+    void *parts_allocator; // L2 experimental
+    void **parts_begin; // L2 experimental
+    void **parts_end; // L2 experimental
+    uint64_t parts_capacity; // L2 experimental
+};
+static_assert(offsetof(CarDamageFrontWing, parts_allocator) == 0xa8);
+static_assert(offsetof(CarDamageFrontWing, parts_begin) == 0xb0);
+static_assert(offsetof(CarDamageFrontWing, parts_end) == 0xb8);
+static_assert(offsetof(CarDamageFrontWing, parts_capacity) == 0xc0);
+
 struct CarObfFloat {
 };
 
@@ -50,11 +62,20 @@ static_assert(offsetof(CarFuelTank, fuel_flow) == 0x108);
 struct CarGearBox {
     uint8_t _pad_0x0[0x680];
     uint32_t gear_index; // L3 stable
+    uint32_t target_gear_index; // L2 experimental
 };
 static_assert(offsetof(CarGearBox, gear_index) == 0x680);
+static_assert(offsetof(CarGearBox, target_gear_index) == 0x684);
 
 struct CarLive {
-    uint8_t _pad_0x0[0xe8];
+    char *teleport_tag; // L2 experimental
+    int32_t teleport_priority; // L2 experimental
+    uint8_t _pad_0xc[0x4];
+    float teleport_prev_mtx[16]; // L2 experimental
+    float teleport_new_mtx[16]; // L2 experimental
+    float teleport_dt; // L2 experimental
+    uint32_t teleport_flags; // L2 experimental
+    uint8_t _pad_0x98[0x50];
     uint8_t vehicle_id; // L3 stable
     uint8_t _pad_0xe9[0x2af];
     uint32_t system_count; // L3 stable
@@ -78,6 +99,12 @@ struct CarLive {
     uint8_t _pad_0x5b0[0x9990];
     uint32_t handling_version; // L3 stable
 };
+static_assert(offsetof(CarLive, teleport_tag) == 0x0);
+static_assert(offsetof(CarLive, teleport_priority) == 0x8);
+static_assert(offsetof(CarLive, teleport_prev_mtx) == 0x10);
+static_assert(offsetof(CarLive, teleport_new_mtx) == 0x50);
+static_assert(offsetof(CarLive, teleport_dt) == 0x90);
+static_assert(offsetof(CarLive, teleport_flags) == 0x94);
 static_assert(offsetof(CarLive, vehicle_id) == 0xe8);
 static_assert(offsetof(CarLive, system_count) == 0x398);
 static_assert(offsetof(CarLive, engine) == 0x530);
@@ -100,6 +127,10 @@ static_assert(offsetof(CarLive, handling_version) == 0x9f40);
 inline constexpr address<"Car_Assets_CreateSystemForPerformanceMode"> Car_Assets_CreateSystemForPerformanceMode{}; // L3 stable
 inline constexpr address<"Car_Build_VtfComponents"> Car_Build_VtfComponents{}; // L2 experimental
 inline constexpr address<"Car_Chassis_Build"> Car_Chassis_Build{}; // L3 stable
+using Car_Create_DetachablePart_t = void *(void *part_manager, void **cb, uint32_t *name_id, int32_t *params, float k);
+inline constexpr fn<"Car_Create_DetachablePart", Car_Create_DetachablePart_t> Car_Create_DetachablePart{}; // L2 experimental
+using Car_FrontWing_Init_t = void(void *front_wing, char reset);
+inline constexpr fn<"Car_FrontWing_Init", Car_FrontWing_Init_t> Car_FrontWing_Init{}; // L2 experimental, game::FrontWing
 inline constexpr address<"Car_FrontWing_OnCollision"> Car_FrontWing_OnCollision{}; // L2 experimental
 inline constexpr address<"Car_Load_Vtf"> Car_Load_Vtf{}; // L2 experimental
 inline constexpr address<"Car_Physics_PostVehicleUpdate"> Car_Physics_PostVehicleUpdate{}; // L2 experimental
@@ -108,6 +139,8 @@ inline constexpr address<"Car_Read_F1Aero"> Car_Read_F1Aero{}; // L2 experimenta
 inline constexpr address<"Car_Read_F1Assists"> Car_Read_F1Assists{}; // L2 experimental
 inline constexpr address<"Car_Read_F1Tuning"> Car_Read_F1Tuning{}; // L2 experimental
 inline constexpr address<"Car_Read_GearBox"> Car_Read_GearBox{}; // L2 experimental
+using Car_Register_DetachablePart_Thunk_t = void(void *front_wing, void **cb, uint32_t *name_id, void *params, float k);
+inline constexpr fn<"Car_Register_DetachablePart_Thunk", Car_Register_DetachablePart_Thunk_t> Car_Register_DetachablePart_Thunk{}; // L2 experimental
 using Car_Reset_LastFittedUpgrade_t = void(void *inst);
 inline constexpr fn<"Car_Reset_LastFittedUpgrade", Car_Reset_LastFittedUpgrade_t> Car_Reset_LastFittedUpgrade{}; // L2 experimental
 inline constexpr address<"Car_Setup_ApplyTuning"> Car_Setup_ApplyTuning{}; // L3 stable

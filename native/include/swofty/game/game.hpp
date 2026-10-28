@@ -75,6 +75,19 @@ struct GameModeContext {
 };
 static_assert(offsetof(GameModeContext, championship_holder) == 0x88);
 
+struct SaveSlotInfo {
+    uint64_t slot_id; // L2 experimental
+    uint64_t slot_guid; // L2 experimental
+};
+static_assert(offsetof(SaveSlotInfo, slot_id) == 0x0);
+static_assert(offsetof(SaveSlotInfo, slot_guid) == 0x8);
+
+struct SaveSlotManager {
+    uint8_t _pad_0x0[0x280];
+    SaveSlotInfo *current; // L2 experimental
+};
+static_assert(offsetof(SaveSlotManager, current) == 0x280);
+
 struct ScheduleComponent {
     uint8_t _pad_0x0[0x410];
     ScheduleSeason *seasons_begin; // L2 experimental
@@ -275,6 +288,7 @@ inline constexpr site<"site_Game_SaveData_ContainersChildren"> site_Game_SaveDat
 inline constexpr site<"site_Game_SaveData_ContainersCount"> site_Game_SaveData_ContainersCount{}; // L3 stable
 inline constexpr site<"site_Game_SaveData_ContainersDone"> site_Game_SaveData_ContainersDone{}; // L2 experimental
 inline constexpr site<"site_Game_SaveData_UnclaimedChild"> site_Game_SaveData_UnclaimedChild{}; // L3 stable
+inline constexpr site<"site_Game_SaveSlot_Selected"> site_Game_SaveSlot_Selected{}; // L2 experimental
 inline constexpr call<"site_Game_TeamSelect_TeamLogoFormat"> site_Game_TeamSelect_TeamLogoFormat{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerDLCSelectViewModel", 19> vt_Game_CareerDLCSelectViewModel{}; // L2 experimental
 inline constexpr vtable<"vt_Game_CareerWizardSettingsSelectViewModel", 19> vt_Game_CareerWizardSettingsSelectViewModel{}; // L2 experimental, CareerWizardSettingsSelectViewModel.
