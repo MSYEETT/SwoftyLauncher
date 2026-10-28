@@ -364,6 +364,8 @@ fn offline_terms(p: Palette) -> impl IntoElement {
 
 // Times shown as "5 min ago" stay current without a repaint every probe.
 const REPAINT: Duration = Duration::from_secs(30);
+/// How often the signed-in account is checked, so a role given or taken away shows soon.
+const ACCOUNT_CHECK: Duration = Duration::from_secs(10);
 
 impl Shell {
     pub fn new(prepared: Prepared, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -453,7 +455,7 @@ impl Shell {
         }
         let mp_poll = cx.spawn(async move |this, cx| {
             loop {
-                cx.background_executor().timer(Duration::from_secs(30)).await;
+                cx.background_executor().timer(ACCOUNT_CHECK).await;
                 let current =
                     match this.update(cx, |s, _| s.mp.clone().map(|sess| (s.store.root.clone(), sess))) {
                         Ok(c) => c,
