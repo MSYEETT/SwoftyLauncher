@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -159,6 +160,7 @@ void netplay_tick();
 void net_trace_setup();
 int group_add(const json::Value &entry);
 int db_add(const json::Value &entry);
+void db_older_edits(const std::function<void(uint64_t key, int tag, const std::string &text)> &fn);
 int lang_add(const json::Value &entry);
 int file_add(const json::Value &entry);
 
