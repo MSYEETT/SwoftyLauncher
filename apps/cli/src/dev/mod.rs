@@ -715,7 +715,7 @@ fn logs(store: &Store, addon: Option<String>, follow: bool, session: Option<Path
 }
 
 pub fn compiler() -> Result<(PathBuf, Vec<String>)> {
-    if let Some(cxx) = std::env::var_os("CXX") {
+    if let Some(cxx) = std::env::var_os("SWOFTY_CXX") {
         return Ok((PathBuf::from(cxx), Vec::new()));
     }
     if let Some(zig) = which("zig") {
@@ -729,7 +729,7 @@ pub fn compiler() -> Result<(PathBuf, Vec<String>)> {
         .iter()
         .find_map(|c| which(c))
         .map(|c| (c, Vec::new()))
-        .context("no C++ compiler: install zig (or set CXX)")
+        .context("no C++ compiler: install zig (or set SWOFTY_CXX)")
 }
 
 pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
@@ -765,7 +765,7 @@ pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
         });
         let mut cmd = Command::new(&cxx);
         cmd.args(&pre)
-            .args(test_flags())
+            .args(test_flags(&cxx))
             .arg(format!("-I{}", folder.join("native/include").display()))
             .arg(format!("-I{}", sdk.join("packages/sdk/include").display()))
             .arg(format!("-I{}", folder.join("native/src").display()))
@@ -802,15 +802,20 @@ pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
     })
 }
 
-pub fn test_flags() -> Vec<&'static str> {
-    vec![
-        "-std=c++23",
-        "-O1",
-        "-fdeclspec",
-        "-Wno-ignored-attributes",
-        "-Wno-nullability-completeness",
-        "-Wno-unknown-warning-option",
-    ]
+pub fn test_flags(cxx: &Path) -> Vec<&'static str> {
+    let gcc = cxx
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.contains("g++") || n == "gcc" || n == "c++");
+    let mut flags = vec!["-std=c++23", "-O1", "-Wno-ignored-attributes"];
+    if !gcc {
+        flags.extend([
+            "-fdeclspec",
+            "-Wno-nullability-completeness",
+            "-Wno-unknown-warning-option",
+        ]);
+    }
+    flags
 }
 
 #[cfg(test)]
