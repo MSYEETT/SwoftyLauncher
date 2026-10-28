@@ -17,8 +17,8 @@
 // facilities, economy, sponsors, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
 // mode, so the career.mode record struct is ModeRecord. apply_teams, apply_lineup, set_driver_ratings,
-// swap_drivers and report_season call the core's career operations (SwoftyCoreCareerOps) and return
-// unavailable on a core without them; set_seat, set_car_number and apply_dropped_scores return unavailable.
+// swap_drivers, report_season, set_seat and set_car_number call the core's career operations
+// (SwoftyCoreCareerOps) and return unavailable on a core without them; apply_dropped_scores returns unavailable.
 // A season's teams name team.identity records (new teams included) in up to 12 career team slots.
 
 namespace swofty::career {
@@ -410,7 +410,45 @@ inline Result apply_lineup(const Season &season, ApplyReport *report = nullptr)
     return detail::run_season_op(t->apply_lineup, season, report);
 }
 
-inline Result set_seat(int, int, Ref<drivers::Identity>) { return Result::unavailable; }
+namespace detail {
+
+inline Result seat_request(const SwoftyCareerOps *t, const std::string &request)
+{
+    char out[2048];
+    size_t len = 0;
+    int r = t->set_seat({request.data(), request.size()}, out, sizeof out, &len);
+    return r == SWOFTY_TOO_SMALL ? Result::ok : ops_result(r);
+}
+
+}
+
+// The driver takes race seat `seat` (0 or 1) of career team slot `slot` (1-based, the loaded career's data
+// group's slot table): a race driver exchanges seats with the seat's driver; a free agent takes the seat and its
+// driver leaves the grid. Driver Career only; unavailable on a core without the call (table version 4).
+inline Result set_seat(int slot, int seat, Ref<drivers::Identity> driver)
+{
+    auto t = detail::live_ops();
+    if (!t || t->version < 4 || !t->set_seat)
+        return Result::unavailable;
+    uint32_t stat = 0;
+    if (!detail::stat_of(t, driver, stat))
+        return Result::invalid;
+    return detail::seat_request(t, "{\"driver\":" + std::to_string(stat) + ",\"slot\":" + std::to_string(slot) +
+                                       ",\"seat\":" + std::to_string(seat) + "}");
+}
+
+// The same by team stat id, for a career without a slot table (a stock career).
+inline Result set_seat_of_team(uint32_t team_stat, int seat, Ref<drivers::Identity> driver)
+{
+    auto t = detail::live_ops();
+    if (!t || t->version < 4 || !t->set_seat)
+        return Result::unavailable;
+    uint32_t stat = 0;
+    if (!detail::stat_of(t, driver, stat))
+        return Result::invalid;
+    return detail::seat_request(t, "{\"driver\":" + std::to_string(stat) + ",\"team\":" + std::to_string(team_stat) +
+                                       ",\"seat\":" + std::to_string(seat) + "}");
+}
 
 inline Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings)
 {
@@ -425,7 +463,19 @@ inline Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRati
     return detail::ops_result(t->set_driver_ratings(stat, ids, values, 4));
 }
 
-inline Result set_car_number(Ref<drivers::Identity>, int) { return Result::unavailable; }
+// The driver's racing number (1-99) on his career row and the current weekend's copy. refused when another
+// driver holds it, unless swap, which gives that driver this driver's old number. Unavailable on a core
+// without the call (table version 4).
+inline Result set_car_number(Ref<drivers::Identity> driver, int number, bool swap = false)
+{
+    auto t = detail::live_ops();
+    if (!t || t->version < 4 || !t->set_car_number)
+        return Result::unavailable;
+    uint32_t stat = 0;
+    if (!detail::stat_of(t, driver, stat))
+        return Result::invalid;
+    return detail::ops_result(t->set_car_number(stat, number, swap ? SWOFTY_NUMBER_SWAP : 0));
+}
 
 inline Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b)
 {

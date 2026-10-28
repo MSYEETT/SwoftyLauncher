@@ -818,9 +818,22 @@ typedef struct SwoftyServices {
    (1-12) races as its team (the data group's slot table, the Championship's participants), and a team
    with no career rows gets them, built from its donor's (contracts, R&D, standings, initial cash, renown
    and the side data found by team label); an empty team leaves the slot out of the Championship. The
-   report has apply_lineup's shape, counted per slot. A core that has not implemented it leaves it NULL. */
-#define SWOFTY_CAREER_OPS_VERSION 3
+   report has apply_lineup's shape, counted per slot. A core that has not implemented it leaves it NULL.
+   Table version 4 adds set_seat, set_car_number and set_track_fuel. set_seat takes {"driver": <stat>,
+   "team": <stat> or "slot": <1-based slot of the loaded career's data group>, "seat": 0 or 1, "car": <stat,
+   optional>}: the driver takes that race seat in Driver Career; the seat's driver takes his old seat, or
+   leaves the grid when he had none. The report is apply_lineup's with "holder": "swapped", "released" or
+   "none". set_car_number: the driver's racing number (1-99) on his career row and the current weekend's
+   copy; a number another row holds is SWOFTY_REFUSED unless flags has SWOFTY_NUMBER_SWAP, which gives that
+   row the driver's old number. set_track_fuel takes {"track": "<code>" or "*", "set": "<data set>",
+   "from": "<data set>"} (the fuel of the same track in another data set: burn per lap, race fuel rows and
+   qualifying fuel), {"track", "set", "burn_per_lap": <kg>}, or {"copy": [{"set", "from"}, ...], "track"}
+   (every pair checked before anything is written), or {"restore": true}; "why" names the reason in the
+   log. The data sets are f1_2025, sprint_f1_2025, f1_2026 and sprint_f1_2026. The core puts the bytes
+   back on career.unloaded and on restore. */
+#define SWOFTY_CAREER_OPS_VERSION 4
 enum { SWOFTY_REFUSED = 5 };
+enum { SWOFTY_NUMBER_SWAP = 1 };
 
 typedef struct SwoftyCareerOps {
     uint32_t version;
@@ -832,6 +845,9 @@ typedef struct SwoftyCareerOps {
     int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
     int (*report_season)(int32_t year, int32_t season_index);
     int (*apply_teams)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_seat)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_car_number)(uint32_t driver_stat, int32_t number, uint32_t flags);
+    int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
 } SwoftyCareerOps;
 
 typedef struct SwoftyApi {
