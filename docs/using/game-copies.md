@@ -81,6 +81,18 @@ F1 25 started from the EA app can run without administrator rights even when Swo
 
 `swofty run --apply` and `swofty apply` stop with the same message. Steam library folders can be changed without administrator rights.
 
+## An EA app copy moved by hand
+
+The EA app starts F1 25 only from the folder it has on record: `Install Dir` under `HKEY_LOCAL_MACHINE\SOFTWARE\Codemasters\F1_25` (and the other EA keys) and the F1 25 uninstall entry. A copy moved in File Explorer stays on record at its old folder, and the EA app shows F1 25 as not installed.
+
+Before **Play** builds anything for an EA app copy, it compares the copy's folder with that record. When the EA app has F1 25 in another folder, **Play** stops with **The EA app has F1 25 in another folder**, naming both folders:
+
+- Move the folder back to the one the EA app has, then press **Play** again.
+- To keep F1 25 somewhere else, move it back first, then use **EA app** > **F1 25** > **Manage** > **Move**.
+- When the game is in the recorded folder, the **Play the copy in** button, which names that folder, switches to that copy.
+
+`swofty run` and `swofty game launch` stop with the same message, and name `swofty game use "<folder>"` when the game is in the recorded folder. With no record in the registry, as on Linux, there is no check.
+
 ## The EA app copy on Linux
 
 On Linux, the launcher hands the EA app a launch link through a command you set. Set `ea_launch_command` under `"launch"` in `$DATA/config.json`, with `{url}` where the link goes. This example is for a script whose `run` starts the EA app in its Proton prefix and whose `wine` runs a program in the running EA app's prefix:
