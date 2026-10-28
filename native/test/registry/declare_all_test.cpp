@@ -1,4 +1,5 @@
 #include "../../src/core/registry/declare_all.hpp"
+#include "../../src/core/registry/older.hpp"
 #include "../../src/core/registry/table.hpp"
 
 #include <cstdio>
@@ -6,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -88,6 +90,24 @@ int main()
         CHECK(d && d->applies == Applies::read, "team.logo applies on read as its header says");
         auto v = store().def("vehicle");
         CHECK(v && v->applies == Applies::boot, "vehicle applies at boot as its header says");
+    }
+
+    {
+        swofty_core::registry::older::declare(store());
+        std::set<std::string> core;
+        for (auto &name : store().registries())
+            core.insert(name);
+        std::set<std::string> shipped;
+        fs::path root = "../../packages/sdk/std/registries";
+        for (auto &e : fs::directory_iterator(root))
+            if (e.is_directory())
+                shipped.insert(e.path().filename().string());
+        CHECK(!shipped.empty(), "the registry directories are found at %s", root.string().c_str());
+        for (auto &name : shipped)
+            CHECK(core.count(name), "packages/sdk/std/registries/%s is declared by the core (declare_all.hpp or older.hpp)", name.c_str());
+        for (auto &name : core)
+            CHECK(shipped.count(name), "%s is declared by the core but has no directory in packages/sdk/std/registries", name.c_str());
+        CHECK(core.size() == shipped.size(), "the core declares %zu registries, the directories hold %zu", core.size(), shipped.size());
     }
 
     std::size_t before = store().registries().size();
