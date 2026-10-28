@@ -58,10 +58,10 @@ struct CarErs {
     /* 0x19c8 */ float harvest_lap_mguk;                      // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d1150,0x1554791da J harvested this lap (channel); Reset 0x210 zeroes the lap counters
     /* 0x19cc */ float harvest_lap_mguh;                      // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d1160,0x1554791da J this lap (channel)
     /* 0x19d0 */ float deploy_lap;                            // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d1170,0x1554791da J deployed this lap (channel); deploy_lap_proportion = / deploy_limit_mguk
-    /* 0x19f0 */ float energy;                                // L2 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446d1210.c;xref:0x1446d1120,0x1554791f7 J in the store (channel "energy"); Reset = energy_store_capacity; capped by the wear step
+    /* 0x19f0 */ float energy;                                // L3 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446d1210.c;xref:0x1446d1120,0x1554791f7;trace:T125/2026-10-28-gp:16 J in the store (channel "energy"); Reset = energy_store_capacity; capped by the wear step Live: 4e6 J (full) on the grid, 3.942e6 J after about 40 s.
     /* 0x19f4 */ float lap_harvest_limit;                     // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d1180,0x1554791ff J per lap harvest limit in force (Reset = HarvestLimitMGUK); harvest_lap_mguk_proportion divisor
     /* 0x1a00 */ float harvest_power_mguk;                    // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d11b0,0x155479212 W (channel)
     /* 0x1a04 */ float harvest_power_mguh;                    // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d11c0,0x155479212 W (channel)
     /* 0x1a14 */ float deploy_power;                          // L2 decomp:re/decomp/1446d1210.c;xref:0x1446d11d0 W (channel); MGU-K wear input
-    /* 0x1a68 */ int32_t ers_mode;                            // L2 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446e2290.c;xref:0x155479223 0 None, 1 Medium, 2 Overtake, 3 Hotlap (index into modes); Reset sets 1
+    /* 0x1a68 */ int32_t ers_mode;                            // L3 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446e2290.c;xref:0x155479223;trace:T125/2026-10-28-gp:16;trace:T125/2026-10-28-gp:20 0 None, 1 Medium, 2 Overtake, 3 Hotlap (index into modes); Reset sets 1 Live: 1 (Medium) or 2 (Overtake) for AI cars on track; the MFD link (T125) still needs a driver.
 };

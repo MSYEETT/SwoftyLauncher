@@ -65,11 +65,11 @@ struct CarEngine {
     /* 0x24e8 */ CarObfFloat idle_fluctuation_frequency;      // L2 decomp:re/decomp/144685680.c;xref:0x14468620b,0x144686239 VTF Engine/IdleFluctuationFrequency default 10 (obf)
     /* 0x24f8 */ CarObfFloat red_line_throttle_cut_time;      // L2 decomp:re/decomp/144685680.c;xref:0x14468623f,0x14468626f VTF Engine/RedLineThrottleCutTime s, default 0, Ferrari 0.016 (obf)
     /* 0x2508 */ CarObfFloat scaled_power_ref;                // L2 decomp:re/decomp/1553f5460.c;xref:0x1553f54a1 derived (Init slot +0x30 / 0x144689a70): FuelECU active power scale x RevsPowerSpline+0x30 (spline field, meaning L1)
-    /* 0x2518 */ CarObfFloat max_torque;                      // L2 decomp:re/decomp/1553f5460.c;xref:0x1446885a0,0x1553f54b6,0x1553f5548 derived: max over RevsPowerSpline points of (P x power_scale)/(rad/s x revs_scale), Nm; channel "max_torque"
-    /* 0x2528 */ float limiter_rotation_rate;                 // L2 decomp:re/decomp/1553f5460.c;decomp:re/decomp/144688610.c;xref:0x1553f557b derived: LimiterRotationRate x FuelECU revs scale (rad/s); Reset 0x10|0x200 stores the raw value
+    /* 0x2518 */ CarObfFloat max_torque;                      // L3 decomp:re/decomp/1553f5460.c;xref:0x1446885a0,0x1553f54b6,0x1553f5548;trace:T122/2026-10-28-gp:7 derived: max over RevsPowerSpline points of (P x power_scale)/(rad/s x revs_scale), Nm; channel "max_torque" Live: 493.0 Nm decoded.
+    /* 0x2528 */ float limiter_rotation_rate;                 // L3 decomp:re/decomp/1553f5460.c;decomp:re/decomp/144688610.c;xref:0x1553f557b;trace:T122/2026-10-28-gp:7 derived: LimiterRotationRate x FuelECU revs scale (rad/s); Reset 0x10|0x200 stores the raw value Live: 1371.8 rad/s.
     /* 0x252c */ float engine_braking_fraction;               // L2 decomp:re/decomp/1446878d0.c;decomp:re/decomp/1446e2290.c;xref:0x144687bc8 F1Tuning engine-braking slider (Reset 0x2000); Car_Powertrain_Step lerps friction->engine-braking torque by it
     /* 0x2530 */ uint8_t state_flags;                         // L2 decomp:re/decomp/144688610.c;xref:0x144688920,0x144688ce2 engine input step flags; Reset 0x3000 clears the low 5 bits
-    /* 0x2538 */ float rotation_rate;                         // L2 decomp:re/decomp/1446878d0.c;xref:0x1446437e0,0x14468793e engine speed rad/s (channel "rotation_rate"; "rpm" = x9.5493); Reset 0x10|0x200 = IdleRotationRate
+    /* 0x2538 */ float rotation_rate;                         // L3 decomp:re/decomp/1446878d0.c;xref:0x1446437e0,0x14468793e;trace:T122/2026-10-28-gp:7 engine speed rad/s (channel "rotation_rate"; "rpm" = x9.5493); Reset 0x10|0x200 = IdleRotationRate Live: 418.9 rad/s (4000 rpm) idling on the grid, up to about 11600 rpm on track.
     /* 0x253c */ float temperature;                           // L2 decomp:re/decomp/1446878d0.c;xref:0x144688520,0x1446879b5 K (channel "temperature"; Reset 0x400 = InitialTemperature)
     /* 0x2540 */ float kers_energy;                           // L2 decomp:re/decomp/1446878d0.c;xref:0x144687967,0x144687a18 legacy KERS store, Reset = KERSCapacity
     /* 0x2544 */ float load;                                  // L2 decomp:re/decomp/1446878d0.c;xref:0x144688580,0x144687944 channel "load"
@@ -81,7 +81,7 @@ struct CarEngine {
     /* 0x255c */ float wear_mguk;                             // L2 decomp:re/decomp/1446d1210.c;xref:0x144688500 MGU-K wear, integrated by the ERS wear step 0x1446d1210
     /* 0x2560 */ float wear_ce;                               // L2 decomp:re/decomp/1446878d0.c;xref:0x144688510,0x1446879cb control electronics wear (channel "wear_ce")
     /* 0x2570 */ float throttle_lagged;                       // L2 decomp:re/decomp/1446e2290.c;xref:0x1446885c0,0x1446e26b8,0x1446e26f1 channel "throttle_lagged" (turbo lag when TurboMode LagSpoof)
-    /* 0x2574 */ float throttle;                              // L2 decomp:re/decomp/1446e2290.c;xref:0x1446885d0,0x1446e26a5,0x1446e28ff 0..1 effective throttle (channel "throttle")
+    /* 0x2574 */ float throttle;                              // L3 decomp:re/decomp/1446e2290.c;xref:0x1446885d0,0x1446e26a5,0x1446e28ff;trace:T122/2026-10-28-gp:7 0..1 effective throttle (channel "throttle") Live: 0 on the grid, 0..1 on track.
     /* 0x2578 */ float net_torque_no_ers;                     // L2 decomp:re/decomp/1446e2290.c;xref:0x1446e290b,0x1446e30ec Car_Powertrain_Step without ERS: (drive + braking) x throttle - braking
     /* 0x25b0 */ float radiator_opening;                      // L2 decomp:re/decomp/1446878d0.c;xref:0x144687c9f F1Tuning radiator slider (Reset 0x2000)
 };

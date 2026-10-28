@@ -102,7 +102,7 @@ struct CarGearBox {
     /* 0x066c */ float shift_fault_scale;                     // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a6040,0x1446a4da7 channel "shiftfaultscale"
     /* 0x0674 */ float damage;                                // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a5f00,0x1446a4db2 gearbox damage/wear 0..1 (channel "damage")
     /* 0x0678 */ float damage_at_last_fault;                  // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a6050,0x1446a4db2 channel "damageatlastfault"
-    /* 0x0680 */ uint32_t gear_index;                         // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a5ef0,0x1446a4c7c 0 = R, 1 = N, 2 = 1st ... (channel "index"); Reset sets 1
+    /* 0x0680 */ uint32_t gear_index;                         // L3 decomp:re/decomp/1446a4c20.c;xref:0x1446a5ef0,0x1446a4c7c;trace:T122/2026-10-28-gp:7 0 = R, 1 = N, 2 = 1st ... (channel "index"); Reset sets 1 Live: N (index 1) on the grid, gears 2 to 5 (index 3 to 6) on track.
     /* 0x0684 */ uint32_t target_gear_index;                  // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a4c7c Reset sets 1 together with gear_index (8-byte store)
     /* 0x0688 */ float time_since_shift_up;                   // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a6080,0x1446a50ff s (channel)
     /* 0x068c */ float time_since_shift_down;                 // L2 decomp:re/decomp/1446a4c20.c;xref:0x1446a6070,0x1446a50ff s (channel)

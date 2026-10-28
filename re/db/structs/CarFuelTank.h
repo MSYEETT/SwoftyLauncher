@@ -16,15 +16,15 @@ struct CarFuelTank {
     /* 0x0068 */ CarObfFloat fuel_optimal_torque;             // L2 decomp:re/decomp/1554035d0.c;xref:0x15540367c,0x1554036a8 VTF FuelTank/FuelOptimalTorque Nm, Ferrari 500 (radUpgradeEngine sets 550) (obf)
     /* 0x0078 */ CarObfFloat fuel_revs_linear;                // L2 decomp:re/decomp/1554035d0.c;xref:0x1554036ab,0x1554036db VTF FuelTank/FuelRevsLinear Ferrari 0.019 (obf)
     /* 0x0088 */ CarObfFloat fuel_torque_linear;              // L2 decomp:re/decomp/1554035d0.c;xref:0x1554036de,0x15540370e VTF FuelTank/FuelTorqueLinear Ferrari 0.056; radUpgradeEngine x1.4 (obf)
-    /* 0x0098 */ CarObfFloat fuel_capacity;                   // L2 decomp:re/decomp/1554035d0.c;xref:0x155403711,0x155403749 VTF FuelTank/FuelCapacity kg, F1 110, F2 94; clamped >= 0.1 after read (obf)
+    /* 0x0098 */ CarObfFloat fuel_capacity;                   // L3 decomp:re/decomp/1554035d0.c;xref:0x155403711,0x155403749;trace:T124/2026-10-28-gp:8 VTF FuelTank/FuelCapacity kg, F1 110, F2 94; clamped >= 0.1 after read (obf) Live: 110 kg decoded.
     /* 0x00a8 */ CarObfFloat comy;                            // L2 decomp:re/decomp/1554035d0.c;xref:0x15540374f,0x15540377d VTF FuelTank/COMY (obf)
     /* 0x00b8 */ CarObfFloat comz;                            // L2 decomp:re/decomp/1554035d0.c;xref:0x155403783,0x1554037b1 VTF FuelTank/COMZ (obf)
     /* 0x00c8 */ CarObfFloat size_x;                          // L2 decomp:re/decomp/1554035d0.c;xref:0x1554037b7,0x1554037e5 VTF FuelTank/SizeX (obf)
     /* 0x00d8 */ CarObfFloat size_y;                          // L2 decomp:re/decomp/1554035d0.c;xref:0x1554037eb,0x155403819 VTF FuelTank/SizeY (obf)
     /* 0x00e8 */ CarObfFloat size_z;                          // L2 decomp:re/decomp/1554035d0.c;xref:0x15540381f,0x15540384d VTF FuelTank/SizeZ (obf)
     /* 0x00f8 */ uint8_t fixed_load;                          // L2 decomp:re/decomp/1554035d0.c;xref:0x155403853 VTF FuelTank/FixedLoad (bool reader 0x14464c220)
-    /* 0x0100 */ float fuel_mass;                             // L2 decomp:re/decomp/14468edb0.c;xref:0x1446437f0,0x14468f04d,0x14468f05d kg (channel "mass"); burned by the phase-4 step; Reset 0x40 = capacity x fill_fraction
+    /* 0x0100 */ float fuel_mass;                             // L3 decomp:re/decomp/14468edb0.c;xref:0x1446437f0,0x14468f04d,0x14468f05d;trace:T124/2026-10-28-gp:8 kg (channel "mass"); burned by the phase-4 step; Reset 0x40 = capacity x fill_fraction Live: 13.217 -> 12.766 kg for car 0 after about 40 s of racing.
     /* 0x0104 */ float fill_fraction;                         // L2 decomp:re/decomp/155404150.c;xref:0x155404165 start fill 0..1 used by Reset 0x40
-    /* 0x0108 */ float fuel_flow;                             // L2 decomp:re/decomp/14468edb0.c;xref:0x14468f03c kg/s = rad/s x Nm x BSFC(d) x active_burn_scale x 0.001
+    /* 0x0108 */ float fuel_flow;                             // L3 decomp:re/decomp/14468edb0.c;xref:0x14468f03c;trace:T124/2026-10-28-gp:21 kg/s = rad/s x Nm x BSFC(d) x active_burn_scale x 0.001 Live: non-zero on throttle (car 2: 0.0172 kg/s in the race snapshot), 0 idling.
     /* 0x010c */ uint8_t tank_flags;                          // L2 decomp:re/decomp/14468edb0.c;xref:0x14468f065,0x14468f076 bit1 = ran dry this step; Reset clears bit0
 };

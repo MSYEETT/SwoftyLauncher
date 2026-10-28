@@ -25,7 +25,7 @@ struct CarFuelEcu {
     /* 0x00f8 */ CarObfFloat temperature_scale_standard;      // L2 decomp:re/decomp/1553fb310.c;xref:0x1553fb573,0x1553fb5a1 VTF FuelECU/TemperatureScaleStandard (obf)
     /* 0x0108 */ CarObfFloat temperature_scale_rich;          // L2 decomp:re/decomp/1553fb310.c;xref:0x1553fb5a7,0x1553fb5e0 VTF FuelECU/TemperatureScaleRich (obf)
     /* 0x0118 */ CarObfFloat temperature_scale_max;           // L2 decomp:re/decomp/1553fb310.c;xref:0x1553fb5e6,0x1553fb614 VTF FuelECU/TemperatureScaleMax (obf)
-    /* 0x0128 */ int32_t fuel_mode;                           // L2 decomp:re/decomp/1553fdf60.c;xref:0x1553fdf6c,0x1553fe007 0 Lean, 1 Standard, 2 Rich, 3 Max; Reset applies it (flag 0x2000 forces Standard)
+    /* 0x0128 */ int32_t fuel_mode;                           // L3 decomp:re/decomp/1553fdf60.c;xref:0x1553fdf6c,0x1553fe007;trace:T124/2026-10-28-gp:9;trace:T124/2026-10-28-gp:39 0 Lean, 1 Standard, 2 Rich, 3 Max; Reset applies it (flag 0x2000 forces Standard) Live: 1 (Standard) for every race car; the safety car read 2 on the grid and 1 in the race.
     /* 0x0130 */ CarObfFloat active_burn_scale;               // L2 decomp:re/decomp/1553fdf60.c;decomp:re/decomp/14468edb0.c;xref:0x1553fdf9d,0x1553fe038 copied from the mode table by Reset; fuel flow multiplier in the FuelTank step 0x14468edb0
     /* 0x0140 */ CarObfFloat active_power_scale;              // L2 decomp:re/decomp/1553fdf60.c;decomp:re/decomp/1446e2290.c;xref:0x1553fdfb5,0x1553fe04d engine power multiplier (Car_Powertrain_Step, engine Init)
     /* 0x0150 */ CarObfFloat active_revs_scale;               // L2 decomp:re/decomp/1553fdf60.c;decomp:re/decomp/1446e2290.c;xref:0x1553fdfd3,0x1553fe065 divides the RevsPowerSpline lookup and scales the limiter

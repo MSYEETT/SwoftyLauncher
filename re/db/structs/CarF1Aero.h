@@ -5,6 +5,10 @@
 // embedded data object (+0x18) read by Car_Read_F1Aero 0x1446c8560 at data offset = field - 0x18; every number is a
 // CarObfFloat (value = a ^ b, key per instance from the car RNG). Runtime outputs are plain floats from +0x1960.
 // Car_Physics_StepVehicle 0x1446dceb0 computes them each step. See subsystems/car.md#f1aero.
+// Runtime 2026-10-28 (T115, gdb snapshots of a Grand Prix): +0x19f0 / +0x19ec are the front / rear body lift
+// COEFFICIENTS (0.72 / 0.96 parked, 0.79 / 1.11 at speed, front share about 0.43), not forces, so they are named
+// front_lift_coeff / rear_lift_coeff (were front_downforce / rear_downforce). +0x19e8 total_drag is the drag FORCE in N
+// (-2402 at speed, about 0 parked); +0x19e4 total_lift read about 0 parked and -7720 at speed.
 struct CarF1Aero {
     /* 0x0000 */ void *vtable;                                // L2 decomp:re/decomp/1555e9310.c;kb:subsystems/car.md#layout system vtable 0x145bfca70
     /* 0x0008 */ CarLive *car;                                // L2 decomp:re/decomp/1555e9310.c;kb:subsystems/car.md#layout owning car (factory argument); StepVehicle reads [sys+8]+0x568/+0x580
@@ -90,8 +94,8 @@ struct CarF1Aero {
     /* 0x198c */ float drs_fail_distance;                     // L1 decomp:re/decomp/1446c9680.c;xref:0x145bfca88 OnReset flag 0x200: -1 when DRSRotationJointAngleRatio is 0, else 0x1446c9930(sys)
     /* 0x1998 */ float rear_wing_damage;                      // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446ddeae 0..1; rear wing force x (1 - this); written by Car_Damage_SetComponentDamage
     /* 0x199c */ float front_wing_damage;                     // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446ddd98,0x14466029e 0..1; front wing force x (1 - this), front lift - FrontCoLByWingDamageMult x this; written by Car_FrontWing_OnCollision
-    /* 0x19a0 */ float drag_scale;                            // L2 decomp:re/decomp/1555e9310.c;xref:0x1446ddffc ctor 1.0, reset to 1.0 by OnReset flag 0x1000 (with both wing damages = 0); multiplies the whole body+duct+radiator drag coefficient
-    /* 0x19a4 */ float lift_scale;                            // L2 decomp:re/decomp/1555e9310.c;xref:0x1446dda8d,0x1446ddd82 ctor 1.0; multiplies front and rear body lift (both stores)
+    /* 0x19a0 */ float drag_scale;                            // L3 decomp:re/decomp/1555e9310.c;xref:0x1446ddffc;trace:T115/2026-10-28-gp:12 ctor 1.0, reset to 1.0 by OnReset flag 0x1000 (with both wing damages = 0); multiplies the whole body+duct+radiator drag coefficient Live: 1.0.
+    /* 0x19a4 */ float lift_scale;                            // L3 decomp:re/decomp/1555e9310.c;xref:0x1446dda8d,0x1446ddd82;trace:T115/2026-10-28-gp:12 ctor 1.0; multiplies front and rear body lift (both stores) Live: 1.0.
     /* 0x19a8 */ float wing_open_fraction;                    // L1 decomp:re/decomp/1446ca5f0.c;xref:0x1446ca5f0 0..1 DRS / active-wing open fraction: blends m_aero_wing_*_force/_drag; trace T needed
     /* 0x19ac */ uint8_t rear_wing_fixed;                     // L1 decomp:re/decomp/1446ca5f0.c non-zero = rear wing ignores wing_open_fraction (front still blends)
     /* 0x19b4 */ uint32_t front_wing_setting;                 // L2 decomp:re/decomp/1446c9680.c;xref:0x145bfca88 integer wing angle s; front_wing_lift = FrontWingCoL0 + CoL1*s + (CoL2*s)^2 (OnReset flag 0x2200)
@@ -102,7 +106,7 @@ struct CarF1Aero {
     /* 0x19c8 */ float rear_wing_drag;                        // L2 decomp:re/decomp/1446c9680.c;xref:0x145bfca88 RearWingCoD0 + CoD1*s + (CoD2*s)^2
     /* 0x19d8 */ float drag_force;                            // L1 decomp:re/decomp/1446dceb0.c;xref:0x1446de3cf drag force magnitude (older note); stored at 0x1446de3cf
     /* 0x19e4 */ float total_lift;                            // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 body front + rear + wing terms x air density x speed^2 (stored 0x1446ddf0d)
-    /* 0x19e8 */ float total_drag;                            // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 total drag coefficient x density x speed^2; one writer (0x1446de114), no reader found (the +0x19e8 reads at 0x142948f81/0x14296dbe2 are another object)
-    /* 0x19ec */ float rear_downforce;                        // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 rear BODY lift: (BrakeDuctRearCoeffLift x mean RL/RR wheel+0x130 + RadiatorOpeningRearCoeffLift + curves) x RearCoeffLiftMultiplier x lift_scale (stored 0x1446dda91). Older inbox note had front/rear swapped
-    /* 0x19f0 */ float front_downforce;                       // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 front BODY lift, same with Front* keys, minus FrontCoLByWingDamageMult x front_wing_damage (stored 0x1446ddda4)
+    /* 0x19e8 */ float total_drag;                            // L3 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114;trace:T115/2026-10-28-gp:11 the total drag FORCE (N, sign = along the car's axis): drag coefficient x density x speed^2, one writer (0x1446de114), no reader found (the +0x19e8 reads at 0x142948f81/0x14296dbe2 are another object). Live: about 0 parked, -2402 N at speed for the player car.
+    /* 0x19ec */ float rear_lift_coeff;                       // L3 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114;trace:T115/2026-10-28-gp:11 rear BODY lift COEFFICIENT, not a force: (BrakeDuctRearCoeffLift x mean RL/RR wheel+0x130 + RadiatorOpeningRearCoeffLift + curves) x RearCoeffLiftMultiplier x lift_scale (stored 0x1446dda91). Live: 0.96 parked, 1.11 at speed (renamed from rear_downforce after T115). Older inbox note had front/rear swapped
+    /* 0x19f0 */ float front_lift_coeff;                      // L3 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114;trace:T115/2026-10-28-gp:11 front BODY lift COEFFICIENT, not a force, same with Front* keys x (1 - FrontCoLByWingDamageMult x front_wing_damage) (stored 0x1446ddda4). Live: 0.72 parked, 0.79 at speed, about 0.43 of front + rear (renamed from front_downforce after T115)
 };

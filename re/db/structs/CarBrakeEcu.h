@@ -54,8 +54,8 @@ struct CarBrakeEcu {
     /* 0x21c8 */ float abssymmetry_factor;                    // L2 decomp:re/decomp/1446752f0.c;kb:subsystems/car.md#brakeecu VTF BrakeECU/ABSSymmetryFactor (plain float)
     /* 0x21cc */ float puncture_throttle_max;                 // L2 decomp:re/decomp/1446752f0.c;kb:subsystems/car.md#brakeecu VTF BrakeECU/PunctureThrottleMax (plain float)
     /* 0x21d0 */ float burst_throttle_max;                    // L1 decomp:re/decomp/1446752f0.c;kb:subsystems/car.md#brakeecu VTF BrakeECU/BurstThrottleMax (plain, inlined read)
-    /* 0x21d8 */ float brake_bias;                            // L2 decomp:re/decomp/144676250.c;xref:0x140619eb9 0..1, 0.5 = BrakeFront/BrakeRear, below blends to the *Backwards torques, above to *Forwards (Car_BrakeEcu_ApplyBias); setup target per car-d T114
-    /* 0x21dc */ float brake_pressure;                        // L2 decomp:re/decomp/144676250.c;xref:0x140619eb9 multiplies both axle torques in Car_BrakeEcu_ApplyBias
+    /* 0x21d8 */ float brake_bias;                            // L3 decomp:re/decomp/144676250.c;xref:0x140619eb9;trace:T113/2026-10-28-gp:84;trace:T113/2026-10-28-gp:86 0..1, 0.5 = BrakeFront/BrakeRear, below blends to the *Backwards torques, above to *Forwards (Car_BrakeEcu_ApplyBias); setup target per car-d T114 Live: 0.40 for every car after Car_Setup_ApplyTuning.
+    /* 0x21dc */ float brake_pressure;                        // L3 decomp:re/decomp/144676250.c;xref:0x140619eb9;trace:T113/2026-10-28-gp:84;trace:T113/2026-10-28-gp:86 multiplies both axle torques in Car_BrakeEcu_ApplyBias Live: 1.0 with the AI setup, 0.97 with the player car's own setup.
     /* 0x21e0 */ float unk_0x21e0;                            // L1 decomp:re/decomp/1555d2450.c ctor 1.0
     /* 0x21e4 */ float unk_0x21e4;                            // L1 decomp:re/decomp/1555d2450.c ctor 1.0
     /* 0x21ec */ uint8_t unk_0x21ec;                          // L1 decomp:re/decomp/1555d2450.c ctor 1
