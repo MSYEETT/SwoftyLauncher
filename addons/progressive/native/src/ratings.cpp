@@ -183,7 +183,34 @@ void season(uintptr_t, store::Career *c, uint32_t index, uint32_t player, const 
             before_others.push_back(shown(comp, k, static_cast<uint16_t>(g_ratings.stats[i].stat_id), false));
     std::vector<Undo> log;
     std::vector<int> sets(todo.size(), 0);
-    for (size_t j = 0; j < todo.size(); ++j) {
+    const SwoftyCareerOps *ops = records::core_ops();
+    for (size_t j = 0; ops && ops->set_driver_ratings && j < todo.size(); ++j) {
+        auto &q = todo[j];
+        uint16_t ids[kStats];
+        float values[kStats];
+        size_t count = 0;
+        for (int i = 0; i < kStats; ++i)
+            if (q.have[i]) {
+                ids[count] = static_cast<uint16_t>(g_ratings.stats[i].stat_id);
+                values[count++] = static_cast<float>(q.t->values.v[i]);
+            }
+        int r = ops->set_driver_ratings(q.t->stat, ids, values, count);
+        if (r == SWOFTY_ASSET_UNAVAILABLE && j == 0) {
+            swofty::log("[progressive] ratings %d: the core's set_driver_ratings is unavailable; Progressive writes the "
+                        "ratings itself",
+                        p.year);
+            ops = nullptr;
+            break;
+        }
+        if (r != SWOFTY_ASSET_OK) {
+            swofty::log("[progressive] ratings %d: WRITE FAILED for %s through the core (result %d); the drivers before "
+                        "him keep their new ratings",
+                        p.year, q.t->driver.c_str(), r);
+            return;
+        }
+        sets[j] = 1;
+    }
+    for (size_t j = 0; !ops && j < todo.size(); ++j) {
         auto &q = todo[j];
         float x = progress(comp, q.key);
         for (int i = 0; i < kStats; ++i) {

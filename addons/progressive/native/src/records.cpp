@@ -2,6 +2,10 @@
 //
 // Progressive Career: years.json with the effective records in it (records.hpp).
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
 #include <swofty/hooks.hpp>
 #include <swofty/registry.hpp>
 #include <swofty/services.hpp>
@@ -96,6 +100,23 @@ void publish(uint32_t (*real_team)(uint32_t, int), int (*career_year)(void), int
     swofty::hooks::Result h = swofty::hooks::define<progressive_api::SeasonApply>();
     swofty::log("[progressive] %s v%u: %s; hook point %s: %s", ProgressiveHistory::name, ProgressiveHistory::version,
                 swofty::services::name(s), progressive_api::SeasonApply::point, swofty::events::name(h));
+}
+
+const SwoftyCareerOps *core_ops()
+{
+    static const SwoftyCareerOps *ops = [] {
+        HMODULE core = GetModuleHandleW(L"swofty_core.dll");
+        auto get = core ? reinterpret_cast<SwoftyCoreCareerOpsFn>(GetProcAddress(core, "SwoftyCoreCareerOps")) : nullptr;
+        const SwoftyCareerOps *t = get ? get() : nullptr;
+        if (t && (t->version < 1 || !t->available || !t->apply_lineup))
+            t = nullptr;
+        swofty::log("[progressive] season: %s", t ? "the core's career operations (SwoftyCoreCareerOps) apply the seats "
+                                                    "and ratings"
+                                                  : "the core has no career operations; Progressive applies the seats "
+                                                    "and ratings itself");
+        return t;
+    }();
+    return ops && ops->available() ? ops : nullptr;
 }
 
 }

@@ -69,6 +69,7 @@
 #include <swofty/events.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+#include <swofty/json.hpp>
 #include <swofty/storage.hpp>
 
 #include "development_logic.hpp"
@@ -469,8 +470,87 @@ void log_grid(uintptr_t e, const season::Plan &p, const char *when)
                 ten_team_years ? "on" : "off", season::closed_slots(p));
 }
 
+// The season apply through the core's career.apply_lineup (SwoftyCoreCareerOps, standard library 1.6): the
+// plan's moves, repositions, releases, numbers, cars and looks as the core's lineup request, which the core
+// writes with the same sequence apply() below uses. -2: the core could not take it (apply() runs instead).
+int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, bool visuals, const std::string &why)
+{
+    namespace sj = swofty::json;
+    int plan_team = -1;
+    for (int i = 0; i < season::kSlots; ++i)
+        for (int k = 0; k < lineup::kSeats; ++k)
+            if (p.player != lineup::kNone && p.target[i][k] == p.player)
+                plan_team = g_data.slots[i].team_stat;
+    sj::Value moves = sj::Value::array(), repositions = sj::Value::array(), releases = sj::Value::array(),
+              numbers = sj::Value::array(), cars = sj::Value::array(), looks = sj::Value::array();
+    for (auto &m : p.moves)
+        moves.push_back(sj::Value::object({{"driver", static_cast<int64_t>(m.driver)},
+                                           {"team", g_data.slots[m.to.slot].team_stat},
+                                           {"seat", m.to.index},
+                                           {"car", p.vehicles[m.to.slot].stat}}));
+    for (auto &m : p.repositions)
+        repositions.push_back(sj::Value::object({{"driver", static_cast<int64_t>(m.driver)}, {"seat", m.to.index}}));
+    for (uint32_t d : p.releases)
+        releases.push_back(static_cast<int64_t>(d));
+    for (auto &n : p.numbers)
+        numbers.push_back(sj::Value::object({{"driver", static_cast<int64_t>(n.driver)}, {"number", static_cast<int>(n.number)}}));
+    if (visuals) {
+        for (int i = 0; i < season::kSlots; ++i)
+            for (int k = 0; k < lineup::kSeats; ++k)
+                if (p.target[i][k] != lineup::kNone && p.vehicles[i].stat >= 0)
+                    cars.push_back(sj::Value::object({{"driver", static_cast<int64_t>(p.target[i][k])},
+                                                      {"car", p.vehicles[i].stat}}));
+        for (auto &l : p.looks)
+            if (l.stat > 0)
+                looks.push_back(sj::Value::object({{"driver", static_cast<int64_t>(l.driver)}, {"look", l.stat}}));
+    }
+    sj::Value request = sj::Value::object({{"lineup", sj::Value::object({{"year", p.year},
+                                                                           {"why", why},
+                                                                           {"visuals", visuals},
+                                                                           {"player_team", plan_team},
+                                                                           {"moves", std::move(moves)},
+                                                                           {"repositions", std::move(repositions)},
+                                                                           {"releases", std::move(releases)},
+                                                                           {"numbers", std::move(numbers)},
+                                                                           {"cars", std::move(cars)},
+                                                                           {"looks", std::move(looks)}})}});
+    std::string text = sj::dump(request), report(4096, '\0');
+    size_t len = 0;
+    SwoftyText in{text.data(), text.size()};
+    int r = ops->apply_lineup(in, report.data(), report.size(), &len);
+    if (r == SWOFTY_TOO_SMALL) {
+        report.assign(len + 1, '\0');
+        r = ops->apply_lineup(in, report.data(), report.size(), &len);
+    }
+    if (r == SWOFTY_ASSET_UNAVAILABLE || r == SWOFTY_ASSET_LATE) {
+        swofty::log("[progressive] season %d: the core's apply_lineup is %s; Progressive applies the seats itself", p.year,
+                    r == SWOFTY_ASSET_LATE ? "late" : "unavailable");
+        return -2;
+    }
+    report.resize(std::min(len, report.size()));
+    sj::Value rep = sj::parse(report);
+    std::string result(rep["result"].as_string("failed"));
+    swofty::log("[progressive] season %d through the core: %s, %lld row(s) written, %lld unchanged, %lld refused, %lld "
+                "number(s) drawn, %lld contract(s) signed, finalise %s (%lld line-up change(s))",
+                p.year, result.c_str(), static_cast<long long>(rep["written"].as_int()),
+                static_cast<long long>(rep["unchanged"].as_int()), static_cast<long long>(rep["refused"].as_int()),
+                static_cast<long long>(rep["numbers"].as_int()), static_cast<long long>(rep["contracts_signed"].as_int()),
+                std::string(rep["finalise"].as_string("-")).c_str(), static_cast<long long>(rep["line_up_changes"].as_int()));
+    if (const sj::Array *why_not = rep["refusals"].if_array())
+        for (const sj::Value &w : *why_not)
+            swofty::log("[progressive]   refused: %s", std::string(w.as_string()).c_str());
+    if (r != SWOFTY_ASSET_OK || result != "ok")
+        return -1;
+    if (rep["written"].as_int() > 0)
+        log_grid(entity(), p, "after the season apply");
+    return static_cast<int>(rep["written"].as_int());
+}
+
 int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool visuals, const std::string &why)
 {
+    if (const SwoftyCareerOps *ops = records::core_ops())
+        if (int n = apply_core(ops, p, visuals, why); n != -2)
+            return n;
     uintptr_t manager = contracts_manager();
     if (!manager) {
         swofty::log("[progressive] season %d REFUSED: no DriverCareerContractsManagerComponent", p.year);
