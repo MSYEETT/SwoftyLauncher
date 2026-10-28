@@ -382,6 +382,8 @@ jobs:
         run: native/test/run_sdk_headers_test.sh
       - name: Registry core (shared corpus, Python reference, random stacks, read benchmark)
         run: native/test/run_registry_test.sh
+      - name: Career snapshots (swofty_registry entry, freezes, budgets, migration, fixtures)
+        run: native/test/run_snapshots_test.sh
       - name: Progressive registration test
         env:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
