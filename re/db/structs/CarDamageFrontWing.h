@@ -9,7 +9,7 @@
 // to +0x38; overflow beyond the clamp goes to the F1SuspensionDamage system (CarLive+0x5d0) +0x138 left / +0x13c
 // right, scaled by that system's XOR pair +0x38/+0x40. When CarLive+0x130 bit 1 is set it writes
 // clamp((left+right)/max, 0, 1) to F1Aero+0x199c (the front wing aero loss factor Car_Physics_StepVehicle reads).
-// Detachable parts list at +0xb0..+0xb8 (Car_Register_DetachablePart_Thunk).
+// Detachable parts list at +0xb0..+0xb8 (Car_Register_DetachablePart_Thunk; data flow in car.md#parts).
 struct CarDamageFrontWing {
     /* 0x08 */ CarLive *car;               // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/14465f620.c;kb:subsystems/car.md#damage owning car (+0x130 flags read through it)
     /* 0x28 */ float speed_threshold;      // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/14465f580.c;decomp:re/decomp/14465f450.c;xref:0x14465ff05 VTF F1WingDamage/SpeedThreshold (2025: 3), plain (reader +0x10); impacts below +0x28/+0x40 are ignored
@@ -21,7 +21,11 @@ struct CarDamageFrontWing {
     /* 0x48 */ float left_damage;           // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/144631a50.c;xref:0x1446600db,0x144631aaa accumulated left front wing damage
     /* 0x4c */ float right_damage;          // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/144631a50.c;xref:0x1446600e0,0x144631abc accumulated right front wing damage
     /* 0x50 */ float chassis_damage;        // L2 decomp:re/decomp/14465fdc0.c;xref:0x1446601aa accumulated chassis/nose damage (impact * +0x30)
-    /* 0x90 */ void *f1_aero;               // L2 decomp:re/decomp/14465fdc0.c;xref:0x144660249 F1Aero system; +0x199c gets the wing damage ratio
-    /* 0x98 */ void *wing_body;             // L1 decomp:re/decomp/14465fdc0.c physics body of the wing (collision filter, flag +0x170 bit 1 = attached)
-    /* 0xa0 */ void *nose_body;             // L1 decomp:re/decomp/14465fdc0.c second body accepted by the filter
+    /* 0x90 */ void *f1_aero;               // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/14465f620.c;xref:0x144660249,0x14465f6ba F1Aero system (CarLive+0x570, copied by Car_FrontWing_Init); +0x199c gets the wing damage ratio
+    /* 0x98 */ void *wing_body;             // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/14465f620.c;xref:0x14465f71b;kb:subsystems/car.md#parts physics body of the wing (collision filter, flag +0x170 bit 1 = attached): Car_FrontWing_Init copies +0x98 of the ConvexHull system's (CarLive+0x5b0) entry named "FrontWing", 0 when there is none
+    /* 0xa0 */ void *nose_body;             // L2 decomp:re/decomp/14465fdc0.c;decomp:re/decomp/14465f620.c;xref:0x14465f731 second body accepted by the filter; Car_FrontWing_Init copies [CarLive+0x558 Chassis]+0x3f0
+    /* 0xa8 */ void *parts_allocator;       // L2 decomp:re/decomp/1446612a0.c;xref:0x15538e560;kb:subsystems/car.md#parts allocator that grows the part vector (vtable +0x18 alloc, +0x38 free)
+    /* 0xb0 */ void **parts_begin;          // L2 decomp:re/decomp/1446612a0.c;decomp:re/decomp/14465f620.c;xref:0x15538e527,0x14465f747;kb:subsystems/car.md#parts detachable part pointers added by Car_Add_DetachablePart_Thunk; Car_FrontWing_Init registers the 11 pieces only while begin == end
+    /* 0xb8 */ void **parts_end;            // L2 decomp:re/decomp/1446612a0.c;decomp:re/decomp/14465f620.c;xref:0x15538e51d,0x14465f740;kb:subsystems/car.md#parts end; [end-8] is the part added last
+    /* 0xc0 */ uint64_t parts_capacity;     // L2 decomp:re/decomp/1446612a0.c;xref:0x15538e532;kb:subsystems/car.md#parts capacity in pointers (grown x1.5)
 };
