@@ -58,6 +58,7 @@ pub mod steam;
 pub mod steam_client;
 pub mod stock;
 pub mod store;
+pub mod testsuite;
 pub mod tracks;
 pub mod ui;
 pub mod update;

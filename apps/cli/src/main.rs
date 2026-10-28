@@ -9,6 +9,7 @@ mod run;
 mod saves;
 mod send_logs;
 mod setup;
+mod testing;
 mod time;
 mod update;
 
@@ -151,6 +152,11 @@ enum Command {
         about = "List the profile save backups taken before sessions without an addon that affects saves, and restore one"
     )]
     Saves(saves::SavesCommand),
+    #[command(
+        subcommand,
+        about = "Test addons in the game: plan the game starts, run the tests and write the report"
+    )]
+    Test(testing::TestCommand),
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -477,6 +483,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Saves(cmd) => saves::command(&store, cmd),
         Command::Steam { start } => run::steam_check(&store, start),
         Command::Postfx(cmd) => postfx::command(cmd),
+        Command::Test(cmd) => testing::command(&store, cmd),
         Command::Update { check } => update::update(check),
     }
 }

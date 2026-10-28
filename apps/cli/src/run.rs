@@ -60,6 +60,14 @@ pub struct RunArgs {
     #[arg(long, help = crate::GAME_HELP)]
     game: Option<PathBuf>,
     #[arg(
+        long = "game-arg",
+        value_name = "ARG",
+        allow_hyphen_values = true,
+        requires = "direct",
+        help = "Pass ARG to F1 25 in a direct launch; repeat it for more, such as --game-arg=-benchmark --game-arg=x.xml"
+    )]
+    game_arg: Vec<String>,
+    #[arg(
         long,
         env = "SWOFTY_EXE_COPY",
         help = "A copy of F1_25.exe whose .pdata gives function bounds"
@@ -154,7 +162,8 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     let loader = game.join(LOADER_LOG);
     let before = LogMark::read(&loader);
     let asked = now_secs();
-    let mut wrapper = launch(store, &game, args.direct, mode).inspect_err(|e| note_blocked(store, e))?;
+    let mut wrapper =
+        launch(store, &game, args.direct, mode, &args.game_arg).inspect_err(|e| note_blocked(store, e))?;
     let mut silence = Silence::new();
     let dir = loop {
         if let Some(d) = store
@@ -1526,7 +1535,9 @@ fn steam_launch_args(mode: LaunchMode) -> Vec<String> {
         .collect()
 }
 
-fn wrapper_command(proton: Option<&Path>, game: &Path, mode: LaunchMode) -> Vec<OsString> {
+/// The Steam command a direct launch hands the wrapper; `extra` goes to the
+/// game after the target, where Steam puts a launch option's arguments.
+fn wrapper_command(proton: Option<&Path>, game: &Path, mode: LaunchMode, extra: &[String]) -> Vec<OsString> {
     let mut out: Vec<OsString> = vec!["--".into()];
     if let Some(p) = proton {
         out.push(p.join("proton").into());
@@ -1534,10 +1545,11 @@ fn wrapper_command(proton: Option<&Path>, game: &Path, mode: LaunchMode) -> Vec<
     }
     out.push(game.join(GAME_EXE).into());
     out.extend(mode.args().iter().map(OsString::from));
+    out.extend(extra.iter().map(OsString::from));
     out
 }
 
-fn launch(store: &Store, game: &Path, direct: bool, mode: LaunchMode) -> Result<Wrapper> {
+fn launch(store: &Store, game: &Path, direct: bool, mode: LaunchMode, extra: &[String]) -> Result<Wrapper> {
     let install = steam::find_game();
     let wrapped = install
         .as_ref()
@@ -1556,7 +1568,7 @@ fn launch(store: &Store, game: &Path, direct: bool, mode: LaunchMode) -> Result<
             .arg("--game")
             .arg(game)
             .arg("--via-ea")
-            .args(wrapper_command(None, game, mode));
+            .args(wrapper_command(None, game, mode, extra));
         #[cfg(unix)]
         std::os::unix::process::CommandExt::process_group(&mut c, 0);
         let log = store.root.join(WRAPPER_LOG);
@@ -1605,9 +1617,9 @@ fn launch(store: &Store, game: &Path, direct: bool, mode: LaunchMode) -> Result<
             .env("STEAM_COMPAT_APP_ID", STEAM_APP_ID.to_string())
             .env("SteamAppId", STEAM_APP_ID.to_string())
             .env("SteamGameId", STEAM_APP_ID.to_string());
-            c.args(wrapper_command(Some(&proton), game, mode));
+            c.args(wrapper_command(Some(&proton), game, mode, extra));
         } else {
-            c.args(wrapper_command(None, game, mode));
+            c.args(wrapper_command(None, game, mode, extra));
         }
         if which("steam-run") {
             let mut fhs = Command::new("steam-run");
@@ -2240,7 +2252,7 @@ mod tests {
     fn a_vr_launch_reaches_the_game_on_every_path() {
         let game = Path::new("/games/F1 25");
         let proton = Path::new("/steam/compatibilitytools.d/GE");
-        let direct = strings(&wrapper_command(Some(proton), game, LaunchMode::Vr));
+        let direct = strings(&wrapper_command(Some(proton), game, LaunchMode::Vr, &[]));
         assert_eq!(
             direct,
             [
@@ -2256,12 +2268,21 @@ mod tests {
         assert_eq!(LaunchMode::of(seen.game_args()), LaunchMode::Vr);
         assert_eq!(game_args(seen.game_args(), LaunchMode::Vr), ["-vr"]);
 
-        let flat = strings(&wrapper_command(Some(proton), game, LaunchMode::Normal));
+        let flat = strings(&wrapper_command(Some(proton), game, LaunchMode::Normal, &[]));
         assert!(parse_steam_command(&flat[1..]).game_args().is_empty());
 
-        let native = strings(&wrapper_command(None, game, LaunchMode::Vr));
+        let native = strings(&wrapper_command(None, game, LaunchMode::Vr, &[]));
         assert_eq!(native, ["--", "/games/F1 25/F1_25.exe", "-vr"]);
         assert_eq!(parse_steam_command(&native[1..]).game_args(), ["-vr"]);
+
+        let bench = ["-benchmark".to_owned(), "swofty_test.xml".to_owned()];
+        let passed = strings(&wrapper_command(Some(proton), game, LaunchMode::Normal, &bench));
+        let seen = parse_steam_command(&passed[1..]);
+        assert_eq!(seen.game_args(), bench, "game arguments reach the game");
+        assert_eq!(
+            game_args(seen.game_args(), LaunchMode::of(seen.game_args())),
+            bench
+        );
 
         assert_eq!(steam_launch_args(LaunchMode::Normal), ["-applaunch", "3059520"]);
         assert_eq!(
