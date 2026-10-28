@@ -35,6 +35,10 @@ python3 registry/random_stacks.py --runner "$OUT/corpus_test" --count "${REGISTR
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness \
     -Wno-cast-function-type-mismatch -I../../packages/sdk/include -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine \
     -o "$OUT/index_load_test" registry/index_load_test.cpp "${SRC[@]}"
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness \
+    -Wno-cast-function-type-mismatch -I../../packages/sdk/include -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine \
+    -o "$OUT/career_wait_test" registry/career_wait_test.cpp "${SRC[@]}"
 "$OUT/index_load_test"
+"$OUT/career_wait_test"
 "$OUT/tolerant_edit_test"
 "$OUT/iterate_test"

@@ -564,6 +564,17 @@ struct Store::Impl {
     uint32_t forced_handle = 0;
     int forced_registering = -1;
 
+    void wait_for_load()
+    {
+        if (!loading || tl_callback_depth || tl_computing)
+            return;
+        auto flow = is_flow.load();
+        if (flow && flow()) {
+            std::unique_lock w(wait_mu);
+            loaded.wait(w, [&] { return !loading.load(); });
+        }
+    }
+
     uint64_t take_seq()
     {
         if (forced_seq) {
@@ -2115,13 +2126,7 @@ int Store::unwatch(uint32_t token)
 
 Record Store::get(const std::string &registry_at, const std::string &id)
 {
-    if (d->loading && !tl_callback_depth && !tl_computing) {
-        auto flow = d->is_flow.load();
-        if (flow && flow()) {
-            std::unique_lock w(d->wait_mu);
-            d->loaded.wait(w, [&] { return !d->loading.load(); });
-        }
-    }
+    d->wait_for_load();
     std::unique_lock g(d->mu);
     Record out;
     Reg *r = d->reg(registry_at);
@@ -2188,6 +2193,7 @@ Status Store::status(const std::string &registry_at, const std::string &id) { re
 
 std::string Store::origin(const std::string &registry, const std::string &id, const std::string &pointer)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     Reg *r = d->reg(registry);
     if (!r)
@@ -2212,6 +2218,7 @@ std::size_t Store::pending(const std::string &registry) const
 
 bool Store::next(const std::string &registry, const std::string &prefix, const std::string *after, std::string &id)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     Reg *r = d->reg(registry);
     if (!r)
@@ -2232,6 +2239,7 @@ bool Store::next(const std::string &registry, const std::string &prefix, const s
 
 std::vector<std::string> Store::list(const std::string &registry, const std::string &prefix)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     std::vector<std::string> out;
     Reg *r = d->reg(registry);
@@ -2246,6 +2254,7 @@ std::vector<std::string> Store::list(const std::string &registry, const std::str
 
 std::vector<std::string> Store::tag_members(const std::string &registry, const std::string &tag)
 {
+    d->wait_for_load();
     std::lock_guard g(d->mu);
     Reg *r = d->reg(registry);
     if (!r)
