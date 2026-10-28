@@ -579,6 +579,14 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
     }
     let resolved = resolve(&p, &addons)?;
+    let std16 = match p.is_vanilla() {
+        true => BTreeMap::new(),
+        false => crate::stdlib::deps::read_all(store, &addons),
+    };
+    let deps = crate::stdlib::deps::for_order(profile, &resolved.order, &addons, &std16);
+    if let Some(stop) = deps.stop_text() {
+        return Err(Error::Dependencies(stop));
+    }
     let mut built = Built {
         order: resolved.order.clone(),
         warnings: skipped
@@ -591,6 +599,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         },
         ..Built::default()
     };
+    built
+        .warnings
+        .extend(deps.of(crate::stdlib::deps::Level::Warn).map(|f| f.line()));
+    built.lines.extend(
+        deps.of(crate::stdlib::deps::Level::Hint)
+            .map(|f| format!("registry: {}", f.line())),
+    );
+    built
+        .lines
+        .extend(deps.notes.iter().map(|n| format!("registry: {n}")));
     built.report = Report {
         profile: profile.into(),
         built_at: crate::conflicts::now(),
@@ -977,6 +995,25 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     hasher.update(sha256_file(&db_src)?);
     let order: Vec<&AddonManifest> = resolved.order.iter().map(|id| &addons[id]).collect();
     hash_unread(&mut hasher, store, game, &order, planner.erp_ops(), &resolve)?;
+    let std_index = loader_dir()
+        .is_some()
+        .then(|| crate::stdlib::index::Index::plan(&resolved.order, &addons, &std16, &store.addons_dir()))
+        .flatten();
+    if let Some(placed) = &std_index {
+        hasher.update(placed.index.to_json());
+        for (rel, src) in &placed.files {
+            hasher.update(format!("std {rel};"));
+            hasher.update(std::fs::read(src).map_err(io_err(src))?);
+        }
+    }
+    let room_asked = crate::stdlib::room::asked(
+        crate::stdlib::reports::Room::read(&game.dir).as_ref(),
+        profile,
+        &resolved.order,
+    );
+    if let Some(asked) = room_asked {
+        hasher.update(format!("room {asked};"));
+    }
     built.buildhash = hex(&hasher.finalize())[..16].to_owned();
     built.overlay = store.overlay_dir(profile, &built.buildhash);
     let (lines_at, warnings_at) = (built.lines.len(), built.warnings.len());
@@ -1001,7 +1038,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         plan_lists(&ui_maps, &resolve)?.0
     };
     let mut stock_removals = BTreeMap::new();
-    if !maps.is_empty() || planner.has_db() {
+    if !maps.is_empty() || planner.has_db() || room_asked.is_some() {
         let shipped = std::fs::read(&db_src).map_err(io_err(&db_src))?;
         let mut db = Gvdb::parse(&shipped)?;
         let stock: HashSet<u64> = db.records.iter().map(|r| r.key).collect();
@@ -1106,21 +1143,36 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             session.owned_items = found.items;
         }
         let cars = grid_size(&db);
+        let mut on_file = true;
         if let Some(staged) = staged {
             let room = runtime_record_room(staged.records.len());
             let created = db.records.len().saturating_sub(staged.records.len());
+            let route = crate::stdlib::room::route(staged.records.len(), created, room_asked);
             match db_edits(&staged, &db) {
                 Ok(_) if created > room => built.lines.push(format!(
                     "database: built into the game file; the addons add {created} record(s) and the game's \
                      database takes {room} more once it has loaded"
                 )),
-                Ok(edits) => {
+                Ok(edits) if route == crate::stdlib::room::Route::Runtime => {
                     runtime.db(edits);
                     db = staged;
+                    on_file = false;
                 }
+                Ok(_) => {}
                 Err(why) => built
                     .warnings
                     .push(format!("database: built into the game file; {why}")),
+            }
+        }
+        if let Some(asked) = room_asked.filter(|_| on_file)
+            && let crate::stdlib::room::Route::File { pad_to, short } =
+                crate::stdlib::room::file_route(db.records.len(), asked)
+        {
+            let added = crate::stdlib::room::pad(&mut db, pad_to);
+            if added > 0 || short > 0 {
+                built
+                    .lines
+                    .push(crate::stdlib::room::line(pad_to, added, asked, short));
             }
         }
         let bytes = db.to_bytes();
@@ -1548,6 +1600,29 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 }
             }
             session.plugins = plugins.dlls;
+            if let Some(placed) = &std_index {
+                let index = built.overlay.join("registry-index.json");
+                std::fs::create_dir_all(&built.overlay).map_err(io_err(&built.overlay))?;
+                std::fs::write(&index, placed.index.to_json()).map_err(io_err(&index))?;
+                for (rel, src) in placed
+                    .files
+                    .iter()
+                    .map(|(r, s)| (r.clone(), s.clone()))
+                    .chain([(crate::stdlib::index::PATH.to_owned(), index)])
+                {
+                    match built.plan.loader.insert(rel.clone(), src.clone()) {
+                        Some(before) if before != src => {
+                            return Err(Error::Other(format!("{rel} is placed twice")));
+                        }
+                        _ => {}
+                    }
+                }
+                let data: usize = placed.index.addons.iter().map(|a| a.data.len()).sum();
+                built.lines.push(format!(
+                    "registry: index for {} addon(s) with {data} data file(s) under {LOADER_DIR}/registry",
+                    placed.index.addons.len()
+                ));
+            }
         }
         None => built.warnings.push(format!(
             "{CORE_ID}: the in-game loader was not found (native/dist, loader/ beside the swofty command, or {LOADER_ENV}); the game starts without it"
