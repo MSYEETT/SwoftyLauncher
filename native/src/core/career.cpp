@@ -255,6 +255,7 @@ void on_flow(SwoftyContext *c)
     if (perf_on())
         perf_flow(hash, uint32_t(from), to, name);
     runtime::netplay_flow(hash, to);
+    runtime::testagent_flow(name, to);
     if (known && to == 1 && !std::strcmp(known, "StateLoadSession"))
         swofty_core::apply::moments::session_load("StateLoadSession");
     if (known && to == 1 && !std::strcmp(known, "StateUnloadSession"))

@@ -135,6 +135,7 @@ Table &the_table()
                                   std::string(catalogue::phase_name(h.phase)) + " handler on " + point);
         };
         p.load_order = [](const std::string &, uint64_t module) { return uint64_t(runtime::addon_load_index(module)); };
+        p.fired = [](const std::string &event, bool hot) { runtime::testagent_fired(event, hot); };
         p.records = [](const Facts &f, std::string_view registry) {
             RecordFn fn;
             {
