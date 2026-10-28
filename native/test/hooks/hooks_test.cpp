@@ -5,7 +5,9 @@
 // overwrite it yields to), and services' when ordering. run_hooks_test.sh builds and runs it.
 #include "../../src/core/hooks/dispatch.hpp"
 #include "../../src/core/hooks/game_point.hpp"
+#include "../../src/core/hooks/payloads.hpp"
 #include "../../src/core/services/services.hpp"
+#include "../sdk_payloads.h"
 
 #include <cstdio>
 #include <cstring>
@@ -659,6 +661,91 @@ static void test_services()
     expect(r.published("progressive.history", &v) && v == 2 && !r.published("nobody.service"), "published");
 }
 
+static int c_sound(void *, SwoftyHookCall *c)
+{
+    auto *b = static_cast<SwoftyEvBundleResolve *>(c->payload);
+    if (b->size == sizeof *b && b->car == 4 && !strcmp(b->vehicle_id, "game/williams_2026") &&
+        !strcmp(b->switch_name_str, "williams") && !strcmp(b->engine_sound_id, "game/williams_2026"))
+        b->set_engine_sound_fn(b->user, "mod.esp/v10_screamer");
+    return 0;
+}
+
+static int cpp_sound(void *user, SwoftyHookCall *c)
+{
+    auto &b = *static_cast<swofty::sounds::events::BundleResolve *>(c->payload);
+    *static_cast<std::string *>(user) = std::string(b.engine_sound().id());
+    return 0;
+}
+
+static int cap_rating(void *, SwoftyHookCall *c)
+{
+    auto &f = *static_cast<swofty::cars::events::UpgradesFit *>(c->payload);
+    if (f.vehicle().id() == "game/haas_2026" && f.department == swofty::cars::Department::aero)
+        f.rating = std::min(f.rating, 0.95f);
+    return 0;
+}
+
+static int scale_wing(void *, SwoftyHookCall *c)
+{
+    auto &r = *static_cast<swofty::cars::events::VtfRead *>(c->payload);
+    if (r.section() == "F1WingDamage" && r.field() == "DamageScale" && r.upgrade().empty() && r.car.index() == 7)
+        r.value *= 2;
+    return 0;
+}
+
+static int add_parts(void *, SwoftyHookCall *c)
+{
+    auto &p = *static_cast<const swofty::cars::events::PartsRegister *>(c->payload);
+    if (p.vehicle().id() == "game/mclaren_2026") {
+        p.add({.node = "front_wing_endplate_l", .detach_at = 0.4f});
+        p.add({.node = "mirror_l", .detach_at = 0.6f, .debris = false});
+        p.add({.node = ""});
+    }
+    return 0;
+}
+
+static void test_payloads()
+{
+    Table t(platform());
+    t.declare_core();
+    auto fire = [&](auto &e) {
+        using E = std::remove_reference_t<decltype(e)>;
+        e.size = uint32_t(sizeof(E));
+        e.payload_version = E::version;
+        int rep = 0;
+        t.fire("", E::point, &e, &rep);
+        return rep == 0;
+    };
+    uint32_t tok = 0;
+    std::string seen;
+    t.attach("c-addon", "audio.bundle.resolve", SWOFTY_PHASE_BEFORE, 10, "", c_sound, nullptr, &tok);
+    t.attach("cpp-addon", "audio.bundle.resolve", SWOFTY_PHASE_AFTER, 0, "", cpp_sound, &seen, &tok);
+    std::string sound = "game/williams_2026";
+    std::string vehicle = "game/williams_2026";
+    payloads::bundle_resolve(fire, 4, vehicle.c_str(), "williams", sound);
+    expect(sound == "mod.esp/v10_screamer" && seen == sound,
+           "audio.bundle.resolve: a C handler sets the sound and a C++ handler reads it back");
+
+    t.attach("a", "car.upgrades.fit", SWOFTY_PHASE_BEFORE, 0, "", cap_rating, nullptr, &tok);
+    float rating = 0.99f;
+    payloads::upgrades_fit(fire, 3, "game/haas_2026", swofty::cars::Department::aero, 80, rating);
+    expect(rating == 0.95f, "car.upgrades.fit: a before handler caps the rating");
+
+    t.attach("a", "car.vtf.read", SWOFTY_PHASE_BEFORE, 0, "", scale_wing, nullptr, &tok);
+    float value = 0.25f;
+    payloads::vtf_read(fire, swofty::cars::live::Car(7), "F1WingDamage", "DamageScale", nullptr, value);
+    expect(value == 0.5f, "car.vtf.read: a before handler reads the section and changes the value");
+
+    std::vector<std::string> parts;
+    t.attach("a", "car.parts.register", SWOFTY_PHASE_AFTER, 0, "", add_parts, nullptr, &tok);
+    payloads::parts_register(fire, 2, "game/mclaren_2026", nullptr, [&](const char *node, float at, bool debris) {
+        parts.push_back(std::string(node) + "@" + std::to_string(int(at * 10)) + (debris ? "+" : "-"));
+        return int32_t(SWOFTY_ASSET_OK);
+    });
+    expect(parts == std::vector<std::string>{"front_wing_endplate_l@4+", "mirror_l@6-"},
+           "car.parts.register: add() reaches the core's sink and an empty node is refused");
+}
+
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
@@ -671,6 +758,7 @@ int main()
     test_log_lines();
     test_game_point();
     test_services();
+    test_payloads();
     printf("%s: %d failure(s)\n", fails ? "FAIL" : "ok", fails);
     return fails ? 1 : 0;
 }
