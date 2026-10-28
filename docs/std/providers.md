@@ -115,7 +115,7 @@ static std::optional<career::DriverRatings> ratings(std::string_view id)
     constexpr std::string_view prefix = "swofty.progressive/";
     if (!id.starts_with(prefix))
         return std::nullopt;                // not ours
-    std::string_view rest = id.substr(prefix.size());              // "2017/max_verstappen"
+    std::string_view rest = id.substr(prefix.size());              // "2017/game/max_verstappen"
     std::size_t slash = rest.find('/');
     if (slash == std::string_view::npos)
         return std::nullopt;
@@ -147,7 +147,7 @@ When the data behind a dynamic record changes, the provider says so:
 void on_ratings_model_reloaded()
 {
     career::ratings.invalidate();                                                       // every record
-    career::ratings.invalidate(career::ratings["swofty.progressive/2017/max_verstappen"]);  // one record
+    career::ratings.invalidate(career::ratings["swofty.progressive/2017/game/max_verstappen"]);  // one record
 }
 ```
 
@@ -162,7 +162,7 @@ SWOFTY_REGISTER
 {
     // every driver's start-of-season ratings for 2016 to 2025, from data/ratings.json
     for (const auto &[key, r] : progressive::stored_ratings())
-        career::ratings.add(key, r);                    // "2017/max_verstappen" -> "swofty.progressive/2017/max_verstappen"
+        career::ratings.add(key, r);                    // "2017/game/max_verstappen" -> "swofty.progressive/2017/game/max_verstappen"
 }
 
 SWOFTY_ON_LOAD

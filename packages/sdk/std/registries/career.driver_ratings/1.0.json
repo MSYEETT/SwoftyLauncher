@@ -24,22 +24,22 @@
       "x-ref": "driver.identity"
     },
     "experience": {
-      "type": "integer",
+      "type": "number",
       "minimum": 0,
       "maximum": 100
     },
     "racecraft": {
-      "type": "integer",
+      "type": "number",
       "minimum": 0,
       "maximum": 100
     },
     "awareness": {
-      "type": "integer",
+      "type": "number",
       "minimum": 0,
       "maximum": 100
     },
     "pace": {
-      "type": "integer",
+      "type": "number",
       "minimum": 0,
       "maximum": 100
     },

@@ -139,7 +139,9 @@
         "kind": {
           "enum": [
             "swap",
-            "stand_in"
+            "stand_in",
+            "move",
+            "replace"
           ],
           "default": "swap"
         },

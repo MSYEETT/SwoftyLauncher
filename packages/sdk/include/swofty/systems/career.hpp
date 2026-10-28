@@ -24,8 +24,8 @@ enum class Freeze { per_season, at_creation };
 SWOFTY_ENUM(Freeze, per_season, at_creation)
 enum class AfterLast { market, hold, end };
 SWOFTY_ENUM(AfterLast, market, hold, end)
-enum class ChangeKind { swap, stand_in };
-SWOFTY_ENUM(ChangeKind, swap, stand_in)
+enum class ChangeKind { swap, stand_in, move, replace };
+SWOFTY_ENUM(ChangeKind, swap, stand_in, move, replace)
 
 struct ModeRecord {
     static constexpr Version version{1, 0};
@@ -103,7 +103,7 @@ struct DriverRatings {
     static constexpr Version version{1, 0};
     Ref<Season> season;
     Ref<drivers::Identity> driver;
-    int experience = 0, racecraft = 0, awareness = 0, pace = 0;
+    float experience = 0, racecraft = 0, awareness = 0, pace = 0;
     json::Value extra;
 };
 SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, pace)
