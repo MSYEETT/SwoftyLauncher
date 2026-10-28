@@ -18,6 +18,9 @@
 #include "number_plan.hpp"
 #include "seat_plan.hpp"
 #include "stats.hpp"
+#include "teams_plan.hpp"
+#include "teams_store.hpp"
+#include "../registry/table.hpp"
 #include "track_fuel.hpp"
 
 std::string settings_addon(const void *from, std::string &dll);
@@ -601,6 +604,7 @@ struct Report {
     std::vector<std::string> refusals;
     std::string finalise = "not needed";
     uint64_t changes = 0;
+    std::string extra;
 
     std::string json() const
     {
@@ -611,7 +615,8 @@ struct Report {
             r += (i ? "," : "") + quote(refusals[i]);
         r += "],\"written\":" + std::to_string(written) + ",\"released\":" + std::to_string(released) +
              ",\"numbers\":" + std::to_string(numbers) + ",\"finalise\":" + quote(finalise) +
-             ",\"line_up_changes\":" + std::to_string(changes) + ",\"contracts_signed\":" + std::to_string(contracts) + "}";
+             ",\"line_up_changes\":" + std::to_string(changes) + ",\"contracts_signed\":" + std::to_string(contracts) +
+             extra + "}";
         return r;
     }
 };
@@ -1221,6 +1226,178 @@ int api_apply_lineup(SwoftyText request, char *out, size_t cap, size_t *len)
     return w == SWOFTY_TOO_SMALL && r == SWOFTY_ASSET_OK ? SWOFTY_TOO_SMALL : r;
 }
 
+int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
+{
+    namespace ct = career_ops::teams;
+    Report rep;
+    std::string summary, head = "apply_teams";
+    int r = SWOFTY_ASSET_OK;
+    json::Value j;
+    std::string text = request.data ? std::string(request.data, request.size) : std::string();
+    ct::Plan tp;
+    size_t dressed = 0, dress_pending = 0;
+    if (!on_flow_thread()) {
+        rep.result = "failed";
+        summary = "late: called off the flow thread";
+        r = SWOFTY_ASSET_LATE;
+    } else if (!json::parse(text, j) || j.type != json::Value::Obj || j["season"].type != json::Value::Obj) {
+        rep.result = "refused";
+        summary = "the request is not a JSON object with a \"season\" record";
+        r = SWOFTY_ASSET_INVALID;
+    } else {
+        const json::Value &s = j["season"];
+        std::string group = s["data_group"].str();
+        ct::SeasonIn cur;
+        cur.year = number(s["year"], 0);
+        for (auto &t : s["teams"].a) {
+            ct::SlotIn x;
+            x.slot = number(t["slot"], 0);
+            x.team = t["team"].str();
+            for (size_t k = 0; k < static_cast<size_t>(ct::kSeats) && k < t["seats"].a.size(); ++k)
+                x.seats[k] = t["seats"].a[k].str();
+            x.car = number(t["car"], -1);
+            cur.slots.push_back(x);
+        }
+        head = "apply_teams " + std::to_string(cur.year) + " (season, " + (group.empty() ? "no data group" : group) + ")";
+        std::vector<ct::SeasonIn> all = ct::seasons_of(swofty_core::registry::store(), group);
+        all.erase(std::remove_if(all.begin(), all.end(), [&](const ct::SeasonIn &x) { return x.year == cur.year; }), all.end());
+        all.push_back(cur);
+        bool my_team = false;
+        if (const SwoftyCareer *c = runtime::career_table(); c && c->state) {
+            SwoftyCareerState st{};
+            if (c->state(&st) == SWOFTY_ASSET_OK)
+                my_team = st.mode == SWOFTY_CAREER_MY_TEAM;
+        }
+        ct::Table table = ct::build_table(std::move(all), my_team);
+        tp = ct::plan_season(table, cur);
+        std::vector<uint32_t> slot_teams;
+        bool have_slots = false;
+        {
+            std::lock_guard<std::mutex> l(g_lock);
+            auto it = g_slots.find(group);
+            if (it != g_slots.end()) {
+                have_slots = true;
+                slot_teams = it->second;
+            }
+        }
+        std::string missing;
+        uintptr_t e = 0;
+        std::vector<Row> rows;
+        if (!tp.ok()) {
+            rep.result = "refused";
+            rep.refusals = tp.refusals;
+            summary = "refused: " + (tp.refusals.empty() ? std::string("no plan") : tp.refusals.front());
+            r = SWOFTY_REFUSED;
+        } else if (!have_slots || slot_teams.size() < static_cast<size_t>(table.count())) {
+            rep.result = "refused";
+            summary = "the slot table of data group " + (group.empty() ? std::string("(none)") : group) + " has " +
+                      std::to_string(slot_teams.size()) + " slot(s), the records need " + std::to_string(table.count());
+            r = SWOFTY_REFUSED;
+        } else if (!lineup_bound(missing)) {
+            rep.result = "failed";
+            summary = "unavailable: binding(s) not resolved: " + missing;
+            r = SWOFTY_ASSET_UNAVAILABLE;
+        } else if (!labels()) {
+            rep.result = "failed";
+            summary = "the drivers table is not loaded yet";
+            r = SWOFTY_ASSET_LATE;
+        } else if (!(e = entity()) || !entrant_rows(e, rows)) {
+            rep.result = "failed";
+            summary = "no career entity or its entrant rows are unreadable";
+            r = SWOFTY_ASSET_LATE;
+        } else {
+            career_ops::plan::Input in;
+            in.data_group = group;
+            in.have_slots = true;
+            in.slot_teams = slot_teams;
+            std::map<int, int> car_of_team;
+            for (auto &a : tp.actions) {
+                if (a.kind == ct::Kind::closed)
+                    continue;
+                if (a.car >= 0)
+                    car_of_team[static_cast<int>(slot_teams[static_cast<size_t>(a.slot - 1)])] = a.car;
+                auto cs = std::find_if(cur.slots.begin(), cur.slots.end(), [&](const ct::SlotIn &x) { return x.slot == a.slot; });
+                career_ops::plan::Team team;
+                team.slot = a.slot;
+                for (size_t k = 0; k < static_cast<size_t>(ct::kSeats); ++k) {
+                    team.refs[k] = cs->seats[k];
+                    team.drivers[k] = team.refs[k].empty() ? -1 : resolve_driver(team.refs[k]);
+                }
+                in.teams.push_back(team);
+            }
+            career_ops::plan::Plan p = career_ops::plan::plan(in, plan_rows(rows));
+            std::vector<ct::SeatRow> seat_rows;
+            for (auto &x : plan_rows(rows))
+                seat_rows.push_back({stat_of(x.driver), x.team, x.position, x.car, x.human});
+            ct::Closing closing = ct::close_slots(tp, slot_teams, seat_rows);
+            Lineup l;
+            l.year = cur.year;
+            l.why = "season record";
+            if (j["lineup"].type == json::Value::Obj) {
+                std::string err;
+                if (!read_lineup(j["lineup"], l, err)) {
+                    rep.result = "refused";
+                    summary = err;
+                    r = SWOFTY_ASSET_INVALID;
+                }
+                l.year = cur.year;
+                if (l.why.empty())
+                    l.why = "season record";
+            }
+            if (r == SWOFTY_ASSET_OK) {
+                if (l.player_team < 0)
+                    l.player_team = p.player_team;
+                for (auto &m : p.moves) {
+                    auto c = car_of_team.find(m.team);
+                    l.moves.push_back({m.driver, m.team, m.seat, c == car_of_team.end() ? -1 : c->second, -1, -1});
+                }
+                for (uint32_t d : p.releases)
+                    if (std::find(l.releases.begin(), l.releases.end(), d) == l.releases.end())
+                        l.releases.push_back(d);
+                for (uint32_t d : closing.releases)
+                    if (std::find(l.releases.begin(), l.releases.end(), d) == l.releases.end())
+                        l.releases.push_back(d);
+                rep.refusals = p.refusals;
+                rep.refusals.insert(rep.refusals.end(), closing.refusals.begin(), closing.refusals.end());
+                rep.refused = rep.refusals.size();
+                for (auto &a : tp.actions) {
+                    if (a.kind != ct::Kind::dressed)
+                        continue;
+                    if (ct::dresser() && ct::dresser()(group.c_str(), a.slot, a.row.c_str(), a.team.c_str()))
+                        ++dressed;
+                    else
+                        ++dress_pending;
+                }
+                Report run;
+                r = execute(l, run, summary);
+                rep.result = run.result;
+                rep.written = run.written;
+                rep.released = run.released;
+                rep.numbers = run.numbers;
+                rep.contracts = run.contracts;
+                rep.finalise = run.finalise;
+                rep.changes = run.changes;
+                rep.unchanged = p.unchanged;
+                rep.changed = r == SWOFTY_ASSET_OK ? p.moves.size() : 0;
+            }
+        }
+        rep.extra = ",\"slots\":" + std::to_string(tp.actions.size()) + ",\"open\":" + std::to_string(tp.count(ct::Kind::open)) +
+                    ",\"closed\":" + std::to_string(tp.count(ct::Kind::closed)) +
+                    ",\"dressed\":" + std::to_string(dressed) + ",\"dress_pending\":" + std::to_string(dress_pending);
+    }
+    rep.refused = std::max(rep.refused, rep.refusals.size());
+    swofty::log("[career-ops] %s: %s; %zu seat(s) set, %zu unchanged, %zu released, %zu refused, %zu dressed%s; %s", head.c_str(),
+                tp.actions.empty() ? "no plan" : ct::summary(tp).c_str(), rep.changed, rep.unchanged, rep.released, rep.refused,
+                dressed, dress_pending ? (", " + std::to_string(dress_pending) + " waiting for the team applier").c_str() : "",
+                summary.c_str());
+    for (auto &why : rep.refusals)
+        swofty::log("[career-ops]   refused: %s", why.c_str());
+    if (rep.result == "ok" && r != SWOFTY_ASSET_OK)
+        rep.result = "failed";
+    int w = put(rep.json(), out, cap, len);
+    return w == SWOFTY_TOO_SMALL && r == SWOFTY_ASSET_OK ? SWOFTY_TOO_SMALL : r;
+}
+
 int api_set_driver_ratings(uint32_t driver, const uint16_t *ids, const float *values, size_t count)
 {
     if (!ids || !values || !count || count > 16 || driver >= 0x3fff)
@@ -1545,7 +1722,7 @@ int api_set_track_fuel(SwoftyText request, char *out, size_t cap, size_t *len)
 
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
-    api_swap_drivers,          api_report_season, nullptr,      api_set_seat,  api_set_car_number, api_set_track_fuel,
+    api_swap_drivers,          api_report_season, api_apply_teams, api_set_seat,  api_set_car_number, api_set_track_fuel,
 };
 
 void setup()
