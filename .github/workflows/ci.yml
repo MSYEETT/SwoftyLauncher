@@ -372,6 +372,8 @@ jobs:
 
       - name: Events dispatcher unit test
         run: native/test/run_events_test.sh
+      - name: Hook points, events and services host test
+        run: native/test/run_hooks_test.sh
       - name: swofty::json unit test
         run: native/test/run_json_test.sh
       - name: Standard library 1.6 headers compile test
