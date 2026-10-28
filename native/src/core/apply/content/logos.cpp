@@ -85,7 +85,7 @@ void deliver_logos(const std::vector<LogoImage> &logos, LogoReport &report)
         logo_build::Want w;
         w.array = l.array;
         w.key = l.key;
-        key = stamp(key, l.array + "|" + l.key + "|" + l.stock);
+        key = stamp(key, l.array + "|" + l.key + "|" + l.stock + (l.fallback ? "|f" : ""));
         if (l.stock.empty()) {
             std::string bytes = runtime::read_file(runtime::under_swofty("addons/" + l.addon + "/" + l.file), size_t(64) << 20), why;
             if (bytes.empty() || !png::decode(bytes, w.rgba, w.width, w.height, why)) {
@@ -94,8 +94,10 @@ void deliver_logos(const std::vector<LogoImage> &logos, LogoReport &report)
                 continue;
             }
             key = stamp(key, bytes);
-        } else
+        } else {
             w.donor = l.stock;
+            w.fallback = l.fallback;
+        }
         wants.push_back(std::move(w));
     }
     if (wants.empty())

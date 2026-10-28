@@ -115,6 +115,10 @@ int main(int argc, char **argv)
         lb::Result r3;
         lb::build(env, bad, r3);
         check(r3.refused == 1, "a donor key that is not listed is refused");
+        bad[1].fallback = true;
+        lb::Result r3f;
+        lb::build(env, bad, r3f);
+        check(r3f.refused == 0, "a donor fallback whose key is not listed is left out without a refusal");
         bad = wants;
         bad[0].array = "teams.nothing";
         lb::Result r4;
