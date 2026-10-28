@@ -112,11 +112,11 @@ Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. Each box'
 
 ### The record budget
 
-The game's value map grows at 838,860 records, and growing it after the database loads leaves dangling pointers. The core counts the records addons register in `SWOFTY_REGISTER` and sizes the map before the game loads the database. That needs one piece of reverse engineering, and 1.6.0 doesn't ship without it: pre-sizing the map at `Gdb_Load_GameDatabase` entry. 2^21 buckets move the growth point to 1,677,721 records for about 10 MB. The file route already shows the game runs on a 2^21 map: 843,179 records boot.
+The game reserves its value map for the records in the database file before it loads them: 2^20 slots for the stock file, which hold 838,860 records. A record past that makes the map grow during the load, and growing frees every record it moves, so the next read crashes the game. The core counts the records addons register in `SWOFTY_REGISTER` and raises the game's reservation before the first record goes in, and the game still picks the size itself. 2^21 slots hold 1,677,721 records and use 17 MB more memory than stock. The file route already shows the game runs on a 2^21 map: 843,179 records boot.
 
 - **Separate budgets.** The core applies edits from addons made for 1.5 and earlier first, and counts them on their own. It then admits 1.6 records against the room that's left, whole addons in load order. Refusing a 1.6 addon never removes an older addon's edit.
 - **A whole addon is refused,** never part of one, with a log line naming it.
-- **The safety net.** If the pre-size is unavailable, such as after a game update, the room is about 92,000 records: 838,860 minus the records the game loads, minus a 4,096 margin. The core reports how full the database is after each boot. When it's short, the next launch moves the older addons' edits to the file route (the 1.5.11 fix), padded so the game grows its own map while loading. That costs one restart, and the launcher still never learns what 1.6 addons register.
+- **The safety net.** If the pre-size is unavailable, such as after a game update, the room is about 92,000 records: 838,860 minus the records the game loads, minus a 4,096 margin. The core reports how full the database is after each boot. When it's short, the next launch moves the older addons' edits to the file route (the 1.5.11 fix), padded past 838,860 records, so the game reserves a big enough map for the file. That costs one restart, and the launcher still never learns what 1.6 addons register.
 
 ```text
 [registry] room: value map sized for 1,677,721 records before load (older addons' edits 84,112; 1.6 records 15,020)

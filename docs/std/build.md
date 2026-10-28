@@ -127,7 +127,7 @@ Then the core resolves every registry (bases, variants, layers, selectors, optio
 
 ### Database room
 
-The game's value map grows at 838,860 records, and it can't grow after the database is loaded. The core sizes the map before the game loads the database, from the records addons register in `SWOFTY_REGISTER`. That sizing is a release requirement for launcher 1.6.0.
+The game makes its value map big enough for the records in the database file before it loads them: 2^20 slots for the stock file, which hold 838,860 records. A record added past that makes the map grow while it loads, and growing frees every record it moves, so the game crashes. The core makes the game reserve room for the records addons add too, from the records they register in `SWOFTY_REGISTER`, before the game loads the database. That sizing is a release requirement for launcher 1.6.0.
 
 Edits from addons made for 1.5 and earlier, and records from 1.6 addons, have separate budgets:
 
@@ -135,7 +135,7 @@ Edits from addons made for 1.5 and earlier, and records from 1.6 addons, have se
 2. It admits 1.6 records against the room that's left, in load order.
 3. A 1.6 record refused for room never removes an older addon's edit.
 
-Until the sizing ships, the room is 838,860 records minus what the game loads, minus a 4,096-record margin: about 92,000 records with the stock database. The core keeps a safety net for that room. After each boot, it reports how full the database is. When older addons' edits and 1.6 records don't fit together, the next launch moves the older addons' database edits to the file route, padded past the growth point. The game then grows its own table while it loads. That costs one restart. The launcher reads that one report, and still never learns what addons register.
+Until the sizing ships, the room is 838,860 records minus what the game loads, minus a 4,096-record margin: about 92,000 records with the stock database. The core keeps a safety net for that room. After each boot, it reports how full the database is. When older addons' edits and 1.6 records don't fit together, the next launch moves the older addons' database edits to the file route, padded past 838,860 records, so the game reserves a big enough map for the file before it loads it. That costs one restart. The launcher reads that one report, and still never learns what addons register.
 
 ```text
 [registry] room: older addons' edits 84,112; 1.6 records asked 15,020; room 7,792

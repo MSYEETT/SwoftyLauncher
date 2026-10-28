@@ -128,7 +128,7 @@ The build writes one index, so the core finds data-file addons (they have no DLL
 
 The core validates every data file and every edit when it applies them. A broken one is dropped, logged with the addon's name, and listed in `conflicts.json`.
 
-When `room.json` says the profile's records don't fit in the game database, the next launch moves the database edits of build operations to the file route, padded so the game grows its own table while it loads. That costs one restart.
+When `room.json` says the profile's records don't fit in the game database, the next launch moves the database edits of build operations to the file route, padded past 838,860 records, so the game reserves a big enough table for the file before it loads it. That costs one restart.
 
 ## Status lines
 

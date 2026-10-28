@@ -114,7 +114,7 @@ The career fallback in the second point shows on the status line only, with no p
 The game's database has room for about 92,000 more records, shared by build operations from older addons and registry records. Classic Seasons years plus community tracks is the mix that crashed before the 1.5.11 fix. Applied live, the last registrations past the room would be refused, and a year or a track would silently disappear.
 
 - **(a)** Refuse past the room, with a status line.
-- **(b)** The core reports how full the database is after a boot, and the next launch moves older addons' database edits to the 1.5.11 file route, padded so the game grows its own table: one restart. The launcher still never applies what registry addons register.
+- **(b)** The core reports how full the database is after a boot, and the next launch moves older addons' database edits to the 1.5.11 file route, padded past 838,860 records so the game reserves a big enough table: one restart. The launcher still never applies what registry addons register.
 - **(c)** Make the in-game fix (sizing the game's table before it loads) a 1.6.0 release blocker.
 
 **Chosen: (c), with (b) shipped as the safety net.**
