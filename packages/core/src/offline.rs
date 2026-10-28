@@ -698,11 +698,73 @@ fn set_aside(game: &Path, file: &Path) -> Result<PathBuf> {
     Ok(keep)
 }
 
+const EA_SIGNER: &[u8] = b"Electronic Arts";
+
+/// Whether `path` is a program whose certificate table names Electronic Arts
+/// as its signer; `None` when it is not a Windows program at all. The
+/// signature itself is not verified.
+fn ea_signed(path: &Path) -> Result<Option<bool>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = std::fs::File::open(path).map_err(io_err(path))?;
+    let mut head = Vec::new();
+    (&mut f).take(4096).read_to_end(&mut head).map_err(io_err(path))?;
+    let at = |i: usize| {
+        head.get(i..i + 4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    };
+    let Some(pe) = at(0x3c).filter(|_| head.starts_with(b"MZ")).map(|v| v as usize) else {
+        return Ok(None);
+    };
+    if head.get(pe..pe + 4) != Some(b"PE\0\0".as_slice()) {
+        return Ok(None);
+    }
+    let dirs = match head.get(pe + 24..pe + 26) {
+        Some([0x0b, 0x01]) => pe + 24 + 96,
+        Some([0x0b, 0x02]) => pe + 24 + 112,
+        _ => return Ok(None),
+    };
+    let (Some(offset), Some(len)) = (at(dirs + 32), at(dirs + 36)) else {
+        return Ok(None);
+    };
+    if len == 0 {
+        return Ok(Some(false));
+    }
+    let mut table = vec![0; len.min(1 << 20) as usize];
+    f.seek(SeekFrom::Start(offset.into())).map_err(io_err(path))?;
+    f.read_exact(&mut table).map_err(io_err(path))?;
+    Ok(Some(table.windows(EA_SIGNER.len()).any(|w| w == EA_SIGNER)))
+}
+
+/// Whether `path` holds offline play's stub rather than EA's launcher: the
+/// pinned stub, the one a journal recorded, or any program EA did not sign.
+fn not_eas(path: &Path, staged: Option<&str>) -> Result<bool> {
+    let have = sha256_file(path)?;
+    if Some(have.as_str()) == staged || Some(have.as_str()) == pin("f1op_stub.exe") {
+        return Ok(true);
+    }
+    Ok(ea_signed(path)? == Some(false))
+}
+
 fn heal_launcher(game: &Path, depot: Option<&dyn DepotHashes>) -> Result<Vec<String>> {
     let mut notes = Vec::new();
     let launcher = game.join(EAC_EXE);
     let parked = game.join(EAC_BAK);
+    if parked.is_file() && not_eas(&parked, None)? {
+        let keep = set_aside(game, &parked)?;
+        notes.push(format!(
+            "set aside a backup that is offline play's file, not EA's, at {}",
+            keep.display()
+        ));
+    }
     if !parked.exists() {
+        if launcher.is_file() && not_eas(&launcher, None)? {
+            let keep = set_aside(game, &launcher)?;
+            notes.push(format!(
+                "{EAC_EXE} was offline play's file, not EA's; set it aside at {}. Repair F1 25 in the EA \
+                 app, or verify it in Steam, to put EA's file back",
+                keep.display()
+            ));
+        }
         return Ok(notes);
     }
     let backup = sha256_file(&parked)?;
@@ -814,6 +876,12 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
         .filter(|e| e.op == "rename")
         .map(|e| e.from.as_str())
         .collect();
+    let staged = |slot: &str| {
+        lines
+            .iter()
+            .find(|e| e.op == "copy" && e.to == slot)
+            .map(|e| e.sha256.as_str())
+    };
     for e in lines.iter().rev() {
         match e.op.as_str() {
             "meta" => {}
@@ -859,6 +927,29 @@ pub fn restore(journal: &Path, force: bool) -> Result<Vec<String>> {
                         failures.push(format!("staged backup is missing: {}", e.to));
                     }
                     continue;
+                }
+                let dir = to.parent().unwrap_or(Path::new("."));
+                let launcher = e.from.ends_with(EAC_EXE);
+                if launcher && !force {
+                    match not_eas(to, staged(&e.from)) {
+                        Ok(true) => {
+                            match set_aside(dir, to) {
+                                Ok(keep) => done.push(format!(
+                                    "{}: its backup is offline play's file, not EA's; set it aside at {}. Repair \
+                                     F1 25 in the EA app, or verify it in Steam, to put EA's file back",
+                                    e.from,
+                                    keep.display()
+                                )),
+                                Err(err) => failures.push(err.to_string()),
+                            }
+                            continue;
+                        }
+                        Ok(false) => {}
+                        Err(err) => {
+                            failures.push(err.to_string());
+                            continue;
+                        }
+                    }
                 }
                 if from.exists() && !force {
                     match (sha256_file(from), sha256_file(to)) {
@@ -1643,6 +1734,79 @@ mod tests {
             .expect("the stub is kept, never destroyed");
         assert_eq!(std::fs::read_to_string(kept.path()).unwrap(), "offline play stub");
         assert!(notes.iter().any(|n| n.contains("restored")), "{notes:?}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    fn program(signer: Option<&str>, body: &str) -> Vec<u8> {
+        let mut pe = vec![0u8; 0x200];
+        pe[..2].copy_from_slice(b"MZ");
+        pe[0x3c..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        pe[0x80..0x84].copy_from_slice(b"PE\0\0");
+        pe[0x98..0x9a].copy_from_slice(&0x20bu16.to_le_bytes());
+        pe.extend_from_slice(body.as_bytes());
+        if let Some(signer) = signer {
+            let table = format!("\0\0\0\0certificate O={signer}, Inc.");
+            let dir = 0x98 + 112 + 32;
+            let at = pe.len() as u32;
+            pe[dir..dir + 4].copy_from_slice(&at.to_le_bytes());
+            pe[dir + 4..dir + 8].copy_from_slice(&(table.len() as u32).to_le_bytes());
+            pe.extend_from_slice(table.as_bytes());
+        }
+        pe
+    }
+
+    fn recovered(game: &Path) -> Vec<Vec<u8>> {
+        std::fs::read_dir(game.join("swofty/offline-recovery"))
+            .map(|r| r.flatten().map(|e| std::fs::read(e.path()).unwrap()).collect())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn only_a_program_eas_certificate_names_counts_as_eas() {
+        let d = temp("signer");
+        let file = d.join("file.exe");
+        for (bytes, want) in [
+            (program(Some("Electronic Arts"), "launcher"), Some(true)),
+            (program(Some("Someone Else"), "launcher"), Some(false)),
+            (program(None, "stub"), Some(false)),
+            (b"genuine".to_vec(), None),
+        ] {
+            std::fs::write(&file, bytes).unwrap();
+            assert_eq!(ea_signed(&file).unwrap(), want);
+        }
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn restore_never_puts_the_stub_back_as_the_original() {
+        let d = temp("restore-stub-backup");
+        let (journal, launcher, parked, _) = staged(&d);
+        std::fs::write(&parked, "stub").unwrap();
+        let done = restore(&journal, false).unwrap();
+        assert!(done.iter().any(|l| l.contains("not EA's")), "{done:?}");
+        assert!(!launcher.exists());
+        assert!(!parked.exists());
+        assert_eq!(recovered(&d.join("game")), vec![b"stub".to_vec()]);
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    #[test]
+    fn heal_never_restores_a_stub_backup() {
+        let d = temp("heal-stub-backup");
+        let game = d.join("game");
+        std::fs::create_dir_all(&game).unwrap();
+        let stub = program(None, "an older stub");
+        std::fs::write(game.join(EAC_EXE), &stub).unwrap();
+        std::fs::write(game.join(EAC_BAK), &stub).unwrap();
+
+        let notes = heal_stale_backup(&game, &d.join("state/offline/staging.jsonl")).unwrap();
+        assert!(!game.join(EAC_EXE).exists(), "{notes:?}");
+        assert!(!game.join(EAC_BAK).exists(), "{notes:?}");
+        assert_eq!(recovered(&game), vec![stub.clone(), stub]);
+        assert!(
+            notes.iter().any(|n| n.contains("Repair F1 25 in the EA app")),
+            "{notes:?}"
+        );
         std::fs::remove_dir_all(&d).ok();
     }
 
