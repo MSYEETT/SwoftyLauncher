@@ -754,54 +754,71 @@ static void test_guard()
 }
 
 // Models d3d12hooks::exec_original: the hook sits on the native queue's ExecuteCommandLists (vtable
-// slot 10) and its trampoline runs that body, which reads this as a native queue. Streamline's queue
-// proxy (vtable, refcount, native queue at +0x10) is what a swapchain created through Streamline's
-// factory records as its queue.
+// slot 10) and its trampoline runs that body, which reads this as a native queue and each list as a
+// native list. Streamline's queue proxy (vtable, refcount, native queue at +0x10) is what a swapchain
+// created through Streamline's factory records as its queue; its device makes list proxies of the
+// same shape, which its ExecuteCommandLists unwraps. Resources are never wrapped.
 namespace dispatch {
 
 constexpr size_t EXEC = 10;
 constexpr uint32_t NATIVE = 0x51554555;
 
-struct NativeQueue {
+struct Native {
     const void *const *vt;
     uint32_t magic;
     unsigned executed;
 };
 
-struct ProxyQueue {
+struct Proxy {
     const void *const *vt;
     uint32_t refs;
-    NativeQueue *base;
+    Native *base;
 };
 
-using ExecFn = void (*)(void *self, unsigned n);
+using ExecFn = void (*)(void *self, unsigned n, void *const *lists);
 
 unsigned misread;
 
-void native_exec(void *self, unsigned n)
+bool native(const void *object)
 {
     uint32_t magic;
-    memcpy(&magic, static_cast<const char *>(self) + offsetof(NativeQueue, magic), sizeof magic);
-    if (magic != NATIVE) {
+    memcpy(&magic, static_cast<const char *>(object) + offsetof(Native, magic), sizeof magic);
+    return magic == NATIVE;
+}
+
+void native_exec(void *self, unsigned n, void *const *lists)
+{
+    for (unsigned i = 0; i < n; i++)
+        if (!native(lists[i])) {
+            misread++;
+            return;
+        }
+    if (!native(self)) {
         misread++;
         return;
     }
-    static_cast<NativeQueue *>(self)->executed += n;
+    static_cast<Native *>(self)->executed += n;
 }
 
-void through_vtable(void *self, unsigned n)
+void through_vtable(void *self, unsigned n, void *const *lists)
 {
-    reinterpret_cast<ExecFn>((*static_cast<const void *const *const *>(self))[EXEC])(self, n);
+    reinterpret_cast<ExecFn>((*static_cast<const void *const *const *>(self))[EXEC])(self, n, lists);
 }
 
-void proxy_exec(void *self, unsigned n)
+const void *list_proxy_vt[EXEC + 1];
+
+void proxy_exec(void *self, unsigned n, void *const *lists)
 {
-    through_vtable(static_cast<ProxyQueue *>(self)->base, n);
+    std::vector<void *> unwrapped(lists, lists + n);
+    for (auto &l : unwrapped)
+        if (*static_cast<const void *const *const *>(l) == list_proxy_vt)
+            l = static_cast<Proxy *>(l)->base;
+    through_vtable(static_cast<Proxy *>(self)->base, n, unwrapped.data());
 }
 
-void other_hook(void *self, unsigned n)
+void other_hook(void *self, unsigned n, void *const *lists)
 {
-    native_exec(self, n);
+    native_exec(self, n, lists);
 }
 
 const void *hooked()
@@ -809,12 +826,12 @@ const void *hooked()
     return reinterpret_cast<const void *>(&native_exec);
 }
 
-void exec_original(void *q, unsigned n)
+void exec_original(void *q, unsigned n, void *const *lists)
 {
     if (hud::guard::vtable_slot_is(q, EXEC, hooked()))
-        native_exec(q, n);
+        native_exec(q, n, lists);
     else
-        through_vtable(q, n);
+        through_vtable(q, n, lists);
 }
 
 }
@@ -822,12 +839,15 @@ void exec_original(void *q, unsigned n)
 static void test_original_dispatch()
 {
     using namespace dispatch;
-    const void *native_vt[EXEC + 1] = {}, *proxy_vt[EXEC + 1] = {}, *rehooked_vt[EXEC + 1] = {};
+    const void *native_vt[EXEC + 1] = {}, *proxy_vt[EXEC + 1] = {}, *rehooked_vt[EXEC + 1] = {}, *list_vt[1] = {};
     native_vt[EXEC] = hooked();
     proxy_vt[EXEC] = reinterpret_cast<const void *>(&proxy_exec);
     rehooked_vt[EXEC] = reinterpret_cast<const void *>(&other_hook);
-    NativeQueue game{native_vt, NATIVE, 0}, rehooked{rehooked_vt, NATIVE, 0};
-    ProxyQueue proxy{proxy_vt, 8, &game};
+    Native game{native_vt, NATIVE, 0}, rehooked{rehooked_vt, NATIVE, 0};
+    Proxy proxy{proxy_vt, 8, &game};
+    Native list{list_vt, NATIVE, 0};
+    Proxy list_proxy{list_proxy_vt, 1, &list};
+    void *native_list[] = {&list}, *proxied_list[] = {&list_proxy}, *four[] = {&list, &list, &list, &list};
 
     CHECK(hud::guard::vtable_slot_is(&game, EXEC, hooked()), "a native queue runs the hooked body");
     CHECK(!hud::guard::vtable_slot_is(&proxy, EXEC, hooked()), "streamline's queue proxy does not");
@@ -836,17 +856,30 @@ static void test_original_dispatch()
           "no object or no hook is never the hooked body");
 
     misread = 0;
-    native_exec(&proxy, 1);
+    native_exec(&proxy, 1, native_list);
     CHECK(misread == 1 && game.executed == 0,
           "the hooked body given the proxy reads the proxy as a queue (the crash at Present)");
 
     misread = 0;
-    exec_original(&game, 1);
-    exec_original(&proxy, 2);
-    exec_original(&rehooked, 4);
+    exec_original(&game, 1, native_list);
+    exec_original(&proxy, 2, four);
+    exec_original(&rehooked, 4, four);
     CHECK(misread == 0, "exec_original never hands the hooked body anything but a native queue");
     CHECK(game.executed == 3, "the proxy's lists reach the native queue behind it");
     CHECK(rehooked.executed == 4, "a queue hooked by someone else still runs, through its vtable");
+
+    misread = 0;
+    game.executed = 0;
+    exec_original(&game, 1, proxied_list);
+    CHECK(misread == 1 && game.executed == 0,
+          "a list made on the queue proxy's device crashes the native queue, which passes the slot check");
+    exec_original(&proxy, 1, proxied_list);
+    CHECK(misread == 1 && game.executed == 1, "streamline's queue proxy unwraps its own list proxies");
+    misread = 0;
+    exec_original(&game, 1, native_list);
+    exec_original(&proxy, 1, native_list);
+    CHECK(misread == 0 && game.executed == 3,
+          "a list made on the device of a game resource runs on the native queue and through the proxy");
 }
 
 static void test_png(const char *out)
