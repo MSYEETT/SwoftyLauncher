@@ -19,3 +19,4 @@ render	Render	overlay	open	D3D12/DXGI present path, swapchain overlay hooks, in-
 session	Sess	-	open	entrants, setup modes, participant selection, weekend/session start, garages (grid size work)
 ui	Ui	ui-idf	open	authored UI formats (!pkg .ui/UIDF node grammar, .uidb/.uir/scene .idf) + ERP UI packaging + the view-model binding runtime + how to edit/add menus and widgets
 vm	Vm	ui-re	open	UI view-model registry: node properties, setters, routes
+wearables	Wear	re-wear	open	driver wear: helmet/suit/glove item rows, driver customisations (looks), team customisations per season (team kit), the customisation catalogue and the driver actor spawner's kit pick
