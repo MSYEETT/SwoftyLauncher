@@ -76,6 +76,7 @@ struct Plan {
     std::vector<Folder> folders;
     std::vector<Owned> owned;
     std::vector<LogoImage> logos;
+    std::vector<std::pair<std::string, std::string>> texts;
     std::vector<std::string> lines;
     std::size_t keys = 0;
     std::size_t refused = 0;
@@ -397,6 +398,11 @@ inline std::string package_look(const Lookup &lookup, std::string_view ref, cons
     return record_label(lookup, "driver.look", (*d)["look"].as_string());
 }
 
+inline std::string title_tag(const std::string &entrant_list)
+{
+    return "lng_swofty_era_" + entrant_list;
+}
+
 inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
                           const StatIds &stat = {}, const PersonMap *wear = nullptr)
 {
@@ -493,8 +499,13 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     if (scenario_id)
         scenario["statId"] = std::to_string(*scenario_id);
     push_row(plan, "game_setup.scenarios", std::string(SCENARIOS) + "[_metadata_=f1]", std::move(scenario));
+    std::string category_tag = title;
+    if (title.rfind("lng_", 0) != 0) {
+        category_tag = title_tag(list);
+        plan.texts.emplace_back(category_tag, title);
+    }
     push_row(plan, CATEGORY, std::string(CATEGORY) + ".value[_metadata_=f1_2025]",
-             Value::object({{"_metadata_", list}, {"game_value", list}, {"loc_tag", title}}));
+             Value::object({{"_metadata_", list}, {"game_value", list}, {"loc_tag", category_tag}}));
     for (const char *field : {"entrant_lists", "selectable_entrant_lists"})
         push_op(plan, append_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", field, list));
     std::vector<std::string> sets;
@@ -515,11 +526,6 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
 }
 
 using BaseImage = std::function<std::string(const std::string &package)>;
-
-inline std::string title_tag(const std::string &entrant_list)
-{
-    return "lng_swofty_era_" + entrant_list;
-}
 
 inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
                       const BaseImage &base_image = {})

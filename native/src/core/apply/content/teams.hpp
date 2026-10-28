@@ -493,6 +493,21 @@ inline void lower_vehicle_team(const Value &rec, const Read &read, Plan &plan)
     std::size_t sides = 0;
     for (auto &s : SIDE_TABLES)
         sides += copy_side(plan, s, read, from, label);
+    std::set<std::string> taken;
+    for (const char *context : LOGO_CONTEXTS)
+        for (auto &a : logo_arrays(context)) {
+            if (a.tower || !taken.insert(a.array).second)
+                continue;
+            LogoImage img;
+            img.array = a.array;
+            img.key = label;
+            img.context = context;
+            img.id = label;
+            img.team = label;
+            img.stock = from;
+            img.fallback = true;
+            plan.logos.push_back(std::move(img));
+        }
     plan.lines.push_back("vehicle team " + label + ": row copied from " + from + " with " + std::to_string(sides) +
                          " side row(s)");
 }
