@@ -126,6 +126,14 @@ bool data()
         return false;
     }
     g_data_ok = season::parse(text, g_data, err);
+    if (const SwoftyCareerOps *ops = g_data_ok ? records::core_ops() : nullptr; ops && ops->set_slots) {
+        uint32_t teams[season::kSlots];
+        for (int i = 0; i < season::kSlots; ++i)
+            teams[i] = static_cast<uint32_t>(std::max(0, g_data.slots[i].team_stat));
+        int r = ops->set_slots(kGroup, teams, season::kSlots);
+        swofty::log("[progressive] season: career slots of %s set in the core (%s)", kGroup,
+                    r == SWOFTY_ASSET_OK ? "ok" : "refused");
+    }
     swofty::log("[progressive] season: %s %s (%zu years, %zu pool drivers)%s%s", kYearsPath,
                 g_data_ok ? "loaded" : "REFUSED", g_data.years.size(), g_data.pool.size(), err.empty() ? "" : ": ",
                 err.c_str());
