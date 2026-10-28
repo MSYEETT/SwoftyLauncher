@@ -1,5 +1,6 @@
 mod build;
 mod db;
+mod dev;
 mod doctor;
 mod ea;
 mod offline;
@@ -157,6 +158,11 @@ enum Command {
         about = "Test addons in the game: plan the game starts, run the tests and write the report"
     )]
     Test(testing::TestCommand),
+    #[command(
+        subcommand,
+        about = "Developer mode: make, link, run, check, test and pack an addon"
+    )]
+    Dev(dev::DevCommand),
     #[command(about = "Check for a new release and install it into this copy")]
     Update {
         #[arg(long, help = "Only report whether a new release is available")]
@@ -295,6 +301,7 @@ fn data_dir_arg(args: &[OsString]) -> Option<PathBuf> {
 struct AddonCommands {
     registry: Registry,
     specs: Vec<(String, CommandSpec)>,
+    developer: bool,
 }
 
 impl AddonCommands {
@@ -311,7 +318,11 @@ impl AddonCommands {
         let reserved: Vec<&str> = reserved.iter().map(String::as_str).collect();
         let (specs, refused) = registry.commands(&reserved);
         refused.iter().for_each(|r| eprintln!("swofty: {r}"));
-        Self { registry, specs }
+        Self {
+            registry,
+            specs,
+            developer: dev::enabled(store),
+        }
     }
 
     fn provides(&self, name: &str) -> bool {
@@ -323,6 +334,8 @@ impl AddonCommands {
         if self.provides("mods") {
             cmd = cmd.mut_subcommand("addons", |c| c.alias(None));
         }
+        let developer = self.developer;
+        cmd = cmd.mut_subcommand("dev", |c| c.hide(!developer));
         self.specs
             .iter()
             .fold(cmd, |cmd, (_, spec)| cmd.subcommand(clap_command(spec)))
@@ -484,6 +497,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Steam { start } => run::steam_check(&store, start),
         Command::Postfx(cmd) => postfx::command(cmd),
         Command::Test(cmd) => testing::command(&store, cmd),
+        Command::Dev(cmd) => dev::command(&store, &profile, cmd),
         Command::Update { check } => update::update(check),
     }
 }
