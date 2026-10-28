@@ -693,8 +693,13 @@ typedef struct SwoftyServices {
    numbers, cars and looks in stat ids, run as given), and writes a JSON report to out (SWOFTY_TOO_SMALL:
    *len holds the size needed). set_driver_ratings: one driver's base values of count statistics by game
    stat id (experience 0, racecraft 1, awareness 3, pace 4, focus 5). swap_drivers: two seated drivers
-   exchange seats. Stat ids are the upper 16 bits of the game's keys. */
-#define SWOFTY_CAREER_OPS_VERSION 1
+   exchange seats. Stat ids are the upper 16 bits of the game's keys.
+   Table version 2 adds report_season: the addon that owns the active career's data group (its career
+   content or career.mode record) says the season at the Championship's season_index is year; the core
+   then fires career.season.start once per career and year, activates the season's records and freezes
+   its snapshot. Any other caller gets SWOFTY_REFUSED; no career loaded, SWOFTY_ASSET_LATE. */
+#define SWOFTY_CAREER_OPS_VERSION 2
+enum { SWOFTY_REFUSED = 5 };
 
 typedef struct SwoftyCareerOps {
     uint32_t version;
@@ -704,6 +709,7 @@ typedef struct SwoftyCareerOps {
     int (*apply_lineup)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
     int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
+    int (*report_season)(int32_t year, int32_t season_index);
 } SwoftyCareerOps;
 
 typedef struct SwoftyApi {
