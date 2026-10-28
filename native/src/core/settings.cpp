@@ -359,6 +359,40 @@ int settings_watch(const char *id, SwoftySettingFn fn, void *user)
     return o != nullptr;
 }
 
+// Core-internal access for the hub tab (ui_vm.cpp): an option's current state index and its states'
+// texts and commands, and a pick of a state by its value; the pick runs the state's command, the
+// path ADDON SETTINGS takes, so the profile, the watchers and the requests file follow.
+bool settings_state(const std::string &addon, const std::string &option, size_t &current,
+                    std::vector<std::string> *texts, std::vector<std::string> *commands, std::vector<std::string> *values)
+{
+    AcquireSRWLockShared(&lock);
+    bool found = false;
+    for (auto &m : addons) {
+        if (m.id != addon)
+            continue;
+        for (auto &o : m.options) {
+            if (o.id != option)
+                continue;
+            current = o.current;
+            for (auto &st : o.states) {
+                if (texts)
+                    texts->push_back(st.text);
+                if (commands)
+                    commands->push_back(st.command);
+                if (values)
+                    values->push_back(st.value.type == json::Value::Str    ? st.value.s
+                                      : st.value.type == json::Value::Bool ? (st.value.b ? "true" : "false")
+                                                                           : std::to_string(st.value.n));
+            }
+            found = true;
+        }
+    }
+    ReleaseSRWLockShared(&lock);
+    return found;
+}
+
+void hub_option_changed(const std::string &addon, const std::string &option);
+
 bool settings_command(uint32_t hash)
 {
     auto it = commands.find(hash);
@@ -396,6 +430,8 @@ bool settings_command(uint32_t hash)
         api->log("[settings] writing requests file %ls (seq %llu) failed, error %lu", requests.c_str(), n, err);
     for (auto &w : call)
         w.fn(o->id.c_str(), &v, w.user);
+    if (o)
+        hub_option_changed(m->id, o->id);
     if (c.kind == RESTART) {
         int closed = 0;
         EnumWindows(close_main, reinterpret_cast<LPARAM>(&closed));

@@ -132,6 +132,13 @@ pub trait GameFiles: Send + Sync {
         None
     }
 
+    /// The folder the game keeps the addon `id`'s storage files in: its
+    /// folder in the game copy, or the launcher's data folder in a session
+    /// where the game can't create files in its own.
+    fn addon_dir(&self, id: &str) -> Option<PathBuf> {
+        self.dir().map(|d| d.join("swofty").join("addons").join(id))
+    }
+
     fn status(&self) -> GameStatus {
         GameStatus::default()
     }

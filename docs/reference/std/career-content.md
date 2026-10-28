@@ -74,7 +74,7 @@ The core installs the tile, gate and slot predicate hooks as one core mixin set,
 
 | Hook | Binding | What it does for a content |
 |---|---|---|
-| Tile | `site_FeTile_CareerContentEnd` (site, end of `FeTile_Build_List` case 6) | appends `button_N` (numbered after the stock tiles) with `FeHome_Add_CareerTile` while the tile list's buttons node points at the view model's `addon_buttons` list, then replaces its home item with a career content item built by `FeTile_Construct_CareerItem`: the model's route (`+0x178`), your data group (`+0x180`) and suffix (`+0x188`), and a copy of the model's vtable whose populate sets your title and description and whose press selects your car group and calls the router. In the Addons row the tile's VM `type` is `addon_tile_button_default`. Sets `addon_buttons_visible` |
+| Tile | `site_FeTile_CareerContentEnd` (site, end of `FeTile_Build_List` case 6, which the showroom case 4 shares) | on the content select only (view model `vt_Game_CareerDLCSelectViewModel`, or a list with the stock `career_default_content` / `career_dlc_content` tiles), appends `button_N` (numbered after the stock tiles) with `FeHome_Add_CareerTile` while the tile list's buttons node points at the view model's `addon_buttons` list, then replaces its home item with a career content item built by `FeTile_Construct_CareerItem`: the model's route (`+0x178`), your data group (`+0x180`) and suffix (`+0x188`), and a copy of the model's vtable whose populate sets your title and description and whose press selects your car group and calls the router. In the Addons row the tile's VM `type` is `addon_tile_button_default`. Sets `addon_buttons_visible` |
 | Addons row commands | `vt_Game_CareerDLCSelectViewModel` slot 10 (`Game_FECareerDLCSelectViewModel_OnCommandRaised`) | runs `addon_select_pressed` and `addon_focus_changed` as the stock `select_pressed` and `focus_changed` while the tile list's buttons node and item vector (view model `+0x2c8`) start at the Addons row |
 | Router | `FeTile_Route_CareerItem` (wrap, `swofty_core.dll (career tile route)`) | records the pressed tile's data group and fires `career.content.pressed` |
 | Gate | `Game_Career_IsDriverCareerMode` (wrap) | passes the mode championship whose `statId` (`+0x2a8`) is your mode's; the stock gate accepts only the 2025 and 2026 driver careers, so without this the new-career path reads through a null slot |
@@ -97,6 +97,10 @@ The core checks the first four rows once the database has loaded and logs the re
 | A data-group row named `data_group` in each data-group table (`career.career_setup.CareerSetupDataGroup`, `accolades.AccoladeDataGroup`, `career.leverage.LeverageDataGroup`, `recognition.RecognitionDataGroup`, `resource_points.data_group`, `specialist_manager.dataGroup`, and the My Team ones) | no | the career systems look their data up by the career's data group |
 
 The F1 1990 addon's `tools/career.py` and `tools/grid.py` write a complete set of these rows; use them as the reference.
+
+## Saves when the addon is off
+
+A content whose `game_modes.ModeChampionship` row has its own `save_data.name` keeps its careers in a save container of that name in the profile save. In a game run without the addon, the core keeps that container and writes it back unchanged with each profile save, so the careers are there again once the addon is back on; the game shows them nowhere while the addon is off. `loader.log` names each kept container: `[saves] profile load <n>: kept <name> (<bytes> bytes), which no loaded game mode claims` and `[saves] profile save: wrote back <k> save container(s) no loaded game mode claims: <names>`. A core without this drops the container at the first profile save without the addon; the launcher's save backup ([`swofty saves`](/reference/cli#swofty-saves)) covers that case.
 
 ## Which career is loaded
 

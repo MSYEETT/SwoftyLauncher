@@ -7,6 +7,7 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use swofty_core::app_control::Block;
+use swofty_core::busy::Busy;
 use swofty_core::crash::{Event, LogScan, Symbols, fatal_name};
 use swofty_core::install::{Game, Installer, PROXY, Source};
 use swofty_core::launch;
@@ -172,7 +173,7 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
             settle(store, &g, &mut wrapper, None, false);
             return Err(err);
         }
-        if silence.of(&wrapper.log) > wrapper.timeout {
+        if silence.of(&wrapper.log, &store.root) > wrapper.timeout {
             match &wrapper.child {
                 Some(_) => bail!(
                     "the wrapper has not started the game and has written nothing for {} min; it is still running, \
@@ -233,6 +234,9 @@ pub fn run(store: &Store, profile: &str, args: RunArgs) -> Result<ExitCode> {
     }
     let summary = follow.summary();
     settle(store, &g, &mut wrapper, relay.as_mut(), true);
+    if let Some(text) = crate::saves::notice_since(store, asked) {
+        say("warning", &format!("saves: {text}"));
+    }
     summary?;
     if let Some(failure) = launch::Failure::read(&store.root).filter(|f| f.at >= asked) {
         if relay.is_none() {
@@ -368,6 +372,10 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     let lock = crate::recover::lock(store, &info)?;
     crate::recover::stale(store, &lock, g, Scope::All, &info)?;
     crate::offline::gate(store, false)?;
+    let version = swofty_core::exe_version::read(&g.dir.join(GAME_EXE));
+    if let Some(d) = swofty_core::known_problems::outdated_exe(version.as_deref()) {
+        say("warning", &format!("{}: {}", d.title, d.text()));
+    }
     if let Some(reason) = swofty_core::compat::elevation_blocker(&g.dir) {
         bail!("{reason}");
     }
@@ -379,11 +387,34 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
-    let request: LaunchRequest = std::fs::read(store.root.join("state/launch.json"))
+    let launch_path = store.root.join("state/launch.json");
+    let mut request: LaunchRequest = std::fs::read(&launch_path)
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or_default();
+    // A wrapper Steam starts later on its own must not inherit an earlier launch's arming.
+    if request.netplay.is_some() && !written_within(&launch_path, NETPLAY_REQUEST_LIFE) {
+        request.netplay = None;
+    }
     let profile = request.profile.clone().unwrap_or_else(|| profile.to_owned());
+    if let (Ok(p), Ok(installed)) = (store.profile(&profile), store.addons()) {
+        let catalog = swofty_core::catalog::cached(&store.root).unwrap_or_default();
+        for (base, family) in swofty_core::resolver::lonely_bases(&p, &installed, &catalog) {
+            if installed
+                .values()
+                .any(|m| m.name == base && store.is_builtin(&m.id))
+            {
+                continue;
+            }
+            say(
+                "warning",
+                &format!(
+                    "{base} is on without any of its addons, so it adds nothing; install at least one, such as {}",
+                    family.join(", ")
+                ),
+            );
+        }
+    }
     if let Some(cpus) = config.launch.cpu_affinity.as_deref().and_then(parse_cpu_list) {
         set_affinity(&cpus);
     }
@@ -424,7 +455,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         "info",
         "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
     );
+    let backup = crate::saves::before_session(store, &profile, g);
     let result = run_loop(store, args, &config, &request, &profile, g, installed);
+    crate::saves::after_session(store, backup.as_ref());
     finish(session, result)
 }
 
@@ -594,6 +627,16 @@ fn rebuild_if_needed(store: &Store, profile: &str, game: &Path) {
     if let Err(e) = crate::build::build(store, profile, Some(game.to_path_buf()), false) {
         say("info", &format!("rebuild failed, launching anyway: {e:#}"));
     }
+}
+
+const NETPLAY_REQUEST_LIFE: Duration = Duration::from_secs(600);
+
+fn written_within(path: &Path, max: Duration) -> bool {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age <= max)
 }
 
 fn play(
@@ -882,6 +925,9 @@ fn play(
     end.write(&dir)?;
     std::fs::write(dir.join("exit_code"), format!("{code}\n"))?;
     std::fs::write(dir.join("game_end"), format!("{}\n", now_secs()))?;
+    if end.end == swofty_core::session::Ending::Crash {
+        note_known_problem(store, game, &dir);
+    }
     for g in game_processes()
         .into_iter()
         .filter(|g| descends_from(g.pid, std::process::id()))
@@ -890,6 +936,16 @@ fn play(
     }
     note_failed_launch(store, loader, code, launched.elapsed().unwrap_or_default());
     Ok(code)
+}
+
+/// The known problem a crashed session matches, for the session log and Send
+/// Logs; the launcher shows the same diagnosis to the player.
+fn note_known_problem(store: &Store, game: &Path, dir: &Path) {
+    let record = SessionRecord::read(dir);
+    match swofty_core::known_problems::crash(&record, Some(game), store) {
+        Some(d) => say("crash", &format!("known problem {}: {}", d.id, d.title)),
+        None => say("crash", "no known problem matches this crash"),
+    }
 }
 
 const EA_UNREAD: &str =
@@ -1101,10 +1157,7 @@ fn note_refused(fallback: &Path) {
             fallback.display()
         ),
     );
-    say(
-        "warning",
-        &quarantine::refused_text(swofty_core::compat::elevated()),
-    );
+    say("warning", quarantine::refused_text());
 }
 
 /// The session's loader.log: the game folder's when the loader wrote it,
@@ -1192,10 +1245,13 @@ impl Wrapper {
     }
 }
 
-/// How long the wrapper's log has gone without growing: an install of a
-/// large profile takes minutes, and says how far it got as it goes.
+/// How long the wrapper has gone without a sign of progress: its log
+/// growing, or the heartbeat of a build it runs in `state/build.json`. An
+/// install of a large profile takes minutes, and one step can run for more
+/// than ten.
 struct Silence {
     len: u64,
+    beat: Option<SystemTime>,
     since: Instant,
 }
 
@@ -1203,18 +1259,21 @@ impl Silence {
     fn new() -> Self {
         Self {
             len: 0,
+            beat: None,
             since: Instant::now(),
         }
     }
 
-    fn of(&mut self, log: &Path) -> Duration {
+    fn of(&mut self, log: &Path, data: &Path) -> Duration {
         let len = std::fs::metadata(log).map_or(0, |m| m.len());
-        if len != self.len {
-            *self = Self {
-                len,
-                since: Instant::now(),
-            };
+        let beat = std::fs::metadata(Busy::path(data))
+            .and_then(|m| m.modified())
+            .ok();
+        if len != self.len || (beat.is_some() && beat != self.beat && Busy::live(data).is_some()) {
+            self.since = Instant::now();
         }
+        self.len = len;
+        self.beat = beat;
         self.since.elapsed()
     }
 }
@@ -1933,6 +1992,22 @@ fn link(_: &Path, _: &Path) {}
 mod tests {
     use super::*;
 
+    #[test]
+    fn an_old_launch_request_loses_its_arming() {
+        let path = std::env::temp_dir().join(format!("swofty-launch-age-{}", std::process::id()));
+        std::fs::write(&path, "{}").unwrap();
+        assert!(written_within(&path, NETPLAY_REQUEST_LIFE));
+        let file = std::fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+        assert!(!written_within(&path, NETPLAY_REQUEST_LIFE));
+        assert!(!written_within(
+            &path.with_extension("missing"),
+            NETPLAY_REQUEST_LIFE
+        ));
+        std::fs::remove_file(&path).ok();
+    }
+
     fn temp_log(name: &str) -> PathBuf {
         std::env::temp_dir()
             .join(format!("swofty-run-{}-{name}", std::process::id()))
@@ -2256,15 +2331,59 @@ mod tests {
     #[test]
     fn the_wait_for_the_wrapper_counts_from_its_last_output() {
         let log = temp_log("silence");
+        let data = log.ancestors().nth(2).unwrap().to_path_buf();
         std::fs::create_dir_all(log.parent().unwrap()).unwrap();
         let mut silence = Silence::new();
         std::thread::sleep(Duration::from_millis(30));
-        assert!(silence.of(&log) >= Duration::from_millis(30));
+        assert!(silence.of(&log, &data) >= Duration::from_millis(30));
         std::fs::write(&log, "[info] installing: 2000 of 7977 file(s) copied\n").unwrap();
-        assert!(silence.of(&log) < Duration::from_millis(30));
+        assert!(silence.of(&log, &data) < Duration::from_millis(30));
         std::thread::sleep(Duration::from_millis(30));
-        assert!(silence.of(&log) >= Duration::from_millis(30));
-        std::fs::remove_dir_all(log.ancestors().nth(2).unwrap()).ok();
+        assert!(silence.of(&log, &data) >= Duration::from_millis(30));
+        std::fs::remove_dir_all(&data).ok();
+    }
+
+    fn beat(data: &Path, secs: u64) {
+        std::fs::File::options()
+            .write(true)
+            .open(Busy::path(data))
+            .unwrap()
+            .set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(secs))
+            .unwrap();
+    }
+
+    #[test]
+    fn a_live_build_that_keeps_its_heartbeat_is_not_silence() {
+        let log = temp_log("building");
+        let data = log.ancestors().nth(2).unwrap().to_path_buf();
+        std::fs::create_dir_all(log.parent().unwrap()).unwrap();
+        std::fs::write(&log, "[info] build: still working after 60 s\n").unwrap();
+        let build = Busy {
+            pid: std::process::id().wrapping_add(1),
+            ..Busy::new("default", vec!["swofty.classic-seasons".into()])
+        };
+        build.write(&data).unwrap();
+        let lock = SessionLock::try_acquire(&data).unwrap().unwrap();
+        let mut silence = Silence::new();
+        silence.of(&log, &data);
+        std::thread::sleep(Duration::from_millis(30));
+        beat(&data, 1_000);
+        assert!(
+            silence.of(&log, &data) < Duration::from_millis(30),
+            "the heartbeat moved"
+        );
+        std::thread::sleep(Duration::from_millis(30));
+        assert!(
+            silence.of(&log, &data) >= Duration::from_millis(30),
+            "a build whose heartbeat stopped is silent"
+        );
+        drop(lock);
+        beat(&data, 2_000);
+        assert!(
+            silence.of(&log, &data) >= Duration::from_millis(30),
+            "a build file left by a process that ended is silent"
+        );
+        std::fs::remove_dir_all(&data).ok();
     }
 
     #[test]

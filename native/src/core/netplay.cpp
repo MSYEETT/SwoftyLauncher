@@ -81,7 +81,7 @@ void session_patches()
 
 void setup()
 {
-    uintptr_t lan = runtime::find(S_LAN_TILE, "netplay", "netplay"), tail = runtime::find(S_TILE_TAIL, "netplay", "netplay");
+    uintptr_t lan = runtime::find(S_LAN_TILE, "core", "core"), tail = runtime::find(S_TILE_TAIL, "core", "core");
     bool hidden = false;
     if (lan && tail && tail > lan && tail - lan < 0x10000) {
         uint8_t skip_lan[9] = {0xE9, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90};
@@ -89,13 +89,11 @@ void setup()
         memcpy(skip_lan + 1, &rel, sizeof rel);
         hidden = patch(lan, skip_lan, sizeof skip_lan);
     }
-    swofty::log("[netplay] LAN Game entry in Local Multiplayer %s",
+    swofty::log("[core] LAN Game entry in Local Multiplayer %s",
                 hidden ? "hidden (Splitscreen only)" : "left in place (signature did not resolve)");
 
     if (armed())
         session_patches();
-    else
-        swofty::log("[netplay] session patches off (SWOFTY_NETPLAY unset)");
 
     runtime::netplay_bridge_setup();
 }

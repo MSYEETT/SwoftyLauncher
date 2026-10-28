@@ -18,6 +18,7 @@ use swofty_core::folders::{self, Entry, Key, Spot};
 use swofty_core::import::{self, Route};
 use swofty_core::manifest::{Category, Kind, MANIFEST_FILE};
 use swofty_core::profile::VANILLA;
+use swofty_core::save_backup;
 
 use crate::library::{AddonItem, Changes, Source, plural};
 use crate::pages::{GUTTER, addon_icon, badge, chevron, fact, label, logo, tag, track_badge};
@@ -820,7 +821,10 @@ impl Shell {
                             let store = &store;
                             store.install_addons(path).into_iter().map(move |r| match r {
                                 Ok(m) => Ok((swofty_core::tracks::left_out_lines(store, &m), m)),
-                                Err(e) => Err(format!("{name}: {e}")),
+                                Err(e) => {
+                                    crate::app_log::action("install addon").file(path).failed(&e);
+                                    Err(format!("{name}: {e}"))
+                                }
                             })
                         })
                         .collect::<Vec<_>>()
@@ -1006,6 +1010,7 @@ impl Shell {
             f.set_place(&id, place.as_ref(), default.as_ref());
             if f != self.library.folders {
                 if let Err(e) = self.store.save_folders(&f) {
+                    crate::app_log::action("save folders").failed(&e);
                     window.push_notification(Notification::error(e.to_string()), cx);
                     return;
                 }
@@ -1036,7 +1041,10 @@ impl Shell {
         f.set_collapsed(key, !f.is_collapsed(key));
         match self.store.save_folders(&f) {
             Ok(()) => self.library.folders = f,
-            Err(e) => window.push_notification(Notification::error(e.to_string()), cx),
+            Err(e) => {
+                crate::app_log::action("save folders").failed(&e);
+                window.push_notification(Notification::error(e.to_string()), cx)
+            }
         }
         cx.notify();
     }
@@ -1093,6 +1101,7 @@ impl Shell {
         let mut f = self.library.folders.clone();
         f.remove(id);
         if let Err(e) = self.store.save_folders(&f) {
+            crate::app_log::action("save folders").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
             return;
         }
@@ -1161,8 +1170,8 @@ impl Shell {
     }
 
     fn launching(&self) -> bool {
-        use crate::shell::PlayState::{Launching, Restoring, Running};
-        matches!(self.play_state(), Launching | Restoring | Running)
+        use crate::shell::PlayState::{Building, Launching, Restoring, Running};
+        matches!(self.play_state(), Launching | Restoring | Running | Building)
     }
 
     fn check_conflicts(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1195,8 +1204,11 @@ impl Shell {
                             s.addons.report = Some(report);
                         }
                     }
-                    Err(e) => window
-                        .push_notification(Notification::error(e).title("Could not check conflicts"), cx),
+                    Err(e) => {
+                        crate::app_log::action("check conflicts").failed(&e);
+                        window
+                            .push_notification(Notification::error(e).title("Could not check conflicts"), cx)
+                    }
                 }
                 cx.notify();
             })
@@ -1256,6 +1268,7 @@ impl Shell {
                     self.library.profile.name
                 ))
         });
+        let saves = self.save_notice(p, cx);
         let hidden = self.library.addons.len() - self.library.listed().count();
         let tracks = self.library.tracks_page.filter(|_| hidden > 0).map(|i| {
             h_flex()
@@ -1296,6 +1309,7 @@ impl Shell {
         v_flex()
             .size_full()
             .child(self.header(Page::Addons.label(), subtitle, div().children(actions), p))
+            .children(saves)
             .children(pending)
             .children(tracks)
             .child(self.install_cards(p, cx))
@@ -1312,6 +1326,80 @@ impl Shell {
                     .children(detail),
             )
             .into_any_element()
+    }
+
+    fn save_notice(&self, p: Palette, cx: &mut Context<Self>) -> Option<Div> {
+        let notice = save_backup::read_notice(&self.store.root)?;
+        let name = notice.backup.clone();
+        Some(
+            h_flex()
+                .px(px(GUTTER))
+                .pb(px(12.))
+                .gap(px(8.))
+                .flex_shrink_0()
+                .items_center()
+                .text_size(px(13.))
+                .text_color(p.text_muted)
+                .child(
+                    Icon::new(IconName::CircleAlert)
+                        .size(px(14.))
+                        .text_color(p.warning),
+                )
+                .child(div().flex_1().min_w_0().child(format!(
+                    "The profile save shrank from {} to {} bytes in a session without {}; their careers may be \
+                     gone. Backup {} holds the save from before that session.",
+                    notice.before,
+                    notice.after,
+                    notice.absent.join(", "),
+                    notice.backup
+                )))
+                .child(
+                    Button::new("restore-save")
+                        .outline()
+                        .small()
+                        .label("Restore")
+                        .on_click(cx.listener(move |this, _, window, cx| this.restore_save(&name, window, cx))),
+                )
+                .child(
+                    Button::new("dismiss-save-notice")
+                        .ghost()
+                        .small()
+                        .label("Dismiss")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            save_backup::clear_notice(&this.store.root);
+                            cx.notify();
+                        })),
+                ),
+        )
+    }
+
+    fn restore_save(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if swofty_core::process::game_running() {
+            window.push_notification(Notification::warning("Close F1 25, then restore the save."), cx);
+            return;
+        }
+        let root = self.store.root.clone();
+        let restored = save_backup::find(&root, name).and_then(|b| {
+            let dir = match b.manifest.save_dir.is_dir() {
+                true => Some(b.manifest.save_dir.clone()),
+                false => swofty_core::steam::find_save_dir(),
+            }
+            .ok_or_else(|| swofty_core::Error::Other("no Steam save folder found to restore into".into()))?;
+            save_backup::restore(&root, name, &dir, &save_backup::now_stamp())
+        });
+        let note = match restored {
+            Ok(Some(before)) => Notification::success(format!(
+                "Restored the profile save from {name}. The save it replaced is backup {}.",
+                before.name
+            )),
+            Ok(None) => Notification::success(format!("Restored the profile save from {name}.")),
+            Err(e) => {
+                crate::app_log::action("restore a save").failed(&e);
+                Notification::error(format!("The save was not restored: {e}"))
+            }
+        };
+        window.push_notification(note, cx);
+        cx.notify();
     }
 
     fn install_cards(&self, p: Palette, cx: &mut Context<Self>) -> impl IntoElement {

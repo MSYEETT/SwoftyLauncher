@@ -507,11 +507,7 @@ fn host_call(cx: &Cx, call: HostCall) -> std::result::Result<Value, String> {
             .and_then(|g| g.original_lang(&code))
             .map(|p| Value::String(p.to_string_lossy().into_owned())),
         HostCall::GameDir => Ok(path_value(cx.game.and_then(|g| g.dir()))),
-        HostCall::AddonGameDir => Ok(path_value(cx.game.and_then(|g| g.dir()).map(|d| {
-            d.join(crate::install::LOADER_DIR)
-                .join(crate::build::ADDONS_DIR)
-                .join(cx.addon)
-        }))),
+        HostCall::AddonGameDir => Ok(path_value(cx.game.and_then(|g| g.addon_dir(cx.addon)))),
         HostCall::GameStatus => {
             let status = cx
                 .game
@@ -894,6 +890,47 @@ read -r l
         assert_eq!(received[5]["params"]["name"], "other");
         h.stop();
         assert!(!h.running());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn removing_an_addon_stops_its_helper_before_deleting_it() {
+        let root = tmp("remove");
+        let store = Store::new(root.join("data"));
+        let dir = store.addons_dir().join("t.helper");
+        addon(
+            &dir,
+            r#"echo $$ > pid
+read -r l; echo '{"id":0,"result":{"api":1}}'
+read -r l; echo '{"id":1,"result":{"subtitle":"s","body":{"blocks":[]}}}'
+exec sleep 60
+"#,
+        );
+        let h = store
+            .helpers()
+            .get(&AddonManifest::load(&dir).unwrap(), &dir)
+            .unwrap();
+        let state = Memory::default();
+        let (data, cache) = (root.join("state"), root.join("cache"));
+        std::fs::create_dir_all(&cache).unwrap();
+        let p = profile("default");
+        h.view(&Cx::new("t.helper", &p, &data, &cache, None, &state), "items")
+            .unwrap();
+        assert!(h.running());
+        let pid = std::fs::read_to_string(dir.join("pid")).unwrap();
+        store
+            .remove_addon_with("t.helper", |d| {
+                assert!(!h.running());
+                let alive = Command::new("kill")
+                    .args(["-0", pid.trim()])
+                    .stderr(Stdio::null())
+                    .status()
+                    .unwrap();
+                assert!(!alive.success(), "the helper still runs");
+                std::fs::remove_dir_all(d)
+            })
+            .unwrap();
+        assert!(!dir.exists());
         std::fs::remove_dir_all(&root).ok();
     }
 

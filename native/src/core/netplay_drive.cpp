@@ -347,7 +347,7 @@ namespace runtime {
 // populate-loop capture for a home screen whose list was built before the core could see it.
 void netplay_home_vm(void *vm)
 {
-    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8))
+    if (!armed || !vm || !runtime::readable(vm, VM_TILE_LIST + 8))
         return;
     if (home_vm.self.load() != vm)
         swofty::log("[netplay] home view model %p (home command)", vm);
@@ -359,10 +359,10 @@ void netplay_drive_setup()
     char v[256] = {};
     DWORD n = GetEnvironmentVariableA("SWOFTY_NETPLAY", v, sizeof v);
     armed = n > 0 && n < sizeof v;
-    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave %s",
-                armed ? "accepted (SWOFTY_NETPLAY set)" : "refused (SWOFTY_NETPLAY unset), status and clear only");
-    if (armed)
-        probe_setup();
+    if (!armed)
+        return;
+    swofty::log("[netplay] launcher commands on (<game>/swofty/netplay); configure, host, join and leave accepted");
+    probe_setup();
     if (!started.exchange(true))
         std::thread(watch).detach();
 }
@@ -443,7 +443,11 @@ void run_job()
     std::string err;
     switch (d) {
     case drive::Do::fire_local_mp:
+        // The screen builds a new view model on each visit, often at the old one's address. Until the
+        // new tile list is populated the old pointer still reads as live, and a route fired from it
+        // lands outside the new screen, which drops the game back to online mode.
         local_mp_opened = false;
+        local_mp_vm.self = nullptr;
         if (!fire_route(home_vm.live(), "local_multiplayer"))
             err = "no home view model to fire local_multiplayer from (Vm_Fire_Route or the home tile list not seen)";
         break;

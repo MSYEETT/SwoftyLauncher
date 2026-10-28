@@ -101,7 +101,7 @@ HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.5.1"
-SEASON_VERSION = "0.6.2"
+SEASON_VERSION = "0.6.4"
 SEASON_CORE = "0.6.1"
 DIRECT_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" not in suit_sources.REAL["mods"][e["mod"]]]
 TRANSFERRED_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" in suit_sources.REAL["mods"][e["mod"]]]
@@ -481,10 +481,13 @@ def build():
             ops.append({"op": "set", "select": f"entrants.standings.standings[_metadata_={standings}].team_reference_{position}",
                         "field": "team", "value": team_label(year, team.get("key", team["folder"]))})
 
+        # Time Trial's stock F1 2025 box loads the cars of every available list on the f1 leaderboard, which with
+        # all years installed overflows the engine sound heap; an empty leaderboard crashes Time Trial itself.
         entrant_list = {"_metadata_": list_label, "display_name": f"lng_cs_f1_{year}",
-                        "previous_season_team_standings": standings, "previous_season_driver_standings": ""}
+                        "previous_season_team_standings": standings, "previous_season_driver_standings": "",
+                        "leaderboard": "classic"}
         if wide:
-            entrant_list.update(season="season_2025", leaderboard="f1", ui_path="f1_2023")
+            entrant_list.update(season="season_2025", ui_path="f1_2023")
             ops.append({"op": "set", "select": f"{SETUP_ROW}[_metadata_={HOST_MODE}]", "field": "max_entrants",
                         "value": str(grid)})
         ops.append({"op": "add-row", "table": "entrants.entrant_lists",

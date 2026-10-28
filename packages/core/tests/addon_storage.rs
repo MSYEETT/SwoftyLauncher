@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use swofty_core::addon_storage;
 use swofty_core::baseline::{Identity, sha256_bytes};
@@ -157,6 +158,16 @@ fn walk(base: &Path, dir: &Path, out: &mut BTreeMap<String, String>) {
             out.insert(rel, sha256_bytes(&std::fs::read(e.path()).unwrap()));
         }
     }
+}
+
+fn age(path: &Path) {
+    let then = SystemTime::now() - Duration::from_secs(3600);
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
 }
 
 fn plays(f: &Fixture) {
@@ -340,4 +351,117 @@ fn a_session_end_reports_what_it_kept() {
     assert_eq!(done.len(), 1);
     assert_eq!(done[0].kept, [CAREERS, SLOT]);
     assert_eq!(done[0].drift, []);
+}
+
+#[test]
+fn a_game_that_cant_write_its_folder_keeps_what_it_wrote_in_the_data_folder() {
+    let f = Fixture::new("readonly");
+    let original = f.snapshot();
+    f.session(&f.with_addon(), plays);
+    let kept = addon_storage::addon_dir(&f.data, "t.store");
+
+    // The core finds swofty/addons/t.store/ read-only to the game and writes
+    // to the addon's storage in the data folder; the copies put back into the
+    // game folder at the session start stay as they were.
+    f.session(&f.with_addon(), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("3 careers"));
+        assert_eq!(
+            addon_storage::live_dir(&f.data, &f.game, "t.store"),
+            f.game.join("swofty/addons/t.store")
+        );
+        write(
+            &kept.join(addon_storage::MARK),
+            "the game can't create files there",
+        );
+        assert_eq!(addon_storage::live_dir(&f.data, &f.game, "t.store"), kept);
+        age(&f.game.join(CAREERS));
+        write(&kept.join("careers.json"), "4 careers");
+        write(&kept.join("seasons.json"), "written this session");
+    });
+    assert_eq!(f.snapshot(), original);
+    assert_eq!(addon_storage::live_dir(&f.data, &f.game, "t.store"), kept);
+    assert_eq!(
+        std::fs::read_to_string(kept.join("careers.json")).unwrap(),
+        "4 careers"
+    );
+    assert_eq!(
+        std::fs::read_to_string(kept.join("slots/1/state.json")).unwrap(),
+        "slot one"
+    );
+
+    f.session(&f.with_addon(), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("4 careers"));
+        assert_eq!(
+            f.read("swofty/addons/t.store/seasons.json").as_deref(),
+            Some("written this session")
+        );
+        assert_eq!(f.read(SLOT).as_deref(), Some("slot one"));
+        assert!(!kept.join(addon_storage::MARK).exists());
+        assert_eq!(
+            f.read(&format!("swofty/addons/t.store/{}", addon_storage::MARK)),
+            None
+        );
+        assert_eq!(
+            addon_storage::live_dir(&f.data, &f.game, "t.store"),
+            f.game.join("swofty/addons/t.store")
+        );
+    });
+}
+
+#[test]
+fn a_restore_after_a_crash_keeps_what_the_game_wrote_in_the_data_folder() {
+    let f = Fixture::new("readonly-crash");
+    let original = f.snapshot();
+    f.session(&f.with_addon(), plays);
+    let kept = addon_storage::addon_dir(&f.data, "t.store");
+    let lock = f.start(&f.data, &f.with_addon());
+    age(&f.game.join(CAREERS));
+    write(&kept.join("careers.json"), "4 careers");
+    drop(lock);
+
+    recovery::restore(&f.data, &f.game()).unwrap();
+    assert_eq!(f.snapshot(), original);
+    assert_eq!(
+        std::fs::read_to_string(kept.join("careers.json")).unwrap(),
+        "4 careers"
+    );
+}
+
+#[test]
+fn a_stored_copy_newer_than_a_leftover_in_the_game_folder_replaces_it() {
+    let f = Fixture::new("newer-stored");
+    f.session(&f.with_addon(), plays);
+    let kept = addon_storage::addon_dir(&f.data, "t.store");
+    let lock = f.start(&f.data, &f.with_addon());
+    age(&f.game.join(CAREERS));
+    write(&kept.join("careers.json"), "4 careers");
+    drop(lock);
+    std::fs::remove_dir_all(Journal::dir(&f.data)).unwrap();
+
+    f.session(&f.with_addon(), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("4 careers"));
+        assert!(!kept.join("careers.json").exists());
+    });
+}
+
+#[test]
+fn an_older_stored_copy_gives_way_to_a_newer_leftover_in_the_game_folder() {
+    let f = Fixture::new("older-stored");
+    f.session(&f.with_addon(), plays);
+    let kept = addon_storage::addon_dir(&f.data, "t.store");
+    let lock = f.start(&f.data, &f.with_addon());
+    f.put(CAREERS, "4 careers");
+    write(&kept.join("careers.json"), "stale");
+    age(&kept.join("careers.json"));
+    drop(lock);
+    std::fs::remove_dir_all(Journal::dir(&f.data)).unwrap();
+
+    f.session(&f.with_addon(), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("4 careers"));
+        assert!(!kept.join("careers.json").exists());
+    });
+    assert_eq!(
+        std::fs::read_to_string(kept.join("careers.json")).unwrap(),
+        "4 careers"
+    );
 }
