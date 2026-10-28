@@ -134,3 +134,59 @@ class Files(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Gate(unittest.TestCase):
+    def test_run_and_recompare_end_to_end(self):
+        import hashlib
+        import io
+        from contextlib import redirect_stdout
+
+        from compat.__main__ import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "loader").mkdir()
+            (root / "loader/version.dll").write_bytes(b"MZ proxy")
+            (root / "game").mkdir()
+            (root / "game/F1_25.exe").write_bytes(b"MZ")
+            built = addon_zip(root / "src")
+            data = built.read_bytes()
+            sha = hashlib.sha256(data).hexdigest()
+            cache = root / "cache"
+            dst = cache / "downloads/x.addon/1.0.0" / f"{sha}.swoftyaddon"
+            dst.parent.mkdir(parents=True)
+            dst.write_bytes(data)
+            catalog = {"addons": [{"id": "x.addon", "name": "X", "versions": [
+                {"version": "1.0.0", "launcher": ">=1.5.1", "size": len(data), "sha256": sha, "url": "http://127.0.0.1:9/x"}]}]}
+            (cache / "catalog.json").write_text(json.dumps(catalog))
+            (root / "cli").mkdir()
+            cli = fake_cli(root / "cli")
+            out = root / "out"
+            args = ["run", "--cli-a", str(cli), "--cli-b", str(cli), "--loader-a", str(root / "loader"),
+                    "--loader-b", str(root / "loader"), "--game", str(root / "game"), "--cache", str(cache),
+                    "--out", str(out), "--offline", "--no-r2", "--no-pin", "--baseline-from", str(root / "none")]
+            with redirect_stdout(io.StringIO()) as printed:
+                self.assertEqual(main(args), 0)
+            self.assertIn("PASS  x.addon@1.0.0", printed.getvalue())
+            rep = json.loads((out / "report.json").read_text())
+            self.assertEqual(rep["counts"], {"pass": 1, "diff": 0, "error": 0})
+            self.assertFalse((out / "work").exists())
+            snap = json.loads((out / "snapshots/x.addon@1.0.0.b.json").read_text())
+            snap["warnings"] = ["x.addon: something new"]
+            (out / "snapshots/x.addon@1.0.0.b.json").write_text(json.dumps(snap))
+            with redirect_stdout(io.StringIO()) as printed:
+                self.assertEqual(main(["recompare", str(out)]), 1)
+            self.assertIn("warnings: warnings", printed.getvalue())
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["recompare", str(out), "--allow", "warnings"]), 0)
+
+    def test_tool_errors_exit_2(self):
+        import io
+        from contextlib import redirect_stderr
+
+        from compat.__main__ import main
+
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["run", "--cli-a", f"{tmp}/nope", "--cli-b", f"{tmp}/nope", "--offline"]), 2)
+            self.assertEqual(main(["harness"]), 2)

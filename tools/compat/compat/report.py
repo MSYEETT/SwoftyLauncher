@@ -1,4 +1,12 @@
+import json
+
 PASS, DIFF, ERROR = "pass", "diff", "error"
+DETAIL_LIMIT = 20
+
+
+def _short(value, limit=300):
+    text = value if isinstance(value, str) else json.dumps(value, sort_keys=True)
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
 def status_of(result):
@@ -57,6 +65,17 @@ def summary(report):
         if allowed:
             line += f"  [{allowed} allowed]"
         out.append(line.rstrip())
+    details = [r for r in report["results"] if r["status"] == DIFF]
+    for r in details:
+        out.append("")
+        out.append(f"{r['set']}:")
+        diffs = r["comparison"]["differences"]
+        for d in diffs[:DETAIL_LIMIT]:
+            out.append(f"  {d['category']}: {d['what']}")
+            out.append(f"    a: {_short(d['a'])}")
+            out.append(f"    b: {_short(d['b'])}")
+        if len(diffs) > DETAIL_LIMIT:
+            out.append(f"  and {len(diffs) - DETAIL_LIMIT} more in report.json")
     c = report["counts"]
     out.append("")
     out.append(f"{c[PASS]} pass, {c[DIFF]} with differences, {c[ERROR]} tool errors; exit {report['exit']}")

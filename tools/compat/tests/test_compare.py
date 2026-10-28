@@ -166,6 +166,7 @@ class Reporting(unittest.TestCase):
         self.assertRegex(text, r"\nDIFF  y@1 +buildhash: build hash \(\+1 more\)\n")
         self.assertRegex(text, r"\nERROR z@1 +download failed\n")
         self.assertIn("1 pass, 1 with differences, 1 tool errors; exit 2", text)
+        self.assertIn("\ny@1:\n  buildhash: build hash\n    a: 0123456789abcdef\n    b: other\n", text)
 
 
 if __name__ == "__main__":

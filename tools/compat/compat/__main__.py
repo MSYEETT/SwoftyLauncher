@@ -239,6 +239,34 @@ def cmd_compare(args):
     return rep["exit"]
 
 
+def cmd_recompare(args):
+    out = Path(args.run)
+    try:
+        previous = json.loads((out / "report.json").read_text())
+    except (OSError, ValueError) as e:
+        raise runner.ToolError(f"{out}: {e}") from e
+    allow = set(args.allow or previous["meta"].get("allow") or [])
+    results = []
+    for r in previous["results"]:
+        r = {k: v for k, v in r.items() if k not in ("comparison", "status")}
+        if not r.get("error"):
+            paths = [out / "snapshots" / f"{_safe(r['set'])}.{side}.json" for side in ("a", "b")]
+            try:
+                a, b = (json.loads(p.read_text()) for p in paths)
+            except (OSError, ValueError) as e:
+                r["error"] = f"snapshot: {e}"
+            else:
+                r["comparison"] = compare.compare(a, b, allow=allow)
+        results.append(r)
+    meta = dict(previous["meta"], allow=sorted(allow))
+    rep = report.build(meta, results)
+    _write_json(out / "report.json", rep)
+    text = report.summary(rep)
+    (out / "summary.txt").write_text(text)
+    print(text, end="")
+    return rep["exit"]
+
+
 def cmd_harness(args):
     print(
         "swofty-compat harness: the Wine half of the gate (boot each build to the main menu and compare "
@@ -299,6 +327,11 @@ def parser():
     c.add_argument("--allow", action="append", choices=compare.CATEGORIES)
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_compare)
+
+    rc = sub.add_parser("recompare", help="compare a run's saved snapshots again and rewrite its report")
+    rc.add_argument("run", help="the run's output dir")
+    rc.add_argument("--allow", action="append", choices=compare.CATEGORIES)
+    rc.set_defaults(func=cmd_recompare)
 
     h = sub.add_parser("harness", help="the Wine half of the gate (round 3; not built yet)")
     h.add_argument("rest", nargs=argparse.REMAINDER)

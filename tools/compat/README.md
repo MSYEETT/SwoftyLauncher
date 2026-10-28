@@ -21,6 +21,7 @@ tools/compat/run.sh compare runs/<time>/snapshots/kizi.pitlane@0.3.1.a.json runs
 - `fetch` downloads addon versions into the cache. With no filter it fetches every published version (about 40 GB on 2026-10-28; the newest of each addon is about 7 GB). `--latest`, `--only ID[@VERSION]` and `--launcher-version` narrow it, and `--with-requirements` adds what each version requires.
 - `run` fetches what it needs, builds every set with A and B, and writes the report. It exits 0 when every set is the same, 1 when any set differs, and 2 on a tool error (a download, a binary that doesn't start, a timeout, the disk).
 - `compare A.json B.json` compares two saved snapshots, with the same exit codes.
+- `recompare RUN` compares every snapshot pair of a finished run again and rewrites its `report.json` and `summary.txt`.
 - `harness` is the Wine half of the gate. It exits 2 until it is built (see [The Wine harness](#the-wine-harness)).
 
 `run` options:
@@ -69,7 +70,7 @@ A snapshot of each build holds:
 - `built.json`'s conflicts, conflicts report, waiting operations and `registry_override`;
 - the files written under `cache/addons/` and `addon-data/` during the build, by content (the `generated` category).
 
-`report.json` holds every set's addons, notes, build hashes, differences and allowed differences. `summary.txt` has one line per set: `PASS`, `DIFF` with the first difference, or `ERROR` with the tool error.
+`report.json` holds every set's addons, notes, build hashes, differences and allowed differences. `summary.txt` has one line per set: `PASS`, `DIFF` with the first difference, or `ERROR` with the tool error, then each differing set's first 20 differences with both sides' values.
 
 ## Normalising
 
