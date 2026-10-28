@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "apply/moments.hpp"
 #include "blackbox.hpp"
 #include "crash_heap.hpp"
 #include "json.hpp"
@@ -1621,6 +1622,7 @@ const Step STEPS[] = {
     {"the Game state section", [](Request &r) { section_state(r); }},
     {"the Black box sections", [](Request &r) { section_blackbox(r); }},
     {"the Swofty probes section", [](Request &r) { section_probes(r); }},
+    {"the registry reports", [](Request &) { swofty_core::apply::moments::crash_reports(); }},
     {"the Addons and Loaded modules sections", [](Request &) { section_modules(); }},
     {"the Threads section",
      [](Request &r) {
