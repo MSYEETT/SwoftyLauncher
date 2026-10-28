@@ -31,6 +31,9 @@
 // stand-in's regular driver comes back at the next one. The player is never swapped out; in follow
 // mode a move of his driver moves him (the same move and contract signing as a season's first apply).
 // The changes in force are recorded in the career's store entry (mid_year, mid_round, mid_applied).
+// On a 1.6 core, the first such Team HQ of a season not applied yet, once its Season has race weekends and
+// a current weekend, reports the season's year (career::report_season) before the season apply, so the core
+// fires career.season.start, activates the season's records and freezes its snapshot first.
 // Every career load and Team HQ also records the player's team and the season index in the store
 // entry, for the year on the career's Resume Career card (ProgressiveCardYear,
 // progressive_resume.dll).
@@ -57,6 +60,7 @@
 #include <cstring>
 #include <map>
 #include <mutex>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1847,6 +1851,22 @@ void season_unloaded()
 
 std::map<std::string, int> g_season_hook;
 std::map<int, season::Year> g_pristine;
+std::set<std::string> g_reported;
+
+// The core's career.season.start (records::report_season): the season's year at its moment
+// (season::season_moment), before the season hook and the apply, so both read the frozen season.
+void report_season(uintptr_t e, const store::Career &c, uint32_t game_index, uint32_t index, int year)
+{
+    std::string id = c.key + ":" + std::to_string(index);
+    Calendar cal;
+    bool ready = calendar(e, cal) && cal.current_ok;
+    if (!season::season_moment(c.applied_season, index, ready, g_reported.count(id) != 0))
+        return;
+    g_reported.insert(id);
+    const char *r = records::report_season(year, static_cast<int>(game_index));
+    swofty::log("[progressive] season %d: reported to the core as season index %u of career %s%s: %s", year, game_index,
+                c.key.c_str(), c.test_seasons ? " (includes test seasons)" : "", r);
+}
 
 // swofty.progressive.season.apply (records.hpp), once per career and year in a session: 1 apply the year
 // (from the changed season when a before handler changed it), 2 a replace handler applied it.
@@ -1930,7 +1950,10 @@ void season_hub(const swofty::career::State &state)
     }
     if (g_standings_pending == c->key && standings_rebuild(e, "first Team HQ with round 1 sessions"))
         g_standings_pending.clear();
-    if (entity_busy(e) || g_failures >= 3)
+    if (entity_busy(e))
+        return;
+    report_season(e, *c, s.index, index, year);
+    if (g_failures >= 3)
         return;
     player::Verdict before = player_check(e, c, "Team HQ, before the season apply");
     if (season_hook(c->key, year) == 2) {

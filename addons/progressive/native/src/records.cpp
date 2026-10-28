@@ -102,6 +102,11 @@ void publish(uint32_t (*real_team)(uint32_t, int), int (*career_year)(void), int
                 swofty::services::name(s), progressive_api::SeasonApply::point, swofty::events::name(h));
 }
 
+const char *report_season(int year, int season_index)
+{
+    return career::name(career::report_season(year, season_index));
+}
+
 const SwoftyCareerOps *core_ops()
 {
     static const SwoftyCareerOps *ops = [] {
