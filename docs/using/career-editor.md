@@ -39,6 +39,10 @@ Load a career and go to Team HQ. The **Career Editor** page shows the game, the 
 
 To race a modded track, import its zip on the **Mods** page, turn it on in the profile and press **Play** to build; it then shows under **Modded tracks**. A track already on this season's calendar isn't listed again. A track turned on after the last build appears once the profile builds again; **Play** builds it. Under the forms, the page names each track it doesn't offer and why, such as a track whose mod is off. An older launcher lists only tracks this championship already has.
 
+## Your own ratings
+
+In Driver Career your own ratings include your career progress. The editor sets the rating you ask for, and your progress keeps adding to it as the career goes on. Each of your ratings has a lowest value the editor can set, and it rises with your progress. A lower value is refused, and the message names the lowest one.
+
 ## Race numbers
 
 **Drivers** sets a driver's race number, from 1 to 99, yours included: click the number in the ratings table, or use **Race numbers**. Each number belongs to one driver in the championship. To take a number another driver has, turn on the swap in **Race numbers**; he gets the old number. The number is saved with the career.

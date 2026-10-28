@@ -348,6 +348,13 @@ jobs:
         run: |
           zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/lineup_test.cpp addons/career-editor/native/src/lineup.cpp -o lineup_test
           ./lineup_test
+      - name: Career Mode Editor rating search unit test
+        env:
+          ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+          ZIG_LOCAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
+        run: |
+          zig c++ -target x86_64-linux-musl -std=c++23 -O2 -I addons/career-editor/native/src addons/career-editor/native/test/rating_solve_test.cpp addons/career-editor/native/src/rating_solve.cpp -o rating_solve_test
+          ./rating_solve_test
 
       - name: Wine and Xvfb
         timeout-minutes: 10
