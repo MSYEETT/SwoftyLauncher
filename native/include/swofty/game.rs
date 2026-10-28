@@ -23,11 +23,6 @@ pub struct Binding {
 }
 
 #[repr(C)]
-pub struct AiController {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct AiHandlingConfig {
     _opaque: [u8; 0],
 }
@@ -188,11 +183,6 @@ pub struct CarWheelProxies {
 }
 
 #[repr(C)]
-pub struct ControllerSet {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct DepartmentData {
     _opaque: [u8; 0],
 }
@@ -239,11 +229,6 @@ pub struct RedFlagSystem {
 
 #[repr(C)]
 pub struct RnDDepartmentConfig {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
-pub struct SpectatorDirector {
     _opaque: [u8; 0],
 }
 
@@ -307,6 +292,17 @@ pub struct ActivityDef {
     pub r#type: u8,
 }
 const _: () = assert!(core::mem::offset_of!(ActivityDef, r#type) == 0x10);
+
+#[repr(C)]
+pub struct AiController {
+    _pad_0x0: [u8; 0x8],
+    pub input: *mut InputRecord,
+    pub owner: *mut c_void,
+    pub vehicle: u8,
+}
+const _: () = assert!(core::mem::offset_of!(AiController, input) == 0x8);
+const _: () = assert!(core::mem::offset_of!(AiController, owner) == 0x10);
+const _: () = assert!(core::mem::offset_of!(AiController, vehicle) == 0x18);
 
 #[repr(C)]
 pub struct BankAccount {
@@ -716,6 +712,25 @@ const _: () = assert!(core::mem::offset_of!(ContractRecord, day_contract_decided
 const _: () = assert!(core::mem::offset_of!(ContractRecord, accepted) == 0x6c);
 const _: () = assert!(core::mem::offset_of!(ContractRecord, acknowledged) == 0x6d);
 const _: () = assert!(core::mem::size_of::<ContractRecord>() == 0x70);
+
+#[repr(C)]
+pub struct ControllerSet {
+    _pad_0x0: [u8; 0x10],
+    pub mode_masked: u32,
+    _pad_0x14: [u8; 0x4],
+    pub mode_key: u32,
+    _pad_0x1c: [u8; 0x4],
+    pub human_controller: *mut c_void,
+    pub ai_controller: *mut c_void,
+    pub flags: u32,
+    pub vehicle: u8,
+}
+const _: () = assert!(core::mem::offset_of!(ControllerSet, mode_masked) == 0x10);
+const _: () = assert!(core::mem::offset_of!(ControllerSet, mode_key) == 0x18);
+const _: () = assert!(core::mem::offset_of!(ControllerSet, human_controller) == 0x20);
+const _: () = assert!(core::mem::offset_of!(ControllerSet, ai_controller) == 0x28);
+const _: () = assert!(core::mem::offset_of!(ControllerSet, flags) == 0x30);
+const _: () = assert!(core::mem::offset_of!(ControllerSet, vehicle) == 0x34);
 
 #[repr(C)]
 pub struct CostCapComponent {
@@ -1635,6 +1650,29 @@ const _: () = assert!(core::mem::offset_of!(Session, participants_begin) == 0x20
 const _: () = assert!(core::mem::offset_of!(Session, participants_end) == 0x28);
 const _: () = assert!(core::mem::offset_of!(Session, participants_capacity) == 0x30);
 const _: () = assert!(core::mem::size_of::<Session>() == 0xa0);
+
+#[repr(C)]
+pub struct SpectatorDirector {
+    _pad_0x0: [u8; 0xd0],
+    pub ui_active: u8,
+    pub active: u8,
+    _pad_0xd2: [u8; 0x1],
+    pub should_quit: u8,
+    _pad_0xd4: [u8; 0x2],
+    pub current_driver: u8,
+    _pad_0xd7: [u8; 0x1],
+    pub current_camera: i32,
+    pub requested_driver: u8,
+    _pad_0xdd: [u8; 0x3],
+    pub requested_camera: i32,
+}
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, ui_active) == 0xd0);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, active) == 0xd1);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, should_quit) == 0xd3);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, current_driver) == 0xd6);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, current_camera) == 0xd8);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, requested_driver) == 0xdc);
+const _: () = assert!(core::mem::offset_of!(SpectatorDirector, requested_camera) == 0xe0);
 
 #[repr(C)]
 pub struct SponsorEntry {
@@ -3313,6 +3351,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_ControllerSystem_ApplyInputs: Binding = Binding {
+        id: "Sess_ControllerSystem_ApplyInputs",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ControllerSystem_BuildSets: Binding = Binding {
+        id: "Sess_ControllerSystem_BuildSets",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ControllerSystem_DestroySets: Binding = Binding {
+        id: "Sess_ControllerSystem_DestroySets",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Find_GroupRowPosition: Binding = Binding {
         id: "Sess_Find_GroupRowPosition",
         kind: "func",
@@ -3425,6 +3478,21 @@ pub mod bindings {
     };
     pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
         id: "Sess_Set_SafetyCarDeploymentType",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SpectatorDirector_SetActive: Binding = Binding {
+        id: "Sess_SpectatorDirector_SetActive",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SpectatorDirector_Update: Binding = Binding {
+        id: "Sess_SpectatorDirector_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SpectatorHud_Hide: Binding = Binding {
+        id: "Sess_SpectatorHud_Hide",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4888,6 +4956,11 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Sess_ControllerSystem_ApplyRecordCall: Binding = Binding {
+        id: "site_Sess_ControllerSystem_ApplyRecordCall",
+        kind: "call",
+        status: Status::Experimental,
+    };
     pub const site_Sess_InGamePlayerFinishedAiCall: Binding = Binding {
         id: "site_Sess_InGamePlayerFinishedAiCall",
         kind: "call",
@@ -5000,6 +5073,11 @@ pub mod bindings {
     };
     pub const vt_Ne_SaveSystem2Win: Binding = Binding {
         id: "vt_Ne_SaveSystem2Win",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_AiController: Binding = Binding {
+        id: "vt_Sess_AiController",
         kind: "vtable",
         status: Status::Experimental,
     };
