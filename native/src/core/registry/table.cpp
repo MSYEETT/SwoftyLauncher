@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -71,11 +72,12 @@ int c_available(void) { return 1; }
 
 int c_declare(const char *registry, SwoftyText schema)
 {
+    std::string who = caller(__builtin_return_address(0));
     bool ok;
     Value v = parse_text(schema, ok);
     if (!ok)
         return SWOFTY_ASSET_INVALID;
-    return store().declare(str(registry), v, false);
+    return store().declare(str(registry), v, false, who);
 }
 
 int c_check(const char *registry, SwoftyCheckFn fn, void *user)
@@ -173,19 +175,18 @@ int c_origin(const char *registry, const char *id, const char *pointer, char *ad
 
 int c_first(const char *registry, const char *prefix, char *id, size_t cap)
 {
-    auto ids = store().list(str(registry), str(prefix));
-    if (ids.empty())
+    std::string out;
+    if (!store().next(str(registry), str(prefix), nullptr, out))
         return SWOFTY_ASSET_INVALID;
-    return put_id(ids.front(), id, cap);
+    return put_id(out, id, cap);
 }
 
 int c_next(const char *registry, const char *prefix, const char *after, char *id, size_t cap)
 {
-    auto ids = store().list(str(registry), str(prefix));
-    auto it = std::upper_bound(ids.begin(), ids.end(), str(after));
-    if (it == ids.end())
+    std::string out, a = str(after);
+    if (!store().next(str(registry), str(prefix), &a, out))
         return SWOFTY_ASSET_INVALID;
-    return put_id(*it, id, cap);
+    return put_id(out, id, cap);
 }
 
 int c_watch(const char *registry, SwoftyRecordFn fn, void *user, uint32_t *token)
@@ -310,7 +311,7 @@ int c_layer_ex(const SwoftyLayerDesc *d, uint32_t *layer)
     std::string who = caller(__builtin_return_address(0));
     if (who.empty())
         return no_caller("layer_ex");
-    if (!d || d->size < offsetof(SwoftyLayerDesc, patch) || !d->registry) {
+    if (!d || d->size < sizeof(SwoftyLayerDesc) || !d->registry) {
         set_last_error("layer_ex: no descriptor, or one older than this core reads");
         return SWOFTY_ASSET_INVALID;
     }
@@ -462,6 +463,12 @@ const SwoftyRegistry TABLE = {
     c_variant_patch,
     c_stat_id,
 };
+
+std::filesystem::path upath(const std::string &utf8)
+{
+    std::u8string u(utf8.begin(), utf8.end());
+    return std::filesystem::path(u);
+}
 
 std::string base_name(const std::string &path)
 {
@@ -615,7 +622,7 @@ IndexResult load_index(const std::string &swofty_dir)
     std::string base = swofty_dir;
     if (!base.empty() && base.back() != '/' && base.back() != '\\')
         base += '/';
-    std::ifstream f(base + "registry/index.json", std::ios::binary);
+    std::ifstream f(upath(base + "registry/index.json"), std::ios::binary);
     if (!f)
         return out;
     std::stringstream ss;
@@ -648,7 +655,7 @@ IndexResult load_index(const std::string &swofty_dir)
             continue;
         for (auto &p : *files.if_array()) {
             std::string rel(p.as_string());
-            std::ifstream df(base + rel, std::ios::binary);
+            std::ifstream df(upath(base + rel), std::ios::binary);
             out.files++;
             if (!df) {
                 out.failed++;
@@ -673,17 +680,21 @@ int write_reports(const std::string &registry_dir)
     int r = SWOFTY_ASSET_OK;
     for (auto &[file, doc] : {std::pair<std::string, Value>{"effective.json", store().effective_report()},
                               std::pair<std::string, Value>{"conflicts.json", store().conflicts_report()}}) {
-        std::string tmp = base + file + ".tmp";
-        FILE *f = std::fopen(tmp.c_str(), "wb");
-        if (!f) {
+        std::error_code ec;
+        std::filesystem::create_directories(upath(base), ec);
+        std::filesystem::path tmp = upath(base + file + ".tmp"), dest = upath(base + file);
+        std::string text = swofty::json::dump(doc, 1);
+        bool ok;
+        {
+            std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+            ok = f && f.write(text.data(), static_cast<std::streamsize>(text.size())) && f.flush();
+        }
+        if (!ok) {
             r = SWOFTY_ASSET_UNAVAILABLE;
             continue;
         }
-        std::string text = swofty::json::dump(doc, 1);
-        bool ok = std::fwrite(text.data(), 1, text.size(), f) == text.size();
-        ok = std::fclose(f) == 0 && ok;
-        std::remove((base + file).c_str());
-        if (!ok || std::rename(tmp.c_str(), (base + file).c_str()) != 0)
+        std::filesystem::rename(tmp, dest, ec);
+        if (ec)
             r = SWOFTY_ASSET_UNAVAILABLE;
     }
     return r;

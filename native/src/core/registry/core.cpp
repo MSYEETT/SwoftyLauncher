@@ -110,5 +110,8 @@ extern "C" __declspec(dllexport) int SwoftyCoreRegisterDone(void)
     }
     swofty::log("[registry] register stage closed: %zu registr%s declared; boot registries refuse later writes as late",
                 st.registries().size(), st.registries().size() == 1 ? "y" : "ies");
+    if (std::size_t waiting = st.pending())
+        swofty::log("[registry] %zu call(s) wait for registries nothing has declared yet; they apply when one is declared",
+                    waiting);
     return 1;
 }
