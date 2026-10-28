@@ -998,7 +998,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     hash_unread(&mut hasher, store, game, &order, planner.erp_ops(), &resolve)?;
     let std_index = loader_dir()
         .is_some()
-        .then(|| crate::stdlib::index::Index::plan(&resolved.order, &addons, &std16, &store.addons_dir()))
+        .then(|| {
+            crate::stdlib::index::Index::plan(profile, &resolved.order, &addons, &std16, &store.addons_dir())
+        })
         .flatten();
     if let Some(placed) = &std_index {
         hasher.update(placed.index.to_json());
@@ -1007,11 +1009,17 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             hasher.update(std::fs::read(src).map_err(io_err(src))?);
         }
     }
-    let room_asked = crate::stdlib::room::asked(
-        crate::stdlib::reports::Room::read(&game.dir).as_ref(),
-        profile,
-        &resolved.order,
-    );
+    let room_asked = std16
+        .values()
+        .any(|s| resolved.order.contains(&s.id) && s.is_std())
+        .then(|| {
+            crate::stdlib::room::asked(
+                crate::stdlib::reports::Room::read(&game.dir).as_ref(),
+                profile,
+                &resolved.order,
+            )
+        })
+        .flatten();
     if let Some(asked) = room_asked {
         hasher.update(format!("room {asked};"));
     }
