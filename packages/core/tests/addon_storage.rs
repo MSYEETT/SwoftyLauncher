@@ -465,3 +465,57 @@ fn an_older_stored_copy_gives_way_to_a_newer_leftover_in_the_game_folder() {
         "4 careers"
     );
 }
+
+#[test]
+fn each_profile_keeps_its_own_copy_of_an_addons_files() {
+    let f = Fixture::new("per-profile");
+    let profile = |name: &str| {
+        let mut p = f.with_addon();
+        p.profile = name.into();
+        p
+    };
+    f.session(&profile("real"), |f| f.put(CAREERS, "real history"));
+    addon_storage::profile_created(&f.data, "whatif", None).unwrap();
+    f.session(&profile("whatif"), |f| {
+        assert_eq!(f.read(CAREERS), None);
+        f.put(CAREERS, "what if");
+    });
+    f.session(&profile("real"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("real history"));
+    });
+    f.session(&profile("whatif"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("what if"));
+    });
+    addon_storage::profile_created(&f.data, "copy", Some("whatif")).unwrap();
+    f.session(&profile("copy"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("what if"));
+        f.put(CAREERS, "copied, then changed");
+    });
+    f.session(&profile("whatif"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("what if"));
+    });
+    let copies = addon_storage::addon_dir(&f.data, "t.store").join(addon_storage::PROFILES);
+    addon_storage::profile_renamed(&f.data, "copy", "renamed").unwrap();
+    assert!(copies.join("renamed/careers.json").is_file());
+    addon_storage::profile_deleted(&f.data, "renamed").unwrap();
+    assert!(!copies.join("renamed").exists());
+    assert!(!f.game.join("swofty/addons/t.store/.profiles").exists());
+}
+
+#[test]
+fn a_profile_with_no_copy_yet_starts_from_the_shared_files() {
+    let f = Fixture::new("per-profile-seed");
+    let profile = |name: &str| {
+        let mut p = f.with_addon();
+        p.profile = name.into();
+        p
+    };
+    f.session(&profile("one"), plays);
+    f.session(&profile("two"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("3 careers"));
+        f.put(CAREERS, "two's");
+    });
+    f.session(&profile("one"), |f| {
+        assert_eq!(f.read(CAREERS).as_deref(), Some("3 careers"));
+    });
+}

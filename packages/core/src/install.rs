@@ -365,6 +365,9 @@ impl<'a> Installer<'a> {
     fn rollback(&self, j: Journal, hashes: &mut Hashes) -> Result<(Vec<Drift>, Vec<String>)> {
         let ids = addon_storage::ids(j.entries.iter().map(|e| e.path.as_str()));
         let kept = self.keep_storage(&ids, std::slice::from_ref(&j))?;
+        for id in &ids {
+            addon_storage::save_profile(self.data, id, &j.profile)?;
+        }
         let mut report = Vec::new();
         let same_build = j.build_id == self.game.identity.build_id;
         for e in j.entries.iter().rev() {
@@ -920,6 +923,7 @@ impl<'a> Installer<'a> {
         }
         let planned: BTreeSet<String> = sources.keys().map(|rel| placed::key(rel)).collect();
         for id in addon_storage::ids(sources.keys().copied()) {
+            addon_storage::load_profile(self.data, &id, &plan.profile)?;
             let moved = addon_storage::put_back(self.data, &self.game.dir, &id, &planned)?;
             if !moved.is_empty() {
                 (self.out)(&format!(

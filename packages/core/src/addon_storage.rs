@@ -26,6 +26,11 @@ pub const DIR: &str = "addon-storage";
 /// files in the data folder for the session. The next install removes it.
 pub const MARK: &str = ".swofty-data-folder";
 
+/// The folder in an addon's storage that keeps each launcher profile's copy of its files,
+/// `addon-storage/<id>/.profiles/<profile>/` (docs/std/launcher.md "Profiles"). The dot keeps
+/// it apart from a `profiles/` folder an addon writes itself.
+pub const PROFILES: &str = ".profiles";
+
 /// The loader's own folder under `swofty/addons/`.
 const CORE_DIR: &str = "core";
 
@@ -152,7 +157,11 @@ pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) 
     }
     let to = game_dir(game, id);
     let mut moved = Vec::new();
+    let copies = format!("{PROFILES}/");
     for rel in files(&from)? {
+        if rel.starts_with(&copies) {
+            continue;
+        }
         let at = game_rel(id, &rel);
         let (src, dst) = (from.join(&rel), to.join(&rel));
         if rel == MARK {
@@ -175,6 +184,145 @@ pub fn put_back(data: &Path, game: &Path, id: &str, planned: &BTreeSet<String>) 
     }
     prune(&from)?;
     Ok(moved)
+}
+
+pub fn profile_dir(data: &Path, id: &str, profile: &str) -> PathBuf {
+    addon_dir(data, id).join(PROFILES).join(profile)
+}
+
+/// The files of the addon's storage outside the profiles' copies, without [`MARK`].
+fn shared_files(dir: &Path) -> Result<Vec<String>> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let prefix = format!("{PROFILES}/");
+    Ok(files(dir)?
+        .into_iter()
+        .filter(|rel| !rel.starts_with(&prefix) && rel != MARK)
+        .collect())
+}
+
+fn copy_with_time(from: &Path, to: &Path) -> Result<()> {
+    if let Some(dir) = to.parent() {
+        std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+    }
+    std::fs::copy(from, to).map_err(io_err(to))?;
+    if let Ok(t) = std::fs::metadata(from).and_then(|m| m.modified())
+        && let Ok(f) = std::fs::OpenOptions::new().write(true).open(to)
+    {
+        f.set_modified(t).ok();
+    }
+    Ok(())
+}
+
+fn current_path(data: &Path, id: &str) -> PathBuf {
+    addon_dir(data, id).join(PROFILES).join(".current")
+}
+
+/// The profile whose files the addon's storage holds now, once a 1.6 session saved one.
+fn current(data: &Path, id: &str) -> Option<String> {
+    std::fs::read_to_string(current_path(data, id))
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+}
+
+/// After a session of `profile`: its copy becomes what the addon's storage holds now.
+pub fn save_profile(data: &Path, id: &str, profile: &str) -> Result<()> {
+    let from = addon_dir(data, id);
+    let to = profile_dir(data, id, profile);
+    if to.is_dir() {
+        with_retry(&to, || std::fs::remove_dir_all(&to))?;
+    }
+    std::fs::create_dir_all(&to).map_err(io_err(&to))?;
+    for rel in shared_files(&from)? {
+        copy_with_time(&from.join(&rel), &to.join(&rel))?;
+    }
+    let mark = current_path(data, id);
+    std::fs::write(&mark, profile).map_err(io_err(&mark))
+}
+
+/// Before a session of `profile`: the addon's storage holds that profile's copy. When it holds
+/// another profile's files, those are saved as that profile's copy first, so what the game wrote
+/// in the data folder since is kept. A profile without a copy (every profile, the first time after
+/// updating to 1.6) starts from the storage as it is. Returns whether the storage changed.
+pub fn load_profile(data: &Path, id: &str, profile: &str) -> Result<bool> {
+    let now = current(data, id);
+    if now.as_deref() == Some(profile) {
+        return Ok(false);
+    }
+    if let Some(other) = &now {
+        save_profile(data, id, other)?;
+    }
+    let from = profile_dir(data, id, profile);
+    let changed = from.is_dir();
+    if changed {
+        let to = addon_dir(data, id);
+        for rel in shared_files(&to)? {
+            let path = to.join(&rel);
+            with_retry(&path, || std::fs::remove_file(&path))?;
+        }
+        for rel in files(&from)? {
+            copy_with_time(&from.join(&rel), &to.join(&rel))?;
+        }
+    }
+    if now.is_some() || changed {
+        let mark = current_path(data, id);
+        std::fs::create_dir_all(mark.parent().expect("has parent")).map_err(io_err(&mark))?;
+        std::fs::write(&mark, profile).map_err(io_err(&mark))?;
+    }
+    Ok(changed)
+}
+
+/// The addons with storage in the data folder.
+fn stored(data: &Path) -> Vec<PathBuf> {
+    std::fs::read_dir(dir(data))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.path())
+        .collect()
+}
+
+/// A new profile: a copy of `from`'s storage, or empty storage of its own.
+pub fn profile_created(data: &Path, name: &str, from: Option<&str>) -> Result<()> {
+    for addon in stored(data) {
+        let to = addon.join(PROFILES).join(name);
+        std::fs::create_dir_all(&to).map_err(io_err(&to))?;
+        let Some(from) = from else {
+            continue;
+        };
+        let src = addon.join(PROFILES).join(from);
+        let (base, list) = match src.is_dir() {
+            true => (src.clone(), files(&src)?),
+            false => (addon.clone(), shared_files(&addon)?),
+        };
+        for rel in list {
+            copy_with_time(&base.join(&rel), &to.join(&rel))?;
+        }
+    }
+    Ok(())
+}
+
+pub fn profile_renamed(data: &Path, from: &str, to: &str) -> Result<()> {
+    for addon in stored(data) {
+        let (a, b) = (addon.join(PROFILES).join(from), addon.join(PROFILES).join(to));
+        if a.is_dir() && !b.exists() {
+            with_retry(&a, || std::fs::rename(&a, &b))?;
+        }
+    }
+    Ok(())
+}
+
+pub fn profile_deleted(data: &Path, name: &str) -> Result<()> {
+    for addon in stored(data) {
+        let at = addon.join(PROFILES).join(name);
+        if at.is_dir() {
+            with_retry(&at, || std::fs::remove_dir_all(&at))?;
+        }
+    }
+    Ok(())
 }
 
 /// Whether `a` was modified after `b`.
