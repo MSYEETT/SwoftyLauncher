@@ -68,9 +68,10 @@ static int report_season(int32_t year, int32_t index)
     return year == 2099 ? int(SWOFTY_REFUSED) : int(SWOFTY_ASSET_OK);
 }
 
-static const SwoftyCareerOps kOps = {1, available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap, nullptr};
-static const SwoftyCareerOps kOps2 = {2,  available,         driver_stat, set_slots, apply_lineup, set_driver_ratings,
-                                      swap, report_season};
+static const SwoftyCareerOps kOps = {1,       available, driver_stat, set_slots, apply_lineup, set_driver_ratings, swap,
+                                     nullptr, nullptr,   nullptr,     nullptr,   nullptr};
+static const SwoftyCareerOps kOps2 = {2,    available,     driver_stat, set_slots, apply_lineup, set_driver_ratings,
+                                      swap, report_season, nullptr,     nullptr,   nullptr,      nullptr};
 
 int main()
 {
