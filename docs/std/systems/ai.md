@@ -250,24 +250,25 @@ Every frame, each AI car's controller decides its throttle, brake and steering. 
 ```cpp
 namespace swofty::ai::events {
 
-struct ControllerUpdate {                      // the AI controller's update, every frame for each AI car
+struct ControllerUpdate {                          // the AI controller's update, every frame for each AI car
     static constexpr const char *point = "ai.controller.update";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    int32_t vehicle;                           // the car's vehicle index
-    float throttle;                            // 0 to 1
-    float brake;                               // 0 to 1
-    float steering;                            // -1 to 1
-    cars::live::Car car() const;               // the car, for reads
+    int32_t vehicle;                               // the car's vehicle index
+    float throttle;                                // 0 to 1
+    float brake;                                   // 0 to 1
+    float steering;                                // -1 to 1
+
+    cars::live::Car car() const { return cars::live::Car(static_cast<uint32_t>(vehicle)); }
 };
 
 } // namespace swofty::ai::events
 ```
 
 ```cpp
-// cap the AI's braking in races, after the game decides
+// read what the game decided for each AI car in races (an after handler gets the payload const)
 events::on<ai::events::ControllerUpdate>().when(events::session_type({ events::SessionType::race }))
-    .after([](ai::events::ControllerUpdate &u, const events::Context &) { u.brake = std::min(u.brake, 0.9f); });
+    .after([](const ai::events::ControllerUpdate &u, const events::Context &) { my_telemetry::brake(u.car(), u.brake); });
 
 // drive the player's car with your own controller while the AI controls it
 events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpdate &u, const events::Context &) {
@@ -278,7 +279,7 @@ events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpda
 });
 ```
 
-- **Phases:** a `before` handler sees the car before the game decides. A `replace` handler can decide instead of the game and returns true when it did. An `after` handler sees and changes the inputs the game wrote. Handlers run by priority, then load order.
+- **Phases:** a `before` handler sees the car before the game decides. A `replace` handler can decide instead of the game and returns true when it did. An `after` handler reads the inputs the game wrote; to change them, use a `before` or a `replace` handler. Handlers run by priority, then load order.
 - **Every frame:** the point runs for every AI car each frame, so it dispatches directly with no context table, and handlers must be cheap. With no subscriber the core installs nothing.
 - **One hook per controller class.** The core hooks the class's vtable once, so addons stop cloning it per controller. An addon made for 1.5 that clones a controller's vtable keeps working as it does today: its clone calls the game's code directly, outside the point, until the addon moves to the point.
 - **Only AI cars.** The point runs for a car whose controller set is in AI mode, including the player's car while `sessions::set_control` has handed it to the AI. A handler gets no `events::Context` (the point builds none), so it reads the car through `u.car()`; `when()` and `in()` selectors still apply. A value a handler writes that is not a finite number is dropped.

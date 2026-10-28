@@ -88,17 +88,46 @@ struct LogoResolve {                               // the two logo format sites 
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
     LogoContext context;                           // where the logo shows
-    Ref<Identity> team;                            // whose logo
-    std::string_view livery_name;
-    std::string key;                               // the texture key the game will use; before handlers may change it
+    const char *team_id;
+    const char *livery_name_str;
+    const char *key_str;
+    int32_t (*set_key_fn)(void *user, const char *key);
+    void *user;
+
+    Ref<Identity> team() const { return swofty::detail::payload_ref<Identity>(team_id); }
+    std::string_view livery_name() const { return swofty::detail::payload_str(livery_name_str); }
+    std::string_view key() const { return swofty::detail::payload_str(key_str); }
+    Result set_key(std::string_view key)
+    {
+        if (!set_key_fn)
+            return Result::unavailable;
+        std::string k(key);
+        return swofty::detail::result(set_key_fn(user, k.c_str()));
+    }
 };
 
 struct NameResolve {                               // display-name lookups: before (needs RE)
     static constexpr const char *point = "team.name.resolve";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    Ref<Identity> team;
-    Text name;
+    const char *team_id;
+    const char *name_str;
+    bool name_literal;
+    int32_t (*set_name_fn)(void *user, const char *name, bool literal);
+    void *user;
+
+    Ref<Identity> team() const { return swofty::detail::payload_ref<Identity>(team_id); }
+    Text name() const
+    {
+        std::string_view s = swofty::detail::payload_str(name_str);
+        return name_literal ? Text::literal(s) : Text::key(s);
+    }
+    Result set_name(const Text &name)
+    {
+        if (!set_name_fn)
+            return Result::unavailable;
+        return swofty::detail::result(set_name_fn(user, name.str().c_str(), name.is_literal()));
+    }
 };
 
 }
@@ -233,9 +262,9 @@ SWOFTY_ON_LOAD
 {
     events::on<teams::events::LogoResolve>().in(events::owner("swofty.progressive"))
         .before([](teams::events::LogoResolve &l, const events::Context &ctx) {
-            auto key = progressive::season_logo(l.team, ctx.career()->year, l.context);
+            auto key = progressive::season_logo(l.team(), ctx.career()->year, l.context);
             if (!key.empty())
-                l.key = key;
+                l.set_key(key);
         });
 }
 

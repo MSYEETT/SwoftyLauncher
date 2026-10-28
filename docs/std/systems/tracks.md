@@ -143,9 +143,14 @@ struct DataGet {                                   // Game_TrackData_GetTrack: a
 struct FuelLoad {                                  // the race fuel lookup at session load (cancel)
     static constexpr const char *point = "session.fuel.load";
     static constexpr uint32_t version = 1;
+    enum Kind : uint8_t { practice = 0, qualifying = 1, race = 2, other = 3 };
     uint32_t size, payload_version;
-    Ref<Track> track;                              // the session's track
+    const char *track_id;
+    uint32_t session_type;
     float kg;                                      // the race fuel load; before and replace handlers may set it
+    uint8_t kind;
+
+    Ref<Track> track() const { return swofty::detail::payload_ref<Track>(track_id); }
 };
 
 }

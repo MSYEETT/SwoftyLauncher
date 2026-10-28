@@ -70,9 +70,21 @@ struct CatalogueBuild {                            // Game_Build_CustomisationCa
     static constexpr const char *point = "wearable.catalogue.build";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    std::vector<Ref<Helmet>> &helmets;             // append items that have no database row
-    std::vector<Ref<Suit>> &suits;
-    std::vector<Ref<Gloves>> &gloves;
+    int32_t (*add_fn)(void *user, const char *registry, const char *id);
+    void *user;
+
+    Result add(const Ref<Helmet> &item) { return add_item("helmet", item.id()); }
+    Result add(const Ref<Suit> &item) { return add_item("suit", item.id()); }
+    Result add(const Ref<Gloves> &item) { return add_item("gloves", item.id()); }
+
+private:
+    Result add_item(const char *registry, std::string_view id)
+    {
+        if (!add_fn)
+            return Result::unavailable;
+        std::string s(id);
+        return swofty::detail::result(add_fn(user, registry, s.c_str()));
+    }
 };
 
 }
@@ -222,8 +234,8 @@ SWOFTY_REGISTER
 
 ```cpp
 // wearable.catalogue.build: add a helmet to the customisation catalogue at run time
-events::on<wearables::events::CatalogueBuild>().after([](wearables::events::CatalogueBuild &c, const events::Context &) {
-    c.helmets.push_back(wearables::helmets["giggles.helmet-exchange/hamilton_2017"]);
+events::on<wearables::events::CatalogueBuild>().before([](wearables::events::CatalogueBuild &c, const events::Context &) {
+    c.add(wearables::helmets["giggles.helmet-exchange/hamilton_2017"]);
 });
 ```
 

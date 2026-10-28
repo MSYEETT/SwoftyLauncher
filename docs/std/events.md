@@ -255,7 +255,7 @@ The owner's `replace` runs first in its own content, so it decides how the game 
 // Classic Seasons 2017: races in the 2017 package start on 2017 fuel loads
 on<tracks::events::FuelLoad>().in(content("swofty.classic-seasons-2017/f1_2017"))
     .replace([](tracks::events::FuelLoad &f, const Context &) {
-        f.kg = cs::fuel_2017(f.track);
+        f.kg = cs::fuel_2017(f.track());
         return true;
     });
 ```

@@ -396,13 +396,13 @@ Result set_control(live::Car car, Control mode);   // applied at the next safe m
 
 namespace events {
 
-struct PlayerControl {                         // Game_Set_VehicleController: before, replace and after
+struct PlayerControl {                             // Game_Set_VehicleController: before, replace and after
     static constexpr const char *point = "session.player.control";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    live::Car car;
+    cars::live::Car car;
     Control from, to;
-    int32_t reason;                            // the controller flag the switch sets or clears (0 to 17; PIT_LANE is 0)
+    int32_t reason;                                // the controller flag the switch sets or clears (0 to 17; PIT_LANE is 0)
 };
 
 } // namespace events

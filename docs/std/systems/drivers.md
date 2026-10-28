@@ -97,25 +97,41 @@ struct RatingsRead {                               // Career_Get_DriverStatValue
     static constexpr const char *point = "driver.ratings.read";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    Ref<Identity> driver;
+    const char *driver_id;
     Stat stat;                                     // experience, racecraft, awareness, pace, focus
     float value;                                   // before handlers may change it
+
+    Ref<Identity> driver() const { return swofty::detail::payload_ref<Identity>(driver_id); }
 };
 
 struct NumberAssign {                              // Career_DriverNumbers_AssignFree: before, replace
     static constexpr const char *point = "driver.number.assign";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    Ref<Identity> driver;
-    int number;                                    // the number the game picked
+    const char *driver_id;
+    int32_t number;
+
+    Ref<Identity> driver() const { return swofty::detail::payload_ref<Identity>(driver_id); }
 };
 
 struct HeadResolve {                               // Ent_EntrantsSystem_FindDriverHead: before
     static constexpr const char *point = "driver.head.resolve";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
-    Ref<Identity> driver;
-    Ref<Head> head;                                // the head the game found by label
+    const char *driver_id;
+    const char *head_id;
+    int32_t (*set_head_fn)(void *user, const char *id);
+    void *user;
+
+    Ref<Identity> driver() const { return swofty::detail::payload_ref<Identity>(driver_id); }
+    Ref<Head> head() const { return swofty::detail::payload_ref<Head>(head_id); }
+    Result set_head(const Ref<Head> &head)
+    {
+        if (!set_head_fn)
+            return Result::unavailable;
+        std::string id(head.id());
+        return swofty::detail::result(set_head_fn(user, id.c_str()));
+    }
 };
 
 }
@@ -347,12 +363,12 @@ SWOFTY_REGISTER
 // driver.ratings.read: the game reads statistics once at boot; this runs when the core builds the ratings table
 events::on<drivers::events::RatingsRead>().in(events::owner("swofty.progressive"))
     .before([](drivers::events::RatingsRead &r, const events::Context &ctx) {
-        r.value = progressive::season_rating(r.driver, r.stat, ctx.career()->year, r.value);
+        r.value = progressive::season_rating(r.driver(), r.stat, ctx.career()->year, r.value);
     });
 
 // driver.number.assign: keep a driver's own number
 events::on<drivers::events::NumberAssign>().replace([](drivers::events::NumberAssign &n, const events::Context &) {
-    if (n.driver.id() != "swofty.f1-1990/ayrton_senna") return false;
+    if (n.driver().id() != "swofty.f1-1990/ayrton_senna") return false;
     n.number = 27;
     return true;
 });
