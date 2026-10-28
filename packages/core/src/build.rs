@@ -4607,7 +4607,8 @@ mod tests {
         assert!(!built.order.iter().any(|id| id == "w3.hud"), "{:?}", built.order);
         assert!(
             built.warnings.contains(
-                &"Race HUD is left out: it needs a newer Swofty Launcher (unknown field `widgets`)".to_owned()
+                &"Race HUD is left out: it needs a newer Swofty Launcher (unknown field `widgets`)"
+                    .to_owned()
             ),
             "{:?}",
             built.warnings
