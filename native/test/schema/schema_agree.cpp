@@ -3,6 +3,7 @@
 // there), so run_schema_test.sh can diff the verdicts and error pointers of the two.
 //
 //   schema_agree <registries folder> <display prefix>
+//   schema_agree --patterns < cases.json    [[pattern, [text, ...]], ...] -> [[compiled, [matched, ...]], ...]
 
 #include "../../src/core/registry/schema.hpp"
 
@@ -283,8 +284,34 @@ void load_schemas(const fs::path &root)
 
 } // namespace
 
+int patterns()
+{
+    std::ostringstream in;
+    in << std::cin.rdbuf();
+    swofty::json::Error perr;
+    Value cases = swofty::json::parse(in.str(), &perr);
+    if (!perr.ok() || !cases.is_array()) {
+        std::cerr << "schema_agree: --patterns reads a JSON list of [pattern, [text, ...]]\n";
+        return 2;
+    }
+    Value out = Value::array();
+    for (auto &c : *cases.if_array()) {
+        Value schema = Value::object({{"type", "string"}, {"pattern", c[0]}});
+        auto s = Schema::compile(schema);
+        Value results = Value::array();
+        if (s)
+            for (auto &t : *c[1].if_array())
+                results.push_back(s->valid(t));
+        out.push_back(Value::array({s.has_value(), std::move(results)}));
+    }
+    std::cout << swofty::json::dump(out) << "\n";
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
+    if (argc == 2 && std::string_view(argv[1]) == "--patterns")
+        return patterns();
     if (argc < 3) {
         std::cerr << "usage: schema_agree <registries folder> <display prefix>\n";
         return 2;

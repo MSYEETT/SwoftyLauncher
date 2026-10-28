@@ -6,7 +6,9 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <map>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -200,6 +202,7 @@ static void patterns()
     expect(matches("", "x"), "empty pattern");
     expect(matches("\\d+\\.\\d", "v1.5"), "digit escapes");
     expect(!matches("^\\w+$", "a-b"), "word class");
+    expect(matches("^\\w+$", "P\u00e9rez") && !matches("^\\W$", "\u00e9"), "word class takes accented letters, as Python does");
     expect(matches("^\\w+$", "a_b9"), "word class 2");
     expect(matches("a\\sb", "a\tb"), "space class");
     expect(matches("\\bcat\\b", "a cat."), "word boundary");
@@ -558,8 +561,52 @@ static void speed()
     expect(ms < 5000, "1 MB validates in under 5 s");
 }
 
-int main()
+static void fuzz(int rounds)
 {
+    std::mt19937 rng(1606);
+    const std::string alphabet = "ab()[]{}|*+?.^$\\-,:=<>!P0129dwsbBAZxu^ \n";
+    auto pick = [&](const std::string &from, int n) {
+        std::string out;
+        for (int k = 0; k < n; ++k)
+            out += from[rng() % from.size()];
+        return out;
+    };
+    int compiled = 0;
+    for (int i = 0; i < rounds; ++i) {
+        std::string pattern = pick(alphabet, 1 + static_cast<int>(rng() % 12));
+        std::string schema = "{\"pattern\":" + swofty::json::dump(Value(pattern)) + "}";
+        auto s = Schema::compile(std::string_view(schema));
+        if (!s)
+            continue;
+        ++compiled;
+        for (int k = 0; k < 4; ++k)
+            (void)s->valid(Value(pick("ab()-_ \n{}\xc3\xa9", static_cast<int>(rng() % 20))));
+    }
+    const char *kinds[] = {"{}", "true", "false", R"({"type":"integer"})", R"({"x-key":"k","items":{"$ref":"#"}})",
+                           R"({"anyOf":[{"$ref":"#"},{"type":"null"}]})", R"({"additionalProperties":{"$ref":"#"},"required":["k"]})",
+                           R"({"items":{"$ref":"#"},"uniqueItems":true,"maxItems":3})", R"({"x-ref":"r","x-missing":{"allow":["optional"]}})"};
+    const char *values[] = {"null", "1", "1.5", "\"game/a?\"", "[]", "{}", R"([{"k":1},{"k":1.0,"$delete":true}])",
+                            R"({"k":{"k":[null]}})", R"([[[]],[[]]])", R"({"$delete":true,"k":"x|y"})"};
+    int combos = 0;
+    for (auto *k : kinds)
+        for (auto *v : values)
+            for (auto mode : {Mode::records, Mode::patch}) {
+                auto s = Schema::compile(std::string_view(k));
+                if (!s)
+                    continue;
+                Schema::Options o;
+                o.mode = mode;
+                o.keyed_paths = (combos & 1) != 0;
+                auto r = s->validate(P(v), o);
+                expect(r.ok() == s->valid(P(v), mode), std::string(k) + " on " + v + ": valid() agrees with validate()");
+                ++combos;
+            }
+    printf("fuzz: %d patterns, %d compiled; %d schema and value pairs\n", rounds, compiled, combos);
+}
+
+int main(int argc, char **argv)
+{
+    int rounds = argc > 1 ? std::atoi(argv[1]) : 20000;
     types();
     values();
     patterns();
@@ -570,6 +617,7 @@ int main()
     limits();
     data_files();
     speed();
+    fuzz(rounds);
     printf("%d checks, %d failed\n", checks, fails);
     return fails ? 1 : 0;
 }
