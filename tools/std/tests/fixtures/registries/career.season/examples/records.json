@@ -5,6 +5,11 @@
       "year": 2017,
       "teams": [ { "slot": 2, "team": "game/ferrari", "seats": ["game/sebastian_vettel", "game/kimi_raikkonen"] } ],
       "$protect": ["teams"]
+    },
+    "2017/what_if/ferrari": {
+      "data_group": "f1_career_progressive",
+      "year": 2017,
+      "teams": []
     }
   }
 }

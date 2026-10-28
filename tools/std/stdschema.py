@@ -8,6 +8,7 @@ VERSION_FILE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.json$")
 DATA_KEY = re.compile(r"^(?P<name>[a-z0-9][a-z0-9_.-]*?)(?:@(?P<major>[1-9][0-9]*))?$")
 PINNED_FILE = re.compile(r"^(?P<stem>.+?)@(?P<major>[1-9][0-9]*)(?:\.(?P<minor>0|[1-9][0-9]*))?\.json$")
 RECORD_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*/[^\s|?*]+$")
+RECORD_KEY = re.compile(r"^[^\s/?|*$][^\s?|*]*$")
 APPLIES = ("boot", "content", "session", "read")
 MISSING_POLICIES = ("required", "optional", "fallback")
 STATUSES = ("experimental", "stable", "superseded")
@@ -357,6 +358,71 @@ class Validator:
                 continue
             if items is not None:
                 self._check(items, element, path + [i], out, patch)
+
+
+def valid_key(key):
+    return bool(RECORD_KEY.match(key)) and not key.endswith("/") and "//" not in key
+
+
+def _object_schema(root, schema, name):
+    try:
+        schema = deref(root, schema)
+    except KeyError:
+        return {}
+    if not isinstance(schema, dict):
+        return {}
+    props = schema.get("properties", {})
+    if name in props:
+        return props[name]
+    extra = schema.get("additionalProperties", True)
+    return extra if isinstance(extra, dict) else {}
+
+
+def merge_patch(root, schema, base, patch):
+    if not isinstance(patch, dict):
+        return patch
+    out = dict(base) if isinstance(base, dict) else {}
+    for name, value in patch.items():
+        if value is None:
+            out.pop(name, None)
+            continue
+        sub = _object_schema(root, schema, name)
+        try:
+            sub = deref(root, sub)
+        except KeyError:
+            sub = {}
+        if isinstance(sub, dict) and "x-key" in sub and isinstance(value, list):
+            out[name] = merge_keyed(root, sub, out.get(name), value)
+        else:
+            out[name] = merge_patch(root, sub, out.get(name), value)
+    return out
+
+
+def merge_keyed(root, schema, base, patch):
+    fields = key_fields(schema["x-key"])
+    items = schema.get("items", {})
+    out = [dict(e) if isinstance(e, dict) else e for e in base] if isinstance(base, list) else []
+
+    def key_of(e):
+        if not isinstance(e, dict) or any(f not in e for f in fields):
+            return None
+        return tuple(canonical(e[f]) for f in fields)
+
+    for element in patch:
+        k = key_of(element)
+        if k is None:
+            out.append(element)
+            continue
+        at = next((i for i, e in enumerate(out) if key_of(e) == k), None)
+        if element.get("$delete") is True:
+            if at is not None:
+                out.pop(at)
+            continue
+        if at is None:
+            out.append(merge_patch(root, items, {}, element))
+        else:
+            out[at] = merge_patch(root, items, out[at], element)
+    return out
 
 
 def registry_schemas(root):

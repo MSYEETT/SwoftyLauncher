@@ -50,6 +50,16 @@ class Templates(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("templates: 1 addons, 0 failed", out)
 
+    def test_variant_base_in_the_addon(self):
+        self.addon("whatif", {
+            "swofty.json": {"id": "example.whatif"},
+            "registry/seasons.json": {"career.season": {"base": self.season}},
+            "registry/variants.json": {"career.season": {"v": {"extends": "example.whatif/base", "teams": [{"slot": 7}]}}},
+        })
+        code, out = self.run_main("--no-build")
+        self.assertEqual(code, 1)
+        self.assertIn("is required (merged onto example.whatif/base)", out)
+
     def test_invalid_layer(self):
         self.addon("whatif", {
             "swofty.json": {"id": "example.whatif"},
