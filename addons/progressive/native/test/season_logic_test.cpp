@@ -579,6 +579,45 @@ void season_start_standings_follow_the_previous_year()
     EXPECT(at_(stroll) >= static_cast<long>(want_first.size()));
 }
 
+void added_team_names_leave_the_dressed_slot_alone()
+{
+    season::IdentityNames ig = [](const std::string &team) -> std::optional<std::array<std::string, 3>> {
+        if (team == "ig.teampack/ig_racing")
+            return std::array<std::string, 3>{"IG Racing", "IG", "IGR"};
+        return std::nullopt;
+    };
+    auto stock = season::team_name_writes(g_data, 2016, ig);
+    auto key11 = g_data.slots[10].name_keys;
+    std::string manor = g_data.year(2016)->teams[10].name;
+    EXPECT(!manor.empty());
+    size_t seen = 0;
+    for (auto &w : stock)
+        if (w.key == key11[0] || w.key == key11[1] || w.key == key11[2]) {
+            EXPECT(!w.clear && w.text == manor);
+            ++seen;
+        }
+    EXPECT(seen == 3);
+
+    season::Data layered = g_data;
+    layered.years.at(2016).teams[10].team_id = "ig.teampack/ig_racing";
+    auto got = season::team_name_writes(layered, 2016, ig);
+    EXPECT(got.size() == stock.size());
+    for (size_t i = 0; i < got.size() && i < stock.size(); ++i) {
+        bool slot11 = got[i].key == key11[0] || got[i].key == key11[1] || got[i].key == key11[2];
+        if (!slot11)
+            EXPECT(got[i].key == stock[i].key && got[i].text == stock[i].text && got[i].clear == stock[i].clear);
+    }
+    for (size_t k = 0; k < 3; ++k)
+        for (auto &w : got)
+            if (w.key == key11[k])
+                EXPECT(!w.clear && w.text == (k == 0 ? "IG Racing" : k == 1 ? "IG" : "IGR"));
+
+    auto none = season::team_name_writes(layered, 2016, nullptr);
+    for (auto &w : none)
+        if (w.key == key11[0])
+            EXPECT(w.clear);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -612,6 +651,7 @@ int main(int argc, char **argv)
     ten_team_years_bring_cadillac_back_in_2026();
     season_start_standings_follow_the_previous_year();
     season_start_standings_skip_a_closed_slot();
+    added_team_names_leave_the_dressed_slot_alone();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;
