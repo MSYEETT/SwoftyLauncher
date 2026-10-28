@@ -703,10 +703,15 @@ fn restoring_the_game_folder_keeps_the_career_index_and_the_stat_id_store() {
     let kept = swofty_core::stdlib::careers::read(&swofty_core::stdlib::careers::data_path(&f.data));
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].profile.as_deref(), Some("with"));
+    assert_eq!(
+        std::fs::read_to_string(swofty_core::stdlib::careers::kept_ids(&f.data)).unwrap(),
+        "{\"track\":{\"mod.sochi/sochi\":18}}"
+    );
     f.session(&f.with_addon(), |f| {
-        assert_eq!(
-            f.read("swofty/registry/ids.json").as_deref(),
-            Some("{\"track\":{\"mod.sochi/sochi\":18}}")
-        );
+        assert!(f.read("swofty/registry/ids.json").is_none());
+        let state = f
+            .read("swofty/state.json")
+            .expect("the install names the state folder");
+        assert!(state.contains("\"state_dir\""), "{state}");
     });
 }

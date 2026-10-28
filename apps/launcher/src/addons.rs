@@ -713,10 +713,8 @@ impl Shell {
             .then(|| conflicts::last(&self.store, &profile))
             .flatten();
         let game = self.panel_install().map(|i| i.dir);
-        let registry = game
-            .as_deref()
-            .and_then(swofty_core::stdlib::reports::Conflicts::read);
-        let room = game.as_deref().and_then(swofty_core::stdlib::reports::Room::read);
+        let registry = swofty_core::stdlib::reports::Conflicts::read(&self.store.root, game.as_deref());
+        let room = swofty_core::stdlib::reports::Room::read(&self.store.root, game.as_deref());
         self.addons.status = swofty_core::stdlib::reports::status_lines(registry.as_ref(), room.as_ref());
         self.addons.registry_conflicts = registry
             .map(|c| {

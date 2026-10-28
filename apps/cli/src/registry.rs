@@ -86,14 +86,11 @@ fn check(store: &Store, profile: &str) -> Result<ExitCode> {
 }
 
 fn conflicts(store: &Store) {
-    let Some(game) = game_dir(store) else {
-        println!("no copy of F1 25 found; see swofty game list");
-        return;
-    };
-    let Some(c) = reports::Conflicts::read(&game) else {
+    let game = game_dir(store);
+    let Some(c) = reports::Conflicts::read(&store.root, game.as_deref()) else {
         println!(
             "no conflicts report yet: the core writes {} at each session load",
-            reports::path(&game, reports::CONFLICTS).display()
+            reports::path(&store.root, reports::CONFLICTS).display()
         );
         return;
     };
@@ -115,12 +112,10 @@ fn conflicts(store: &Store) {
 
 /// The status lines of every addon from the last session's reports.
 pub fn status(store: &Store) -> BTreeMap<String, Vec<String>> {
-    let Some(game) = game_dir(store) else {
-        return BTreeMap::new();
-    };
+    let game = game_dir(store);
     reports::status_lines(
-        reports::Conflicts::read(&game).as_ref(),
-        reports::Room::read(&game).as_ref(),
+        reports::Conflicts::read(&store.root, game.as_deref()).as_ref(),
+        reports::Room::read(&store.root, game.as_deref()).as_ref(),
     )
 }
 

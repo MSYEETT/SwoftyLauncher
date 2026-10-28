@@ -106,7 +106,7 @@ count() {
     if [[ $n == "$2" ]]; then echo "ok  : $1"; else echo "FAIL: $1 (logged $n times, want $2)"; status=1; fi
 }
 CACHE=$OUT/game/swofty/cache/scan-cache.tsv
-for mode in trigger fallback vm settings settings_local session gamelog_off assets assets_ro nearfull nopool cache_ro; do
+for mode in trigger fallback vm settings settings_local session state gamelog_off assets assets_ro nearfull nopool cache_ro; do
     echo "==== $mode"
     if [[ $mode == cache_ro ]]; then
         rm -rf "$OUT/game/swofty/cache" "$WINEPREFIX"/drive_c/users/*/AppData/Local/Swofty/cache/game
@@ -170,6 +170,16 @@ EOF
         rm -rf "$KEPT"
         chmod -R a-w "$OUT/game/swofty/addons/example.sample-mod"
         [[ -w $OUT/game/swofty/addons/example.sample-mod ]] && ro_skip=1
+    fi
+    if [[ $mode == state ]]; then
+        STATE_DIR="$OUT/state-dir-üス"
+        rm -rf "$STATE_DIR" "$OUT/game/swofty/registry/ids.json" "$OUT/game/swofty/registry/room.json"
+        mkdir -p "$OUT/game/swofty/registry"
+        printf '{"version":1,"ids":{"track":{"wine.state/old":{"id":4242}}}}' >"$OUT/game/swofty/registry/ids.json"
+        python3 - "$OUT/game/swofty/state.json" "$(winepath -w "$STATE_DIR" | tr -d '\r')" <<'EOF'
+import json, sys
+json.dump({'version': 1, 'state_dir': sys.argv[2]}, open(sys.argv[1], 'w'))
+EOF
     fi
     gl_level=; gl_rate=
     [[ $mode == gamelog_off ]] && gl_level=off
@@ -237,6 +247,19 @@ PY
         done
     fi
     case $mode in
+    state)
+        once "state: the core names the folder the launcher gave it" '\[state\] the core.s state files are in .*state-dir-.*\(from swofty/state\.json\)'
+        once "state: the old stat-id store moves to it" '\[registry\] stat ids: moved ids\.json from the game folder to .*state-dir-.*registry.ids\.json'
+        once "state: the moved stat ids are loaded" '\[registry\] stat ids: ids\.json holds 1 id\(s\)'
+        once "state: room.json is written there" '\[registry\] room report written to .*state-dir-.*registry.room\.json'
+        count "state: nothing fails to write" 0 '\[state\] .*can.t write to'
+        if [[ -s $STATE_DIR/registry/room.json && -s $STATE_DIR/registry/ids.json && ! -e $OUT/game/swofty/registry/room.json && ! -e $OUT/game/swofty/registry/ids.json ]]; then
+            echo "ok  : state: room.json and ids.json are in the state folder and not in the game folder"
+        else
+            echo "FAIL: state: room.json and ids.json are in the state folder and not in the game folder"; status=1
+        fi
+        rm -rf "$STATE_DIR" "$OUT/game/swofty/state.json"
+        ;;
     trigger)
         once "hook pool: the loader reserves it next to the image at attach" 'hook pool: 2048 KB reserved at [0-9A-Fa-f]+ \((above|below) the image\)'
         once "hook pool: the core adopts it" '\[core\] hook pool: 2048 KB at 0x[0-9a-f]+ \(base[-+]0x[0-9a-f]+\), reserved at loader attach'

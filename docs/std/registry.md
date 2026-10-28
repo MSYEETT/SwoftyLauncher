@@ -356,7 +356,7 @@ Other records point at the shared id instead of at one addon's record. A 2016 ca
 
 Database-backed records (cars, teams, drivers, tracks, setup modes, looks) need a `stat_id`. The core allocates the ones left at `StatId::automatic`, in the game:
 
-- **One store per install.** The core keeps every id it has allocated in `<game>/swofty/registry/ids.json`, keyed by record id. A record gets the same id at every game start.
+- **One store per install.** The core keeps every id it has allocated in `$DATA/registry/ids.json` (the launcher's data folder), keyed by record id. A record gets the same id at every game start.
 - **An id is reused only when no career uses it.** When an addon is removed, its records' ids stay reserved while any career still refers to them.
 - **Each career carries its own id map.** The career's save entry holds the stat id of every record the career refers to. A save that Steam Cloud brings to another PC loads with the ids it was saved with, and a track or a driver can't change places.
 

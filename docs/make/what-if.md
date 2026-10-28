@@ -73,7 +73,7 @@ See [Career](/std/systems/career#progressive-s-career-mode) for the full records
 
 <Split>
 
-The page shows a tab per Progressive season, with the season's grid and ratings from the last session's `swofty/registry/effective.json`, which the core writes each time a session loads. Before the game has run once, it shows the tabs 2016 to 2026 and asks the player to start the game once.
+The page shows a tab per Progressive season, with the season's grid and ratings from the last session's `registry/effective.json` in the launcher's data folder, which the core writes each time a session loads. Before the game has run once, it shows the tabs 2016 to 2026 and asks the player to start the game once.
 
 An edited cell writes the edit into the addon's state for the active profile with `set_state`. The build step writes that state into the addon's folder in the game, where the DLL reads it, and writes an empty file for a profile with no edits. Each profile has its own edits, so a "what if" profile and a real-history profile sit side by side.
 
@@ -177,7 +177,7 @@ addon whatif.dll: calling SwoftyAddonRegister (API v9) at the early stage
 [registry] register: tails.whatif-history 2 layer(s)
 ```
 
-`swofty/registry/effective.json` shows each changed field with `tails.whatif-history` as its origin:
+`registry/effective.json` shows each changed field with `tails.whatif-history` as its origin:
 
 ```json
 "swofty.progressive/2017": {
@@ -189,7 +189,7 @@ addon whatif.dll: calling SwoftyAddonRegister (API v9) at the early stage
 }
 ```
 
-If another addon changes the same seat, `swofty/registry/conflicts.json` lists both, and the later one in load order wins.
+If another addon changes the same seat, `registry/conflicts.json` lists both, and the later one in load order wins.
 
 A career copies each season's grid and ratings when that season starts. A career already in 2017 keeps the grid it started 2017 with. A career still in 2016 races the edit when it reaches 2017.
 

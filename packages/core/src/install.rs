@@ -639,6 +639,20 @@ impl<'a> Installer<'a> {
         if plan.is_vanilla() {
             return Ok(());
         }
+        let mut with_state;
+        let plan = if plan.loader.is_empty() {
+            plan
+        } else {
+            let file = self.data.join("state").join("core-state.json");
+            let dir = file.parent().expect("has parent");
+            std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+            std::fs::write(&file, crate::stdlib::state::text(self.data)).map_err(io_err(&file))?;
+            with_state = plan.clone();
+            with_state
+                .loader
+                .insert(crate::stdlib::state::FILE.to_owned(), file);
+            &with_state
+        };
         let loaded = self.baseline()?;
         let space = self.space(plan, &loaded);
         for (dir, v, need) in &space {
@@ -934,8 +948,10 @@ impl<'a> Installer<'a> {
                 ));
             }
         }
-        if !plan.loader.is_empty() && crate::stdlib::careers::put_back_ids(self.data, &self.game.dir)? {
-            (self.out)("registry: put back the stat-id store kept when the game folder was restored");
+        if !plan.loader.is_empty() {
+            for line in crate::stdlib::state::migrate(self.data, &self.game.dir)? {
+                (self.out)(&line);
+            }
         }
         j.commit()
     }

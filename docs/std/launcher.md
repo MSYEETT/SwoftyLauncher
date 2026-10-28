@@ -98,22 +98,30 @@ After each session, the core writes `registry/catalog.json`: what actually loade
 
 ## The registry folder in the game
 
-The build writes one index, so the core finds data-file addons (they have no DLL in `settings.json`'s `plugins`). The core writes the reports:
+The build writes one index, so the core finds data-file addons (they have no DLL in `settings.json`'s `plugins`). The core writes its reports and state files in the launcher's data folder, not the game folder, so one stat-id store serves the install whatever happens to the game folder: a restore of it, or a session whose writes go to an OverlayFS layer. The install names the data folder in `swofty/state.json`, as the game sees the path (`Z:\...` under Wine and Proton); the core reads `SWOFTY_STATE_DIR` first. A core that can't write there keeps its files in `<game>/swofty/registry/`, and the launcher reads both.
 
 ```text
-<game>/swofty/
+$DATA/
   registry/
-    index.json                          load order and each enabled addon's data files, written by the build
     catalog.json                        written by the core after each session: what loaded
     effective.json                      written by the core at each session load and on a crash
     conflicts.json                      written by the core at each session load
     room.json                           written by the core after each boot: how full the game database is
     ids.json                            the stat-id store, kept by the core
+  careers/
+    index.json                          the career index
+
+<game>/swofty/
+  state.json                            names $DATA to the core, placed by the install
+  registry/
+    index.json                          load order and each enabled addon's data files, written by the build
   addons/
     mod.esp/registry/sounds.json        a data file, installed with its addon
     mod.esp/registry/layers.json
     tails.whatif-history/profile/whatif.json   that addon's per-profile data, put there by its build step
 ```
+
+The archives the core builds for team logos stay under `<game>/swofty/addons/swofty.logos/`: the game's file system reaches only files under the game folder.
 
 ```json
 // index.json
@@ -147,7 +155,7 @@ The only popups are guards that stop a load (see [Guards](/std/dependencies#guar
 
 ## Editing a layer from a launcher page
 
-A launcher page edits the addon's own data and nothing else, with these host calls: `get_state` and `set_state` for the per-profile state, the `build` reply to put it in the game, and `game_dir` to show the last session's grid. This is Tails' page, written against the launcher plugin template:
+A launcher page edits the addon's own data and nothing else, with these host calls: `get_state` and `set_state` for the per-profile state, the `build` reply to put it in the game, and `registry_dir` to show the last session's grid. This is Tails' page, written against the launcher plugin template:
 
 ```rust
 // launcher/src/main.rs
@@ -156,8 +164,8 @@ use serde_json::{Value, json};
 // the page: one row per season and slot, from the last session's effective.json, with this profile's edits on top
 fn view_history(host: &mut Host) -> Value {
     let edits = host.call("get_state", Value::Null).unwrap_or(Value::Null);   // null: nothing edited in this profile
-    let last = host.call("game_dir", Value::Null).ok()
-        .and_then(|d| d.as_str().map(|d| format!("{d}/swofty/registry/effective.json")))
+    let last = host.call("registry_dir", Value::Null).ok()
+        .and_then(|d| d.as_str().map(|d| format!("{d}/effective.json")))
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|t| serde_json::from_str::<Value>(&t).ok())
         .unwrap_or(Value::Null);                                              // null until the game has run once
@@ -267,7 +275,7 @@ Reordering addons resolves field conflicts the same way it resolves file conflic
 
 ## Send Logs
 
-The bundle adds the core's `registry/effective.json`, `registry/conflicts.json` and `registry/catalog.json`. `effective.json` is written at each session load and on a crash. It holds each registry's effective records, with the origin of every field that a layer changed:
+The bundle adds the core's `registry/effective.json` (from the data folder, or the game folder when the core kept it there), `registry/conflicts.json` and `registry/catalog.json`. `effective.json` is written at each session load and on a crash. It holds each registry's effective records, with the origin of every field that a layer changed:
 
 ```json
 {

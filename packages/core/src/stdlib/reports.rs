@@ -1,4 +1,5 @@
-//! The reports the core writes in `<game>/swofty/registry/` (docs/std/launcher.md):
+//! The reports the core writes in `$DATA/registry/` (the launcher's data folder, which it names in
+//! `<game>/swofty/state.json`; docs/std/launcher.md):
 //! `conflicts.json` and `effective.json` at each session load, `catalog.json`
 //! after each session, and `room.json` after each boot. The launcher shows
 //! the last ones, marked "as of your last session", and nothing depends on
@@ -10,22 +11,44 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
 
-pub const DIR: &str = "swofty/registry";
+pub const DIR: &str = "registry";
+/// Where the core wrote them before 1.6.0 gave it the data folder, and where it still writes them
+/// when it can't use the data folder.
+pub const LEGACY_DIR: &str = "swofty/registry";
 pub const CONFLICTS: &str = "conflicts.json";
 pub const EFFECTIVE: &str = "effective.json";
 pub const CATALOG: &str = "catalog.json";
 pub const ROOM: &str = "room.json";
 /// The core's stat-id store (docs/std/dependencies.md "Tracks have stable identities").
 pub const IDS: &str = "ids.json";
-/// The reports Send Logs adds, by their name in `<game>/swofty/registry/`.
+/// The reports Send Logs adds, by their name in `$DATA/registry/`.
 pub const SENT: [&str; 4] = [EFFECTIVE, CONFLICTS, CATALOG, ROOM];
 
-pub fn dir(game: &Path) -> PathBuf {
-    game.join(DIR)
+pub fn dir(data: &Path) -> PathBuf {
+    data.join(DIR)
 }
 
-pub fn path(game: &Path, name: &str) -> PathBuf {
-    dir(game).join(name)
+pub fn path(data: &Path, name: &str) -> PathBuf {
+    dir(data).join(name)
+}
+
+pub fn legacy_path(game: &Path, name: &str) -> PathBuf {
+    game.join(LEGACY_DIR).join(name)
+}
+
+/// The report `name`: the data folder's, else the game folder's, when the core couldn't use the data
+/// folder or hasn't written there since the move.
+pub fn found(data: &Path, game: Option<&Path>, name: &str) -> Option<PathBuf> {
+    let now = path(data, name);
+    if now.is_file() {
+        return Some(now);
+    }
+    let old = legacy_path(game?, name);
+    old.is_file().then_some(old)
+}
+
+fn read_report(data: &Path, game: Option<&Path>, name: &str) -> Option<String> {
+    std::fs::read_to_string(found(data, game, name)?).ok()
 }
 
 /// One entry of `conflicts.json`'s `registry` list.
@@ -229,8 +252,8 @@ impl Conflicts {
         Some(Self { registry, status })
     }
 
-    pub fn read(game: &Path) -> Option<Self> {
-        Self::parse(&std::fs::read_to_string(path(game, CONFLICTS)).ok()?)
+    pub fn read(data: &Path, game: Option<&Path>) -> Option<Self> {
+        Self::parse(&read_report(data, game, CONFLICTS)?)
     }
 }
 
@@ -284,8 +307,8 @@ impl Room {
         serde_json::from_str(text).ok()
     }
 
-    pub fn read(game: &Path) -> Option<Self> {
-        Self::parse(&std::fs::read_to_string(path(game, ROOM)).ok()?)
+    pub fn read(data: &Path, game: Option<&Path>) -> Option<Self> {
+        Self::parse(&read_report(data, game, ROOM)?)
     }
 
     pub fn presize_unavailable(&self) -> bool {
