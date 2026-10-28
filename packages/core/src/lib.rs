@@ -54,6 +54,7 @@ pub mod send_logs;
 pub mod session;
 pub mod settings;
 pub mod setup;
+pub mod stdlib;
 pub mod steam;
 pub mod steam_client;
 pub mod stock;
