@@ -5,21 +5,20 @@
 //   career.season          one record per year, key "2017" (swofty.progressive/2017): the data group, the
 //                          year's box (Classic Seasons' box of that year with game/f1_2025 as the
 //                          fallback, the stock box otherwise), the line-up by career slot and the real
-//                          mid-season changes (until_round: stand_in, else swap);
+//                          mid-season changes with their kind (swap, stand_in, move, replace);
 //   career.driver_ratings  one record per driver of each year, key "2017/game/lewis_hamilton": the four
-//                          ratings the schema holds, rounded to whole numbers.
-// What the typed fields can't hold rides in each record's extra under "progressive", so the records
-// carry every field of years.json. A season keeps the rest of each team ("teams", keyed "slot=1") and of
-// each change ("changes", keyed "round=15,slot=7,seat=1"), the season's own lists as they are, its slice
-// of the driver pool ("pool": slot, look and number that year), its ratings source and the file's
-// addon-wide fields ("addon"). A rating keeps the exact values with focus, overall and source.
+//                          ratings the schema holds, as years.json has them.
+// What the typed fields can't hold of a season's own data rides in the record's extra under
+// "progressive". A season keeps the rest of each team ("teams", keyed "slot=1") and of each change
+// ("changes", keyed "round=15,slot=7,seat=1"), the season's own lists as they are, its slice of the
+// driver pool ("pool": slot, look and number that year) and its ratings source. A rating keeps focus,
+// overall, official_overall and source. years.json's addon-wide fields (slots, stat ids, logo keys, the
+// pool's per-driver constants, the ratings model) stay private config and go in no record.
 // Drivers the stock game has are game/<label>, the others person/<label>; teams are constructor ids made
 // from their real name, and a slot with no real team that year is empty. The other DLLs still read
 // years.json; this file only registers.
 
-#include <algorithm>
 #include <charconv>
-#include <cmath>
 #include <initializer_list>
 #include <set>
 #include <string>
@@ -100,10 +99,25 @@ BoxRef box_ref(int year, const json::Value &season)
         .or_else(BoxRef(kFallbackBox));
 }
 
-int rating(const json::Value &v)
+float rating(const json::Value &v)
 {
-    double x = std::clamp(v.as_double(), 0.0, 100.0);
-    return static_cast<int>(std::lround(x));
+    return static_cast<float>(v.as_double());
+}
+
+career::ChangeKind change_kind(std::string_view kind)
+{
+    if (kind == "stand_in")
+        return career::ChangeKind::stand_in;
+    if (kind == "move")
+        return career::ChangeKind::move;
+    if (kind == "replace")
+        return career::ChangeKind::replace;
+    return career::ChangeKind::swap;
+}
+
+bool known_kind(std::string_view kind)
+{
+    return kind == "swap" || kind == "stand_in" || kind == "move" || kind == "replace";
 }
 
 void refused(Counts &n, const std::string &what)
@@ -113,20 +127,6 @@ void refused(Counts &n, const std::string &what)
         std::string why = swofty::last_error();
         n.first_refusal = what + (why.empty() ? "" : ": " + why);
     }
-}
-
-json::Value addon_block(const json::Value &doc)
-{
-    json::Value block = without(doc, {"seasons", "data_group"});
-    if (const json::Array *pool = doc["pool"].if_array()) {
-        json::Value constant = json::Value::array();
-        for (const json::Value &p : *pool)
-            constant.push_back(without(p, {"years", "looks", "numbers"}));
-        block["pool"] = std::move(constant);
-    }
-    if (doc["ratings"].is_object())
-        block["ratings"] = without(doc["ratings"], {"years", "sources"});
-    return block;
 }
 
 json::Value pool_slice(const json::Value &doc, std::string_view year)
@@ -181,11 +181,10 @@ career::SeasonChange season_change(const json::Value &c, const std::set<std::str
         .seat = static_cast<int>(c["seat"].as_int()),
         .out = driver_ref(c["out"], stock),
         .in = driver_ref(c["in"], stock),
+        .kind = change_kind(c["kind"].as_string()),
     };
-    if (c["until_round"].is_int()) {
+    if (c["until_round"].is_int())
         change.until_round = static_cast<int>(c["until_round"].as_int());
-        change.kind = career::ChangeKind::stand_in;
-    }
     return change;
 }
 
@@ -195,7 +194,7 @@ std::string change_key(const career::SeasonChange &c)
 }
 
 career::Season season_record(const json::Value &doc, std::string_view key, int year, const json::Value &s,
-                             const std::set<std::string, std::less<>> &stock, const json::Value &addon)
+                             const std::set<std::string, std::less<>> &stock)
 {
     career::Season season{
         .data_group = std::string(doc["data_group"].as_string()),
@@ -220,6 +219,8 @@ career::Season season_record(const json::Value &doc, std::string_view key, int y
                 json::Value rest = without(c, {"round", "slot", "seat", "out", "in"});
                 if (change.until_round)
                     rest.erase("until_round");
+                if (known_kind(c["kind"].as_string()))
+                    rest.erase("kind");
                 changes[change_key(change)] = std::move(rest);
                 season.changes.push_back(std::move(change));
             }
@@ -228,7 +229,6 @@ career::Season season_record(const json::Value &doc, std::string_view key, int y
     extra["pool"] = pool_slice(doc, key);
     if (const json::Value *source = doc["ratings"]["sources"].find(key))
         extra["ratings_source"] = *source;
-    extra["addon"] = addon;
     season.extra = json::Value::object({{"progressive", std::move(extra)}});
     return season;
 }
@@ -248,8 +248,12 @@ void add_ratings(const json::Value &doc, std::string_view key, swofty::Ref<caree
             .racecraft = rating(v["racecraft"]),
             .awareness = rating(v["awareness"]),
             .pace = rating(v["pace"]),
-            .extra = json::Value::object({{"progressive", v}}),
         };
+        json::Value rest = v;
+        for (std::string_view k : {"experience", "racecraft", "awareness", "pace"})
+            if (v[k].is_number())
+                rest.erase(k);
+        r.extra = json::Value::object({{"progressive", std::move(rest)}});
         std::string rkey = std::string(key) + "/" + std::string(driver.id());
         if (career::ratings.add(rkey, std::move(r)).empty())
             refused(n, "career.driver_ratings " + rkey);
@@ -280,7 +284,6 @@ SWOFTY_REGISTER
         for (const json::Value &p : *pool)
             if (p["source"].as_string() == "stock" && p["driver"].is_string())
                 stock.emplace(p["driver"].as_string());
-    const json::Value addon = addon_block(doc);
     Counts n;
     for (const auto &[key, s] : *doc["seasons"].if_object()) {
         int year = 0;
@@ -289,7 +292,7 @@ SWOFTY_REGISTER
             refused(n, "career.season " + key + " (not a year)");
             continue;
         }
-        swofty::Ref<career::Season> season = career::seasons.add(key, season_record(doc, key, year, s, stock, addon));
+        swofty::Ref<career::Season> season = career::seasons.add(key, season_record(doc, key, year, s, stock));
         if (season.empty()) {
             refused(n, "career.season " + key);
             season = career::seasons[std::string(kAddon) + "/" + key];

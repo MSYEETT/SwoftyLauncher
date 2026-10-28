@@ -28,12 +28,13 @@
 //   elements are matched by key: "teams/slot=1/seats/0" is the first seat of the element of
 //   "teams" whose "slot" is 1, and "changes/round=15,slot=8,seat=1" names a several-field key.
 //   A key value with ',' or '=' in it is written as a JSON string: id="a,b".
-// - merge_patch is RFC 7396 extended for keyed lists (Keys): a non-empty patch list at a keyed path
-//   whose elements all carry the key fields (as strings, numbers or bools) merges element by element,
-//   each one a merge patch on the target's element with that key, appending keys the target lacks;
-//   an element with "$delete": true removes the target's element with that key. Any other patch list,
-//   an empty one included, replaces the target's list whole, as in RFC 7396. A "$delete" in a keyed
-//   list that can't merge by key, or one that isn't a bool, is an error and nothing changes.
+// - merge_patch is RFC 7396 extended for keyed lists (Keys). A patch list at a keyed path merges
+//   element by element, each one a merge patch on the target's element with the same key fields
+//   (strings, numbers or bools), appending keys the target lacks; an element with "$delete": true
+//   removes the target's element with that key. An empty patch list changes nothing (a missing list
+//   becomes an empty one). An element without all its key fields, or a "$delete" that isn't a bool, is
+//   an error, and nothing changes. A list at a path that isn't keyed replaces the target's whole, as in
+//   RFC 7396.
 
 namespace swofty::json {
 
@@ -1084,25 +1085,23 @@ inline bool check_patch(const Value &patch, const Keys &keys, std::string &path,
     auto fields = keys.find(path);
     if (!fields)
         return true;
-    bool keyed = !a->empty();
-    for (auto &e : *a)
-        keyed = keyed && holds_keys(e, *fields);
     for (std::size_t k = 0; k < a->size(); ++k) {
-        auto d = (*a)[k].find("$delete");
-        if (!d)
-            continue;
-        if (!d->is_bool())
+        auto &e = (*a)[k];
+        if (!holds_keys(e, *fields)) {
+            std::string names;
+            for (auto &f : *fields)
+                names += (names.empty() ? "" : ", ") + f;
+            return fail(err, path + "/" + std::to_string(k) + ": an element of a keyed list needs its key fields (" + names +
+                                 ") as strings, numbers or bools");
+        }
+        auto d = e.find("$delete");
+        if (d && !d->is_bool())
             return fail(err, path + "/" + std::to_string(k) + ": \"$delete\" must be true or false");
-        if (!keyed)
-            return fail(err, path + "/" + std::to_string(k) +
-                                 ": \"$delete\" needs every element of the list to carry its key fields");
     }
-    if (!keyed)
-        return true;
     auto len = path.size();
     path += "/*";
     for (auto &e : *a)
-        if (!check_patch(e, keys, path, err))
+        if (!is_delete(e) && !check_patch(e, keys, path, err))
             return false;
     path.resize(len);
     return true;
@@ -1163,13 +1162,8 @@ inline void apply(Value &target, const Value &patch, const Keys &keys, std::stri
     }
     if (auto pa = patch.if_array()) {
         if (auto fields = keys.find(path)) {
-            bool keyed = !pa->empty();
-            for (auto &e : *pa)
-                keyed = keyed && holds_keys(e, *fields);
-            if (keyed) {
-                apply_keyed(target, *pa, *fields, keys, path);
-                return;
-            }
+            apply_keyed(target, *pa, *fields, keys, path);
+            return;
         }
     }
     target = patch;

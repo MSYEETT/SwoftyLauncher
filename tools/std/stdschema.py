@@ -364,6 +364,10 @@ def valid_key(key):
     return bool(RECORD_KEY.match(key)) and not key.endswith("/") and "//" not in key
 
 
+class MergeError(Exception):
+    pass
+
+
 def _object_schema(root, schema, name):
     try:
         schema = deref(root, schema)
@@ -371,14 +375,13 @@ def _object_schema(root, schema, name):
         return {}
     if not isinstance(schema, dict):
         return {}
-    props = schema.get("properties", {})
-    if name in props:
-        return props[name]
-    extra = schema.get("additionalProperties", True)
-    return extra if isinstance(extra, dict) else {}
+    return schema.get("properties", {}).get(name, {})
 
 
 def merge_patch(root, schema, base, patch):
+    """RFC 7396 with keyed lists, as swofty::json::merge_patch does it with the schema's keys: a keyed
+    list is found through properties and the items of keyed lists. Raises MergeError, changing nothing,
+    when an element of a keyed list lacks a key field or has a "$delete" that isn't a bool."""
     if not isinstance(patch, dict):
         return patch
     out = dict(base) if isinstance(base, dict) else {}
@@ -398,30 +401,41 @@ def merge_patch(root, schema, base, patch):
     return out
 
 
+def _scalar_key(v):
+    return isinstance(v, (str, int, float, bool)) and not (isinstance(v, float) and not math.isfinite(v))
+
+
 def merge_keyed(root, schema, base, patch):
+    """A keyed list merges element by element. An empty patch list changes nothing (a missing list
+    becomes an empty one), "$delete": true removes the element with that key, and an element without
+    all its key fields is a MergeError."""
     fields = key_fields(schema["x-key"])
     items = schema.get("items", {})
     out = [dict(e) if isinstance(e, dict) else e for e in base] if isinstance(base, list) else []
 
     def key_of(e):
-        if not isinstance(e, dict) or any(f not in e for f in fields):
+        if not isinstance(e, dict) or any(f not in e or not _scalar_key(e[f]) for f in fields):
             return None
         return tuple(canonical(e[f]) for f in fields)
 
-    for element in patch:
+    for i, element in enumerate(patch):
         k = key_of(element)
         if k is None:
-            out.append(element)
+            raise MergeError(f"element {i} of a keyed list needs its key fields ({', '.join(fields)})")
+        if "$delete" in element and not isinstance(element["$delete"], bool):
+            raise MergeError(f"element {i} has a \"$delete\" that isn't true or false")
+    for element in patch:
+        k = key_of(element)
+        if element.get("$delete") is True:
+            out = [e for e in out if key_of(e) != k]
             continue
         at = next((i for i, e in enumerate(out) if key_of(e) == k), None)
-        if element.get("$delete") is True:
-            if at is not None:
-                out.pop(at)
-            continue
         if at is None:
             out.append(merge_patch(root, items, {}, element))
+            at = len(out) - 1
         else:
             out[at] = merge_patch(root, items, out[at], element)
+        out[at].pop("$delete", None)
     return out
 
 

@@ -5,14 +5,15 @@
 
 --zip writes <out>/<id>.zip instead; the launcher installs either.
 
-Only swofty.json, LICENSE, README.md, the icon, the launcher plugin's programs and the files the manifest's
-operations name go in, plus every
+Only swofty.json, LICENSE, README.md, the icon, the launcher plugin's programs, the standard library's
+registry.json, registry.lock.json and registry/ data files, and the files the manifest's operations name go in,
+plus every
 file an operation file names in a "source" or "sources" field (texture fragments, VTFs, UI files). Entries are
 sorted with a fixed timestamp and mode, so the same inputs give the same bytes.
 """
 import json, os, sys, zipfile
 
-OPTIONAL = ('LICENSE', 'README.md')
+OPTIONAL = ('LICENSE', 'README.md', 'registry.json', 'registry.lock.json', 'registry')
 
 
 def wanted(m):

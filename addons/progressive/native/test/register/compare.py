@@ -3,23 +3,29 @@
 #
 # Compares what register.cpp registered (fake_core's capture) with data/years.json: every typed field
 # of every career.season and career.driver_ratings record against the value the rules give from
-# years.json, then rebuilds years.json from the records alone (typed fields plus extra.progressive) and
-# requires it to equal the file. Writes each record to <records>/<registry>/<key>.json and the seasons
-# as one registry data file, for tools/std/validate.py.
+# years.json, then rebuilds the per-season part of years.json from the records alone (typed fields plus
+# extra.progressive) and requires it to equal the file's: the seasons, each driver's per-year pool
+# entries, the ratings and their sources. The addon-wide fields (ADDON_WIDE) are private config and in
+# no record. Ratings are floats in the records, so they compare at float precision. Writes each record
+# to <records>/<registry>/<key>.json and the seasons as one registry data file, for validate.py.
 #
 #   compare.py <captured.json> <years.json> <records dir> [SDK registries dir]
 
 import copy
 import json
-import math
 import re
+import struct
 import sys
 from pathlib import Path
 
 ADDON = "swofty.progressive"
 SEASON = "career.season"
 RATINGS = "career.driver_ratings"
-SEASON_EXTRA = ("teams", "changes", "pool", "ratings_source", "addon")
+SEASON_EXTRA = ("teams", "changes", "pool", "ratings_source")
+KINDS = ("swap", "stand_in", "move", "replace")
+STATS = ("experience", "racecraft", "awareness", "pace")
+ADDON_WIDE = "schema_version, generated_by, suffix, mode, seasons_in_schedule, years, slots, reserved, notes, " \
+             "logo_keys, pool[].{stat_id, source, on_2026_grid, entrant, default_look, number}, ratings.{stats, model, counts}"
 
 failures = []
 
@@ -60,8 +66,10 @@ def slug(name):
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
-def rounded(x):
-    return int(math.floor(min(max(x, 0.0), 100.0) + 0.5))
+def f32(x):
+    if not isinstance(x, (int, float)) or isinstance(x, bool):
+        return x
+    return struct.unpack("<f", struct.pack("<f", x))[0]
 
 
 class Rules:
@@ -101,12 +109,11 @@ class Rules:
             teams.append({"slot": t["slot"], "team": self.team(t), "seats": seats})
         changes = []
         for c in s.get("changes", []):
-            temporary = "until_round" in c
             changes.append({
                 "round": c["round"], "slot": c["slot"], "seat": c["seat"],
                 "out": self.driver(c["out"]), "in": self.driver(c["in"]),
-                "kind": "stand_in" if temporary else "swap",
-                "until_round": c["until_round"] if temporary else None,
+                "kind": c["kind"] if c["kind"] in KINDS else "swap",
+                "until_round": c.get("until_round"),
             })
         return {
             "data_group": self.years["data_group"],
@@ -121,27 +128,28 @@ class Rules:
         return {
             "season": f"{ADDON}/{year}",
             "driver": self.driver(label),
-            "experience": rounded(v["experience"]),
-            "racecraft": rounded(v["racecraft"]),
-            "awareness": rounded(v["awareness"]),
-            "pace": rounded(v["pace"]),
+            **{k: f32(v[k]) for k in STATS},
         }
+
+    def projected(self):
+        y = self.years
+        pool = {}
+        for p in y["pool"]:
+            per_year = {k: p[k] for k in ("years", "looks", "numbers")}
+            if any(per_year.values()):
+                pool[p["driver"]] = per_year
+        ratings = {yr: {d: dict(v, **{k: f32(v[k]) for k in STATS}) for d, v in drivers.items()}
+                   for yr, drivers in y["ratings"]["years"].items()}
+        return {"data_group": y["data_group"], "seasons": y["seasons"], "pool": pool,
+                "ratings": {"sources": y["ratings"].get("sources", {}), "years": ratings}}
 
 
 def rebuild(rules, seasons, ratings):
-    addons = [r["progressive"]["addon"] for r in seasons]
-    for i, a in enumerate(addons[1:], 1):
-        if a != addons[0]:
-            fail(f"{SEASON} {seasons[i]['year']}", "extra.progressive.addon differs from the first season's")
     groups = {r["data_group"] for r in seasons}
     if len(groups) != 1:
         fail(SEASON, f"data groups differ: {sorted(groups)}")
-    out = copy.deepcopy(addons[0])
-    out["data_group"] = seasons[0]["data_group"]
-    pool = [dict(p, years={}, looks={}, numbers={}) for p in out["pool"]]
-    by_driver = {p["driver"]: p for p in pool}
-    out["seasons"] = {}
-    sources = {}
+    out = {"data_group": seasons[0]["data_group"], "seasons": {}, "pool": {},
+           "ratings": {"sources": {}, "years": {str(r["year"]): {} for r in seasons}}}
     for r in seasons:
         y = str(r["year"])
         p = r["progressive"]
@@ -160,12 +168,13 @@ def rebuild(rules, seasons, ratings):
                 e = copy.deepcopy(p["changes"][f"round={c['round']},slot={c['slot']},seat={c['seat']}"])
                 e.update(round=c["round"], slot=c["slot"], seat=c["seat"],
                          out=rules.label(c["out"]), **{"in": rules.label(c["in"])})
+                e.setdefault("kind", c["kind"])
                 if c["until_round"] is not None:
                     e["until_round"] = c["until_round"]
                 changes.append(e)
             s["changes"] = changes
         for label, slice_ in p["pool"].items():
-            entry = by_driver[label]
+            entry = out["pool"].setdefault(label, {"years": {}, "looks": {}, "numbers": {}})
             if "slot" in slice_:
                 entry["years"][y] = slice_["slot"]
             if "look" in slice_:
@@ -173,14 +182,12 @@ def rebuild(rules, seasons, ratings):
             if "number" in slice_:
                 entry["numbers"][y] = slice_["number"]
         if "ratings_source" in p:
-            sources[y] = p["ratings_source"]
+            out["ratings"]["sources"][y] = p["ratings_source"]
         out["seasons"][y] = s
-    out["pool"] = pool
-    out["ratings"]["sources"] = sources
-    out["ratings"]["years"] = {str(r["year"]): {} for r in seasons}
     for r in ratings:
         y = r["season"][len(ADDON) + 1:]
-        out["ratings"]["years"].setdefault(y, {})[rules.label(r["driver"])] = r["progressive"]
+        values = dict(r["progressive"], **{k: f32(r[k]) for k in STATS})
+        out["ratings"]["years"].setdefault(y, {})[rules.label(r["driver"])] = values
     return out
 
 
@@ -243,6 +250,7 @@ def main():
             fail(f"{SEASON} {a['key']}", f"top-level fields beyond the schema's: {sorted(extra)}")
 
     want_ratings = {}
+    float_text = set()
     for y, drivers in years["ratings"]["years"].items():
         for label, v in drivers.items():
             want_ratings[f"{y}/{rules.driver(label)}"] = (y, label, v)
@@ -256,17 +264,20 @@ def main():
             continue
         y, label, v = want_ratings[a["key"]]
         want = rules.rating(y, label, v)
-        got = {k: a["value"].get(k) for k in want}
+        got = {k: f32(a["value"].get(k)) if k in STATS else a["value"].get(k) for k in want}
         fields += len(want)
         diff(f"{RATINGS} {a['key']}", got, want)
-        diff(f"{RATINGS} {a['key']} extra", a["value"].get("progressive"), v)
+        diff(f"{RATINGS} {a['key']} extra", a["value"].get("progressive"), {k: x for k, x in v.items() if k not in STATS})
+        for k in STATS:
+            if not isinstance(a["value"].get(k), float) or a["value"][k] != v[k]:
+                float_text.add(k)
         extra = set(a["value"]) - set(want)
         if extra != {"progressive"}:
             fail(f"{RATINGS} {a['key']}", f"top-level fields beyond the schema's: {sorted(extra)}")
 
     if not failures:
         rebuilt = rebuild(rules, [a["value"] for a in adds[SEASON]], [a["value"] for a in adds[RATINGS]])
-        diff("years.json rebuilt from the records", rebuilt, years, limit=40)
+        diff("years.json's season data rebuilt from the records", rebuilt, rules.projected(), limit=40)
 
     for name, list_ in adds.items():
         folder = records / name
@@ -284,7 +295,10 @@ def main():
             print(f"FAIL {f}")
         print(f"compare: {len(failures)} failure(s)")
         return 1
-    print("compare: every typed field matches years.json, and years.json rebuilt from the records equals the file")
+    print("compare: every typed field matches years.json, and its season data rebuilt from the records equals the file's")
+    print(f"compare: not in any record (private config): {ADDON_WIDE}")
+    if float_text:
+        print("compare: note: the records write ratings at float precision (79.9 as 79.9000015), equal as floats")
     return 0
 
 

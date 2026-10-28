@@ -134,6 +134,7 @@ pub struct Shell {
     pub(crate) sliders: HashMap<String, SliderSlot>,
     pub(crate) requests: Option<SystemTime>,
     pub(crate) console: Option<AnyWindowHandle>,
+    pub(crate) developer: crate::developer::Developer,
     pub(crate) views: HashMap<String, Result<Arc<View>, String>>,
     pub(crate) views_profile: String,
     pub(crate) view_gen: u64,
@@ -512,6 +513,7 @@ impl Shell {
             sliders: HashMap::new(),
             requests: None,
             console: None,
+            developer: Default::default(),
             views: HashMap::new(),
             views_profile: String::new(),
             view_gen: 0,
@@ -1793,7 +1795,14 @@ impl Render for Shell {
         let content = match self.page {
             Page::News => self.news_page(p, short, cx),
             Page::Importer => self.importer_page(p, cx),
-            Page::Tools => self.tools_page(p, window, cx),
+            Page::Tools => match self.developer_section(p, cx) {
+                Some(dev) => v_flex()
+                    .size_full()
+                    .child(div().flex_1().min_h_0().child(self.tools_page(p, window, cx)))
+                    .child(div().px(px(crate::pages::GUTTER)).pb(px(16.)).child(dev))
+                    .into_any_element(),
+                None => self.tools_page(p, window, cx),
+            },
             Page::Addons => self.addons_page(p, cx),
             Page::Browser => self.browser_page(p, cx),
             Page::Database => self.db_page(p, cx),

@@ -1539,9 +1539,6 @@ void collect_keys(const std::vector<Node> &nodes, int idx, const std::string &pa
     }
     for (auto &[name, sub] : n.properties)
         collect_keys(nodes, sub, path + "/" + escape_segment(name), depth + 1, out);
-    for (auto *group : {&n.all_of, &n.any_of, &n.one_of})
-        for (int sub : *group)
-            collect_keys(nodes, sub, path, depth + 1, out);
 }
 
 struct Sink {
@@ -2028,97 +2025,6 @@ const std::vector<std::pair<std::string, std::vector<std::string>>> &Schema::key
     return impl_->keyed;
 }
 
-namespace schema_detail {
-
-int child_of(const Schema::Impl &m, int node, std::string_view name)
-{
-    if (node < 0)
-        return -1;
-    const Node &n = m.nodes[static_cast<std::size_t>(node)];
-    if (n.kind != Node::Kind::check)
-        return -1;
-    int p = n.property(name);
-    if (p >= 0)
-        return p;
-    return n.extra >= 0 ? n.extra : -1;
-}
-
-Value merge_node(const Schema::Impl &m, int node, const Value &base, const Value &patch, int depth);
-
-std::optional<std::string> element_key(const Value &e, const std::vector<std::string> &fields)
-{
-    auto *o = e.if_object();
-    if (!o)
-        return std::nullopt;
-    std::string key;
-    for (auto &f : fields) {
-        auto *v = o->find(f);
-        if (!v)
-            return std::nullopt;
-        key += canonical(*v);
-        key += '\x1f';
-    }
-    return key;
-}
-
-Value merge_keyed(const Schema::Impl &m, int node, const Value &base, const Array &patch, int depth)
-{
-    const Node &n = m.nodes[static_cast<std::size_t>(node)];
-    Array out = base.is_array() ? *base.if_array() : Array();
-    for (auto &element : patch) {
-        auto k = element_key(element, n.key_fields);
-        if (!k) {
-            out.push_back(element);
-            continue;
-        }
-        std::size_t at = out.size();
-        for (std::size_t i = 0; i < out.size(); ++i)
-            if (element_key(out[i], n.key_fields) == k) {
-                at = i;
-                break;
-            }
-        auto *del = element.find("$delete");
-        if (del && del->is_bool() && del->as_bool()) {
-            if (at < out.size())
-                out.erase(out.begin() + static_cast<std::ptrdiff_t>(at));
-            continue;
-        }
-        if (at == out.size())
-            out.push_back(merge_node(m, n.items, Value::object(), element, depth + 1));
-        else
-            out[at] = merge_node(m, n.items, out[at], element, depth + 1);
-    }
-    return Value(std::move(out));
-}
-
-Value merge_node(const Schema::Impl &m, int node, const Value &base, const Value &patch, int depth)
-{
-    auto *p = patch.if_object();
-    if (!p || depth > 512)
-        return patch;
-    Value out = base.is_object() ? base : Value::object();
-    for (auto &[name, value] : *p) {
-        if (value.is_null()) {
-            out.erase(name);
-            continue;
-        }
-        int sub = child_of(m, node, name);
-        const Value *cur = out.find(name);
-        Value next = sub >= 0 && m.nodes[static_cast<std::size_t>(sub)].keyed && value.is_array()
-                         ? merge_keyed(m, sub, cur ? *cur : Value(), *value.if_array(), depth + 1)
-                         : merge_node(m, sub, cur ? *cur : Value(), value, depth + 1);
-        out[name] = std::move(next);
-    }
-    return out;
-}
-
-} // namespace schema_detail
-
-swofty::json::Value Schema::merge(const swofty::json::Value &base, const swofty::json::Value &patch) const
-{
-    return merge_node(*impl_, impl_->root, base, patch, 0);
-}
-
 bool is_record_id(std::string_view id)
 {
     return schema_detail::record_id_ok(id);
@@ -2275,7 +2181,10 @@ Effective effective(const Schema &schema, std::string_view registry, const swoft
     seen.pop_back();
     if (r != Effective::ok)
         return r;
-    out = schema.merge(base_value, own);
+    swofty::json::Error merr;
+    if (!swofty::json::merge_patch(base_value, own, schema.keys(), &merr))
+        return Effective::unknown;
+    out = std::move(base_value);
     return Effective::ok;
 }
 

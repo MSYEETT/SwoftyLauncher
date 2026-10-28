@@ -321,16 +321,30 @@ static void keyed()
            "\"$delete\": false merges and is dropped");
     expect(run(R"({"list":[{"id":1}]})", R"({"list":[{"id":5,"$delete":false}]})", k) == R"({"list":[{"id":1},{"id":5}]})",
            "\"$delete\": false on a new key appends without it");
-    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[]})", k) == R"({"list":[]})",
-           "an empty patch list clears a keyed list");
-    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[{"a":1}]})", k) == R"({"list":[{"a":1}]})",
-           "a patch list whose elements lack the key replaces the list");
-    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[{"id":1},3]})", k) == R"({"list":[{"id":1},3]})",
-           "a patch list with a non-object replaces the list");
-    expect(run(R"({"list":[{"id":1}]})", R"({"list":[{"id":null}]})", k) == R"({"list":[{"id":null}]})",
-           "a null key isn't a key: the list is replaced");
+    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[]})", k) == R"({"list":[{"id":1},{"id":2}]})",
+           "an empty patch list changes nothing");
+    expect(run(R"({"x":1})", R"({"list":[]})", k) == R"({"x":1,"list":[]})" &&
+               run(R"({"list":"text"})", R"({"list":[]})", k) == R"({"list":[]})",
+           "an empty patch list on a missing list (or one that isn't a list) gives an empty list");
+    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[{"a":1}]})", k).starts_with("error:"),
+           "an element without its key field is an error");
+    expect(run(R"({"list":[{"id":1},{"id":2}]})", R"({"list":[{"id":1},3]})", k).starts_with("error:"),
+           "an element that isn't an object is an error");
+    expect(run(R"({"list":[{"id":1}]})", R"({"list":[{"id":null}]})", k).starts_with("error:") &&
+               run(R"({"list":[{"id":1}]})", R"({"list":[{"id":[1]}]})", k).starts_with("error:"),
+           "a null or list key isn't a key: an error");
     expect(run(R"({"list":[{"id":1}]})", R"({"list":[{"a":1},{"id":1,"$delete":true}]})", k).starts_with("error:"),
-           "$delete in a list that can't merge by key is an error");
+           "one keyless element fails the whole list, $delete and all");
+    {
+        Value t = P(R"({"x":1,"list":[{"id":1}]})"), keep = t;
+        json::Error e;
+        expect(!json::merge_patch(t, P(R"({"x":2,"list":[{"id":2},{"b":1}]})"), k, &e) && t == keep &&
+                   e.message.find("/list/1") != std::string::npos,
+               "a keyless element leaves the target as it was and is named: " + e.message);
+    }
+    expect(run(R"({"seats":[1,2]})", R"({"seats":[]})", k) == R"({"seats":[]})" &&
+               run(R"({"seats":[1,2]})", R"({"seats":[{"a":1}]})", k) == R"({"seats":[{"a":1}]})",
+           "a list that isn't keyed replaces whole, an empty one too");
     expect(run(R"({"list":[{"id":1}]})", R"({"list":[{"id":1,"$delete":"yes"}]})", k).starts_with("error:"),
            "a $delete that isn't a bool is an error");
     {
@@ -378,8 +392,15 @@ static void keyed()
     expect(run(R"([{"k":1,"a":1}])", R"([{"k":1,"b":2}])", json::Keys{{"", {"k"}}}) == R"([{"k":1,"a":1,"b":2}])",
            "the root itself can be a keyed list");
     expect(run(R"({"teams":[{"slot":1,"drivers":[{"name":"a"}]}]})", R"({"teams":[{"slot":1,"drivers":[{"x":1}]}]})",
-               nested) == R"({"teams":[{"slot":1,"drivers":[{"x":1}]}]})",
-           "a nested patch list without keys replaces its list");
+               nested)
+               .starts_with("error:"),
+           "a nested element without its key is an error");
+    expect(run(R"({"teams":[{"slot":1,"drivers":[{"name":"a"}]}]})", R"({"teams":[{"slot":1,"drivers":[]}]})", nested) ==
+               R"({"teams":[{"slot":1,"drivers":[{"name":"a"}]}]})",
+           "a nested empty keyed list changes nothing");
+    expect(run(R"({"teams":[{"slot":1,"drivers":[{"name":"a"}]}]})", R"({"teams":[{"slot":1,"$delete":true,"drivers":[{"x":1}]}]})",
+               nested) == R"({"teams":[]})",
+           "a $delete element's other fields aren't merged, so they aren't checked");
     {
         json::Keys added;
         added.add("list", {"id"}).add("/list", {"key"});

@@ -520,6 +520,7 @@ The layer, from the data tab at the top of this page, gives the same effective v
 - **Lists that aren't keyed** (`seats`) are replaced whole, as in RFC 7396.
 - **`"$delete": true`** with an element's key fields removes that element from a keyed list.
 - **A key the base doesn't have** is appended.
+- **An empty keyed list** changes nothing, and **an element without all its key fields** is an error that drops the whole layer.
 - **`"$select"`** holds selector layers, as a list of entries:
   - `where` matches fields (`{ "class": "f1" }`), one of several values (`{ "class": ["f1", "f1_26"] }`) or a numeric range (`{ "year": { "min": 2016, "max": 2019 } }`);
   - `ids` matches a prefix (`"swofty.classic-seasons-2017/*"`, or `"*"` with `"except": ["game/safety_car"]`);

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <array>
+#include <charconv>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -402,11 +404,17 @@ public:
         str(k);
         out += ':';
     }
-    void number(double v)
+    template <class F>
+        requires std::is_floating_point_v<F>
+    void number(F v)
     {
-        char buf[32];
-        std::snprintf(buf, sizeof buf, "%.9g", v);
-        out += buf;
+        if (!std::isfinite(v)) {
+            out += "null";
+            return;
+        }
+        char buf[64];
+        auto r = std::to_chars(buf, buf + sizeof buf, v);
+        out.append(buf, r.ptr);
     }
     void integer(int64_t v) { out += std::to_string(v); }
 };
@@ -678,7 +686,7 @@ struct Json<T> {
         if constexpr (std::is_integral_v<T>)
             w.integer(static_cast<int64_t>(v));
         else
-            w.number(static_cast<double>(v));
+            w.number(v);
     }
     static bool read(const Node &n, T &v)
     {
