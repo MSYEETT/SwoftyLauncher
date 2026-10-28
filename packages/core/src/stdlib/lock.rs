@@ -22,7 +22,16 @@ pub struct Provided {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LockNeed {
     pub record: String,
+    /// Fallbacks, as `<registry>:<id>`: the reference is met when any of `record` and these is.
+    pub or: Vec<String>,
     pub required: bool,
+}
+
+impl LockNeed {
+    /// `record`, then each fallback in order.
+    pub fn alternatives(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.record.as_str()).chain(self.or.iter().map(String::as_str))
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -94,8 +103,17 @@ impl Lock {
                         .filter_map(|n| {
                             let record = n.get("record").and_then(Value::as_str)?;
                             let policy = n.get("policy").and_then(Value::as_str).unwrap_or("required");
+                            let or = n
+                                .get("or")
+                                .and_then(Value::as_array)
+                                .into_iter()
+                                .flatten()
+                                .filter_map(Value::as_str)
+                                .map(str::to_owned)
+                                .collect();
                             Some(LockNeed {
                                 record: record.to_owned(),
+                                or,
                                 required: policy == "required",
                             })
                         })
@@ -173,7 +191,8 @@ mod tests {
                 "track.venue": [ "venue/sochi" ]
               },
               "providers": [ "career.driver_ratings" ],
-              "needs": [ { "record": "track:venue/sochi", "policy": "optional" }, { "record": "vehicle:game/ferrari_2025" } ]
+              "needs": [ { "record": "track:venue/sochi", "policy": "optional" }, { "record": "vehicle:game/ferrari_2025" },
+                         { "record": "vehicle:mod.x/a", "or": ["vehicle:mod.y/b", "vehicle:game/ferrari_2025"], "policy": "optional" } ]
             }"#,
         )
         .unwrap();
@@ -194,13 +213,24 @@ mod tests {
             [
                 LockNeed {
                     record: "track:venue/sochi".into(),
+                    or: vec![],
                     required: false
                 },
                 LockNeed {
                     record: "vehicle:game/ferrari_2025".into(),
+                    or: vec![],
                     required: true
                 },
+                LockNeed {
+                    record: "vehicle:mod.x/a".into(),
+                    or: vec!["vehicle:mod.y/b".into(), "vehicle:game/ferrari_2025".into()],
+                    required: false
+                },
             ]
+        );
+        assert_eq!(
+            l.needs[2].alternatives().collect::<Vec<_>>(),
+            ["vehicle:mod.x/a", "vehicle:mod.y/b", "vehicle:game/ferrari_2025"]
         );
     }
 

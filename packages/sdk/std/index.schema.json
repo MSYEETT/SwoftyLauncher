@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "swofty/registry/index.json",
   "type": "object",
-  "required": ["version", "order", "data"],
+  "required": ["version", "profile", "order", "data"],
   "properties": {
     "version": { "const": 1 },
+    "profile": { "type": "string", "minLength": 1 },
     "order": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },

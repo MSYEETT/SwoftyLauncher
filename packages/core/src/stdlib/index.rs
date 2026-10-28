@@ -5,6 +5,7 @@
 //! ```json
 //! {
 //!   "version": 1,
+//!   "profile": "Tails what-if",
 //!   "order": ["swofty.core", "swofty.progressive", "mod.esp"],
 //!   "data": { "mod.esp": ["addons/mod.esp/registry/layers.json", "addons/mod.esp/registry/sounds.json"] },
 //!   "registry": { "mod.esp": "addons/mod.esp/registry.json" },
@@ -12,6 +13,7 @@
 //! }
 //! ```
 //!
+//! - `profile`: the launcher profile the build is for.
 //! - `order`: every addon on in the profile, in load order.
 //! - `data`: each addon's data files, by addon in load order and by path
 //!   within one, as paths under `<game>/swofty/`. The build places each file
@@ -52,6 +54,7 @@ pub struct Entry {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Index {
+    pub profile: String,
     pub order: Vec<String>,
     pub addons: Vec<Entry>,
 }
@@ -70,12 +73,14 @@ impl Index {
     /// The index for the addons `order` (with their 1.6 files in `std`), or `None` when none of
     /// them has a data file or a `registry.json`.
     pub fn plan(
+        profile: &str,
         order: &[String],
         manifests: &BTreeMap<String, AddonManifest>,
         std: &BTreeMap<String, Std>,
         addons_dir: &std::path::Path,
     ) -> Option<Placed> {
         let mut index = Index {
+            profile: profile.to_owned(),
             order: order.to_vec(),
             addons: Vec::new(),
         };
@@ -143,8 +148,9 @@ struct About {
 
 impl Serialize for Index {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        let mut st = s.serialize_struct("Index", 5)?;
+        let mut st = s.serialize_struct("Index", 6)?;
         st.serialize_field("version", &VERSION)?;
+        st.serialize_field("profile", &self.profile)?;
         st.serialize_field("order", &self.order)?;
         st.serialize_field(
             "data",
@@ -221,11 +227,19 @@ mod tests {
         .into_iter()
         .map(|(id, s)| (id.to_owned(), s))
         .collect();
-        let placed = Index::plan(&order, &ms, &std, std::path::Path::new("/store/addons")).unwrap();
+        let placed = Index::plan(
+            "Tails what-if",
+            &order,
+            &ms,
+            &std,
+            std::path::Path::new("/store/addons"),
+        )
+        .unwrap();
         assert_eq!(
             placed.index.to_json(),
             r#"{
   "version": 1,
+  "profile": "Tails what-if",
   "order": [
     "swofty.core",
     "z.code",
@@ -280,7 +294,7 @@ mod tests {
             .into_iter()
             .collect();
         let std: BTreeMap<String, Std> = ms.iter().map(|(id, m)| (id.clone(), Std::bare(m))).collect();
-        assert!(Index::plan(&order, &ms, &std, std::path::Path::new("/s")).is_none());
+        assert!(Index::plan("default", &order, &ms, &std, std::path::Path::new("/s")).is_none());
     }
 
     #[test]
@@ -293,9 +307,9 @@ mod tests {
             .iter()
             .map(|v| v.as_str().unwrap())
             .collect();
-        assert_eq!(required, ["version", "order", "data"]);
+        assert_eq!(required, ["version", "profile", "order", "data"]);
         let props = schema["properties"].as_object().unwrap();
-        for key in ["version", "order", "data", "registry", "addons"] {
+        for key in ["version", "profile", "order", "data", "registry", "addons"] {
             assert!(props.contains_key(key), "{key}");
         }
         assert_eq!(schema["properties"]["version"]["const"], VERSION);

@@ -91,7 +91,7 @@ After each session, the core writes `registry/catalog.json`: what actually loade
 
 ## Profiles
 
-- **Each launcher profile has its own addon storage.** What an addon writes with `swofty::storage` in one profile isn't seen in another. The launcher keeps each profile's copy in `$DATA/addon-storage/<id>/profiles/<profile>/` between sessions.
+- **Each launcher profile has its own addon storage.** What an addon writes with `swofty::storage` in one profile isn't seen in another. The launcher keeps each profile's copy in `$DATA/addon-profiles/<id>/<profile>/` between sessions, outside the addon's own storage. The first time 1.6 runs, every addon's 1.5 storage is kept as a copy that every profile made before 1.6 starts from. A profile made under 1.6 starts empty, and a duplicate starts from a copy of its source.
 - **Saves are shared** by every profile, as the game keeps one save.
 - **Each career has an id.** The career index records which profile started it, and the launcher shows that next to the career.
 - **The vanilla profile** warns before Play when a career needs addons, and backs up the saves.
@@ -119,10 +119,13 @@ The build writes one index, so the core finds data-file addons (they have no DLL
 // index.json
 {
   "version": 1,
+  "profile": "Tails what-if",
   "order": ["swofty.core", "swofty.classic-seasons-2017", "swofty.progressive", "mod.esp", "tails.whatif-history"],
   "data": {
-    "mod.esp": ["addons/mod.esp/registry/sounds.json", "addons/mod.esp/registry/layers.json"]
-  }
+    "mod.esp": ["addons/mod.esp/registry/layers.json", "addons/mod.esp/registry/sounds.json"]
+  },
+  "registry": { "mod.esp": "addons/mod.esp/registry.json" },
+  "addons": { "mod.esp": { "name": "Engine Sound Pack", "version": "1.0.0", "code": false } }
 }
 ```
 

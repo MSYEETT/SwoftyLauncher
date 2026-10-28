@@ -283,7 +283,13 @@ pub fn check(scene: &Scene) -> Report {
                 let Some(Target::Record { registry, id }) = Target::record(&n.record) else {
                     continue;
                 };
-                if record_met(scene, &registry, &id).is_some() || id.starts_with("game/") {
+                let met = n.alternatives().any(|alt| match Target::record(alt) {
+                    Some(Target::Record { registry, id }) => {
+                        id.starts_with("game/") || record_met(scene, &registry, &id).is_some()
+                    }
+                    _ => false,
+                });
+                if met {
                     continue;
                 }
                 let level = if n.required { Level::Warn } else { Level::Hint };
@@ -953,6 +959,36 @@ mod tests {
             lines(&r, Level::Hint),
             [
                 "ESP uses track venue/sochi, which no addon on in profile main provides. What needs it is left out."
+            ]
+        );
+    }
+
+    #[test]
+    fn a_lock_reference_with_fallbacks_is_met_by_any_of_them() {
+        let lock = r#"{ "needs": [
+            { "record": "vehicle:mod.x/a", "or": ["vehicle:mod.y/b"], "policy": "required" },
+            { "record": "vehicle:mod.x/c", "or": ["vehicle:game/ferrari_2025"], "policy": "required" },
+            { "record": "vehicle:mod.x/d", "or": ["vehicle:mod.z/e"], "policy": "optional" } ] }"#;
+        let w = World::new().add("mod.esp", "ESP", "1.0.0", None, Some(lock)).add(
+            "mod.y",
+            "Y",
+            "1.0.0",
+            None,
+            Some(r#"{ "provides": { "vehicle": [ "mod.y/b" ] } }"#),
+        );
+        let r = w.check(&["mod.esp", "mod.y"]);
+        assert!(lines(&r, Level::Warn).is_empty(), "{r:?}");
+        assert_eq!(
+            lines(&r, Level::Hint),
+            [
+                "ESP uses vehicle mod.x/d, which no addon on in profile main provides. What needs it is left out."
+            ]
+        );
+        assert_eq!(
+            lines(&w.check(&["mod.esp"]), Level::Warn),
+            [
+                "ESP uses vehicle mod.x/a, which no addon on in profile main provides. The game stops what needs it \
+              with a message naming the fix."
             ]
         );
     }

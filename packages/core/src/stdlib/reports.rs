@@ -15,6 +15,8 @@ pub const CONFLICTS: &str = "conflicts.json";
 pub const EFFECTIVE: &str = "effective.json";
 pub const CATALOG: &str = "catalog.json";
 pub const ROOM: &str = "room.json";
+/// The core's stat-id store (docs/std/dependencies.md "Tracks have stable identities").
+pub const IDS: &str = "ids.json";
 /// The reports Send Logs adds, by their name in `<game>/swofty/registry/`.
 pub const SENT: [&str; 4] = [EFFECTIVE, CONFLICTS, CATALOG, ROOM];
 

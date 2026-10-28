@@ -129,6 +129,12 @@ fn a_room_report_without_registry_records_changes_nothing() {
     f.room(r#"{ "version": 1, "presize": "unavailable", "reason": "signature", "registry": { "asked_keys": 0 } }"#);
     let after = build(&f.store, "default", &f.game).unwrap();
     assert_eq!(before.buildhash, after.buildhash);
+    f.room(r#"{ "version": 1, "presize": "unavailable", "registry": { "asked_keys": 500000 } }"#);
+    let asked = build(&f.store, "default", &f.game).unwrap();
+    assert_eq!(
+        before.buildhash, asked.buildhash,
+        "a profile of older addons is never padded"
+    );
     assert_eq!(
         std::fs::read(&before.plan.data[GVDB]).unwrap(),
         std::fs::read(&after.plan.data[GVDB]).unwrap()
@@ -138,7 +144,7 @@ fn a_room_report_without_registry_records_changes_nothing() {
 #[test]
 fn an_unsized_boot_that_ran_out_of_room_pads_the_next_database_file() {
     let f = Fixture::new("room-pad");
-    f.addon("a.x", "X", "1.0.0", LAPS, None);
+    f.addon("a.x", "X", "1.0.0", LAPS, Some("{}"));
     f.room(
         r#"{ "version": 1, "presize": "unavailable", "reason": "signature", "file_records": 3,
              "registry": { "asked_keys": 200000, "addons": { "a.x": { "asked": 200000, "applied": 90000 } } } }"#,

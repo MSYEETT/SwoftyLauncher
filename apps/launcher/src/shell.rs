@@ -928,8 +928,8 @@ impl Shell {
         };
         if profile.is_vanilla() {
             let game = self.install.as_ref().map(|i| i.dir.clone());
-            let careers =
-                swofty_core::stdlib::careers::sync(&self.store.root, game.as_deref()).unwrap_or_default();
+            let careers = swofty_core::stdlib::careers::sync(&self.store.root, game.as_deref(), None)
+                .unwrap_or_default();
             let using = careers.iter().filter(|c| !c.addons.is_empty()).count();
             if using > 0 {
                 let text = match using {

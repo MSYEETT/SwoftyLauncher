@@ -125,7 +125,7 @@ pub fn status(store: &Store) -> BTreeMap<String, Vec<String>> {
 }
 
 pub fn careers(store: &Store, profile: &str) -> Result<()> {
-    let list = careers::sync(&store.root, game_dir(store).as_deref())?;
+    let list = careers::sync(&store.root, game_dir(store).as_deref(), None)?;
     if list.is_empty() {
         println!("no careers in the index yet: the core lists each career it creates or loads");
         return Ok(());
@@ -159,7 +159,7 @@ pub fn careers(store: &Store, profile: &str) -> Result<()> {
 
 /// The careers that need `id`, for the warning before it's turned off.
 pub fn careers_needing(store: &Store, id: &str) -> Vec<careers::Career> {
-    careers::sync(&store.root, game_dir(store).as_deref())
+    careers::sync(&store.root, game_dir(store).as_deref(), None)
         .unwrap_or_default()
         .into_iter()
         .filter(|c| c.addons.iter().any(|a| a.id == id))
