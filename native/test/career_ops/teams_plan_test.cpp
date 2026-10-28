@@ -148,6 +148,31 @@ int main()
         Plan bad = plan_season(Table{}, season(2012, 1));
         CHECK(!bad.ok());
     }
+    {
+        const char *stock[] = {"mercedes_26", "ferrari_26", "redbull_26", "mclaren_26", "forceindia_26", "renault_26",
+                               "williams_26", "tororosso_26", "sauber_26", "haas_26", "gm_cadillac_26"};
+        auto year = [&](int y, const char *slot11) {
+            SeasonIn x;
+            x.year = y;
+            for (int i = 0; i < 11; ++i) {
+                SlotIn t;
+                t.slot = i + 1;
+                t.team = i == 10 ? slot11 : stock[i];
+                x.slots.push_back(t);
+            }
+            return x;
+        };
+        SeasonIn request = year(2016, "ig.teampack/ig_racing");
+        Table t = build_table({year(2016, "ig.teampack/ig_racing"), year(2017, "gm_cadillac_26")}, false);
+        CHECK(plan_season(t, request).count(Kind::open) == 11);
+        std::vector<std::string> physical(stock, stock + 11);
+        anchor_rows(t, physical);
+        Plan p = plan_season(t, request);
+        CHECK(t.ok() && p.ok() && p.count(Kind::dressed) == 1 && p.count(Kind::open) == 10);
+        CHECK(p.actions[10].kind == Kind::dressed && p.actions[10].row == "gm_cadillac_26" && p.actions[10].team == "ig.teampack/ig_racing");
+        CHECK(plan_season(t, year(2017, "game/gm_cadillac_26")).count(Kind::open) == 11);
+        CHECK(identity_id("gm_cadillac_26") == "game/gm_cadillac_26" && identity_id("ig.teampack/ig_racing") == "ig.teampack/ig_racing");
+    }
     if (failures)
         return 1;
     std::printf("teams_plan_test: slot table (12 slots, first filling season, My Team and 13 refused, shared rows), open, dressed and closed slots, closing releases and the player's seat: ok\n");

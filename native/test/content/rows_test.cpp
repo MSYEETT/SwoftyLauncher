@@ -675,7 +675,7 @@ static void team_tests(const std::string &regs)
         int dressed = 0, pending = 0;
         for (auto &a : plan.actions)
             if (a.kind == ct::Kind::dressed) {
-                if (ct::dresser() && ct::dresser()(table.rows.empty() ? "" : "mod.a.2012", a.slot, a.row.c_str(), a.team.c_str()))
+                if (ct::dresser() && ct::dresser()(table.rows.empty() ? "" : "mod.a.2012", a.slot, a.row.c_str(), a.team.c_str(), -1))
                     dressed++;
                 else
                     pending++;
@@ -718,9 +718,9 @@ static void team_tests(const std::string &regs)
         std::memcpy(stock_record.data() + at[i], &p, sizeof p);
     }
     live.record = [&](uint16_t stat) -> uint8_t * { return stat == 3 ? stock_record.data() : nullptr; };
-    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b") && std::string(bufs3[0].c_str()) == "B Toro",
+    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b", -1) && std::string(bufs3[0].c_str()) == "B Toro",
           "a stock slot row dresses through the stat id of its stock record");
-    check(ct::dresser()("g", 2, "game/tororosso", "game/tororosso") && std::string(bufs3[0].c_str()) == "lng_stock" && !live.wears.count(3),
+    check(ct::dresser()("g", 2, "game/tororosso", "game/tororosso", -1) && std::string(bufs3[0].c_str()) == "lng_stock" && !live.wears.count(3),
           "a slot that returns to its own team gets the stock names back and is forgotten");
     ct::dresser() = nullptr;
 }

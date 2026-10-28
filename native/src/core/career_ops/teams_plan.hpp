@@ -77,12 +77,37 @@ struct Plan {
     }
 };
 
-using DressFn = bool (*)(const char *data_group, int slot, const char *row, const char *team);
+using DressFn = bool (*)(const char *data_group, int slot, const char *row, const char *team, int64_t row_stat);
 
 inline DressFn &dresser()
 {
     static DressFn fn = nullptr;
     return fn;
+}
+
+inline std::string bare(const std::string &id)
+{
+    return id.rfind("game/", 0) == 0 ? id.substr(5) : id;
+}
+
+inline std::string identity_id(const std::string &team)
+{
+    return team.find('/') == std::string::npos ? "game/" + team : team;
+}
+
+inline void anchor_rows(Table &t, const std::vector<std::string> &physical)
+{
+    for (size_t i = 0; i < t.rows.size() && i < physical.size(); ++i)
+        if (!physical[i].empty())
+            t.rows[i] = physical[i];
+    t.refusals.erase(std::remove_if(t.refusals.begin(), t.refusals.end(),
+                                    [](const std::string &r) { return r.find("is also the row of slot") != std::string::npos; }),
+                     t.refusals.end());
+    for (size_t i = 0; i < t.rows.size(); ++i)
+        for (size_t j = i + 1; j < t.rows.size(); ++j)
+            if (!t.rows[i].empty() && t.rows[i] == t.rows[j])
+                t.refusals.push_back("slot " + std::to_string(j + 1) + ": its row " + t.rows[j] + " is also the row of slot " +
+                                     std::to_string(i + 1));
 }
 
 inline bool filled(const SlotIn &s)
@@ -195,7 +220,7 @@ inline Plan plan_season(const Table &table, const SeasonIn &season)
         } else {
             a.team = it->team;
             a.car = it->car;
-            a.kind = it->team == a.row ? Kind::open : Kind::dressed;
+            a.kind = bare(it->team) == bare(a.row) ? Kind::open : Kind::dressed;
         }
         p.actions.push_back(a);
     }

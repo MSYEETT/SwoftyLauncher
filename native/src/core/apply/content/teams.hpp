@@ -655,7 +655,7 @@ inline std::recursive_mutex &live_mutex()
     return m;
 }
 
-inline bool dress_slot(const char *group, int slot, const char *row, const char *team)
+inline bool dress_slot(const char *group, int slot, const char *row, const char *team, int64_t row_stat)
 {
     std::lock_guard g(live_mutex());
     Live &l = live();
@@ -669,7 +669,7 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
         say(where + ": the team applier is not set up");
         return false;
     }
-    int64_t stat = l.stat_of(row);
+    int64_t stat = row_stat >= 0 ? row_stat : l.stat_of(row);
     bool own = std::string(row) == team;
     if (stat < 0 || stat > 0xffff) {
         if (!own)
