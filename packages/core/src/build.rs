@@ -3675,7 +3675,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_entrant_lists_an_addon_renames_or_removes() {
+    fn warns_of_the_entrant_lists_an_addon_renames_or_removes() {
         use swofty_formats::gvdb::Record;
         if loader_dir().is_some() {
             return;
@@ -3753,8 +3753,8 @@ mod tests {
             .unwrap();
 
         let built = build(&store, "default", &game).unwrap();
-        let line = "Old Team Pack: kept the entrant list(s) f2_2026 that it renames or removes; \
-                    the game crashes when a list it looks up by name is missing";
+        let line =
+            "Old Team Pack: renames or removes the entrant list(s) f2_2026; F2 menus may crash with it";
         assert!(built.warnings.iter().any(|w| w == line), "{:?}", built.warnings);
         assert_eq!(
             built.report.kept_lists,
@@ -3764,28 +3764,15 @@ mod tests {
         assert_eq!(
             out.get_text(&format!("{lists}._entrant_list_instancecount_"))
                 .as_deref(),
-            Some("4")
+            Some("2")
         );
         assert_eq!(
             out.get_text(&format!("{lists}.entrant_list_1._metadata_"))
                 .as_deref(),
             Some("f2_2025")
         );
-        for (field, value) in [
-            ("_metadata_", "f2_2026"),
-            ("stat_id", "104"),
-            ("display_name", "lng_f2_2026"),
-        ] {
-            assert_eq!(
-                out.get_text(&format!("{lists}.entrant_list_3.{field}"))
-                    .as_deref(),
-                Some(value)
-            );
-        }
-        assert_eq!(
-            out.get_text(whitelist).as_deref(),
-            Some("f1_2026,f2_2025,f2_2026")
-        );
+        assert_eq!(out.get_text(&format!("{lists}.entrant_list_3._metadata_")), None);
+        assert_eq!(out.get_text(whitelist).as_deref(), Some("f1_2026,f2_2025"));
         std::fs::remove_dir_all(&root).ok();
     }
 
