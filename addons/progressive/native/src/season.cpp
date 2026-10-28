@@ -539,8 +539,12 @@ int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, const std::vec
     int r = SWOFTY_REFUSED;
     if (teams_op) {
         sj::Value slots = sj::Value::array();
-        for (int i = 0; i < season::kSlots; ++i)
-            slots.push_back(sj::Value::object({{"slot", i + 1}, {"team", season::season_team(g_data, p, i)}, {"seats", sj::Value::array()}}));
+        for (const season::TeamSlot &t : season::team_slots(g_data, p)) {
+            sj::Value seats = sj::Value::array();
+            for (const std::string &id : t.seats)
+                seats.push_back(id);
+            slots.push_back(sj::Value::object({{"slot", t.slot}, {"team", t.team}, {"seats", std::move(seats)}}));
+        }
         sj::Value teams_request = sj::Value::object({{"season", sj::Value::object({{"data_group", kGroup},
                                                                                      {"year", p.year},
                                                                                      {"teams", std::move(slots)}})},
