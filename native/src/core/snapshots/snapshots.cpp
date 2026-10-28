@@ -190,9 +190,20 @@ void Book::loaded(const Bytes *body)
 bool Book::saving(Bytes &body)
 {
     std::lock_guard g(mu_);
-    if (loaded_state_ == fmt::Decoded::newer || dirty_.empty())
+    if (loaded_state_ == fmt::Decoded::newer || (dirty_.empty() && !test_pad_))
         return false;
-    Bytes payload = entry_.encode();
+    fmt::Entry out = entry_;
+    if (test_pad_) {
+        std::erase_if(out.extra, [](const fmt::Item &i) { return i.tag == fmt::T_TEST_PAD; });
+        fmt::Item pad;
+        pad.tag = fmt::T_TEST_PAD;
+        uint32_t x = 0x9e3779b9u;
+        pad.body.resize(test_pad_);
+        for (auto &b : pad.body)
+            x = x * 1664525u + 1013904223u, b = uint8_t(x >> 24);
+        out.extra.push_back(std::move(pad));
+    }
+    Bytes payload = out.encode();
     if (payload.size() > fmt::ENTRY_CAP) {
         note("[registry] swofty_registry: the entry's payload of " + kb(payload.size()) + " is past the " +
              kb(fmt::ENTRY_CAP) + " cap; not written with this save");
@@ -201,7 +212,27 @@ bool Book::saving(Bytes &body)
     if (!fmt::bag_body(payload, body))
         return false;
     pending_ = dirty_;
+    test_pad_ = 0;
     return true;
+}
+
+void Book::set_test_pad(size_t bytes)
+{
+    std::lock_guard g(mu_);
+    test_pad_ = bytes;
+}
+
+size_t test_pad_bytes(const char *text, bool agent_armed)
+{
+    if (!agent_armed || !text || !*text)
+        return 0;
+    size_t n = 0;
+    for (const char *c = text; *c; ++c) {
+        if (*c < '0' || *c > '9' || n > fmt::ENTRY_CAP)
+            return 0;
+        n = n * 10 + size_t(*c - '0');
+    }
+    return n >= 1 && n <= fmt::ENTRY_CAP - (64u << 10) ? n : 0;
 }
 
 void Book::written(bool ok)
