@@ -11,6 +11,10 @@
 #include "json.hpp"
 #include "swofty_api.h"
 
+namespace swofty_core::registry {
+class Store;
+}
+
 namespace runtime {
 
 enum Stage { STAGE_WINDOW = 1 };
@@ -131,6 +135,8 @@ void hub_tick();
 const SwoftyEra *era_table();
 const SwoftyRegistry *registry_table();
 int registry_write_reports();
+swofty_core::registry::Store &older_store();
+std::string older_addon(const void *from);
 std::vector<CoreMixins> era_mixins();
 void era_commit();
 std::vector<CoreMixins> car_category_mixins();

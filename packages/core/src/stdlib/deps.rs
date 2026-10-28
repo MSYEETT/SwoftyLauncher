@@ -29,11 +29,17 @@ pub const STOP_EXIT: u8 = 3;
 /// The registries this launcher's core has, with their current `major.minor`
 /// (`packages/sdk/std/registries/<name>/<major>.<minor>.json`).
 pub const CORE_REGISTRIES: &[(&str, &str)] = &[
+    ("addon.option", "1.0"),
+    ("career.character", "1.0"),
+    ("career.content", "1.0"),
     ("career.driver_ratings", "1.0"),
     ("career.season", "1.0"),
+    ("career.wizard", "1.0"),
     ("content.package", "1.0"),
     ("engine_sound", "1.0"),
     ("era.box", "1.0"),
+    ("hub.tab", "1.0"),
+    ("lang.string", "1.0"),
     ("vehicle", "1.0"),
     ("vehicle.package", "1.0"),
 ];

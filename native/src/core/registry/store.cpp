@@ -1839,6 +1839,56 @@ int Store::add(const std::string &addon, const std::string &registry, const std:
     return SWOFTY_ASSET_OK;
 }
 
+int Store::put_older(const std::string &addon, const std::string &registry, const std::string &key, const Value *value,
+                     const std::string &source)
+{
+    std::lock_guard g(d->mu);
+    d->addon_index(addon);
+    std::string rid = addon + "/" + key;
+    Reg *r = d->reg(registry);
+    if (!r)
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (addon.empty() || !is_key(key))
+        return d->refuse(addon, registry, rid, d->next_op(addon), "invalid", "add: '" + key + "' is not a key",
+                         SWOFTY_ASSET_INVALID);
+    auto it = r->provs.find(rid);
+    bool had = it != r->provs.end() && !it->second.empty();
+    if (!value) {
+        if (had) {
+            r->provs.erase(it);
+            d->touch();
+        }
+        return SWOFTY_ASSET_OK;
+    }
+    if (!value->is_object())
+        return d->refuse(addon, registry, rid, d->next_op(addon), "invalid", "add: the value is not an object",
+                         SWOFTY_ASSET_INVALID);
+    if (had) {
+        Prov &p = it->second.back();
+        if (same(p.value, *value))
+            return SWOFTY_ASSET_OK;
+        p.value = strip_meta(*value);
+    } else {
+        r->provs[rid].push_back({addon, false, strip_meta(*value), {}, {}, d->take_seq(), d->next_op(addon), source});
+        d->note("[registry] " + registry + " " + rid + ": provided by " + addon + " (" + source + ")");
+    }
+    d->touch();
+    return SWOFTY_ASSET_OK;
+}
+
+std::vector<std::string> Store::layer_targets(const std::string &registry)
+{
+    std::lock_guard g(d->mu);
+    std::vector<std::string> out;
+    if (Reg *r = d->reg(registry))
+        for (auto &L : r->layers)
+            if (!L.spec.selector && !L.spec.id.empty())
+                out.push_back(L.spec.id);
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
 int Store::variant(const std::string &addon, const std::string &registry, const std::string &key, const std::string &base,
                    const Change &change, std::string *id, const std::string &source)
 {

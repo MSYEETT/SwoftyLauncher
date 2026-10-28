@@ -1,9 +1,12 @@
 #include <swofty/mixin.hpp>
 
 #include "../runtime.hpp"
+#include "older.hpp"
 #include "table.hpp"
 
 #include <windows.h>
+
+#include <mutex>
 
 std::string settings_addon(const void *from, std::string &dll);
 bool settings_state(const std::string &addon, const std::string &option, size_t &current, std::vector<std::string> *texts,
@@ -88,6 +91,24 @@ const SwoftyRegistry *registry_table()
     }();
     (void)once;
     return reg::table();
+}
+
+swofty_core::registry::Store &older_store()
+{
+    registry_table();
+    static std::once_flag once;
+    std::call_once(once, [] { swofty_core::registry::older::declare(reg::store()); });
+    return reg::store();
+}
+
+std::string older_addon(const void *from)
+{
+    std::string dll, id = settings_addon(from, dll);
+    if (!id.empty())
+        return id;
+    if (dll.empty() || dll == "swofty_core.dll")
+        return "swofty.core";
+    return dll;
 }
 
 int registry_write_reports()
