@@ -2,6 +2,8 @@
 
 #include "bc7.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <set>
@@ -87,12 +89,75 @@ inline bool grow(const Stock &stock, const std::vector<Slice> &add, Stock &out, 
     return true;
 }
 
-inline bool slice_from_rgba(const Shape &shape, const uint8_t *rgba, uint32_t w, uint32_t h, std::string &out, std::string &why)
+inline std::string fit_rgba(const uint8_t *rgba, uint32_t w, uint32_t h, uint32_t tw, uint32_t th)
 {
-    if (w != shape.width || h != shape.height)
-        return why = "the image is " + std::to_string(w) + "x" + std::to_string(h) + ", the array's slices are " +
-                     std::to_string(shape.width) + "x" + std::to_string(shape.height),
-               false;
+    std::string out(size_t(tw) * th * 4, '\0');
+    double scale = std::min(double(tw) / w, double(th) / h);
+    uint32_t nw = std::clamp<uint32_t>(uint32_t(std::lround(w * scale)), 1, tw);
+    uint32_t nh = std::clamp<uint32_t>(uint32_t(std::lround(h * scale)), 1, th);
+    uint32_t ox = (tw - nw) / 2, oy = (th - nh) / 2;
+    auto pre = [&](uint32_t x, uint32_t y, double *c) {
+        const uint8_t *p = rgba + (size_t(y) * w + x) * 4;
+        double a = p[3] / 255.0;
+        c[0] = p[0] * a;
+        c[1] = p[1] * a;
+        c[2] = p[2] * a;
+        c[3] = p[3];
+    };
+    for (uint32_t y = 0; y < nh; y++)
+        for (uint32_t x = 0; x < nw; x++) {
+            double acc[4] = {0, 0, 0, 0}, c[4];
+            if (nw < w || nh < h) {
+                double x0 = double(x) * w / nw, x1 = double(x + 1) * w / nw, y0 = double(y) * h / nh, y1 = double(y + 1) * h / nh, total = 0;
+                for (uint32_t sy = uint32_t(y0); sy < h && sy < y1; sy++)
+                    for (uint32_t sx = uint32_t(x0); sx < w && sx < x1; sx++) {
+                        double cover = (std::min(x1, sx + 1.0) - std::max(x0, double(sx))) * (std::min(y1, sy + 1.0) - std::max(y0, double(sy)));
+                        pre(sx, sy, c);
+                        for (int k = 0; k < 4; k++)
+                            acc[k] += c[k] * cover;
+                        total += cover;
+                    }
+                for (int k = 0; k < 4 && total > 0; k++)
+                    acc[k] /= total;
+            } else {
+                double fx = std::clamp((x + 0.5) * w / nw - 0.5, 0.0, w - 1.0), fy = std::clamp((y + 0.5) * h / nh - 0.5, 0.0, h - 1.0);
+                uint32_t ax = uint32_t(fx), ay = uint32_t(fy), bx = std::min(ax + 1, w - 1), by = std::min(ay + 1, h - 1);
+                double tx = fx - ax, ty = fy - ay;
+                const uint32_t px[4][2] = {{ax, ay}, {bx, ay}, {ax, by}, {bx, by}};
+                const double wt[4] = {(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty};
+                for (int i = 0; i < 4; i++) {
+                    pre(px[i][0], px[i][1], c);
+                    for (int k = 0; k < 4; k++)
+                        acc[k] += c[k] * wt[i];
+                }
+            }
+            uint8_t *d = reinterpret_cast<uint8_t *>(&out[(size_t(oy + y) * tw + ox + x) * 4]);
+            double a = acc[3];
+            uint8_t alpha = uint8_t(std::clamp(std::lround(a), 0L, 255L));
+            if (alpha) {
+                double un = 255.0 / a;
+                for (int k = 0; k < 3; k++)
+                    d[k] = uint8_t(std::clamp(std::lround(acc[k] * un), 0L, 255L));
+            }
+            d[3] = alpha;
+        }
+    return out;
+}
+
+inline bool slice_from_rgba(const Shape &shape, const uint8_t *rgba, uint32_t w, uint32_t h, std::string &out, std::string &why,
+                            bool *scaled = nullptr)
+{
+    if (!w || !h)
+        return why = "the image is empty", false;
+    if (scaled)
+        *scaled = false;
+    if (w != shape.width || h != shape.height) {
+        std::string fit = fit_rgba(rgba, w, h, shape.width, shape.height);
+        out = bc7::encode_logo(reinterpret_cast<const uint8_t *>(fit.data()), int(shape.width), int(shape.height));
+        if (scaled)
+            *scaled = true;
+        return true;
+    }
     out = bc7::encode_logo(rgba, int(w), int(h));
     return true;
 }

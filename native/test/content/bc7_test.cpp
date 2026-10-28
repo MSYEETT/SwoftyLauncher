@@ -65,6 +65,6 @@ int main(int argc, char **argv)
     std::string raw = slurp(dir + "/shape64.rgba"), made;
     const uint8_t *px = reinterpret_cast<const uint8_t *>(raw.data()) + raw.find('\n') + 1;
     check(la::slice_from_rgba(shape, px, 64, 64, made, why) && made == slice, "an RGBA image becomes the slice logos.py encodes");
-    check(!la::slice_from_rgba(shape, px, 32, 64, made, why) && why.find("32x64") != std::string::npos, "an image of another size is refused");
+    check(la::slice_from_rgba(shape, px, 32, 64, made, why) && made.size() == shape.slice_bytes(), "an image of another size is scaled to the slice");
     return failures ? 1 : 0;
 }

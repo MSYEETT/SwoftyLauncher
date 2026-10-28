@@ -1,6 +1,7 @@
 #include "../../src/core/apply/content/logo_build.hpp"
 #include "../../src/core/apply/content/png_straight.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -76,6 +77,73 @@ int main(int argc, char **argv)
     content::uidb::Pkg pkg;
     check(pkg.read(uidb) && pkg.write() == uidb, "overrides.uidb reads and writes to the same bytes");
 
+    {
+        namespace la = content::logo_array;
+        auto px_of = [](const std::string &img, uint32_t w, uint32_t x, uint32_t y) {
+            return reinterpret_cast<const uint8_t *>(img.data() + (size_t(y) * w + x) * 4);
+        };
+        std::string solid(8 * 8 * 4, '\0');
+        for (size_t i = 0; i < 64; i++) {
+            solid[i * 4] = char(200);
+            solid[i * 4 + 1] = 100;
+            solid[i * 4 + 2] = 50;
+            solid[i * 4 + 3] = char(255);
+        }
+        std::string same = la::fit_rgba(reinterpret_cast<const uint8_t *>(solid.data()), 8, 8, 8, 8);
+        check(same == solid, "fit at the exact size keeps every pixel");
+        std::string small = la::fit_rgba(reinterpret_cast<const uint8_t *>(solid.data()), 8, 8, 4, 4);
+        bool flat = true;
+        for (uint32_t y = 0; y < 4; y++)
+            for (uint32_t x = 0; x < 4; x++) {
+                auto p = px_of(small, 4, x, y);
+                flat &= p[0] == 200 && p[1] == 100 && p[2] == 50 && p[3] == 255;
+            }
+        check(flat, "shrinking an opaque image keeps colour and alpha at the edges");
+        std::string big = la::fit_rgba(reinterpret_cast<const uint8_t *>(solid.data()), 8, 8, 16, 16);
+        flat = true;
+        for (uint32_t y = 0; y < 16; y++)
+            for (uint32_t x = 0; x < 16; x++) {
+                auto p = px_of(big, 16, x, y);
+                flat &= p[0] == 200 && p[1] == 100 && p[2] == 50 && p[3] == 255;
+            }
+        check(flat, "growing an opaque image keeps colour and alpha at the edges");
+        std::string checker(2 * 2 * 4, '\0');
+        for (int i = 0; i < 4; i++) {
+            bool white = (i == 0 || i == 3);
+            checker[i * 4] = checker[i * 4 + 1] = checker[i * 4 + 2] = white ? char(255) : 0;
+            checker[i * 4 + 3] = char(255);
+        }
+        std::string avg = la::fit_rgba(reinterpret_cast<const uint8_t *>(checker.data()), 2, 2, 1, 1);
+        check(px_of(avg, 1, 0, 0)[0] >= 127 && px_of(avg, 1, 0, 0)[0] <= 128 && px_of(avg, 1, 0, 0)[3] == 255,
+              "shrinking averages the covered pixels (area average)");
+        std::string wide(8 * 4 * 4, '\0');
+        for (size_t i = 0; i < 32; i++) {
+            wide[i * 4] = char(255);
+            wide[i * 4 + 3] = char(255);
+        }
+        std::string fit = la::fit_rgba(reinterpret_cast<const uint8_t *>(wide.data()), 8, 4, 16, 16);
+        bool top_clear = true, middle = true, bottom_clear = true;
+        for (uint32_t x = 0; x < 16; x++) {
+            for (uint32_t y = 0; y < 4; y++)
+                top_clear &= px_of(fit, 16, x, y)[3] == 0;
+            for (uint32_t y = 4; y < 12; y++)
+                middle &= px_of(fit, 16, x, y)[3] == 255 && px_of(fit, 16, x, y)[0] == 255;
+            for (uint32_t y = 12; y < 16; y++)
+                bottom_clear &= px_of(fit, 16, x, y)[3] == 0;
+        }
+        check(top_clear && middle && bottom_clear, "a non-square image keeps its aspect, is centred and the padding is transparent");
+        std::string half(4 * 4 * 4, '\0');
+        for (uint32_t y = 0; y < 4; y++)
+            for (uint32_t x = 2; x < 4; x++) {
+                size_t i = (size_t(y) * 4 + x) * 4;
+                half[i] = char(255);
+                half[i + 3] = char(255);
+            }
+        std::string edge = la::fit_rgba(reinterpret_cast<const uint8_t *>(half.data()), 4, 4, 2, 2);
+        check(px_of(edge, 2, 0, 0)[3] == 0 && px_of(edge, 2, 0, 0)[0] == 0 && px_of(edge, 2, 1, 0)[3] == 255 && px_of(edge, 2, 1, 0)[0] == 255,
+              "transparent pixels do not bleed colour into opaque ones (straight alpha)");
+    }
+
     lb::Env env;
     env.list = [&] { return list; };
     env.open = [&](const std::string &rel) { return open_file(game / rel); };
@@ -109,7 +177,14 @@ int main(int argc, char **argv)
         bad[0].width = 32;
         lb::Result r2;
         lb::build(env, bad, r2);
-        check(r2.refused == 1 && r2.built == 1, "an image of the wrong size is refused and the alias still builds");
+        bool said = false;
+        for (auto &l : r2.lines)
+            said |= l == "team.logo: newteam scaled 32x64 -> 64x64 for teams.driver_select_team_logos";
+        check(r2.refused == 0 && r2.built == 2 && said, "an image of another size is scaled to the slice and logged once");
+        lb::Result r2x;
+        lb::build(env, wants, r2x);
+        check(r2x.built == 2 && std::none_of(r2x.lines.begin(), r2x.lines.end(), [](const std::string &l) { return l.find("scaled") != std::string::npos; }),
+              "an image of the exact size is not scaled and nothing is logged");
         bad = wants;
         bad[1].donor = "zz";
         lb::Result r3;
