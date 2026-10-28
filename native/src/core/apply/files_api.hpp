@@ -13,6 +13,7 @@ namespace swofty_core::apply::files {
 Outcome redirect(const std::string &game_path, const std::string &addon, const std::string &file,
                  const std::string &registry, const std::string &id, const std::string &scope);
 std::vector<std::string> put_back(const std::string &scope);
+std::string winner(const std::string &game_path);
 void report(Value &conflicts);
 
 }

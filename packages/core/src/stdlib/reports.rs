@@ -44,6 +44,14 @@ pub enum Conflict {
         addon: String,
         error: String,
     },
+    /// Two addons redirect the same game path (a record's `Path`); the later in load order wins.
+    File {
+        registry: String,
+        id: String,
+        path: String,
+        addons: Vec<String>,
+        wins: String,
+    },
     HookUnavailable {
         point: String,
         holder: String,
@@ -91,6 +99,13 @@ impl Conflict {
                 addon: s(v, "addon"),
                 error: s(v, "error"),
             },
+            "file" => Self::File {
+                registry: s(v, "registry"),
+                id: s(v, "id"),
+                path: s(v, "path"),
+                addons: list(v, "addons"),
+                wins: s(v, "wins"),
+            },
             "hook_unavailable" => Self::HookUnavailable {
                 point: s(v, "point"),
                 holder: s(v, "holder"),
@@ -112,7 +127,9 @@ impl Conflict {
     /// The addons the entry is about.
     pub fn addons(&self) -> Vec<&str> {
         match self {
-            Self::Field { addons, .. } => addons.iter().map(String::as_str).collect(),
+            Self::Field { addons, .. } | Self::File { addons, .. } => {
+                addons.iter().map(String::as_str).collect()
+            }
             Self::InvalidLayer { addon, .. } | Self::HandlerFaulted { addon, .. } => vec![addon.as_str()],
             Self::HookUnavailable {
                 holder, subscribers, ..
@@ -143,6 +160,17 @@ impl Conflict {
                 addon,
                 error,
             } => format!("{registry} {id}: {}'s layer dropped: {error}", name(addon)),
+            Self::File {
+                registry,
+                id,
+                path,
+                addons,
+                wins,
+            } => format!(
+                "{path}: redirected by {}; {}'s file wins ({registry} {id}; reorder addons to change it)",
+                addons.iter().map(|a| name(a)).collect::<Vec<_>>().join(", "),
+                name(wins)
+            ),
             Self::HookUnavailable {
                 point,
                 holder,
@@ -369,6 +397,8 @@ mod tests {
           "subscribers": ["swofty.progressive"] },
         { "kind": "handler_faulted", "point": "session.lap", "phase": "after", "addon": "someone.lapticker" },
         { "kind": "invalid_data", "addon": "mod.esp", "error": "registry/sounds.json: not an object" },
+        { "kind": "file", "registry": "engine_sound", "id": "mod.late/v10", "path": "audio/2025/bundles/v10.bdl",
+          "addons": ["mod.esp", "mod.late"], "wins": "mod.late" },
         { "kind": "something_new", "x": 1 }
       ],
       "later": true
@@ -377,11 +407,11 @@ mod tests {
     #[test]
     fn reads_every_kind_of_conflict_the_docs_show() {
         let c = Conflicts::parse(CONFLICTS_DOC).unwrap();
-        assert_eq!(c.registry.len(), 6);
+        assert_eq!(c.registry.len(), 7);
         assert!(matches!(&c.registry[0], Conflict::Field { wins, .. } if wins == "someone.realism"));
         assert!(matches!(&c.registry[3], Conflict::HandlerFaulted { phase, .. } if phase == "after"));
         assert!(
-            matches!(&c.registry[5], Conflict::Other { kind, addon: None, .. } if kind == "something_new")
+            matches!(&c.registry[6], Conflict::Other { kind, addon: None, .. } if kind == "something_new")
         );
         let name = |id: &str| match id {
             "someone.realism" => "Realism".to_owned(),
@@ -391,6 +421,12 @@ mod tests {
             c.registry[0].line(&name),
             "career.season swofty.progressive/2017 /teams/slot=1/seats: set by tails.whatif-history, Realism; \
              Realism wins (reorder addons to change it)"
+        );
+        assert_eq!(c.registry[5].addons(), vec!["mod.esp", "mod.late"]);
+        assert_eq!(
+            c.registry[5].line(&name),
+            "audio/2025/bundles/v10.bdl: redirected by mod.esp, mod.late; mod.late's file wins \
+             (engine_sound mod.late/v10; reorder addons to change it)"
         );
         assert_eq!(
             c.registry[2].line(&name),

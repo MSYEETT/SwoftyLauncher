@@ -71,6 +71,14 @@ std::vector<std::string> put_back(const std::string &scope)
     return lines;
 }
 
+std::string winner(const std::string &game_path)
+{
+    std::lock_guard g(mu);
+    Normal p = files::game_path(game_path);
+    const Claim *w = p.ok() ? router().winner(p.path) : nullptr;
+    return w ? w->addon : std::string();
+}
+
 void report(Value &conflicts)
 {
     std::lock_guard g(mu);

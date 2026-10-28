@@ -205,6 +205,7 @@ void run_boot(Store &st)
 void redirect_bundles(Store &st, Expansion &x, Report &report)
 {
     std::map<std::string, int> routed, kept;
+    std::set<std::string> paths;
     std::vector<std::string> order;
     auto note = [&order](const std::string &addon) {
         if (std::find(order.begin(), order.end(), addon) == order.end())
@@ -218,7 +219,7 @@ void redirect_bundles(Store &st, Expansion &x, Report &report)
         files::Outcome o = files::redirect(rd.path, addon, rd.file, "engine_sound", rd.id, "boot");
         note(addon);
         if (o.kind == files::Kind::routed || o.kind == files::Kind::shadowed)
-            routed[addon]++;
+            paths.insert(o.path);
         else if (o.kind == files::Kind::kept)
             kept[addon]++;
         else {
@@ -227,6 +228,11 @@ void redirect_bundles(Store &st, Expansion &x, Report &report)
         }
         if (!o.conflict.empty())
             report.lines.push_back(o.conflict);
+    }
+    for (auto &p : paths) {
+        std::string w = files::winner(p);
+        if (!w.empty())
+            routed[w]++;
     }
     std::string summary;
     for (auto &addon : order) {
