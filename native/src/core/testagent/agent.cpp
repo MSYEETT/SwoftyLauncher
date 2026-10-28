@@ -120,6 +120,18 @@ const runtime::Sig S_FIRE_CALL{"Vm_Fire_Route", "48 8B 4E 28 48 89 F2 49 89 F8 4
 constexpr size_t VM_TILE_LIST = 0x2c8, VM_ROUTER = 0x28, STACK_SCAN = 0x1000;
 
 using Fire_t = void(void *router, void *vm, swofty::game::NeStr **name, uint64_t a4);
+using MakeStr_t = uint32_t(swofty::game::NeStr **out, const char *s, uint32_t flags, uintptr_t len);
+using Controller_t = void(void *system, uint64_t vehicle, uint32_t ai, int32_t reason);
+
+// The agent's bindings resolve through the core when it arms, never as the core's own wanted bindings:
+// normal Play never needs them, and a build without one only makes the commands that need it answer
+// unavailable.
+uintptr_t a_home_cmd, a_make_str, a_controller;
+
+void make_str(swofty::game::NeStr **s, const char *text)
+{
+    reinterpret_cast<MakeStr_t *>(a_make_str)(s, text, 0, 0);
+}
 
 std::atomic<void *> home_vm{nullptr}, home_vt{nullptr};
 uintptr_t a_fire;
@@ -155,7 +167,7 @@ void populate_mid(safetyhook::Context &c)
             continue;
         auto **vt = *reinterpret_cast<void ***>(v);
         if (runtime::readable(vt, 11 * sizeof(void *)) &&
-            reinterpret_cast<uintptr_t>(vt[10]) == swofty::game::FeHome_Handle_Command.address())
+            reinterpret_cast<uintptr_t>(vt[10]) == a_home_cmd)
             set_home(v);
         return;
     }
@@ -165,7 +177,9 @@ void routes_setup()
 {
     uintptr_t loop = runtime::find(S_POPULATE_LOOP, "test", "test");
     a_fire = runtime::find(S_FIRE_CALL, "test", "test");
-    if (!a_fire || !swofty::game::Ne_Make_StrFromCStr.address() || !swofty::game::FeHome_Handle_Command.address()) {
+    a_home_cmd = swofty::api->resolve("FeHome_Handle_Command");
+    a_make_str = swofty::api->resolve("Ne_Make_StrFromCStr");
+    if (!a_fire || !a_make_str || !a_home_cmd) {
         route_why = "Vm_Fire_Route, Ne_Make_StrFromCStr or FeHome_Handle_Command did not resolve on this build";
         return;
     }
@@ -199,7 +213,7 @@ void controller_detour(void *system, uint64_t vehicle, uint32_t ai, int32_t reas
 
 void controller_setup()
 {
-    uintptr_t a = swofty::game::Game_Set_VehicleController_Thunk.address();
+    uintptr_t a = a_controller = swofty::api->resolve("Game_Set_VehicleController_Thunk");
     if (!a) {
         controller_why = "Game_Set_VehicleController_Thunk did not resolve on this build";
         return;
@@ -564,9 +578,9 @@ struct InGame : ta::Game {
         if (!router)
             return ta::Outcome::unavailable("the home view model has no router");
         swofty::game::NeStr *s = nullptr;
-        swofty::game::Ne_Make_StrFromCStr(&s, name.c_str(), 0, 0);
+        make_str(&s, name.c_str());
         reinterpret_cast<Fire_t *>(a_fire)(router, vm, &s, 0);
-        swofty::game::Ne_Make_StrFromCStr(&s, nullptr, 0, 0);
+        make_str(&s, nullptr);
         swofty::log("[test] route %s fired from the home view model", name.c_str());
         return ta::Outcome::ok();
     }
@@ -618,7 +632,7 @@ struct InGame : ta::Game {
         if (!car)
             return ta::Outcome::unavailable("the player's car: " + why);
         uint8_t vid = car[CAR_VEHICLE_ID];
-        swofty::game::Game_Set_VehicleController_Thunk(sys, vid, on ? 1 : 0, 6);
+        reinterpret_cast<Controller_t *>(a_controller)(sys, vid, on ? 1 : 0, 6);
         swofty::log("[test] ai_drives_player %s: vehicle %u, controller system %p, reason 6 (dev)", on ? "on" : "off",
                     unsigned(vid), sys);
         return ta::Outcome::ok("{\"vehicle\":" + std::to_string(vid) + "}");
