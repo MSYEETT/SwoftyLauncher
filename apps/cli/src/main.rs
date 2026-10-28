@@ -315,7 +315,29 @@ fn data_dir_arg(args: &[OsString]) -> Option<PathBuf> {
 struct AddonCommands {
     registry: Registry,
     specs: Vec<(String, CommandSpec)>,
+    namespaced: Vec<Namespaced>,
     developer: bool,
+}
+
+/// An addon command as `swofty <addon id>:<name>`. Every addon command has one, so a command whose
+/// name a built-in command (or another addon) took stays reachable; only those are listed in help.
+struct Namespaced {
+    id: String,
+    name: String,
+    spec: CommandSpec,
+    listed: bool,
+}
+
+fn namespaced(all: &[(String, Vec<CommandSpec>)], accepted: &[(String, CommandSpec)]) -> Vec<Namespaced> {
+    all.iter()
+        .flat_map(|(id, specs)| specs.iter().map(move |spec| (id, spec)))
+        .map(|(id, spec)| Namespaced {
+            id: id.clone(),
+            name: format!("{id}:{}", spec.name),
+            spec: spec.clone(),
+            listed: !accepted.iter().any(|(a, s)| a == id && s.name == spec.name),
+        })
+        .collect()
 }
 
 impl AddonCommands {
@@ -330,13 +352,38 @@ impl AddonCommands {
             .chain(["help".to_owned()])
             .collect();
         let reserved: Vec<&str> = reserved.iter().map(String::as_str).collect();
-        let (specs, refused) = registry.commands(&reserved);
-        refused.iter().for_each(|r| eprintln!("swofty: {r}"));
+        let (specs, _) = registry.commands(&reserved);
+        let all: Vec<(String, Vec<CommandSpec>)> = registry
+            .iter()
+            .map(|e| (e.id().to_owned(), e.addon.commands()))
+            .collect();
+        let namespaced = namespaced(&all, &specs);
+        for n in namespaced.iter().filter(|n| n.listed) {
+            eprintln!(
+                "swofty: {}: its command {} has the name of a built-in command or another addon's; run it as swofty {}",
+                n.id, n.spec.name, n.name
+            );
+        }
         Self {
             registry,
             specs,
+            namespaced,
             developer: dev::enabled(store),
         }
+    }
+
+    /// The addon command `name` names, with the name the addon knows it by.
+    fn find(&self, name: &str) -> Option<(&str, &CommandSpec)> {
+        self.specs
+            .iter()
+            .find(|(_, s)| s.name == name)
+            .map(|(id, s)| (id.as_str(), s))
+            .or_else(|| {
+                self.namespaced
+                    .iter()
+                    .find(|n| n.name == name)
+                    .map(|n| (n.id.as_str(), &n.spec))
+            })
     }
 
     fn provides(&self, name: &str) -> bool {
@@ -350,9 +397,25 @@ impl AddonCommands {
         }
         let developer = self.developer;
         cmd = cmd.mut_subcommand("dev", |c| c.hide(!developer));
-        self.specs
+        let cmd = self
+            .specs
             .iter()
-            .fold(cmd, |cmd, (_, spec)| cmd.subcommand(clap_command(spec)))
+            .fold(cmd, |cmd, (_, spec)| cmd.subcommand(clap_command(spec)));
+        self.namespaced.iter().fold(cmd, |cmd, n| {
+            let about = match n.listed {
+                true => format!(
+                    "{} ({}'s {} command: swofty {} is a built-in command or another addon's)",
+                    n.spec.about, n.id, n.spec.name, n.spec.name
+                ),
+                false => n.spec.about.clone(),
+            };
+            cmd.subcommand(
+                clap_command(&n.spec)
+                    .name(n.name.clone())
+                    .about(about)
+                    .hide(!n.listed),
+            )
+        })
     }
 }
 
@@ -460,13 +523,13 @@ fn run_cli(store: &Store, mut args: Vec<OsString>) -> Result<ExitCode> {
     let matches = addons.command().get_matches_from(args);
     migrate(store);
     if let Some((name, sub)) = matches.subcommand()
-        && let Some((id, spec)) = addons.specs.iter().find(|(_, s)| s.name == name)
+        && let Some((id, spec)) = addons.find(name)
     {
         let profile = matches
             .get_one::<String>("profile")
             .cloned()
             .unwrap_or_else(|| store.active_profile());
-        let (mut path, mut input) = (vec![name.to_owned()], Vec::new());
+        let (mut path, mut input) = (vec![spec.name.clone()], Vec::new());
         command_input(sub, spec, &mut path, &mut input);
         if let Ok(cwd) = std::env::current_dir() {
             absolute_paths(&mut input, &cwd);
@@ -1204,6 +1267,55 @@ mod tests {
         .filter(|n| text.contains(*n))
         .map(|n| (*n).to_owned())
         .collect()
+    }
+
+    #[test]
+    fn an_addon_command_a_built_in_took_stays_reachable_under_its_addon_id() {
+        let spec = |name: &str| CommandSpec {
+            name: name.into(),
+            about: format!("does {name}"),
+            args: Vec::new(),
+            subcommands: Vec::new(),
+        };
+        let all = vec![("someone.tool".to_owned(), vec![spec("registry"), spec("tidy")])];
+        let accepted = vec![("someone.tool".to_owned(), spec("tidy"))];
+        let addons = AddonCommands {
+            registry: Registry::default(),
+            namespaced: namespaced(&all, &accepted),
+            specs: accepted,
+            developer: false,
+        };
+        let listed: Vec<(&str, bool)> = addons
+            .namespaced
+            .iter()
+            .map(|n| (n.name.as_str(), n.listed))
+            .collect();
+        assert_eq!(
+            listed,
+            [("someone.tool:registry", true), ("someone.tool:tidy", false)]
+        );
+        let cmd = addons.command();
+        for (typed, known_as) in [
+            ("someone.tool:registry", "registry"),
+            ("someone.tool:tidy", "tidy"),
+            ("tidy", "tidy"),
+        ] {
+            let m = cmd.clone().try_get_matches_from(["swofty", typed]).unwrap();
+            let (name, _) = m.subcommand().unwrap();
+            let (id, spec) = addons.find(name).unwrap();
+            assert_eq!((id, spec.name.as_str()), ("someone.tool", known_as));
+        }
+        let m = cmd
+            .clone()
+            .try_get_matches_from(["swofty", "registry", "check"])
+            .unwrap();
+        assert!(addons.find(m.subcommand().unwrap().0).is_none());
+        let help = cmd.clone().render_help().to_string();
+        assert!(help.contains("someone.tool:registry"), "{help}");
+        assert!(!help.contains("someone.tool:tidy"), "{help}");
+        for name in ["dev", "test", "registry", "careers"] {
+            assert!(cmd.find_subcommand(name).is_some(), "{name}");
+        }
     }
 
     #[test]
