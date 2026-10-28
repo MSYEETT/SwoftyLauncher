@@ -85,8 +85,8 @@ for mode in armed refused retired off; do
         check "hello answers" '"seq":1,"status":"ok","value":\{"v":1,' "$RES"
         check "route answers unavailable with the reason" '"seq":2,"status":"unavailable","error":"Vm_Fire_Route, Ne_Make_StrFromCStr or FeHome_Handle_Command did not resolve' "$RES"
         check "read agent.ticks answers from the flow tick" '"seq":3,"status":"ok","value":\{"value":[1-9][0-9]*,"type":"u64"\}' "$RES"
-        check "a car read off the KB build is unavailable" '"seq":4,"status":"unavailable","error":"the vehicle table' "$RES"
-        check "a car set off the KB build is unavailable" '"seq":5,"status":"unavailable","error":"the vehicle table' "$RES"
+        check "a car read off the KB build is unavailable" '"seq":4,"status":"unavailable","error":"the car field offsets' "$RES"
+        check "a car set off the KB build is unavailable" '"seq":5,"status":"unavailable","error":"the car field offsets' "$RES"
         check "a wait times out" '"seq":6,"status":"timeout"' "$RES"
         check "skip off the KB build is unavailable" '"seq":7,"status":"unavailable","error":"MessageSetAdvanceDestination' "$RES"
         check "advance outside the sandbox is refused" '"seq":8,"status":"error","error":"advance runs only in the save sandbox' "$RES"
@@ -94,7 +94,7 @@ for mode in armed refused retired off; do
         check "the pad answers" '"seq":10,"status":"(ok|unavailable)"' "$RES"
         check "an unknown command is an error" '"seq":11,"status":"error","error":"unknown command' "$RES"
         check "career load outside the sandbox is refused" '"seq":12,"status":"error","error":"career load runs only in the save sandbox' "$RES"
-        check "title off the KB build is unavailable, so the CLI falls back to the pad" '"seq":13,"status":"unavailable","error":"FeFlow_StateIntro_OnUpdate' "$RES"
+        check "title off the KB build is unavailable, so the CLI falls back to the pad" '"seq":13,"status":"unavailable","error":"StateIntro.s state layout' "$RES"
         n=$(grep -c '"seq":' "$RES" || true)
         [[ $n == 13 ]] && echo "ok  : every command answered once" || { echo "FAIL: $n answers, want 13"; status=1; }
         ;;
