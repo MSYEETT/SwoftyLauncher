@@ -9,6 +9,10 @@ With the AI system you change how AI cars race, which baked track data each car 
 
 A car's **AI config** is its race-craft block: aggression, the space it keeps, its steering and pedal controllers. A **track pack** is the folder of baked AI data a car drives on at each track.
 
+::: info In 1.6.0
+The header `swofty/systems/ai.hpp` has the `ai.controller.update` payload `ai::events::ControllerUpdate` and nothing else. The registries (`vehicle_configs`, `package_maps`, `track_packs`, `general`, `difficulty`), `ConfigLoad` and the operations ship later; those sections describe that design. `ai.controller.update` needs in-game check T145.
+:::
+
 ## The header
 
 <Split>
@@ -302,7 +306,7 @@ ai::assign_track_pack(cars::vehicles["swofty.f1-1990/mclaren_1990"], ai::track_p
 - **Events: partial.** The loaders (`Sess_Load_VehicleAiConfig`, `Ai_Resolve_GeneralSettings`, `Sess_Build_AiSystem`) are L2. The decision code is L1 or unexplored.
 - **Unknown:** where the 0 to 110 difficulty slider scales the controllers (so `ai::difficulty` has nothing to apply yet), the grip index source, and the AI path builder.
 - **When a changed config applies needs reverse engineering.** The game parses the configs in a startup loop (`Sess_Startup_VehicleAiLoop`) into a map keyed by stat id. The core applies a changed config at the next session load. Whether the game rereads that map for a later session is unverified; if it doesn't, a change applies from the next game start. The same goes for a career season that moves a team to another year's car.
-- **`ai.controller.update`: implemented, waiting on verification.** Slot 1 of the AI controller's vtable (`Sess_AiController_Update`, L2) writes the inputs into the record at `[controller+8]`: throttle at +0xC, steering at +0x14 and brake at +0x18 (the names are L1); the vehicle index is at `controller+0x18`. The core's hook binds only after an independent `agree` verify of the table, and whether the game calls slot 1 every frame is test T145. Until a binding resolves the point reports unavailable and its handlers do not run.
+- **`ai.controller.update`: implemented, waiting on verification.** Slot 1 of the AI controller's vtable (`Sess_AiController_Update`, L2) writes the inputs into the record at `[controller+8]`: throttle at +0xC, steering at +0x14 and brake at +0x18 (the names are L1); the vehicle index is at `controller+0x18`. The core's hook binds only after an independent `agree` verify of the table, and whether the game calls slot 1 every frame is test T145, an in-game check. Until a binding resolves the point reports unavailable and its handlers do not run.
 - **Baked tables cap pace.** A car faster than its baked set gets nothing from more grip. Physics changes must keep the car inside the baked envelope.
 - **A missing AI folder hangs the load.** The core refuses a track pack whose folder isn't there. A box offers a track only where every car in it has AI data (see [Tracks](./tracks)).
 - **The AI table holds 30 cars.**

@@ -186,7 +186,7 @@ struct ControllersRebuilt {                        // the game built the car's c
     enum Reason : uint32_t { rebuild = 0, resettle = 1 };
     uint32_t size, payload_version;
     live::Car car;
-    uint32_t reason;                               // rebuild: after the sets' build-all
+    uint32_t reason;                               // rebuild: after the sets' build (Sess_ControllerSystem_BuildSets); in-game check T144
 };
 
 struct PartsRegister {                             // Car_FrontWing_Init: after

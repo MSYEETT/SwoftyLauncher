@@ -9,6 +9,10 @@ With the power system you give cars an engine, set when DRS opens, and change th
 
 A **power unit** is the engine, turbo, fuel and ERS blocks a car's handling file carries. A **supplier** is the engine maker a car shows. **Component rules** are how many engine parts a driver gets per season, how fast they wear, and the grid drops for using more.
 
+::: info In 1.6.0
+The power system has no header in 1.6.0 (`swofty/systems/power.hpp` ships later). This page describes the design. `sessions::Rules::drs` refers to its `power::DrsRule`.
+:::
+
 ## The header
 
 <Split>

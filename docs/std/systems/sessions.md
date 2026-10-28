@@ -9,6 +9,10 @@ With the session system you set what a race weekend looks like: its sessions, ho
 
 A **setup mode** is the game's row that a weekend runs under: its format, length, rules and grid all hang off it. Every Grand Prix and Time Trial box shares one setup mode, `swofty_f1`, and each box's own points, DRS, tyre class and rules apply when a session loads in that box. A box gets a setup mode of its own only when it needs a different shape at boot, such as F1 1990's two qualifying sessions.
 
+::: info In 1.6.0
+The header `swofty/systems/sessions.hpp` has `sessions::Rules` (the `rules` of a `content::Package`), `sessions::set_control` and the `session.player.control` payload `sessions::events::PlayerControl`; `swofty/systems/control.hpp` has `Control` and `ControlState`. The registries on this page (`modes`, `formats`, `lengths`, `points`, `rules_profiles`, `safety_car`, `grids`) and the penalty, results and weekend events ship later; those sections describe that design.
+:::
+
 ## The header
 
 <Split>
@@ -457,7 +461,7 @@ sessions::issue_penalty(car, sessions::PenaltyKind::grid, 3.0f);
 - **Ready:** the entrant, grid, result and safety car handlers are L2, used by Custom Grid Size and F1 1990.
 - **Partial:** points and penalties. The data is ready, and the runtime code is L1. A box's points apply through the standings lookup, which still needs reverse engineering, and a box's DRS through `session.drs.allowed` (see [Power units](./power-units)). Until then those two come from the setup mode.
 - **Unknown:** flags and red flags, the knockout cut writer, red-flag restarts, penalty decision thresholds at run time, the difficulty preset selector.
-- **Who drives a car: implemented, waiting on verification.** `Game_Set_VehicleController` (the fourth argument is a flag index, not a free reason code) and the controller set (human controller at +0x20, AI controller at +0x28, flags at +0x30, mode = dword[+0x10] ^ dword[+0x18]) are L2. The core binds them after the independent verify, and until then `set_control` and `car.control()` report unavailable. Whether a flashback or Return to Garage rebuilds the sets is test T144; `car.controllers.rebuilt` fires after every build of the sets.
+- **Who drives a car: implemented, waiting on verification.** `Game_Set_VehicleController` (the fourth argument is a flag index, not a free reason code) and the controller set (human controller at +0x20, AI controller at +0x28, flags at +0x30, mode = dword[+0x10] ^ dword[+0x18]) are L2. The core binds them after the independent verify, and until then `set_control` and `car.control()` report unavailable. Whether a flashback or Return to Garage rebuilds the sets is test T144; `car.controllers.rebuilt` fires after every build of the sets (`Sess_ControllerSystem_BuildSets`, L2), and needs the T144 in-game run.
 - **Grid:** 32 vehicle slots, a 27-car clamp at session enter, an AI table of 30, a wheel map that rehashes at the 26th car, replay holders sized for 22 to 24 cars. `sessions::grids` refuses a size the game can't hold, naming the limit.
 - **Grid size is one boot setting per install.** The track worlds that hold the grid are picked once at boot for every box, and each box and mode is clamped to that size.
 - **Points** are whole numbers in arrays of 23, padded to the grid size. 1990's half points are rounded.

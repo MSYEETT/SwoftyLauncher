@@ -9,6 +9,10 @@ With the graphics system you change the picture: its colour grade, extra post-pr
 
 A **look** is a colour grade from a LUT file, applied at a strength. A **pass** is a shader that runs on the finished frame. A **setting** is one of the game's hardware settings, such as rain beads or ray-traced reflections.
 
+::: info In 1.6.0
+`swofty/systems/spectator.hpp` ships in 1.6.0: `spectator::set_active`, `follow`, `set_camera`, `current` and the `hud.spectator.visible` payload. `swofty/systems/graphics.hpp` (looks, passes, settings) ships later; the looks, passes and settings sections describe that design.
+:::
+
 ## The header
 
 <Split>

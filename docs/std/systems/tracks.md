@@ -15,6 +15,10 @@ A few terms used on this page:
 - A **box** is one of the year tiles a player picks in Grand Prix or Time Trial. In code it's a [content package](/std/content).
 - The **base** is the data every year shares. A track an addon adds goes into the base.
 
+::: info In 1.6.0
+The header `swofty/systems/tracks.hpp` has `tracks::set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`, `tracks::Fuel` and the `session.fuel.load` payload `tracks::events::FuelLoad`. The registries on this page (`tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines`) and `tracks::set_data` ship in 1.6.x; their sections describe that design and are not callable in 1.6.0.
+:::
+
 ## The header
 
 <Example root="swofty-sdk" code-file="include/swofty/systems/tracks.hpp">
@@ -124,8 +128,10 @@ inline Registry<Slots> slots{"track.slots", { .applies = Applies::boot }};   // 
 inline Registry<AiLine> ai_lines{"track.ai_line", { .applies = Applies::session }};
 
 TrackList track_list(Ref<content::Package> box, events::Mode mode);   // grand_prix or time_trial
-Result set_data(Ref<Track> track, Edit<TrackData> edit);         // the loaded track object; put back on unload
-Result set_track_fuel(Ref<Track> track, const Fuel &fuel);        // the loaded track's fuel tables, per career; put back on unload
+Result set_data(Ref<Track> track, Edit<TrackData> edit);         // 1.6.x: the loaded track object; put back on unload
+Result set_track_fuel(Ref<Track> track, const Fuel &fuel, std::string_view data_set = "f1_2026");   // shipped; core ops table v4
+Result copy_track_fuel(std::string_view track, std::string_view data_set, std::string_view from, std::string_view why = {});   // shipped; "*" is every track
+Result restore_track_fuel(std::string_view why = {});             // shipped; also done when the career unloads
 
 }
 
