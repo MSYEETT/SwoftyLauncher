@@ -969,6 +969,12 @@ fn app_control() -> Diagnosis {
     }
 }
 
+fn saving(e: &Evidence) -> bool {
+    e.report
+        .as_deref()
+        .is_some_and(|r| r.contains("Game_SaveData_WriteBag"))
+}
+
 fn game_heap(e: &Evidence) -> Diagnosis {
     let mut tracks: Vec<&String> = e.tracks.iter().collect();
     tracks.sort_by_key(|id| id.as_str() != SEPANG);
@@ -978,10 +984,14 @@ fn game_heap(e: &Evidence) -> Diagnosis {
     if years_on > 0 {
         heavy.push(years(years_on));
     }
-    let mut what =
+    let mut what = if saving(e) {
+        "F1 25 keeps a fixed amount of memory for game data, and it filled up while the game was saving your \
+         career, so the game closed. More memory in your PC doesn't change that."
+    } else {
         "F1 25 keeps a fixed amount of memory for game data, and it filled up, so the game closed. More \
-                    memory in your PC doesn't change that."
-            .to_owned();
+         memory in your PC doesn't change that."
+    }
+    .to_owned();
     if !heavy.is_empty() {
         what.push_str(&format!(
             " Imported tracks and season packs use a lot of it, and your profile has {} on.",
@@ -1396,6 +1406,38 @@ fn pitlane(e: &Evidence) -> Diagnosis {
     }
 }
 
+const QUIT_SECS: f64 = 10.0;
+
+/// Whether the crash report's black box shows the game was already in its
+/// Exiting flow, with a first-chance access violation in the game's own code
+/// just before the process ended.
+fn quit_fault(e: &Evidence) -> bool {
+    let Some(report) = &e.report else {
+        return false;
+    };
+    let secs_before = |line: &str| -> Option<f64> {
+        let rest = &line[line.find('(')? + 1..];
+        rest.split(" s before").next()?.parse().ok()
+    };
+    let state = |key: &str| report.lines().find(|l| l.trim_start().starts_with(key));
+    let exiting = state("last flow")
+        .is_some_and(|l| l.contains(" Exiting ") && secs_before(l).is_some_and(|s| s <= QUIT_SECS));
+    let violation = state("last exception")
+        .is_some_and(|l| l.contains("ACCESS_VIOLATION") && l.to_ascii_lowercase().contains(" at f1_25.exe+"));
+    exiting && violation
+}
+
+fn quit_fault_diagnosis() -> Diagnosis {
+    Diagnosis {
+        id: "quit_fault",
+        title: "F1 25 hit an error as it closed".to_owned(),
+        what: "F1 25 was already closing when it hit an error and ended itself. This is a fault in the game's own \
+               shutdown, not a crash during play, and nothing you were doing is lost."
+            .to_owned(),
+        steps: vec!["Nothing to fix. Press Play when you want to play again.".to_owned()],
+    }
+}
+
 /// The cause of a crash, from the first rule that recognises it.
 pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
     if let Some((drive, free, need)) = low_disk(&e.loader) {
@@ -1403,6 +1445,9 @@ pub fn diagnose(e: &Evidence) -> Option<Diagnosis> {
     }
     if e.code == Some(APP_CONTROL) {
         return Some(app_control());
+    }
+    if quit_fault(e) {
+        return Some(quit_fault_diagnosis());
     }
     let f = fatal(e);
     let loaded = loaded_modules(&e.loader);
@@ -2007,6 +2052,41 @@ mod tests {
 ";
 
     #[test]
+    fn a_full_game_heap_while_saving_says_so() {
+        let mut e = ev(GAME_HEAP, &[]);
+        assert!(!diagnose(&e).unwrap().what.contains("saving"));
+        e.report = Some(
+            "== Stack\n  #9  00000001439340f9 F1_25.exe+0x39340f9 .xtls Game_SaveData_WriteBag+0x39\n"
+                .to_owned(),
+        );
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "game_heap");
+        assert!(
+            d.what.contains("while the game was saving your career"),
+            "{}",
+            d.what
+        );
+    }
+
+    const QUIT_REPORT: &str = "== Game state (from the black box)\n  last flow      #e11edb87 Exiting (1.8 s before this report)\n  \
+        last exception first-chance ACCESS_VIOLATION at F1_25.exe+0x537db28 .xtls fn base+0x537db18+0x10 (0.0 s before this report)\n";
+
+    #[test]
+    fn an_access_violation_in_the_exiting_flow_is_a_quit_fault() {
+        let mut e = ev("", &[]);
+        e.report = Some(QUIT_REPORT.to_owned());
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "quit_fault");
+        assert!(!d.what.contains("crashed"), "{}", d.what);
+        e.report = Some(QUIT_REPORT.replace("Exiting (1.8", "Exiting (400.0"));
+        assert_eq!(diagnose(&e), None, "an exit long before the fault");
+        e.report = Some(QUIT_REPORT.replace("Exiting", "Entering"));
+        assert_eq!(diagnose(&e), None, "not exiting");
+        e.report = Some(QUIT_REPORT.replace("F1_25.exe+", "other.dll+"));
+        assert_eq!(diagnose(&e), None, "not in the game's code");
+    }
+
+    #[test]
     fn a_full_game_heap_names_sepang_first() {
         let mut e = with_names(
             ev(GAME_HEAP, &[]),
@@ -2365,6 +2445,7 @@ mod tests {
                     .unwrap_or_default();
                 let crashed = record.crashed()
                     || loader.contains("reached the top-level filter")
+                    || loader.contains("[crash] crash report ")
                     || loader.contains(LOW_DISK);
                 let report = report_name(&loader).and_then(|n| read_capped(&logs.join("crash").join(n)));
                 let game_files = report.as_deref().map(game_folder_modules).unwrap_or_default();
