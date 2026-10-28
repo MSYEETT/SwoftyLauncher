@@ -3,6 +3,7 @@
 #include "liveries.hpp"
 #include "lower.hpp"
 #include "rows.hpp"
+#include "teams.hpp"
 
 #include "../../registry/store.hpp"
 
@@ -18,7 +19,7 @@
 
 namespace swofty_core::apply::content {
 
-inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package"};
+inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "team.identity", "team.pit_times"};
 
 inline Lookup store_lookup(registry::Store &st, std::map<std::string, Value> &keep)
 {
@@ -78,6 +79,9 @@ inline Value own_value(registry::Store &st, const std::string &reg, const std::s
     } else if (reg == "engine_sound") {
         if (rec["bundle"].is_string() && inherited("bundle"))
             v["bundle"] = Value::object({{"stock", Value("audio/2025/bundles/" + bundle_name(rec) + ".bdl")}});
+    } else if (reg == "team.identity") {
+        if (!rec["donor"].is_string())
+            v["donor"] = Value(chain[1]);
     } else if (reg == "content.package") {
         Value db = rec["database"];
         if (db.is_object() && inherited("database") && !inherited("entrant_list")) {
@@ -127,7 +131,7 @@ inline std::vector<Pin> pins(registry::Store &st)
     std::vector<Pin> out;
     std::map<std::string, Value> keep;
     Lookup lookup = own_lookup(st, keep);
-    for (const char *reg : {"vehicle.package", "vehicle", "livery", "content.package"})
+    for (const char *reg : {"vehicle.package", "vehicle", "livery", "content.package", "team.identity"})
         for (auto &id : in_load_order(st, reg)) {
             const Value *rec = lookup(reg, id);
             if (!rec)
@@ -155,8 +159,24 @@ struct Expansion {
     std::vector<Group> groups;
     std::vector<Folder> folders;
     std::vector<Owned> owned;
+    std::vector<LogoImage> logos;
     std::set<std::string> owners;
 };
+
+inline TeamRefs refs_of(registry::Store &st, const Lookup &lookup)
+{
+    std::vector<std::pair<std::string, const Value *>> idents, ctors, pits;
+    for (auto &id : in_load_order(st, "team.identity"))
+        if (const Value *r = lookup("team.identity", id))
+            idents.push_back({id, r});
+    for (auto &id : in_load_order(st, "team.constructor"))
+        if (const Value *r = lookup("team.constructor", id))
+            ctors.push_back({id, r});
+    for (auto &id : in_load_order(st, "team.pit_times"))
+        if (const Value *r = lookup("team.pit_times", id))
+            pits.push_back({id, r});
+    return team_refs(idents, ctors, pits);
+}
 
 // The vehicles that wear each livery: every vehicle record, stock or an addon's, whose effective livery names it.
 inline std::map<std::string, std::vector<std::string>> wearers(registry::Store &st)
@@ -185,6 +205,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
         return p ? x.engine.text(*p) : std::nullopt;
     };
     auto worn = wearers(st);
+    TeamRefs refs = refs_of(st, lookup);
     int slot = 0;
     for (const char *reg : ROW_REGISTRIES) {
         auto &lines = x.lines[reg];
@@ -205,6 +226,10 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_vehicle(id, *rec, lookup, source, plan, stat);
             else if (r == "livery")
                 lower_livery(id, *rec, worn[id], lookup, read, plan, stat, &slot);
+            else if (r == "team.identity")
+                lower_team(id, *rec, lookup, read, refs, plan, stat);
+            else if (r == "team.pit_times")
+                lower_pit_times(id, *rec, lookup, read, refs, plan);
             else
                 lower_package(id, *rec, lookup, plan, stat);
             x.engine.add_fields(plan.fields);
@@ -233,6 +258,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             x.groups.insert(x.groups.end(), plan.groups.begin(), plan.groups.end());
             x.folders.insert(x.folders.end(), plan.folders.begin(), plan.folders.end());
             x.owned.insert(x.owned.end(), plan.owned.begin(), plan.owned.end());
+            x.logos.insert(x.logos.end(), plan.logos.begin(), plan.logos.end());
             if (plan.refused && r == "livery")
                 x.refused[reg] += int(plan.refused);
         }

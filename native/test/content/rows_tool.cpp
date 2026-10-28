@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     st.set_validator(&registry::schema_validator());
     st.set_log([](const std::string &l) { std::cerr << l << "\n"; });
     const SwoftyRegistry *t = registry::table();
-    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"}) {
+    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box", "team.identity", "team.constructor", "team.pit_times", "team.logo"}) {
         std::string schema = slurp(regs + "/" + name + "/1.0.json");
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }

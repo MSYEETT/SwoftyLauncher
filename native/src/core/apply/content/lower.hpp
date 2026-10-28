@@ -59,6 +59,10 @@ struct Box {
     int order = 0;
 };
 
+struct LogoImage {
+    std::string array, key, file, stock, context, addon, id, team;
+};
+
 struct Plan {
     std::string owner;
     std::vector<std::string> owners;
@@ -69,6 +73,7 @@ struct Plan {
     std::vector<Group> groups;
     std::vector<Folder> folders;
     std::vector<Owned> owned;
+    std::vector<LogoImage> logos;
     std::vector<std::string> lines;
     std::size_t keys = 0;
     std::size_t refused = 0;
@@ -506,6 +511,7 @@ inline constexpr PoolSpec POOLS[] = {
     {"vehicle.package", "entrants.vehicles.vehicle_packages", "vehicle_package", "stat_id", 255},
     {"content.package", "entrants.entrant_lists", "entrant_list", "stat_id", 255},
     {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 255},
+    {"team.identity", "entrants.teams", "team", "stat_id", 1023},
 };
 
 struct PoolScan {
