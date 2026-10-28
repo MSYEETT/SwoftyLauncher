@@ -10,7 +10,7 @@ OUT=${1:-$PWD/../build/registry-test}
 PIN=(taskset -c 2-7,10,11,14-31 nice -n 10)
 CASES=../../packages/sdk/std/tests/cases
 mkdir -p "$OUT"
-SRC=(../src/core/registry/store.cpp ../src/core/registry/table.cpp)
+SRC=(../src/core/registry/store.cpp ../src/core/registry/table.cpp ../src/core/registry/validate.cpp ../src/core/registry/schema.cpp)
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness \
     -I../../packages/sdk/include -o "$OUT/corpus_test" registry/corpus_test.cpp "${SRC[@]}"
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -I../../packages/sdk/include \

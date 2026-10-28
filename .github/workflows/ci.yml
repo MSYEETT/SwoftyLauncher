@@ -378,6 +378,8 @@ jobs:
         run: native/test/run_schema_test.sh
       - name: Standard library 1.6 headers compile test
         run: native/test/run_sdk_headers_test.sh
+      - name: Registry core (shared corpus, Python reference, random stacks, read benchmark)
+        run: native/test/run_registry_test.sh
       - name: Overlay draw-list unit test
         run: native/test/run_hud_test.sh
       - name: Shader look unit test

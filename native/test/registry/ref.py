@@ -172,8 +172,12 @@ def merge(target, patch, keys, path):
                 continue
             target[k] = merge(target.get(k), m, keys, path + '/' + seg_escape(k))
         return target
-    if isinstance(patch, list) and path in keys and patch and all(holds(e, keys[path]) for e in patch):
+    if isinstance(patch, list) and path in keys:
         fields = keys[path]
+        if not patch:
+            return target
+        if not all(holds(e, fields) for e in patch):
+            raise ValueError(path + ': a keyed list element without its key fields')
         lst = target if isinstance(target, list) else []
         for e in patch:
             if e.get('$delete') is True:
@@ -475,7 +479,10 @@ class Resolver:
     def change(self, ch, value):
         kind, body = ch
         if kind == 'patch':
-            return merge(copy.deepcopy(value), body, self.r.keys, '')
+            try:
+                return merge(copy.deepcopy(value), body, self.r.keys, '')
+            except ValueError:
+                return None
         return run_steps(value, body)
 
     def basev(self, rid):
