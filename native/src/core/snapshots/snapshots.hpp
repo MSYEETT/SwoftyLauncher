@@ -27,10 +27,20 @@ struct Stats {
     size_t registries = 0, records = 0, raw = 0, compressed = 0, refused = 0;
 };
 
+// The stat-id store's career side (W6, apply/ids.hpp through apply::moments): the career's map as a
+// JSON object {registry: {record: stat id}} for its entry, and the check of a loaded career's saved
+// map against this install, which returns one line per clash. Unset: an empty map and no check.
+struct Ids {
+    std::function<std::string(const std::string &career)> map;
+    std::function<std::vector<std::string>(const std::string &career, const std::string &map_json)> adopt;
+};
+
 class Book {
 public:
     explicit Book(reg::Store &store, std::function<void(const std::string &)> log = {});
     ~Book();
+
+    void set_ids(Ids ids);
 
     // Profile load: the body the save splice kept for swofty_registry, or null for a save without it.
     void loaded(const Bytes *body);
@@ -66,6 +76,9 @@ private:
     std::set<std::string> dirty_, pending_;
     std::string active_;
     std::unique_ptr<Cache> cache_;
+    Ids ids_;
+
+    std::string idmap(const std::string &career) const;
 
     void note(const std::string &s) const;
     void refresh();

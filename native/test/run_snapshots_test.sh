@@ -19,7 +19,7 @@ for c in $ZS/common/*.c $ZS/compress/*.c $ZS/decompress/*.c; do
         -DZSTD_DISABLE_ASM -DDEBUGLEVEL=0 -I$ZS -c "$c" -o "$o" &
 done
 wait
-SRC=(../src/core/snapshots/snapshots.cpp ../src/core/snapshots/ids_stub.cpp ../src/core/registry/store.cpp
+SRC=(../src/core/snapshots/snapshots.cpp ../src/core/registry/store.cpp
     ../src/core/registry/validate.cpp ../src/core/registry/schema.cpp)
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness \
     -I../../packages/sdk/include -I$ZS -o "$OUT/snapshots_test" snapshots/snapshots_test.cpp "${SRC[@]}" "${ZOBJ[@]}"

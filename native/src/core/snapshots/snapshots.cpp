@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdio>
 
-#include "ids.hpp"
 
 namespace swofty_core::snapshots {
 
@@ -105,6 +104,10 @@ Book::Book(reg::Store &store, std::function<void(const std::string &)> log)
 }
 
 Book::~Book() = default;
+
+void Book::set_ids(Ids ids) { ids_ = std::move(ids); }
+
+std::string Book::idmap(const std::string &career) const { return ids_.map ? ids_.map(career) : std::string("{}"); }
 
 void Book::note(const std::string &s) const
 {
@@ -261,10 +264,11 @@ void Book::career_loaded(const std::string &id, reg::Context ctx)
         }
     }
     note(line);
-    if (adopt) {
-        std::string why;
-        if (!ids::adopt(id, map, &why))
-            note("[registry] career " + id + ": stat-id map differs from this install: " + why);
+    if (adopt && ids_.adopt) {
+        std::vector<std::string> clashes = ids_.adopt(id, map);
+        if (!clashes.empty())
+            note("[registry] career " + id + ": " + std::to_string(clashes.size()) +
+                 " stat id(s) in its saved map clash with this install (see the [guards] lines)");
     }
     reg::Context now = store_.context();
     now.career = id;
@@ -433,7 +437,7 @@ void Book::season_start(int year, reg::Context ctx)
     std::vector<std::pair<std::string, std::string>> owners;
     Stats st;
     auto frozen = freeze(year, ctx, true, false, &copy, refused, owners, st);
-    std::string map = ids::map_for_career(id);
+    std::string map = idmap(id);
     std::string parts;
     for (auto &f : frozen)
         parts += (parts.empty() ? "" : ", ") + f.registry;
@@ -474,7 +478,7 @@ void Book::career_created(const std::string &id, fmt::Freeze freeze_mode, reg::C
         cache_->seasons.clear();
         dirty_.insert(id);
     }
-    std::string map = ids::map_for_career(id);
+    std::string map = idmap(id);
     std::string line = "[registry] career " + id + " created (freeze " +
                        (freeze_mode == fmt::Freeze::at_creation ? "at creation" : "per season") + ")" +
                        (replaced ? "; it replaces an older career of the same id in swofty_registry" : "");
