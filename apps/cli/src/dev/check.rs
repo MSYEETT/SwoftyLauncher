@@ -5,6 +5,7 @@ use std::process::Command;
 use anyhow::Result;
 use serde_json::Value;
 use swofty_core::manifest::{AddonManifest, MANIFEST_FILE};
+use swofty_core::stdlib::manifest::{RegistryManifest, Target};
 use swofty_core::store::Store;
 
 use super::lock::LOCK_FILE;
@@ -34,17 +35,6 @@ impl Report {
     }
 }
 
-const REGISTRY_KEYS: &[&str] = &[
-    "requires",
-    "recommends",
-    "breaks",
-    "conflicts",
-    "aliases",
-    "saves",
-    "guards",
-];
-const NEED_KINDS: &[&str] = &["registry", "service", "hook", "record"];
-
 pub fn check(store: &Store, sdk: &Option<PathBuf>, folder: &Path) -> Result<Report> {
     let mut r = Report::default();
     let id = match AddonManifest::load(folder) {
@@ -58,11 +48,11 @@ pub fn check(store: &Store, sdk: &Option<PathBuf>, folder: &Path) -> Result<Repo
         }
     };
     let manifest = super::manifest_json(folder)?;
-    let mut needs: Vec<(String, bool, String)> = Vec::new();
-    match read_json(&folder.join(REGISTRY_FILE)) {
-        None => {}
-        Some(Err(e)) => r.error(format!("{REGISTRY_FILE}: {e}")),
-        Some(Ok(doc)) => registry_json(&doc, &mut r, &mut needs),
+    let mut needs: Vec<(Vec<String>, bool, String)> = Vec::new();
+    match RegistryManifest::load(folder) {
+        Ok(None) => {}
+        Err(e) => r.error(e),
+        Ok(Some(m)) => registry_json(&m, &mut r, &mut needs),
     }
     let has_register = match super::register_dlls(folder, &manifest) {
         Ok(dlls) => !dlls.is_empty(),
@@ -88,7 +78,15 @@ pub fn check(store: &Store, sdk: &Option<PathBuf>, folder: &Path) -> Result<Repo
             for n in lock["needs"].as_array().into_iter().flatten() {
                 if let Some(rec) = n["record"].as_str() {
                     let optional = n["policy"].as_str() == Some("optional");
-                    needs.push((rec.to_owned(), !optional, LOCK_FILE.to_owned()));
+                    let mut alts = vec![rec.to_owned()];
+                    alts.extend(
+                        n["or"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|o| o.as_str().map(str::to_owned)),
+                    );
+                    needs.push((alts, !optional, LOCK_FILE.to_owned()));
                 }
             }
         }
@@ -97,18 +95,24 @@ pub fn check(store: &Store, sdk: &Option<PathBuf>, folder: &Path) -> Result<Repo
     own.extend(data_ids(&id, &data));
     if !data.is_empty() {
         validate_data(sdk, folder, &data, &mut r);
+        if let Some(sdk) = sdk {
+            missing_paths(sdk, folder, &data, &mut r);
+        }
     }
     let installed = installed_ids(store, &id);
-    for (record, required, from) in needs {
-        let Some((registry, rid)) = record.split_once(':') else {
-            r.error(format!("{from}: {record:?} isn't <registry>:<id>"));
-            continue;
-        };
-        let key = format!("{registry}:{rid}");
-        if rid.starts_with("game/") || own.contains(&key) || installed.contains(&key) {
+    for (alts, required, from) in needs {
+        if let Some(bad) = alts.iter().find(|a| !a.contains(':')) {
+            r.error(format!("{from}: {bad:?} isn't <registry>:<id>"));
             continue;
         }
-        let msg = format!("{from}: no installed addon provides {key}");
+        let met = alts.iter().any(|a| {
+            let rid = a.split_once(':').map_or("", |(_, id)| id);
+            rid.starts_with("game/") || own.contains(a) || installed.contains(a)
+        });
+        if met {
+            continue;
+        }
+        let msg = format!("{from}: no installed addon provides {}", alts.join(" or "));
         if required { r.error(msg) } else { r.warn(msg) }
     }
     Ok(r)
@@ -119,45 +123,75 @@ fn read_json(path: &Path) -> Option<Result<Value, String>> {
     Some(serde_json::from_str(&text).map_err(|e| e.to_string()))
 }
 
-fn registry_json(doc: &Value, r: &mut Report, needs: &mut Vec<(String, bool, String)>) {
-    let Some(obj) = doc.as_object() else {
-        r.error(format!("{REGISTRY_FILE}: not a JSON object"));
-        return;
-    };
-    let before = r.errors;
-    for k in obj.keys() {
-        if !REGISTRY_KEYS.contains(&k.as_str()) {
-            r.error(format!("{REGISTRY_FILE}: unknown field {k:?}"));
+fn registry_json(m: &RegistryManifest, r: &mut Report, needs: &mut Vec<(Vec<String>, bool, String)>) {
+    for why in &m.skipped {
+        r.warn(format!("{REGISTRY_FILE}: {why}; the launcher ignores it"));
+    }
+    for key in m.extra.keys() {
+        r.warn(format!(
+            "{REGISTRY_FILE}: the launcher doesn't know the field {key:?} and ignores it"
+        ));
+    }
+    for (list, required) in [(&m.requires, true), (&m.recommends, false)] {
+        for (i, n) in list.iter().enumerate() {
+            if !required && n.for_.is_none() {
+                r.warn(format!(
+                    "{REGISTRY_FILE}: recommends[{i}]: add a \"for\" for players"
+                ));
+            }
+            if let Target::Record { registry, id } = &n.target {
+                needs.push((
+                    vec![format!("{registry}:{id}")],
+                    required,
+                    REGISTRY_FILE.to_owned(),
+                ));
+            }
         }
     }
-    for (field, required) in [("requires", true), ("recommends", false)] {
-        for (i, e) in doc[field].as_array().into_iter().flatten().enumerate() {
-            let at = format!("{REGISTRY_FILE}: {field}[{i}]");
-            let kinds: Vec<&&str> = NEED_KINDS.iter().filter(|k| e.get(**k).is_some()).collect();
-            if kinds.len() != 1 {
-                r.error(format!("{at}: needs one of registry, service, hook or record"));
+    r.ok(REGISTRY_FILE);
+}
+
+pub fn sdk_schema(sdk: &Path, registry: &str) -> Option<Value> {
+    let dir = sdk.join("packages/sdk/std/registries").join(registry);
+    let mut best: Option<((u32, u32), PathBuf)> = None;
+    for e in std::fs::read_dir(&dir).ok()?.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let Some((maj, min)) = name.strip_suffix(".json").and_then(|v| v.split_once('.')) else {
+            continue;
+        };
+        let (Ok(maj), Ok(min)) = (maj.parse::<u32>(), min.parse::<u32>()) else {
+            continue;
+        };
+        if best.as_ref().is_none_or(|(v, _)| (maj, min) > *v) {
+            best = Some(((maj, min), e.path()));
+        }
+    }
+    read_json(&best?.1)?.ok()
+}
+
+fn missing_paths(sdk: &Path, folder: &Path, files: &[PathBuf], r: &mut Report) {
+    for f in files {
+        let Some(Ok(doc)) = read_json(f) else { continue };
+        let shown = format!("registry/{}", f.file_name().unwrap_or_default().to_string_lossy());
+        for (registry, records) in doc.as_object().into_iter().flatten() {
+            let Some(schema) = sdk_schema(sdk, registry) else {
                 continue;
-            }
-            if !required && !e["for"].is_string() {
-                r.warn(format!("{at}: add a \"for\" for players"));
-            }
-            if let Some(rec) = e["record"].as_str() {
-                needs.push((rec.to_owned(), required, REGISTRY_FILE.to_owned()));
-            }
-        }
-        if !doc[field].is_null() && !doc[field].is_array() {
-            r.error(format!("{REGISTRY_FILE}: {field} isn't a list"));
-        }
-    }
-    for field in ["breaks", "conflicts", "aliases"] {
-        for (i, e) in doc[field].as_array().into_iter().flatten().enumerate() {
-            if !e["id"].is_string() {
-                r.error(format!("{REGISTRY_FILE}: {field}[{i}] has no id"));
+            };
+            for (id, value) in records.as_object().into_iter().flatten() {
+                if id.starts_with('$') {
+                    continue;
+                }
+                let mut paths = Vec::new();
+                super::paths::schema_paths(&schema, &schema, value, &mut paths, 0);
+                for p in paths {
+                    if !super::paths::inside(folder, &p) {
+                        r.error(format!(
+                            "{shown}: {registry} {id} names {p}, which isn't in the addon"
+                        ));
+                    }
+                }
             }
         }
-    }
-    if r.errors == before {
-        r.ok(REGISTRY_FILE);
     }
 }
 
@@ -357,6 +391,30 @@ mod tests {
     }
 
     #[test]
+    fn data_files_name_paths_that_must_be_in_the_addon() {
+        let Ok(sdk) = super::super::sdk_root() else { return };
+        let root = scratch("paths");
+        let dir = root.join("mod.v12");
+        addon(&dir, "mod.v12");
+        std::fs::create_dir_all(dir.join("registry")).unwrap();
+        std::fs::create_dir_all(dir.join("sounds")).unwrap();
+        std::fs::write(dir.join("sounds/v12.bdl"), "bdl").unwrap();
+        std::fs::write(
+            dir.join("registry/sounds.json"),
+            r#"{"engine_sound":{"v12":{"bundle":"sounds/v12.bdl"},"v8":{"bundle":"sounds/v8.bdl"},
+                "stock":{"bundle":{"stock":"audio/x.bdl"}}}}"#,
+        )
+        .unwrap();
+        let mut r = Report::default();
+        missing_paths(&sdk, &dir, &data_files(&dir), &mut r);
+        assert_eq!(
+            r.lines,
+            ["error: registry/sounds.json: engine_sound v8 names sounds/v8.bdl, which isn't in the addon"]
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn a_broken_manifest_stops_the_check() {
         let root = scratch("manifest");
         std::fs::write(root.join(MANIFEST_FILE), "{").unwrap();
@@ -377,25 +435,38 @@ mod tests {
               "requires": [ { "record": "vehicle:swofty.classic-seasons-2017/ferrari" },
                             { "registry": "career.season", "version": "^1" },
                             { "record": "vehicle:game/ferrari_2025" },
-                            { "registry": "x", "service": "y" } ],
+                            { "id": "swofty.classic-seasons-2017", "version": ">=0.6.0" },
+                            { "record": "no-colon" },
+                            { "registry": "career.season", "version": "not a range" } ],
               "recommends": [ { "record": "track:venue/sochi" } ],
-              "breaks": [ { "version": "1" } ],
+              "breaks": [ { "addon": "mod.old", "version": "<1" }, { "version": "1" } ],
               "colour": "red"
             }"#,
         )
         .unwrap();
         let r = check(&store, &None, &dir).unwrap();
         let text = r.lines.join("\n");
-        assert!(text.contains("unknown field \"colour\""), "{text}");
-        assert!(text.contains("requires[3]: needs one of"), "{text}");
-        assert!(text.contains("breaks[0] has no id"), "{text}");
+        assert!(text.contains("doesn't know the field \"colour\""), "{text}");
+        assert!(
+            text.contains("warning: registry.json: requires[4]: record \"no-colon\""),
+            "{text}"
+        );
+        assert!(text.contains("warning: registry.json: requires[5]: "), "{text}");
+        assert!(
+            text.contains("warning: registry.json: breaks[1]: no id"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("requires[3]") && !text.contains("breaks[0]"),
+            "{text}"
+        );
         assert!(text.contains("recommends[0]: add a \"for\""), "{text}");
         assert!(text.contains(
             "error: registry.json: no installed addon provides vehicle:swofty.classic-seasons-2017/ferrari"
         ));
         assert!(text.contains("warning: registry.json: no installed addon provides track:venue/sochi"));
         assert!(!text.contains("game/ferrari_2025"));
-        assert_eq!((r.errors, r.warnings), (4, 2), "{text}");
+        assert_eq!((r.errors, r.warnings), (1, 6), "{text}");
 
         let cs = store.addons_dir().join("swofty.classic-seasons-2017");
         addon(&cs, "swofty.classic-seasons-2017");
@@ -432,7 +503,8 @@ mod tests {
             dir.join(LOCK_FILE),
             r#"{"generated_by":"x","provides":{"engine_sound":["mod.esp/v10"]},
                 "needs":[{"record":"engine_sound:mod.esp/v10","policy":"required"},
-                         {"record":"livery:mod.l/red","policy":"optional"}]}"#,
+                         {"record":"livery:mod.l/red","policy":"optional"},
+                         {"record":"livery:mod.l/blue","or":["engine_sound:mod.esp/v10"],"policy":"required"}]}"#,
         )
         .unwrap();
         std::fs::create_dir_all(dir.join("registry")).unwrap();
@@ -458,6 +530,7 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("engine_sound:mod.esp/v10"), "{text}");
+        assert!(!text.contains("mod.l/blue"), "a met fallback is met: {text}");
         if super::super::python().is_ok() {
             assert!(text.contains("ok: registry/layers.json"), "{text}");
             assert!(text.contains("error: registry/bad-layers.json"), "{text}");

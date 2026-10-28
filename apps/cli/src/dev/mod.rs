@@ -1,5 +1,6 @@
 mod check;
 pub mod lock;
+mod paths;
 pub mod pe;
 
 use std::ffi::OsString;
@@ -60,8 +61,14 @@ pub enum DevCommand {
         about = "Check the manifest, registry.json, the data files and references without starting the game"
     )]
     Check { folder: Option<PathBuf> },
-    #[command(about = "Build and run the addon's unit tests (test/*.cpp) against the fake core")]
-    Test { folder: Option<PathBuf> },
+    #[command(
+        about = "Build and run the addon's unit tests (test/*.cpp) against the fake core and the core's registry engine"
+    )]
+    Test {
+        folder: Option<PathBuf>,
+        #[arg(long, help = "Only record the calls; leave the core's registry engine out")]
+        recording_only: bool,
+    },
     #[command(about = "Write registry.lock.json from the addon's SWOFTY_REGISTER and pack the addon")]
     Pack {
         folder: Option<PathBuf>,
@@ -145,24 +152,34 @@ pub fn command(store: &Store, profile: &str, cmd: DevCommand) -> Result<ExitCode
                 ExitCode::SUCCESS
             })
         }
-        DevCommand::Test { folder: f } => test(&sdk_root()?, &folder(f)?, store),
+        DevCommand::Test {
+            folder: f,
+            recording_only,
+        } => test(&sdk_root()?, &folder(f)?, store, !recording_only),
         DevCommand::Pack { folder: f, out, zip } => {
             let folder = folder(f)?;
             let out = out.unwrap_or_else(|| folder.join("dist"));
             let sdk = sdk_root()?;
+            let mut with = Vec::new();
             match write_lock(store, &sdk, &folder)? {
-                Some(lock) => println!(
-                    "wrote {LOCK_FILE}: {} record{}, {} provider{}, {} need{}",
-                    lock.provides.values().map(Vec::len).sum::<usize>(),
-                    plural(lock.provides.values().map(Vec::len).sum::<usize>()),
-                    lock.providers.len(),
-                    plural(lock.providers.len()),
-                    lock.needs.len(),
-                    plural(lock.needs.len())
-                ),
+                Some(Recorded { lock, files, missing }) => {
+                    let n = lock.provides.values().map(Vec::len).sum::<usize>();
+                    println!(
+                        "wrote {LOCK_FILE}: {n} record{}, {} provider{}, {} need{}",
+                        plural(n),
+                        lock.providers.len(),
+                        plural(lock.providers.len()),
+                        lock.needs.len(),
+                        plural(lock.needs.len())
+                    );
+                    for m in &missing {
+                        println!("warning: the addon's code names {m}, which isn't in the addon");
+                    }
+                    with = files;
+                }
                 None => println!("no SWOFTY_REGISTER in the addon's DLLs: no {LOCK_FILE}"),
             }
-            let pkg = pack(&sdk, &folder, &out, zip)?;
+            let pkg = pack(&sdk, &folder, &out, zip, &with)?;
             println!("{}", pkg.trim_end());
             Ok(ExitCode::SUCCESS)
         }
@@ -244,7 +261,39 @@ pub fn register_dlls(folder: &Path, manifest: &Value) -> Result<Vec<PathBuf>> {
     Ok(out)
 }
 
-pub fn write_lock(store: &Store, sdk: &Path, folder: &Path) -> Result<Option<Lock>> {
+pub struct Recorded {
+    pub lock: Lock,
+    pub files: Vec<String>,
+    pub missing: Vec<String>,
+}
+
+pub fn recorded_files(sdk: &Path, folder: &Path, recordings: &[Value]) -> (Vec<String>, Vec<String>) {
+    let (mut files, mut missing) = (Vec::new(), Vec::new());
+    for rec in recordings {
+        for (registry, value) in paths::recorded_values(rec) {
+            paths::file_strings(folder, value, &mut files);
+            if let Some(schema) = check::sdk_schema(sdk, registry) {
+                let mut named = Vec::new();
+                paths::schema_paths(&schema, &schema, value, &mut named, 0);
+                for p in named {
+                    if !paths::inside(folder, &p) && !missing.contains(&p) {
+                        missing.push(p);
+                    } else if paths::inside(folder, &p) {
+                        let norm = p.replace('\\', "/");
+                        if !files.contains(&norm) {
+                            files.push(norm);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    files.sort();
+    missing.sort();
+    (files, missing)
+}
+
+pub fn write_lock(store: &Store, sdk: &Path, folder: &Path) -> Result<Option<Recorded>> {
     let manifest = manifest_json(folder)?;
     let dlls = register_dlls(folder, &manifest)?;
     let lock_path = folder.join(LOCK_FILE);
@@ -264,14 +313,18 @@ pub fn write_lock(store: &Store, sdk: &Path, folder: &Path) -> Result<Option<Loc
     }
     let lock = Lock::from_recordings(&recordings, &lock::generated_by());
     std::fs::write(&lock_path, lock.to_json()).with_context(|| format!("{}", lock_path.display()))?;
-    Ok(Some(lock))
+    let (files, missing) = recorded_files(sdk, folder, &recordings);
+    Ok(Some(Recorded { lock, files, missing }))
 }
 
-pub fn pack(sdk: &Path, folder: &Path, out: &Path, zip: bool) -> Result<String> {
+pub fn pack(sdk: &Path, folder: &Path, out: &Path, zip: bool, with: &[String]) -> Result<String> {
     let mut cmd = Command::new(python()?);
     cmd.arg(sdk.join("tools/pack_addon.py"));
     if zip {
         cmd.arg("--zip");
+    }
+    for f in with {
+        cmd.arg("--with").arg(f);
     }
     let o = cmd
         .arg(folder)
@@ -316,7 +369,10 @@ pub fn recorder_dir(sdk: &Path) -> Result<PathBuf> {
         return Ok(d);
     }
     let dist = sdk.join("packages/sdk/recorder/dist");
-    if !ready(&dist) && cfg!(unix) && sdk.join("packages/sdk/recorder/build.sh").is_file() {
+    if (!ready(&dist) || recorder_stale(sdk, &dist))
+        && cfg!(unix)
+        && sdk.join("packages/sdk/recorder/build.sh").is_file()
+    {
         let status = Command::new("bash")
             .arg(sdk.join("packages/sdk/recorder/build.sh"))
             .stdout(Stdio::null())
@@ -332,6 +388,21 @@ pub fn recorder_dir(sdk: &Path) -> Result<PathBuf> {
         "the recorder (swofty_record.exe and swofty_core.dll) isn't in {}; set {RECORDER_ENV}",
         dist.display()
     )
+}
+
+fn recorder_stale(sdk: &Path, dist: &Path) -> bool {
+    let time = |p: &Path| p.metadata().and_then(|m| m.modified()).ok();
+    let Some(built) = time(&dist.join("swofty_record.exe")) else {
+        return true;
+    };
+    let reg = sdk.join("native/src/core/registry");
+    let mut sources = vec![
+        sdk.join("packages/sdk/recorder/recorder.cpp"),
+        sdk.join("packages/sdk/recorder/core_stub.c"),
+        sdk.join("packages/sdk/include/swofty/fake_core.hpp"),
+    ];
+    sources.extend(ENGINE_SOURCES.iter().map(|s| reg.join(s)));
+    sources.iter().filter_map(|s| time(s)).any(|t| t > built)
 }
 
 pub fn wine_path(p: &Path) -> String {
@@ -370,15 +441,15 @@ pub fn recorder_command(
         "WINEDLLOVERRIDES",
         "mscoree,mshtml=;winemenubuilder.exe,winedbg.exe=d",
     );
-    if std::env::var_os("WINEPREFIX").is_none() {
-        c.env("WINEPREFIX", prefix);
-    }
+    c.env("WINEPREFIX", prefix);
     Ok(c)
 }
 
 pub fn record(recorder: &Path, scratch: &Path, dll: &Path, manifest: &Path) -> Result<Value> {
     let name = dll.file_name().unwrap_or_default().to_string_lossy().into_owned();
-    let out = scratch.join(format!("{name}.recording.json"));
+    static RUN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let run = RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let out = scratch.join(format!("{name}.{}-{run}.recording.json", std::process::id()));
     std::fs::remove_file(&out).ok();
     let mut child = recorder_command(recorder, &scratch.join("prefix"), dll, manifest, &out)?
         .stdout(Stdio::null())
@@ -513,10 +584,13 @@ static void check(bool ok, const char *what)
     failures += !ok;
 }
 
-int main()
+static void run(int round)
 {
     swofty::fake::Core core{"@ID@"};
+    core.stock(swofty::cars::vehicles, "ferrari_2025", swofty::cars::Vehicle{.label = "ferrari_2025"});
     core.run_register();
+    std::printf("round %d\n", round);
+    check(core.recording()["registries"].size() == 2, "both registries are declared");
     check(core.ids("engine_sound") == std::vector<std::string>{"@ID@/screamer"}, "adds the screamer sound");
     auto layers = core.layers("vehicle", "game/ferrari_2025");
     check(layers.size() == 1, "one layer on the 2025 Ferrari");
@@ -529,6 +603,12 @@ int main()
         check(car && (*car)["engine_sound"].as_string() == "@ID@/screamer", "the effective Ferrari has it");
         check(core.origin("vehicle", "game/ferrari_2025", "/engine_sound") == "@ID@", "and the origin says so");
     }
+}
+
+int main()
+{
+    run(1);
+    run(2);
     return failures ? 1 : 0;
 }
 "#;
@@ -849,7 +929,67 @@ pub fn compiler() -> Result<(PathBuf, Vec<String>)> {
         .context("no C++ compiler: install zig (or set SWOFTY_CXX)")
 }
 
-pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
+pub const ENGINE_SOURCES: &[&str] = &[
+    "store.cpp",
+    "table.cpp",
+    "validate.cpp",
+    "schema.cpp",
+    "engine.cpp",
+];
+
+fn zig_cache(cmd: &mut Command, store: &Store) {
+    if which("zig").is_some() && std::env::var_os("ZIG_GLOBAL_CACHE_DIR").is_none() {
+        let cache = data_root(store).join("cache/zig");
+        cmd.env("ZIG_GLOBAL_CACHE_DIR", &cache)
+            .env("ZIG_LOCAL_CACHE_DIR", &cache);
+    }
+}
+
+fn engine_objects(sdk: &Path, cxx: &Path, pre: &[String], out: &Path, store: &Store) -> Result<Vec<PathBuf>> {
+    let src = sdk.join("native/src/core/registry");
+    let dir = out.join("engine");
+    std::fs::create_dir_all(&dir)?;
+    let mut objects = Vec::new();
+    let mut jobs = Vec::new();
+    for name in ENGINE_SOURCES {
+        let source = src.join(name);
+        if !source.is_file() {
+            bail!(
+                "the core's registry engine isn't in the SDK ({} is missing); run with --recording-only to test without it",
+                source.display()
+            );
+        }
+        let obj = dir.join(name.replace(".cpp", ".o"));
+        let fresh = |p: &Path| p.metadata().and_then(|m| m.modified()).ok();
+        if fresh(&obj).zip(fresh(&source)).is_none_or(|(o, s)| o < s) {
+            let mut cmd = Command::new(cxx);
+            cmd.args(pre)
+                .args(test_flags(cxx))
+                .arg(format!("-I{}", sdk.join("packages/sdk/include").display()))
+                .arg("-c")
+                .arg(&source)
+                .arg("-o")
+                .arg(&obj)
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped());
+            zig_cache(&mut cmd, store);
+            jobs.push((name, cmd.spawn().context("the C++ compiler didn't start")?));
+        }
+        objects.push(obj);
+    }
+    for (name, job) in jobs {
+        let o = job.wait_with_output()?;
+        if !o.status.success() {
+            bail!(
+                "the registry engine's {name} doesn't build: {}",
+                String::from_utf8_lossy(&o.stderr).trim()
+            );
+        }
+    }
+    Ok(objects)
+}
+
+pub fn test(sdk: &Path, folder: &Path, store: &Store, engine: bool) -> Result<ExitCode> {
     let dir = folder.join("test");
     let mut tests: Vec<PathBuf> = std::fs::read_dir(&dir)
         .map(|rd| {
@@ -867,6 +1007,11 @@ pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
     let (cxx, pre) = compiler()?;
     let out = folder.join("build/test");
     std::fs::create_dir_all(&out)?;
+    let objects = if engine {
+        engine_objects(sdk, &cxx, &pre, &out, store)?
+    } else {
+        Vec::new()
+    };
     if cfg!(windows)
         && let Ok(rec) = recorder_dir(sdk)
     {
@@ -886,14 +1031,12 @@ pub fn test(sdk: &Path, folder: &Path, store: &Store) -> Result<ExitCode> {
             .arg(format!("-I{}", folder.join("native/include").display()))
             .arg(format!("-I{}", sdk.join("packages/sdk/include").display()))
             .arg(format!("-I{}", folder.join("native/src").display()))
+            .args(engine.then_some("-DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine"))
             .arg("-o")
             .arg(&exe)
-            .arg(t);
-        if which("zig").is_some() && std::env::var_os("ZIG_GLOBAL_CACHE_DIR").is_none() {
-            let cache = data_root(store).join("cache/zig");
-            cmd.env("ZIG_GLOBAL_CACHE_DIR", &cache)
-                .env("ZIG_LOCAL_CACHE_DIR", &cache);
-        }
+            .arg(t)
+            .args(&objects);
+        zig_cache(&mut cmd, store);
         let built = cmd.output().context("the C++ compiler didn't start")?;
         if !built.status.success() {
             println!("FAIL  {name}: it doesn't build");
@@ -930,6 +1073,7 @@ pub fn test_flags(cxx: &Path) -> Vec<&'static str> {
             "-fdeclspec",
             "-Wno-nullability-completeness",
             "-Wno-unknown-warning-option",
+            "-Wno-cast-function-type-mismatch",
         ]);
     }
     flags
@@ -981,7 +1125,8 @@ mod tests {
         assert_eq!(
             parse(&["test", "."]),
             DevCommand::Test {
-                folder: Some(".".into())
+                folder: Some(".".into()),
+                recording_only: false
             }
         );
         assert_eq!(
@@ -1061,7 +1206,8 @@ mod tests {
         assert_eq!(manifest_json(&plain).unwrap()["id"], "a.b");
         if which("zig").is_some() {
             let store = Store::new(scratch("new-store"));
-            assert_eq!(test(&sdk, &dest, &store).unwrap(), ExitCode::SUCCESS);
+            assert_eq!(test(&sdk, &dest, &store, true).unwrap(), ExitCode::SUCCESS);
+            assert_eq!(test(&sdk, &dest, &store, false).unwrap(), ExitCode::SUCCESS);
         } else {
             eprintln!("skipped dev test of the new addon: zig isn't installed");
         }
@@ -1150,7 +1296,7 @@ mod tests {
         let store = Store::new(root.join("data"));
         assert!(write_lock(&store, &sdk, &folder).unwrap().is_none());
         assert!(!folder.join(LOCK_FILE).exists());
-        pack(&sdk, &folder, &root.join("ours"), false).unwrap();
+        pack(&sdk, &folder, &root.join("ours"), false, &[]).unwrap();
         let direct = Command::new(py)
             .arg(sdk.join("tools/pack_addon.py"))
             .arg(&folder)
@@ -1186,16 +1332,21 @@ mod tests {
         )
         .unwrap();
         let store = Store::new(root.join("data"));
-        let lock = write_lock(&store, &sdk, &folder).unwrap().unwrap();
+        std::fs::create_dir_all(folder.join("sounds")).unwrap();
+        std::fs::write(folder.join("sounds/v10.bdl"), "bdl").unwrap();
+        let Recorded { lock, files, missing } = write_lock(&store, &sdk, &folder).unwrap().unwrap();
+        assert_eq!(files, ["sounds/v10.bdl"]);
+        assert!(missing.is_empty(), "{missing:?}");
         assert_eq!(
             lock.provides["engine_sound"],
             [lock::Provided::Id("t.recorder/v10".into())]
         );
         let lock_text = std::fs::read_to_string(folder.join(LOCK_FILE)).unwrap();
         assert!(lock_text.contains("livery:mod.liveries/red"));
-        pack(&sdk, &folder, &root.join("out"), false).unwrap();
+        pack(&sdk, &folder, &root.join("out"), false, &files).unwrap();
         let pkg = std::fs::read(root.join("out/t.recorder.swoftyaddon")).unwrap();
         assert!(String::from_utf8_lossy(&pkg).contains(LOCK_FILE));
+        assert!(String::from_utf8_lossy(&pkg).contains("sounds/v10.bdl"));
         std::fs::remove_dir_all(&root).ok();
     }
 }
