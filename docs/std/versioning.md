@@ -262,7 +262,7 @@ Every registry, hook point, service and table field has a status. The SDK keeps 
 { "status": "stable", "since": "1.6.0" }
 
 // a newer one
-{ "status": "experimental", "since": "1.7.0", "feature": "registry_team_identity" }
+{ "status": "experimental", "since": "1.6.0", "feature": "registry_team_identity" }
 
 // a newer major exists; this one still works, and always will
 { "status": "superseded", "since": "1.6.0", "superseded": "1.9.0", "by": "career.season@2" }

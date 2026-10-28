@@ -113,4 +113,4 @@ Time         about 75 minutes, then report where you are
 - **Database sizing (W7):** 1.6.0 doesn't tag until the core sizes the table in game. The room report and the 1.5.11 file route ship with it either way.
 - **Two implementations of the rules:** the core (W3) and the fake core and recorder (W9) can disagree. The shared corpus is the referee, and a disagreement fails both builds.
 - **Contract churn:** if round 1 shows a contract is wrong, the lead changes it once, between rounds, and every brief is updated before round 2 starts.
-- **Scope creep:** 1.6.0 ships the first slice only. The older libraries, liveries, helmets, tracks and the game hook points wait for 1.7.0, and identities and operations for 1.8.0. Each gets its own plan in this shape, including the reverse-engineering streams with independent verifies.
+- **Scope creep:** 1.6.0 ships everything except tracks. The tracks system, every base track in every fitting box and the track select hook wait for 1.6.x. Each gets its own plan in this shape, including the reverse-engineering streams with independent verifies.

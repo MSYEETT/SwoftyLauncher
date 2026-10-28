@@ -162,7 +162,7 @@ An `edit` is a list of steps, standing in for a code edit that reads the value i
 
 ## The registries the cases use
 
-The real registries keep their real names and field names, cut down to the fields a case needs: `career.season` (`teams` keyed by `slot`, `changes` by `round`, `slot`, `seat`), `career.driver_ratings`, `career.calendar` (`rounds` keyed by `round`), `content.package` (`teams` keyed by `key`), `vehicle`, `vehicle.handling` (`class` is `cls` in C++), `ai.vehicle_config`, `engine_sound`, `track` and `track.venue`. `test.thing` is a registry for tests only: `{ "name": string, "n": number, "kind": string, "items": [ { "key", "v" } ] }`, with `items` keyed by `key`.
+The real registries keep their real names and field names, cut down to the fields a case needs: `career.season` (`teams` keyed by `slot`, `changes` by `round`, `slot`, `seat`), `career.driver_ratings`, `career.calendar` (`rounds` keyed by `round`), `content.package` (`teams` keyed by `key`), `vehicle`, `vehicle.handling` (`class` is `cls` in C++), `ai.vehicle_config`, `engine_sound`, `track`, `track.venue`, `team.identity`, `team.logo` (`images` by context), `suit`, `gloves` and `wearable.season_set`. `test.thing` is a registry for tests only: `{ "name": string, "n": number, "kind": string, "items": [ { "key", "v" } ] }`, with `items` keyed by `key`.
 
 ## Rules the corpus fixes
 

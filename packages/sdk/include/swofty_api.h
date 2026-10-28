@@ -813,8 +813,13 @@ typedef struct SwoftyServices {
    Table version 2 adds report_season: the addon that owns the active career's data group (its career
    content or career.mode record) says the season at the Championship's season_index is year; the core
    then fires career.season.start once per career and year, activates the season's records and freezes
-   its snapshot. Any other caller gets SWOFTY_REFUSED; no career loaded, SWOFTY_ASSET_LATE. */
-#define SWOFTY_CAREER_OPS_VERSION 2
+   its snapshot. Any other caller gets SWOFTY_REFUSED; no career loaded, SWOFTY_ASSET_LATE.
+   Table version 3 adds apply_teams: the request {"season": <a career.season record>}; each listed slot
+   (1-12) races as its team (the data group's slot table, the Championship's participants), and a team
+   with no career rows gets them, built from its donor's (contracts, R&D, standings, initial cash, renown
+   and the side data found by team label); an empty team leaves the slot out of the Championship. The
+   report has apply_lineup's shape, counted per slot. A core that has not implemented it leaves it NULL. */
+#define SWOFTY_CAREER_OPS_VERSION 3
 enum { SWOFTY_REFUSED = 5 };
 
 typedef struct SwoftyCareerOps {
@@ -826,6 +831,7 @@ typedef struct SwoftyCareerOps {
     int (*set_driver_ratings)(uint32_t driver_stat, const uint16_t *stat_ids, const float *values, size_t count);
     int (*swap_drivers)(uint32_t a_stat, uint32_t b_stat);
     int (*report_season)(int32_t year, int32_t season_index);
+    int (*apply_teams)(SwoftyText request_json, char *report, size_t cap, size_t *len);
 } SwoftyCareerOps;
 
 typedef struct SwoftyApi {

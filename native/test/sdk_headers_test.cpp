@@ -16,8 +16,11 @@
 #include <swofty/systems/career.hpp>
 #include <swofty/systems/cars.hpp>
 #include <swofty/systems/content.hpp>
+#include <swofty/systems/drivers.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
+#include <swofty/systems/teams.hpp>
+#include <swofty/systems/wearables.hpp>
 
 #include "sdk_payloads.h"
 
@@ -47,6 +50,8 @@ SWOFTY_EV_FIELDS(SWOFTY_CPP_FIELD)
 static_assert(std::is_standard_layout_v<swofty::cars::live::Car> && std::is_trivially_copyable_v<swofty::cars::live::Car> &&
               sizeof(swofty::cars::live::Car) == sizeof(SwoftyEvCar) && alignof(swofty::cars::live::Car) == alignof(SwoftyEvCar));
 static_assert(std::is_same_v<std::underlying_type_t<swofty::cars::Department>, int32_t>);
+static_assert(std::is_same_v<std::underlying_type_t<swofty::teams::LogoContext>, int32_t>);
+static_assert(std::is_same_v<std::underlying_type_t<swofty::drivers::Stat>, int32_t>);
 
 using namespace swofty;
 
@@ -180,6 +185,32 @@ static void unavailable_without_core()
 
     career::ApplyReport report;
     CHECK(career::apply_lineup(career::Season{}, &report) == career::Result::unavailable);
+    CHECK(career::apply_teams(career::Season{}, &report) == career::Result::unavailable);
+    CHECK(teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progressive/williams_2017"]) ==
+          Result::unavailable);
+    CHECK(teams::set_name(teams::identities["game/williams"], {.title = Text::literal("Williams")}) == Result::unavailable);
+    CHECK(teams::set_colours(teams::identities["game/williams"], {.primary = Colour("#00A0DE")}) == Result::unavailable);
+    CHECK(drivers::set_look(drivers::identities["game/lewis_hamilton"], drivers::looks["swofty.classic-seasons-2017/hamilton"]) ==
+          Result::unavailable);
+    auto toro = teams::identities.add("toro_rosso", {
+                                                        .donor = teams::identities["game/tororosso"],
+                                                        .constructor = teams::constructors["constructor/toro_rosso"],
+                                                        .names = {.title = Text::key("lng_cs_team_17_toro_rosso"), .code = "STR"},
+                                                        .livery_name = "cs17_toro_rosso",
+                                                    });
+    CHECK(toro.empty());
+    teams::pit_times.add("toro_rosso", {.team = toro, .from = teams::pit_times["game/tororosso"]});
+    teams::logos.layer(teams::logos["game/williams"], [](teams::Logo &l) { l.images[teams::LogoContext::hud] = file("logos/w.png"); });
+    auto look = drivers::looks.add("salo_look", {.helmet = wearables::helmets["game/helmet_tier01_livery03"], .pose = "arms_crossed"});
+    drivers::identities.variant("salo", drivers::identities["game/jarno_opmeer"], [=](drivers::Identity &i) {
+        i.person = drivers::people["person/mika_salo"];
+        i.look = look;
+    });
+    drivers::looks.layer(drivers::looks["game/lewis_hamilton"], [](drivers::Look &l) { l.helmet = wearables::helmets["x/y"]; },
+                         Scope::career);
+    wearables::season_sets.add("mercedes_2016", {.team = teams::identities["swofty.classic-seasons-2016/mercedes"], .season = 2016});
+    CHECK(wearables::helmets.all("giggles.helmet-exchange/").empty());
+    CHECK(!drivers::heads.get(drivers::heads["mod.senna-face/senna"]));
     CHECK(career::set_seat(7, 1, Ref<drivers::Identity>("game/pierre_gasly")) == career::Result::unavailable);
     CHECK(cars::reset_upgrades(0) == Result::unavailable);
     CHECK(!cars::live::available() && cars::live::cars().empty());
@@ -202,6 +233,23 @@ static int32_t set_sound(void *user, const char *id)
 {
     chosen_sound = id;
     static_cast<sounds::events::BundleResolve *>(user)->engine_sound_id = chosen_sound.c_str();
+    return SWOFTY_ASSET_OK;
+}
+
+static std::string logo_key;
+
+static int32_t set_logo_key(void *user, const char *key)
+{
+    logo_key = key;
+    static_cast<teams::events::LogoResolve *>(user)->key_str = logo_key.c_str();
+    return SWOFTY_ASSET_OK;
+}
+
+static std::string added_item;
+
+static int32_t add_item(void *, const char *registry, const char *id)
+{
+    added_item = std::string(registry) + " " + id;
     return SWOFTY_ASSET_OK;
 }
 
@@ -238,6 +286,39 @@ static void payload_accessors()
     b.user = &b;
     CHECK(b.set_engine_sound(sounds::engine_sounds["mod.esp/v10_screamer"]) == Result::ok &&
           b.engine_sound().id() == "mod.esp/v10_screamer");
+
+    teams::events::LogoResolve lr{sizeof lr, 1, teams::LogoContext::driver_select, "game/williams", "williams", "williams_logo",
+                                  nullptr, nullptr};
+    CHECK(lr.team().id() == "game/williams" && lr.livery_name() == "williams" && lr.key() == "williams_logo");
+    CHECK(lr.set_key("progressive_williams_2017") == Result::unavailable);
+    lr.set_key_fn = &set_logo_key;
+    lr.user = &lr;
+    CHECK(lr.set_key("progressive_williams_2017") == Result::ok && lr.key() == "progressive_williams_2017");
+    SwoftyEvLogoResolve lc;
+    std::memcpy(&lc, &lr, sizeof lc);
+    CHECK(lc.context == 0 && std::strcmp(lc.team_id, "game/williams") == 0);
+
+    teams::events::NameResolve nr{sizeof nr, 1, "game/mercedes", "Mercedes", true, nullptr, nullptr};
+    CHECK(nr.team().id() == "game/mercedes" && nr.name() == Text::literal("Mercedes"));
+    CHECK(nr.set_name(Text::key("lng_x")) == Result::unavailable);
+
+    drivers::events::RatingsRead rr{sizeof rr, 1, "game/lando_norris", drivers::Stat::pace, 90.0f};
+    CHECK(rr.driver().id() == "game/lando_norris" && rr.stat == drivers::Stat::pace);
+    SwoftyEvRatingsRead rrc = std::bit_cast<SwoftyEvRatingsRead>(rr);
+    CHECK(rrc.stat == 3 && rrc.value == 90.0f);
+    drivers::events::NumberAssign na{sizeof na, 1, nullptr, 27};
+    CHECK(na.driver().empty() && na.number == 27);
+    drivers::events::HeadResolve hr{sizeof hr, 1, "game/daniil_kvyat", "game/kvyat", nullptr, nullptr};
+    CHECK(hr.driver().id() == "game/daniil_kvyat" && hr.head().id() == "game/kvyat");
+    CHECK(hr.set_head(drivers::heads["mod.kvyat-face/kvyat"]) == Result::unavailable);
+
+    wearables::events::CatalogueBuild cb{sizeof cb, 1, nullptr, nullptr};
+    CHECK(cb.add(wearables::helmets["giggles.helmet-exchange/hamilton_2017"]) == Result::unavailable);
+    cb.add_fn = &add_item;
+    cb.user = &cb;
+    CHECK(cb.add(wearables::helmets["giggles.helmet-exchange/hamilton_2017"]) == Result::ok &&
+          added_item == "helmet giggles.helmet-exchange/hamilton_2017");
+    CHECK(cb.add(wearables::gloves["mod.kit/g"]) == Result::ok && added_item == "gloves mod.kit/g");
 
     career::events::SeasonStart s{sizeof s, 1, 2017, 1};
     SwoftyEvSeasonStart sc = std::bit_cast<SwoftyEvSeasonStart>(s);
@@ -299,6 +380,57 @@ static void round_trip()
     career::Calendar cb;
     CHECK(from_json(to_json(cal), cb) && cb.rounds.find(1)->date == cal.rounds.find(1)->date);
 
+    teams::Identity t{.donor = teams::identities["game/tororosso"],
+                      .constructor = teams::constructors["constructor/toro_rosso"],
+                      .names = {.title = Text::literal("Toro Rosso"), .code = "STR"},
+                      .colours = {.menu = Colour(0xFF0A1E3Cu), .primary = Colour("#0A1E3C")},
+                      .livery_name = "cs17_toro_rosso",
+                      .stat_id = 300};
+    std::string tt = to_json(t);
+    CHECK(tt.find("\"constructor\":\"constructor/toro_rosso\"") != std::string::npos &&
+          tt.find("\"wear\":null") != std::string::npos && tt.find("\"stat_id\":300") != std::string::npos &&
+          tt.find("\"menu\":\"#0A1E3C\"") != std::string::npos);
+    teams::Identity tb;
+    CHECK(from_json(tt, tb) && tb.names.title.is_literal() && tb.colours.primary == Colour("#0A1E3C") && !tb.wear);
+    CHECK(to_json(tb) == tt);
+
+    teams::Logo logo;
+    logo.images[teams::LogoContext::hud] = file("logos/williams_2017_hud.png");
+    logo.images[teams::LogoContext::driver_select] = stock("ui/williams_driver_select.dds");
+    std::string lt = to_json(logo);
+    CHECK(lt.find("\"driver_select\":{\"stock\":\"ui/williams_driver_select.dds\"}") != std::string::npos &&
+          lt.find("\"hud\":\"logos/williams_2017_hud.png\"") != std::string::npos);
+    teams::Logo lb;
+    CHECK(from_json(lt, lb) && lb.images.size() == 2 && lb.images[teams::LogoContext::hud] == file("logos/williams_2017_hud.png"));
+
+    drivers::Identity di{.person = drivers::people["person/mika_salo"],
+                         .names = {Text::literal("Mika"), Text::literal("Salo"), Text::literal("Mika Salo"), "SAL"},
+                         .number = 17,
+                         .look = drivers::looks["swofty.driver-manager/mika_salo_look"],
+                         .pools = {"f1_2026_driver_pool"}};
+    drivers::Identity db;
+    CHECK(from_json(to_json(di), db) && db.number == 17 && db.pools.size() == 1 && db.names.code == "SAL" &&
+          db.look.id() == "swofty.driver-manager/mika_salo_look");
+    drivers::Stats st{.driver = drivers::identities["swofty.driver-manager/mika_salo"], .pace = {78, 84}};
+    CHECK(to_json(st).find("\"pace\":{\"start\":78,\"peak\":84}") != std::string::npos);
+    drivers::Head hd{.archive = file("heads/senna/"), .rig_from = drivers::heads["game/male_ls222"], .body = drivers::BodyType::male};
+    CHECK(to_json(hd).find("\"body\":\"male\"") != std::string::npos);
+
+    wearables::Helmet hm{.archive = file("helmets/hamilton_2017_helmet.erp"),
+                         .from = wearables::helmets["game/lewis_hamilton"],
+                         .name = Text::literal("Hamilton 2017 (HX)"),
+                         .driver = drivers::identities["game/lewis_hamilton"],
+                         .colours = std::array<Colour, 4>{Colour("#FFE600"), Colour("#00A19B"), Colour("#7A2A8B"), Colour("#FFFFFF")}};
+    std::string hmt = to_json(hm);
+    CHECK(hmt.find("\"colours\":[\"#FFE600\",\"#00A19B\",\"#7A2A8B\",\"#FFFFFF\"]") != std::string::npos);
+    wearables::Helmet hmb;
+    CHECK(from_json(hmt, hmb) && hmb.colours && (*hmb.colours)[3] == Colour("#FFFFFF"));
+    wearables::Suit su{.archive = file("kit/mercedes_2016_suit.erp"), .from = wearables::suits["game/mercedes"]};
+    CHECK(to_json(su).find("\"colours\":null") != std::string::npos);
+    wearables::SeasonSet ss{.team = teams::identities["swofty.classic-seasons-2016/mercedes"], .season = 2016};
+    wearables::SeasonSet ssb;
+    CHECK(from_json(to_json(ss), ssb) && ssb.season == 2016 && ssb.suit.empty());
+
     career::RndDepartment d{.colour = Colour("#22A45D")};
     CHECK(to_json(d).find("\"colour\":\"#22A45D\"") != std::string::npos);
     CHECK(!from_json("{\"year\":", back));
@@ -322,6 +454,17 @@ static void schemas()
     CHECK(test::things.schema().find("\"x-version\":\"1.2\"") != std::string::npos);
     CHECK(Registry<json::Value>("x.y").schema().empty());
     CHECK(sounds::engine_sounds.at_major() == "engine_sound@1");
+    CHECK(teams::identities.schema().find("\"x-ref\":\"team.constructor\"") != std::string::npos);
+    CHECK(teams::identities.schema().find("\"x-ref\":\"team.logo\"") != std::string::npos);
+    CHECK(teams::logos.schema().find("\"x-applies\":\"read\"") != std::string::npos);
+    CHECK(teams::pit_times.schema().find("\"x-ref\":\"team.pit_times\"") != std::string::npos);
+    CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.look\"") != std::string::npos);
+    CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.person\"") != std::string::npos);
+    CHECK(drivers::looks.schema().find("\"x-ref\":\"helmet\"") != std::string::npos);
+    CHECK(drivers::stats.schema().find("\"x-ref\":\"driver.identity\"") != std::string::npos);
+    CHECK(wearables::season_sets.schema().find("\"x-ref\":\"suit\"") != std::string::npos);
+    CHECK(wearables::helmets.schema().find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(wearables::season_sets.at_major() == "wearable.season_set@1" && drivers::heads.at_major() == "driver.head@1");
 }
 
 int main()

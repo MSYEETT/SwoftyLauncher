@@ -85,6 +85,52 @@ typedef struct SwoftyEvBundleResolve {
     void *user;
 } SwoftyEvBundleResolve;
 
+typedef struct SwoftyEvLogoResolve {
+    uint32_t size, payload_version;
+    int32_t context;
+    const char *team_id;
+    const char *livery_name_str;
+    const char *key_str;
+    int32_t (*set_key_fn)(void *user, const char *key);
+    void *user;
+} SwoftyEvLogoResolve;
+
+typedef struct SwoftyEvNameResolve {
+    uint32_t size, payload_version;
+    const char *team_id;
+    const char *name_str;
+    bool name_literal;
+    int32_t (*set_name_fn)(void *user, const char *name, bool literal);
+    void *user;
+} SwoftyEvNameResolve;
+
+typedef struct SwoftyEvRatingsRead {
+    uint32_t size, payload_version;
+    const char *driver_id;
+    int32_t stat;
+    float value;
+} SwoftyEvRatingsRead;
+
+typedef struct SwoftyEvNumberAssign {
+    uint32_t size, payload_version;
+    const char *driver_id;
+    int32_t number;
+} SwoftyEvNumberAssign;
+
+typedef struct SwoftyEvHeadResolve {
+    uint32_t size, payload_version;
+    const char *driver_id;
+    const char *head_id;
+    int32_t (*set_head_fn)(void *user, const char *id);
+    void *user;
+} SwoftyEvHeadResolve;
+
+typedef struct SwoftyEvCatalogueBuild {
+    uint32_t size, payload_version;
+    int32_t (*add_fn)(void *user, const char *registry, const char *id);
+    void *user;
+} SwoftyEvCatalogueBuild;
+
 /* X(C struct, C++ namespace, C++ struct, size) */
 #define SWOFTY_EV_PAYLOADS(X)                                                                                   \
     X(SwoftyEvShell, career, Created, 8)                                                                       \
@@ -101,7 +147,13 @@ typedef struct SwoftyEvBundleResolve {
     X(SwoftyEvBuilt, cars, Built, 24)                                                                          \
     X(SwoftyEvReset, cars, Reset, 32)                                                                          \
     X(SwoftyEvPartsRegister, cars, PartsRegister, 48)                                                          \
-    X(SwoftyEvBundleResolve, sounds, BundleResolve, 56)
+    X(SwoftyEvBundleResolve, sounds, BundleResolve, 56)                                                        \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, 56)                                                             \
+    X(SwoftyEvNameResolve, teams, NameResolve, 48)                                                             \
+    X(SwoftyEvRatingsRead, drivers, RatingsRead, 24)                                                           \
+    X(SwoftyEvNumberAssign, drivers, NumberAssign, 24)                                                         \
+    X(SwoftyEvHeadResolve, drivers, HeadResolve, 40)                                                           \
+    X(SwoftyEvCatalogueBuild, wearables, CatalogueBuild, 24)
 
 /* X(C struct, C++ namespace, C++ struct, field, offset) */
 #define SWOFTY_EV_FIELDS(X)                                                                                     \
@@ -141,6 +193,28 @@ typedef struct SwoftyEvBundleResolve {
     X(SwoftyEvBundleResolve, sounds, BundleResolve, switch_name_str, 24)                                       \
     X(SwoftyEvBundleResolve, sounds, BundleResolve, engine_sound_id, 32)                                       \
     X(SwoftyEvBundleResolve, sounds, BundleResolve, set_engine_sound_fn, 40)                                   \
-    X(SwoftyEvBundleResolve, sounds, BundleResolve, user, 48)
+    X(SwoftyEvBundleResolve, sounds, BundleResolve, user, 48)                                                  \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, context, 8)                                                     \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, team_id, 16)                                                    \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, livery_name_str, 24)                                            \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, key_str, 32)                                                    \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, set_key_fn, 40)                                                 \
+    X(SwoftyEvLogoResolve, teams, LogoResolve, user, 48)                                                       \
+    X(SwoftyEvNameResolve, teams, NameResolve, team_id, 8)                                                     \
+    X(SwoftyEvNameResolve, teams, NameResolve, name_str, 16)                                                   \
+    X(SwoftyEvNameResolve, teams, NameResolve, name_literal, 24)                                               \
+    X(SwoftyEvNameResolve, teams, NameResolve, set_name_fn, 32)                                                \
+    X(SwoftyEvNameResolve, teams, NameResolve, user, 40)                                                       \
+    X(SwoftyEvRatingsRead, drivers, RatingsRead, driver_id, 8)                                                 \
+    X(SwoftyEvRatingsRead, drivers, RatingsRead, stat, 16)                                                     \
+    X(SwoftyEvRatingsRead, drivers, RatingsRead, value, 20)                                                    \
+    X(SwoftyEvNumberAssign, drivers, NumberAssign, driver_id, 8)                                               \
+    X(SwoftyEvNumberAssign, drivers, NumberAssign, number, 16)                                                 \
+    X(SwoftyEvHeadResolve, drivers, HeadResolve, driver_id, 8)                                                 \
+    X(SwoftyEvHeadResolve, drivers, HeadResolve, head_id, 16)                                                  \
+    X(SwoftyEvHeadResolve, drivers, HeadResolve, set_head_fn, 24)                                              \
+    X(SwoftyEvHeadResolve, drivers, HeadResolve, user, 32)                                                     \
+    X(SwoftyEvCatalogueBuild, wearables, CatalogueBuild, add_fn, 8)                                            \
+    X(SwoftyEvCatalogueBuild, wearables, CatalogueBuild, user, 16)
 
 #endif
