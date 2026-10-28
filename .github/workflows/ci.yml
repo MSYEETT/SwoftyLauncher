@@ -25,6 +25,7 @@ jobs:
       native: ${{ github.event_name != 'pull_request' || steps.filter.outputs.native == 'true' }}
       swofty-ui: ${{ github.event_name != 'pull_request' || steps.filter.outputs.swofty-ui == 'true' }}
       docs: ${{ github.event_name != 'pull_request' || steps.filter.outputs.docs == 'true' }}
+      std: ${{ github.event_name != 'pull_request' || steps.filter.outputs.std == 'true' }}
     steps:
       - id: filter
         if: github.event_name == 'pull_request'
@@ -77,6 +78,8 @@ jobs:
               - packages/sdk/**
               - tools/pack_addon.py
               - tools/rtassets.py
+              - templates/std/**
+              - tools/std/templates.py
             # build.py puts tools/ on the module path; the app imports erp, pkg and idf from there.
             swofty-ui:
               - *always
@@ -90,6 +93,12 @@ jobs:
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
+            # The registry schemas and examples, the tools that check them, and the templates whose data files they validate.
+            std:
+              - *always
+              - packages/sdk/std/**
+              - tools/std/**
+              - templates/std/**
 
   rust:
     name: Rust (${{ matrix.os }})
@@ -232,6 +241,34 @@ jobs:
       - name: Build
         run: pnpm --filter @f1modmanager/docs docs:build
 
+  std:
+    name: Standard library schemas
+    needs: changes
+    if: needs.changes.outputs.std == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history and its tags: schemacheck reads the schema files of the last release.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Schema tooling tests
+        run: python3 -m unittest discover -s tools/std/tests
+
+      # Schema files at the last v* tag before the merge base are released and must be unchanged; every new
+      # minor may only add to the one before it, and every new major declares its adapter.
+      - name: Schema versions
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: python3 tools/std/schemacheck.py --released-before "$(git merge-base "$BASE" HEAD)"
+
+      - name: Registry examples and must-fail cases
+        run: python3 tools/std/validate.py
+
+      # The native job builds the templates; this checks their registry data files against the schemas.
+      - name: Template data files
+        run: python3 tools/std/templates.py --no-build
+
   native:
     name: Native loader and Wine test
     needs: changes
@@ -294,6 +331,11 @@ jobs:
 
       - name: Build version.dll, swofty_core.dll and the bundled addons
         run: native/build.sh
+
+      # Builds every templates/std addon with its native/build.sh and validates its registry data files;
+      # nothing to do until the folder has addons.
+      - name: Standard library templates
+        run: python3 tools/std/templates.py
 
       - name: Bundled addon packages
         run: |
