@@ -752,6 +752,77 @@ gain at full damage; their aero consumer is the next target (search the F1Aero s
 To change damage behaviour: edit the VTF sections (boot); or write the data fields (XOR-encode the
 suspension ones); `F1WingDamage/DamageScale` and the per-part AeroLoss/DragGain are the knobs.
 
+#### Detachable parts {#parts}
+
+car-re, 2026-10-28, Steam build, read from the decompiles of 0x14465f620, 0x144660400 (with its `.data1` body
+0x15537d4f0), 0x1446612a0 (body 0x15538e460), 0x144661440, 0x1446686d0 and the three predicates. This is the
+data flow behind `car.parts.register`.
+
+`Car_FrontWing_Init` (0x14465f620, L2) is slot 6 (+0x30 Init) of the F1WingDamage system vtable 0x145bf90a0
+(pointer at 0x145bf90d0). It has no direct callers. `Car_Chassis_Build` calls every system's +0x30 with 0 at
+0x14462973d, and `Car_Systems_Reset_Body` calls it with its own reset argument at 0x1555bdfea (after an upgrade
+replay or a vehicle reset). `this` is the `CarDamageFrontWing` system (CarLive+0x5c8), and fw+8 is the CarLive. Each
+call does the following:
+
+- registers `Car_FrontWing_OnCollision` twice on the car (0x1446510d0, 0x144651f90, each with `{fn, fw}`);
+- fw+0x90 = CarLive+0x570, the **F1Aero** system (it is not a "car model");
+- fw+0x98 = +0x98 of the ConvexHull system's (CarLive+0x5b0) entry named `"FrontWing"` (0x145bf90e8). The name map is
+  at hull+0xc0 and the entries at hull+0xe8..+0xf0, and fw+0x98 is 0 when there is no such entry. It is the wing body
+  that `Car_FrontWing_OnCollision` filters on, not a node map;
+- fw+0xa0 = [CarLive+0x558 Chassis]+0x3f0, the second body the collision filter accepts.
+
+Only when reset == 0 **and** the part list is empty (fw+0xb0 == fw+0xb8) does it register 11 pieces, each through
+`Car_Register_DetachablePart_Thunk(fw, {predicate, fw}, &Game_Get_ModelNodeId(name), params, k)`. Then it puts the
+centre predicate `{0x144660380, fw}` into the hull entry at +0xa0/+0xa8. A later Init (reset, upgrade replay) finds the
+list full and registers nothing, so the pieces are registered once per car. There are three predicates, not one:
+
+| predicate | condition (true = off) | pieces (k) |
+|---|---|---|
+| `Car_FrontWing_IsCentrePieceOff` 0x144660380 | k x +0x38 <= +0x48 + +0x4c | frontspoiler_fm (1.0), frontfin_fr (0.6), frontfin_fl (0.75) |
+| `Car_FrontWing_IsRightPieceOff` 0x1446603d0 | k x +0x34 <= +0x4c, or +0x38 <= +0x48 + +0x4c | frontwing_fr_01 (0.25), frontwing_fr_02 (0.5), frontflap_fr (0.75), frontwingmoving_fr (0.5) |
+| `Car_FrontWing_IsLeftPieceOff` 0x1446603a0 | k x +0x34 <= +0x48, or +0x38 <= +0x48 + +0x4c | frontwing_fl_01 (0.25), frontwing_fl_02 (0.5), frontflap_fl (0.75), frontwingmoving_fl (0.5) |
+
++0x34 is SideDetachScale, +0x38 FullDetachScale, and +0x48/+0x4c the left/right damage (`CarDamageFrontWing.h`). The
+two fins use the centre predicate even though their names end in `_fr`/`_fl`. All 11 pass the same 0x70-byte params:
+int 2 at +0, float 0.4 at +4, a 4x4 identity at +0x10, and 0.05 three times at +0x50.
+
+`Car_Register_DetachablePart_Thunk` (0x144660400, L2) is a jmp into `.data1` 0x15537d4f0. Its body:
+
+1. calls `Car_Add_DetachablePart_Thunk` (0x1446612a0 → `.data1` 0x15538e460) with (fw, cb, &id, params, k). That
+   function calls `Car_Create_DetachablePart([fw+8]+0x2c8, cb, &id, params, k)` and, on success, appends the part to
+   fw+0xb0..+0xb8 (cap fw+0xc0, grown through the allocator at fw+0xa8, vtable +0x18/+0x38). It returns part != 0;
+2. if step 1 failed, it returns. No part exists when the car's model has no node with that id (0x143cfc8f0 returns -1);
+3. otherwise it registers sub-pieces `<name>_001`, `_002`, ... (format `%s_%03d` at 0x145bf4637, with the name taken
+   from the name table [0x14618ce08]+8 under the lock 0x14618ce18) with the same cb and params, until one fails. Each
+   sub-piece's k is rewritten. With d = min(0.2, 2 x the distance between the sub-piece's and the main piece's node
+   translations (part vtable +0x88 returns part+0x60, so the translation is part+0x90)), k becomes 1 - d when k == 1.0
+   and min(0.99, k + d) otherwise. The sub-piece's +0x1f4 byte is set to 1.
+
+The main piece keeps k as passed. V1191's transform applies to the sub-pieces only.
+
+Part object (`Car_Create_DetachablePart` 0x144661440, allocated 0x200 bytes through the car part manager CarLive+0x2c8
+{allocator, car, vector allocator, begin +0x18, end +0x20, cap +0x28}). The fields are:
+
+- +0 vtable 0x145bf94d0, +8 allocator, +0x10 car;
+- +0x18/+0x20 predicate fn/ctx;
+- +0x30 k, +0x38 detached byte;
+- +0x48 name id, +0x4c model node index, +0x50 `<name>_shadow` node, +0x54 `<name>_water` node;
+- +0x60..+0x9f the node transform, +0xa0 shape kind (2, or 6 when the ConvexHull has an entry of that name with
+  +0x70 == 2);
+- +0x130 byte (0 at create), +0x1f0 float timer, +0x1f4 byte.
+
+`Car_DetachablePart_Update` (0x1446686d0, slot 3 of 0x145bf94d0) runs every frame with dt:
+
+- when +0x130 >= 100, or when `fn(ctx, k)` returns true, it sets +0x38 = 1 and calls slot +0xa0(part, 1), which
+  detaches the piece;
+- an already detached piece runs a 1.5 s timer at +0x1f0 before 0x144668830(part, 1).
+
+So k is the predicate's multiplier. A piece comes off once the damage reaches k x the detach scale.
+
+`Car_Create_DetachablePart` has a second caller, 0x144655640, which `Car_Chassis_Build` calls 11 times (from
+0x14462b147 on). It creates parts directly in the same manager with +0x1f4 = 1. This is a second, non-front-wing part
+source (L0: probably the suspension pieces), not read further.
+
 
 #### Stock values and an external cross-check {#damage-check}
 
