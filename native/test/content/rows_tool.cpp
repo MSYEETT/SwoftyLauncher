@@ -99,7 +99,9 @@ int main(int argc, char **argv)
     st.set_validator(&registry::schema_validator());
     st.set_log([](const std::string &l) { std::cerr << l << "\n"; });
     const SwoftyRegistry *t = registry::table();
-    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"}) {
+    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box", "helmet", "suit",
+                             "gloves", "driver.head", "driver.look", "driver.person", "driver.identity", "driver.stats",
+                             "wearable.season_set"}) {
         std::string schema = slurp(regs + "/" + name + "/1.0.json");
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }
@@ -130,7 +132,9 @@ int main(int argc, char **argv)
     Value pools = Value::object();
     for (auto &scan : content::scan_all_pools(text)) {
         apply::ids::Pool pool;
-        if (scan.lo <= scan.hi)
+        if (!scan.holes.empty())
+            pool.ranges = scan.holes;
+        else if (scan.lo <= scan.hi)
             pool.ranges.push_back({scan.lo, scan.hi});
         ids.define_pool(scan.registry, pool);
         pools[scan.registry] = Value::array({Value(scan.lo), Value(scan.hi)});

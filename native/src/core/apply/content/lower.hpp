@@ -43,6 +43,7 @@ struct Redirect {
 struct Group {
     std::string group, tmpl, erp, file, addon, id;
     std::vector<std::string> common;
+    std::string registry = "livery";
 };
 
 struct Folder {
@@ -357,8 +358,41 @@ inline std::string vehicle_label(const Value &team, const Lookup &lookup)
 // A package's private "database" block names the rows its own entrant list gets (entrant_prefix, standings,
 // scenario_stat_id). A variant inherits its base's block with a new entrant list: when the block's entrant_list is
 // another list, those names are made from the variant's entrant list and its scenario gets an id from the pool.
+using PersonMap = std::map<std::string, std::string>;
+
+inline std::string package_driver_id(std::string_view ref, const PersonMap *persons)
+{
+    if (persons && ref.rfind("person/", 0) == 0) {
+        auto it = persons->find(std::string(ref));
+        if (it != persons->end())
+            return it->second;
+    }
+    return std::string(ref);
+}
+
+inline std::string record_label(const Lookup &lookup, const char *reg, std::string_view id)
+{
+    const Value *v = lookup(reg, std::string(id));
+    if (v && (*v)["label"].is_string() && !(*v)["label"].as_string().empty())
+        return std::string((*v)["label"].as_string());
+    return key_of(id);
+}
+
+inline std::string package_driver(const Lookup &lookup, std::string_view ref, const PersonMap *persons)
+{
+    return record_label(lookup, "driver.identity", package_driver_id(ref, persons));
+}
+
+inline std::string package_look(const Lookup &lookup, std::string_view ref, const PersonMap *persons)
+{
+    const Value *d = lookup("driver.identity", package_driver_id(ref, persons));
+    if (!d || !(*d)["look"].is_string() || (*d)["look"].as_string().empty())
+        return {};
+    return record_label(lookup, "driver.look", (*d)["look"].as_string());
+}
+
 inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
-                          const StatIds &stat = {})
+                          const StatIds &stat = {}, const PersonMap *wear = nullptr)
 {
     plan.owner = addon_of(id);
     const Value &db = rec["database"];
@@ -390,12 +424,14 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
         const Value &team = teams[t];
         for (std::size_t s = 0; s < team["drivers"].size(); s++) {
             const Value &seat = team["drivers"][s];
-            std::string driver = key_of(seat["driver"].as_string());
+            std::string driver = package_driver(lookup, seat["driver"].as_string(), wear);
             std::string look;
             if (seat["look"].is_string())
                 look = key_of(seat["look"].as_string());
             else if (db["looks"].is_object())
                 look = std::string(db["looks"][std::string(team["key"].as_string()) + "/" + driver].as_string());
+            if (look.empty())
+                look = package_look(lookup, seat["driver"].as_string(), wear);
             push_row(plan, "entrants.entrant_lists.entrants", std::string(ENTRANTS) + "[_metadata_=max_verstappen]",
                      Value::object({{"_metadata_", prefix + driver},
                                     {"driver", driver},
@@ -427,7 +463,7 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
         const Value &team = teams[t];
         std::string label = vehicle_label(team, lookup);
         for (std::size_t s = 0; s < team["drivers"].size(); s++, slot++) {
-            std::string driver = key_of(team["drivers"][s]["driver"].as_string());
+            std::string driver = package_driver(lookup, team["drivers"][s]["driver"].as_string(), wear);
             std::string at = std::string(LISTS) + "[_metadata_=" + list + "].entrant_" + std::to_string(slot);
             char pos[16];
             std::snprintf(pos, sizeof pos, "_driver_0%zu", s + 1);
@@ -512,6 +548,7 @@ struct PoolScan {
     std::string registry, table;
     int64_t lo = 0, hi = -1;
     std::map<int64_t, std::string> used;
+    std::vector<std::pair<int64_t, int64_t>> holes;
 };
 
 inline std::vector<PoolScan> scan_pools(const std::function<std::optional<std::string>(const std::string &)> &text)
