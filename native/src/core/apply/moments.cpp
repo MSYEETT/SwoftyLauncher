@@ -6,6 +6,7 @@
 #include "content/appliers.hpp"
 #include "database.hpp"
 #include "facts.hpp"
+#include "files_api.hpp"
 #include "scheduler.hpp"
 
 #include <swofty/game.hpp>
@@ -155,6 +156,7 @@ const char *mode_name(unsigned m)
 
 void extend(Value &, Value &conflicts)
 {
+    files::report(conflicts);
     Value &list = conflicts["registry"];
     if (!list.is_array())
         list = Value::array();

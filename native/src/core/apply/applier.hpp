@@ -18,6 +18,8 @@ struct Report {
     int put_back = 0;
     int refused = 0;
     std::vector<std::string> lines;
+    // A few words after the registry's count in the boot line, "[registry] applied at boot: engine_sound 1 (<summary>)".
+    std::string summary;
 };
 
 // One per registry the core applies to the game. The scheduler (native/src/core/apply/scheduler.cpp)
