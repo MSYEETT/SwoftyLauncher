@@ -17,4 +17,9 @@ SRC=(../src/core/apply/scheduler.cpp ../src/core/apply/ids.cpp ../src/core/regis
     -c ../src/core/apply/scheduler.cpp -o "$OUT/scheduler.windows.o"
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -I../../packages/sdk/include \
     -c ../src/core/apply/ids.cpp -o "$OUT/ids.windows.o"
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness \
+    -I../../packages/sdk/include -o "$OUT/files_test" apply/files_test.cpp
+"${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -I../../packages/sdk/include \
+    -c ../src/core/apply/files.cpp -o "$OUT/files.windows.o"
 "$OUT/apply_test" "$OUT/reports"
+"$OUT/files_test"

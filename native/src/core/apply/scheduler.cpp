@@ -138,6 +138,7 @@ void Scheduler::reset()
     session_name_.clear();
     activated_.clear();
     sessioned_.clear();
+    boot_summary_.clear();
 }
 
 Context Scheduler::context() const
@@ -202,6 +203,9 @@ Totals Scheduler::run(Moment m, Applies kind, const std::function<void(Applier &
         t.put_back += r.put_back;
         t.refused += r.refused;
         log(std::string("[apply] ") + a->registry() + " " + moment_name(m) + ": " + counts(r));
+        if (m == Moment::boot && (r.applied || !r.summary.empty()))
+            boot_summary_.push_back(std::string(a->registry()) + " " + std::to_string(r.applied) +
+                                    (r.summary.empty() ? std::string() : " (" + r.summary + ")"));
         for (auto &line : r.lines)
             log(std::string("[apply] ") + a->registry() + " " + moment_name(m) + ":   " + line);
         if (ran)
@@ -286,6 +290,13 @@ Totals Scheduler::run_boot()
     Totals t = run(Moment::boot, Applies::boot, [&](Applier &a, Report &r) { a.boot(store_, r); }, nullptr, false,
                    nullptr);
     log("[apply] boot: " + std::to_string(t.appliers) + " applier(s); " + counts(t) + " (" + summary(ctx_) + ")");
+    if (!boot_summary_.empty()) {
+        std::string line;
+        for (auto &part : boot_summary_)
+            line += (line.empty() ? "" : ", ") + part;
+        log("[registry] applied at boot: " + line);
+        boot_summary_.clear();
+    }
     return t;
 }
 

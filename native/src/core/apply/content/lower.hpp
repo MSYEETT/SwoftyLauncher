@@ -37,7 +37,7 @@ using StatIds = std::function<int64_t(const std::string &registry, const std::st
 inline constexpr const char *SCENARIO_IDS = "content.package.scenario";
 
 struct Redirect {
-    std::string path, file, addon;
+    std::string path, file, addon, id;
 };
 
 struct Box {
@@ -243,7 +243,7 @@ inline void lower_engine_sound(const std::string &id, const Value &rec, Plan &pl
     push_row(plan, "audio.audio_bundle_settings", std::string(AUDIO_BUNDLES) + "[_metadata_=" + from + "]",
              std::move(set));
     add_fields(plan, AUDIO_BUNDLES, AUDIO_BUNDLE_FIELDS, std::size(AUDIO_BUNDLE_FIELDS));
-    plan.redirects.push_back({"audio/2025/bundles/" + name + ".bdl", std::string(b.as_string()), addon_of(id)});
+    plan.redirects.push_back({"audio/2025/bundles/" + name + ".bdl", std::string(b.as_string()), addon_of(id), id});
     plan.lines.push_back("engine_sound " + id + ": bundle " + name + ", settings from " + from);
 }
 

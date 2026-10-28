@@ -89,6 +89,7 @@ private:
     int career_year_ = 0;
     std::string session_name_;
     std::vector<Applier *> activated_, sessioned_;
+    std::vector<std::string> boot_summary_;
 };
 
 Scheduler &scheduler();

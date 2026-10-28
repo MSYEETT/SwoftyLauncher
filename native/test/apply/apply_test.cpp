@@ -51,6 +51,8 @@ struct TestApplier : ap::Applier {
             r.applied++;
         else
             r.refused++;
+        if (name == "t.boot2")
+            r.summary = "1 test row";
     }
     void activate(reg::Store &st, const reg::Context &c, ap::Report &r) override
     {
@@ -291,6 +293,8 @@ void test_scheduler()
     check(b1.name == "t.boot1", "the applier stays alive");
     check(logged("[apply] t.boot1 boot: 1 applied, 0 put back, 0 refused"), "each applier logs its moment");
     check(logged("[apply] boot: 2 applier(s); 2 applied"), "the boot moment logs a summary");
+    check(logged("[registry] applied at boot: t.boot1 1, t.boot2 1 (1 test row)"),
+          "the boot moment logs one [registry] line with each registry's count and summary");
 
     calls.clear();
     logs.clear();

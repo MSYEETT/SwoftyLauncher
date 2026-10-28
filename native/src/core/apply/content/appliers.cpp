@@ -2,6 +2,7 @@
 
 #include "../applier.hpp"
 #include "../database.hpp"
+#include "../files_api.hpp"
 #include "../ids.hpp"
 #include "boot.hpp"
 #include "gvdb.hpp"
@@ -201,6 +202,45 @@ void run_boot(Store &st)
     expand(st, *s.boot, stat_id, adm.skip);
 }
 
+void redirect_bundles(Store &st, Expansion &x, Report &report)
+{
+    std::map<std::string, int> routed, kept;
+    std::vector<std::string> order;
+    auto note = [&order](const std::string &addon) {
+        if (std::find(order.begin(), order.end(), addon) == order.end())
+            order.push_back(addon);
+    };
+    for (auto &rd : x.redirects) {
+        registry::Record rec = st.get("engine_sound", rd.id);
+        std::string addon = rec.status == registry::Status::ok
+                                ? files::owner_of_field(rec.origins, rec.owner.empty() ? rd.addon : rec.owner, "/bundle")
+                                : rd.addon;
+        files::Outcome o = files::redirect(rd.path, addon, rd.file, "engine_sound", rd.id, "boot");
+        note(addon);
+        if (o.kind == files::Kind::routed || o.kind == files::Kind::shadowed)
+            routed[addon]++;
+        else if (o.kind == files::Kind::kept)
+            kept[addon]++;
+        else {
+            report.refused++;
+            report.lines.push_back(o.line);
+        }
+        if (!o.conflict.empty())
+            report.lines.push_back(o.conflict);
+    }
+    std::string summary;
+    for (auto &addon : order) {
+        if (routed[addon])
+            summary += (summary.empty() ? "" : ", ") + std::to_string(routed[addon]) + " bundle path" +
+                       (routed[addon] == 1 ? "" : "s") + " redirected to " + addon;
+        if (kept[addon])
+            report.lines.push_back(addon + ": " + std::to_string(kept[addon]) + " bundle(s) not in swofty/addons/" + addon +
+                                   "/; the game folder's copies are used (its file operations put them there)");
+    }
+    if (!summary.empty())
+        report.summary = summary;
+}
+
 void release_database()
 {
     State &s = state();
@@ -265,6 +305,12 @@ public:
         report.lines.push_back(std::to_string(staged) + " database record(s) staged");
         for (auto &l : x.lines[registry_])
             report.lines.push_back(l);
+        if (std::string_view(registry_) == "engine_sound")
+            redirect_bundles(st, x, report);
+        if (staged) {
+            std::string records = std::to_string(staged) + " database record" + (staged == 1 ? "" : "s");
+            report.summary = report.summary.empty() ? records : report.summary + "; " + records;
+        }
         if (std::string_view(registry_) == ROW_REGISTRIES[std::size(ROW_REGISTRIES) - 1])
             release_database();
     }
