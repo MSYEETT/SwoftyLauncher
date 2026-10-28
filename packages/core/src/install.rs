@@ -366,8 +366,9 @@ impl<'a> Installer<'a> {
         let ids = addon_storage::ids(j.entries.iter().map(|e| e.path.as_str()));
         let kept = self.keep_storage(&ids, std::slice::from_ref(&j))?;
         for id in &ids {
-            addon_storage::save_profile(self.data, id, &j.profile)?;
+            addon_storage::save_current(self.data, id)?;
         }
+        crate::stdlib::careers::sync(self.data, Some(&self.game.dir), Some(&j.profile)).ok();
         let mut report = Vec::new();
         let same_build = j.build_id == self.game.identity.build_id;
         for e in j.entries.iter().rev() {
@@ -933,6 +934,9 @@ impl<'a> Installer<'a> {
                 ));
             }
         }
+        if !plan.loader.is_empty() && crate::stdlib::careers::put_back_ids(self.data, &self.game.dir)? {
+            (self.out)("registry: put back the stat-id store kept when the game folder was restored");
+        }
         j.commit()
     }
 
@@ -946,6 +950,7 @@ impl<'a> Installer<'a> {
         }
         let loader = self.path(LOADER_DIR);
         if loader.is_dir() {
+            crate::stdlib::careers::keep(self.data, &self.game.dir)?;
             let ids = addon_storage::present(&self.game.dir)?;
             self.keep_storage(&ids, &Journal::open(self.data)?)?;
             let logs = self.data.join("sessions/orphaned-logs");

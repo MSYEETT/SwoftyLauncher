@@ -83,8 +83,9 @@ pub fn data_path(data: &Path) -> PathBuf {
 }
 
 /// Merge the game's career index into the launcher's copy, newest record per career id first, and
-/// return the merged list. A career the game no longer lists stays in the copy.
-pub fn sync(data: &Path, game: Option<&Path>) -> crate::Result<Vec<Career>> {
+/// return the merged list. A career the game no longer lists stays in the copy. A career the core
+/// wrote without a profile gets `stamp`, the profile of the session that just ran.
+pub fn sync(data: &Path, game: Option<&Path>, stamp: Option<&str>) -> crate::Result<Vec<Career>> {
     let mut kept = read(&data_path(data));
     let Some(game) = game else {
         return Ok(kept);
@@ -93,20 +94,56 @@ pub fn sync(data: &Path, game: Option<&Path>) -> crate::Result<Vec<Career>> {
     if fresh.is_empty() {
         return Ok(kept);
     }
-    for c in fresh {
+    for mut c in fresh {
         match kept.iter_mut().find(|k| k.career == c.career) {
             Some(k) => {
-                let profile = c.profile.clone().or_else(|| k.profile.clone());
-                *k = Career { profile, ..c };
+                c.profile = c.profile.or_else(|| k.profile.clone());
+                *k = c;
             }
-            None => kept.push(c),
+            None => {
+                c.profile = c.profile.or_else(|| stamp.map(str::to_owned));
+                kept.push(c);
+            }
         }
     }
-    crate::write_json(
+    crate::write_json_shared(
         &data_path(data),
         &serde_json::json!({ "version": 1, "careers": kept }),
     )?;
     Ok(kept)
+}
+
+/// Where the launcher keeps the core's stat-id store while the game folder has none.
+pub fn kept_ids(data: &Path) -> PathBuf {
+    data.join("registry").join(super::reports::IDS)
+}
+
+/// Before the game folder's `swofty/` goes (Restore game files): merge the career index and keep a
+/// copy of the core's stat-id store, so neither is lost.
+pub fn keep(data: &Path, game: &Path) -> crate::Result<()> {
+    sync(data, Some(game), None)?;
+    let ids = super::reports::path(game, super::reports::IDS);
+    let kept = kept_ids(data);
+    let modified = |p: &Path| std::fs::metadata(p).and_then(|m| m.modified()).ok();
+    if ids.is_file() && (!kept.is_file() || modified(&ids) >= modified(&kept)) {
+        let dir = kept.parent().expect("has parent");
+        std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
+        std::fs::copy(&ids, &kept).map_err(crate::io_err(&kept))?;
+    }
+    Ok(())
+}
+
+/// After an install: put the kept stat-id store back when the game folder has none.
+pub fn put_back_ids(data: &Path, game: &Path) -> crate::Result<bool> {
+    let ids = super::reports::path(game, super::reports::IDS);
+    let kept = kept_ids(data);
+    if ids.exists() || !kept.is_file() {
+        return Ok(false);
+    }
+    let dir = ids.parent().expect("has parent");
+    std::fs::create_dir_all(dir).map_err(crate::io_err(dir))?;
+    std::fs::copy(&kept, &ids).map_err(crate::io_err(&ids))?;
+    Ok(true)
 }
 
 /// What a career needs that profile `order` doesn't have on: one line per addon, empty when it
@@ -212,7 +249,7 @@ mod tests {
         let (data, game) = (root.join("data"), root.join("game"));
         std::fs::create_dir_all(game.join("swofty/careers")).unwrap();
         std::fs::write(game.join(GAME_PATH), format!("[{RECORD}]")).unwrap();
-        let first = sync(&data, Some(&game)).unwrap();
+        let first = sync(&data, Some(&game), Some("progressive")).unwrap();
         assert_eq!(first.len(), 1);
         let later = RECORD
             .replace("\"profile\": \"progressive\",", "")
@@ -221,13 +258,37 @@ mod tests {
             .replace("6f3e9a", "77aa01")
             .replace("progressive\",", "vanilla-ish\",");
         std::fs::write(game.join(GAME_PATH), format!("[{later}, {other}]")).unwrap();
-        let merged = sync(&data, Some(&game)).unwrap();
+        let merged = sync(&data, Some(&game), Some("other")).unwrap();
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].profile.as_deref(), Some("progressive"));
         assert!(merged[0].label.ends_with("season 2"));
         std::fs::remove_file(game.join(GAME_PATH)).unwrap();
-        assert_eq!(sync(&data, Some(&game)).unwrap().len(), 2);
-        assert_eq!(sync(&data, None).unwrap().len(), 2);
+        assert_eq!(sync(&data, Some(&game), None).unwrap().len(), 2);
+        assert_eq!(sync(&data, None, None).unwrap().len(), 2);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_career_without_a_profile_gets_the_sessions_and_the_ids_survive_a_restore() {
+        let root = std::env::temp_dir().join(format!("swofty-careers-keep-{}", std::process::id()));
+        let (data, game) = (root.join("data"), root.join("game"));
+        let unstamped = RECORD.replace("\"profile\": \"progressive\",", "");
+        std::fs::create_dir_all(game.join("swofty/careers")).unwrap();
+        std::fs::write(game.join(GAME_PATH), format!("[{unstamped}]")).unwrap();
+        let synced = sync(&data, Some(&game), Some("tails")).unwrap();
+        assert_eq!(synced[0].profile.as_deref(), Some("tails"));
+        let ids = crate::stdlib::reports::path(&game, crate::stdlib::reports::IDS);
+        std::fs::create_dir_all(ids.parent().unwrap()).unwrap();
+        std::fs::write(&ids, "{\"track\":{\"mod.sochi/sochi\":18}}").unwrap();
+        keep(&data, &game).unwrap();
+        std::fs::remove_dir_all(game.join("swofty")).unwrap();
+        assert_eq!(read(&data_path(&data)).len(), 1);
+        assert!(put_back_ids(&data, &game).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(&ids).unwrap(),
+            "{\"track\":{\"mod.sochi/sochi\":18}}"
+        );
+        assert!(!put_back_ids(&data, &game).unwrap());
         std::fs::remove_dir_all(&root).ok();
     }
 }
