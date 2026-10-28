@@ -255,6 +255,8 @@ void boot_without_database(room::Report report)
     report.registry_asked = scheduler().planned_keys();
     save_ids();
     write_room(report);
+    if (runtime::load_stage() != "early")
+        window();
 }
 
 void career_loaded(const char *key, unsigned mode)
@@ -313,6 +315,7 @@ void window()
 int write_reports(const char *when)
 {
     save_ids();
+    CreateDirectoryA(registry_dir().c_str(), nullptr);
     int r = reg::write_reports(registry_dir(), extend);
     swofty::log("[registry] effective.json and conflicts.json %s (%s)", r == SWOFTY_ASSET_OK ? "written" : "NOT written",
                 when ? when : "");
