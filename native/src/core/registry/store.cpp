@@ -610,6 +610,7 @@ struct Store::Impl {
     }
     std::map<std::pair<std::string, std::string>, std::optional<Value>> option_reads;
     std::set<std::string> unchecked;
+    SnapshotSource snapshot;
 
     bool read_option(const std::string &addon, const std::string &id, Value &out)
     {
@@ -702,6 +703,8 @@ struct Engine {
     std::map<std::string, std::vector<std::string>> tag_cache;
 
     Engine(Store::Impl &st, Reg &rg, const std::set<uint32_t> &dr) : s(st), r(rg), ctx(st.ctx), dropped(dr) {}
+    Engine(Store::Impl &st, Reg &rg, const std::set<uint32_t> &dr, const Context &c)
+        : s(st), r(rg), ctx(c), dropped(dr) {}
 
     Reg *other(const std::string &name) { return s.reg(name); }
 
@@ -1288,6 +1291,10 @@ struct Engine {
         if (it != memo.end())
             return it->second;
         Res R;
+        if (excluded.empty() && frozen(id, R)) {
+            memo[key] = R;
+            return R;
+        }
         std::vector<std::string> path;
         int cs = chain_state(r, id, &path);
         if (cs == 1) {
@@ -1348,9 +1355,60 @@ struct Engine {
                 return bad;
             }
         }
+        apply_layers(R, id, excluded, false);
+        memo[key] = R;
+        return R;
+    }
+
+    // W4: a career's frozen value for id, converted to the registry's major, plus the career's layers.
+    bool frozen(const std::string &id, Res &R)
+    {
+        if (!s.snapshot || ctx.career.empty() || !r.def.snapshot)
+            return false;
+        Frozen f;
+        {
+            CallbackGuard cb;
+            f = s.snapshot(r.def.name, id, ctx);
+        }
+        if (!f.found || !f.value.is_object())
+            return false;
+        Value v = f.value;
+        if (f.major && f.major != r.def.major) {
+            const Adapter *a = nullptr;
+            for (auto &x : r.adapters)
+                if (int(x.from) == f.major && int(x.to) == r.def.major && (!a || (a->down && !x.down)))
+                    a = &x;
+            std::string in = swofty::json::dump(v), conv;
+            int rc = SWOFTY_ASSET_UNAVAILABLE;
+            if (a) {
+                CallbackGuard cb;
+                rc = call_sized(conv, [&](char *o, std::size_t cap, std::size_t *len) {
+                    return a->up(a->user, SwoftyText{in.data(), in.size()}, o, cap, len);
+                });
+            }
+            swofty::json::Error e;
+            Value up = rc == SWOFTY_ASSET_OK ? swofty::json::parse(conv, &e) : Value();
+            if (rc != SWOFTY_ASSET_OK || !e.message.empty() || !up.is_object()) {
+                s.note("[registry] " + r.def.name + " " + id + ": snapshot of schema " + std::to_string(f.major) +
+                       " has no " + (a ? "working " : "") + "migration to " + std::to_string(r.def.major) +
+                       "; this career reads it live");
+                return false;
+            }
+            v = std::move(up);
+        }
+        R = Res{};
+        R.st = Status::ok;
+        R.v = std::move(v);
+        R.owner = owner_of(id);
+        apply_layers(R, id, {}, true);
+        return true;
+    }
+
+    void apply_layers(Res &R, const std::string &id, const std::set<uint32_t> &excluded, bool career_only)
+    {
         std::vector<const Layer *> ls;
         for (auto &L : r.layers) {
-            if (!active(L))
+            if (!active(L) || (career_only && L.spec.scope != Scope::career))
                 continue;
             if (L.spec.selector ? (!excluded.count(L.handle) && sel_matches(L, id)) : L.spec.id == id)
                 ls.push_back(&L);
@@ -1363,8 +1421,6 @@ struct Engine {
         for (auto *L : ls)
             if (!apply(R, L->spec.change, L->spec.addon, id, L))
                 failures[L->handle].insert(id);
-        memo[key] = R;
-        return R;
     }
 
     void finalize(Res &R)
@@ -2261,6 +2317,51 @@ std::vector<std::string> Store::tag_members(const std::string &registry, const s
         return {};
     Engine e(*d, *r, r->eval.dropped);
     return e.members(*r, tag);
+}
+
+void Store::set_snapshot_source(SnapshotSource fn)
+{
+    std::lock_guard g(d->mu);
+    d->snapshot = std::move(fn);
+    d->touch();
+}
+
+Record Store::get_live(const std::string &registry, const std::string &id, const Context &ctx)
+{
+    std::lock_guard g(d->mu);
+    Record out;
+    Reg *r = d->reg(registry);
+    if (!r) {
+        out.status = Status::no_registry;
+        return out;
+    }
+    if (tl_computing && tl_computing->count(r->def.name)) {
+        out.status = Status::late;
+        return out;
+    }
+    d->evaluate(*r);
+    Context c = ctx;
+    c.career.clear();
+    Engine e(*d, *r, r->eval.dropped, c);
+    Res R = e.compute(id, {});
+    e.finalize(R);
+    out.status = R.st;
+    out.owner = R.owner;
+    if (R.st == Status::ok) {
+        out.value = std::move(R.v);
+        out.origins = std::move(R.origins);
+    }
+    return out;
+}
+
+std::optional<Def> Store::def(const std::string &registry) const
+{
+    std::lock_guard g(d->mu);
+    auto at = registry.find('@');
+    auto it = d->regs.find(at == std::string::npos ? registry : registry.substr(0, at));
+    if (it == d->regs.end())
+        return std::nullopt;
+    return it->second.def;
 }
 
 std::vector<std::string> Store::chain(const std::string &registry, const std::string &id)

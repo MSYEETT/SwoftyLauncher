@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+import traceback
 from pathlib import Path
 
 from . import catalog, compare, fetch, report, runner
@@ -65,6 +66,8 @@ def cmd_fetch(args):
 def _sets(args, entries, launcher):
     only = catalog.parse_only(args.only)
     picked = catalog.select(entries, launcher, latest=args.latest, only=only)
+    excluded = {a for a, _ in catalog.parse_only(getattr(args, "exclude", None))}
+    picked = [e for e in picked if e.id not in excluded]
     sets = []
 
     def make(name, roots):
@@ -118,34 +121,50 @@ def _run_pair(args, a, b, index, item, seed, out, fetched, game):
         free = shutil.disk_usage(out).free
         if free < args.min_free_gb << 30:
             raise runner.ToolError(f"only {free >> 30} GB free under {out}")
-        before = runner.game_state(game)
-        snaps = {}
-        work = Path(out) / "work" / f"s{index:04d}"
-        for side in (a, b):
-            meta = {"set": item["set"], "side": side.name, "cli": str(side.cli), "version": side.version}
-            snaps[side.name] = runner.build_set(
-                side, addons, work / "data", game, seed=seed, cache=args.cache,
-                timeout=args.timeout, pin=not args.no_pin, meta=meta,
-            )
-            _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
-            kept = Path(out) / side.name / work.name
-            if args.keep:
-                shutil.rmtree(kept, ignore_errors=True)
-                kept.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(work, kept)
-            else:
-                shutil.rmtree(work, ignore_errors=True)
-        changed, n = runner.state_changes(before, runner.game_state(game))
-        if n:
+        for attempt in range(args.retries + 1):
+            before = runner.game_state(game)
+            snaps = _build_both(args, a, b, index, item, seed, out, addons, game)
+            changed, n = runner.state_changes(before, runner.game_state(game))
+            result["comparison"] = compare.compare(snaps[a.name], snaps[b.name], allow=set(args.allow or []))
+            result["buildhash"] = {a.name: snaps[a.name]["buildhash"], b.name: snaps[b.name]["buildhash"]}
+            if not n:
+                break
             result["notes"].append(
-                f"the game folder changed during this set ({n} file(s), e.g. {', '.join(changed[:3])}); "
-                "another session may have applied a build"
+                f"the game folder changed during attempt {attempt + 1} ({n} file(s), e.g. {', '.join(changed[:3])}); "
+                "another session may have applied or restored a build"
             )
-        result["comparison"] = compare.compare(snaps[a.name], snaps[b.name], allow=set(args.allow or []))
-        result["buildhash"] = {a.name: snaps[a.name]["buildhash"], b.name: snaps[b.name]["buildhash"]}
+            if result["comparison"]["same"]:
+                break
+        else:
+            raise runner.ToolError(
+                f"inconclusive: the game folder changed during each of {args.retries + 1} attempt(s), "
+                f"and the builds differ ({report.first_difference(result)})"
+            )
     except (runner.ToolError, fetch.FetchError, OSError) as e:
         result["error"] = str(e)
+    except Exception as e:
+        result["error"] = f"tool bug: {type(e).__name__}: {e}\n{traceback.format_exc()}"
     return result
+
+
+def _build_both(args, a, b, index, item, seed, out, addons, game):
+    snaps = {}
+    work = Path(out) / "work" / f"s{index:04d}"
+    for side in (a, b):
+        meta = {"set": item["set"], "side": side.name, "cli": str(side.cli), "version": side.version}
+        snaps[side.name] = runner.build_set(
+            side, addons, work / "data", game, seed=seed, cache=args.cache,
+            timeout=args.timeout, pin=not args.no_pin, meta=meta,
+        )
+        _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
+        kept = Path(out) / side.name / work.name
+        if args.keep:
+            shutil.rmtree(kept, ignore_errors=True)
+            kept.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(work, kept)
+        else:
+            shutil.rmtree(work, ignore_errors=True)
+    return snaps
 
 
 def _safe(name):
@@ -159,6 +178,8 @@ def cmd_run(args):
         side.version = runner.cli_version(side.cli)
         if side.loader_dir() is None:
             raise runner.ToolError(f"{side.cli}: no loader found next to it; pass --loader-{side.name}")
+    dxc = Path(args.dxc) if args.dxc else (a.bundled_dxc() or b.bundled_dxc())
+    a.dxc = b.dxc = dxc
     game = Path(args.game)
     if not (game / "F1_25.exe").is_file():
         raise runner.ToolError(f"{game}: no F1_25.exe; pass --game")
@@ -169,17 +190,24 @@ def cmd_run(args):
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     out = Path(args.out) if args.out else Path(args.cache) / "runs" / stamp
     out.mkdir(parents=True, exist_ok=True)
-    notes = []
+    a, b = a.freeze(out / "sides" / "a"), b.freeze(out / "sides" / "b")
+    for side in (a, b):
+        frozen = runner.cli_version(side.cli)
+        if frozen != side.version:
+            raise runner.ToolError(f"{side.source}: changed while it was copied ({side.version} -> {frozen})")
+    notes = [f"{s.name} runs a copy of {s.source}" for s in (a, b)]
+    if dxc:
+        notes.append(f"both sides compile shaders with {dxc}")
     seed = None
     if args.baseline_from:
-        seed = runner.seed_baseline(args.baseline_from, out / "baseline-seed")
+        seed = runner.seed_baseline(args.baseline_from, Path(args.cache) / "baseline-seed")
         if seed is None:
             notes.append(f"no baseline under {args.baseline_from}; builds read the game folder as it is now")
         else:
             notes.append(f"originals come from the baseline in {args.baseline_from} (hard-linked)")
     meta = {
-        "a": {"cli": str(a.cli), "version": a.version, "loader": str(a.loader_dir())},
-        "b": {"cli": str(b.cli), "version": b.version, "loader": str(b.loader_dir())},
+        "a": {"cli": str(a.cli), "version": a.version, "loader": str(a.loader_dir()), "source": a.source},
+        "b": {"cli": str(b.cli), "version": b.version, "loader": str(b.loader_dir()), "source": b.source},
         "game": str(game),
         "launcher_version": launcher,
         "catalog_url": args.catalog_url,
@@ -213,7 +241,7 @@ def cmd_run(args):
     (out / "summary.txt").write_text(text)
     if not args.keep:
         shutil.rmtree(out / "work", ignore_errors=True)
-        shutil.rmtree(out / "baseline-seed", ignore_errors=True)
+        shutil.rmtree(out / "sides", ignore_errors=True)
     print()
     print(text, end="")
     print(f"report: {out / 'report.json'}")
@@ -305,6 +333,7 @@ def parser():
     r.add_argument("--cli-b", required=True, help="the swofty binary under test")
     r.add_argument("--loader-a", help="loader dir for CLI A (default: next to the binary)")
     r.add_argument("--loader-b", help="loader dir for CLI B (default: next to the binary)")
+    r.add_argument("--dxc", help="the dxc both sides compile shaders with (default: the one bundled with A or B)")
     r.add_argument("--game", default=DEFAULT_GAME, help="the game folder, read only (default %(default)s)")
     r.add_argument("--baseline-from", default=str(DEFAULT_DATA) if (DEFAULT_DATA / "baseline").is_dir() else None,
                    help="a launcher data dir whose baseline holds the stock originals (default %(default)s)")
@@ -312,9 +341,12 @@ def parser():
     r.add_argument("--profile", action="append", metavar="NAME=ID[@V],ID[@V]",
                    help="also build this whole profile (repeatable)")
     r.add_argument("--all-latest", action="store_true", help="also build one profile of every selected addon")
+    r.add_argument("--exclude", action="append", metavar="ID", help="leave this addon out of every set (repeatable)")
     r.add_argument("--no-per-version", action="store_true", help="skip the one-addon sets")
     r.add_argument("--jobs", type=int, default=2, help="sets built at once (default %(default)s)")
     r.add_argument("--timeout", type=int, default=3600, help="seconds per CLI call (default %(default)s)")
+    r.add_argument("--retries", type=int, default=2,
+                   help="build a set again when the game folder changed during it and the builds differ (default %(default)s)")
     r.add_argument("--keep", action="store_true", help="keep the scratch data dirs")
     r.add_argument("--no-pin", action="store_true", help="do not run the CLIs under taskset and nice")
     r.add_argument("--allow", action="append", choices=compare.CATEGORIES,
@@ -348,6 +380,13 @@ def main(argv=None):
         return 2
     except OSError as e:
         print(f"swofty-compat: {e}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("swofty-compat: interrupted", file=sys.stderr)
+        return 2
+    except Exception:
+        traceback.print_exc()
+        print("swofty-compat: tool bug; exit 2", file=sys.stderr)
         return 2
 
 

@@ -382,6 +382,8 @@ jobs:
         run: native/test/run_sdk_headers_test.sh
       - name: Registry core (shared corpus, Python reference, random stacks, read benchmark)
         run: native/test/run_registry_test.sh
+      - name: Career snapshots (swofty_registry entry, freezes, budgets, migration, fixtures)
+        run: native/test/run_snapshots_test.sh
       - name: Career operations planner and SDK calls host test
         run: native/test/run_career_ops_test.sh
       - name: Live apply paths (scheduler, put-back, context, budgets, sizing, stat ids, reports)
