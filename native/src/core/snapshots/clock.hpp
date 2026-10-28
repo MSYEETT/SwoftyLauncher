@@ -151,10 +151,6 @@ public:
         if (s.career.empty() || s.index < 0)
             return m;
         std::string head = "[registry] career " + s.career + " season index " + std::to_string(s.index);
-        if (!s.ready) {
-            once(m, head + ": not ready (" + s.not_ready + "); career.season.start waits for a later Team HQ");
-            return m;
-        }
         auto r = reported_.find(s.career);
         if (r != reported_.end() && r->second == s.index)
             return m;
@@ -164,6 +160,10 @@ public:
             once(m, head + ": data group " + s.data_group + " is " + s.owner + "'s; the core takes its year from " +
                         s.owner + "'s career::report_season (" +
                         (computed ? "the records put " + std::to_string(computed) + " here" : why) + ")");
+            return m;
+        }
+        if (!s.ready) {
+            once(m, head + ": not ready (" + s.not_ready + "); career.season.start waits for a later Team HQ");
             return m;
         }
         if (!computed) {
