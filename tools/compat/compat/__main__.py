@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+import traceback
 from pathlib import Path
 
 from . import catalog, compare, fetch, report, runner
@@ -145,6 +146,8 @@ def _run_pair(args, a, b, index, item, seed, out, fetched, game):
         result["buildhash"] = {a.name: snaps[a.name]["buildhash"], b.name: snaps[b.name]["buildhash"]}
     except (runner.ToolError, fetch.FetchError, OSError) as e:
         result["error"] = str(e)
+    except Exception as e:
+        result["error"] = f"tool bug: {type(e).__name__}: {e}\n{traceback.format_exc()}"
     return result
 
 
@@ -172,7 +175,7 @@ def cmd_run(args):
     notes = []
     seed = None
     if args.baseline_from:
-        seed = runner.seed_baseline(args.baseline_from, out / "baseline-seed")
+        seed = runner.seed_baseline(args.baseline_from, Path(args.cache) / "baseline-seed")
         if seed is None:
             notes.append(f"no baseline under {args.baseline_from}; builds read the game folder as it is now")
         else:
@@ -213,7 +216,6 @@ def cmd_run(args):
     (out / "summary.txt").write_text(text)
     if not args.keep:
         shutil.rmtree(out / "work", ignore_errors=True)
-        shutil.rmtree(out / "baseline-seed", ignore_errors=True)
     print()
     print(text, end="")
     print(f"report: {out / 'report.json'}")
@@ -348,6 +350,13 @@ def main(argv=None):
         return 2
     except OSError as e:
         print(f"swofty-compat: {e}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("swofty-compat: interrupted", file=sys.stderr)
+        return 2
+    except Exception:
+        traceback.print_exc()
+        print("swofty-compat: tool bug; exit 2", file=sys.stderr)
         return 2
 
 

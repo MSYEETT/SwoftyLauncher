@@ -90,6 +90,13 @@ class Running(unittest.TestCase):
     def test_cli_version(self):
         self.assertEqual(runner.cli_version(self.side("a", {"FAKE_VERSION": "1.6.0"}).cli), "1.6.0")
 
+    def test_a_cli_that_prints_no_version_is_a_tool_error(self):
+        silent = self.root / "silent"
+        silent.write_text("#!/bin/sh\nexit 0\n")
+        silent.chmod(0o755)
+        with self.assertRaises(runner.ToolError):
+            runner.cli_version(silent)
+
 
 class Files(unittest.TestCase):
     def test_pin_mtimes(self):
@@ -190,3 +197,33 @@ class Gate(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(io.StringIO()):
             self.assertEqual(main(["run", "--cli-a", f"{tmp}/nope", "--cli-b", f"{tmp}/nope", "--offline"]), 2)
             self.assertEqual(main(["harness"]), 2)
+            silent = Path(tmp) / "silent"
+            silent.write_text("#!/bin/sh\nexit 0\n")
+            silent.chmod(0o755)
+            self.assertEqual(main(["run", "--cli-a", str(silent), "--cli-b", str(silent), "--offline"]), 2)
+
+    def test_an_unexpected_exception_exits_2(self):
+        import io
+        from contextlib import redirect_stderr
+        from unittest import mock
+
+        from compat import __main__ as cli
+
+        with mock.patch.object(cli, "cmd_compare", side_effect=KeyError("boom")), redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(cli.main(["compare", "a.json", "b.json"]), 2)
+        self.assertIn("KeyError", err.getvalue())
+
+    def test_the_baseline_seed_is_reused_until_the_baseline_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "data/baseline"
+            (src / "b1").mkdir(parents=True)
+            (src / "b1/baseline.json").write_text('{"files": 1}')
+            (src / "objects/aa").mkdir(parents=True)
+            (src / "objects/aa/aa1").write_bytes(b"one")
+            seed = runner.seed_baseline(Path(tmp) / "data", Path(tmp) / "seed")
+            (src / "objects/aa/aa2").write_bytes(b"two")
+            runner.seed_baseline(Path(tmp) / "data", seed)
+            self.assertTrue((seed / "objects/aa/aa2").is_file())
+            (src / "b1/baseline.json").write_text('{"files": 2}')
+            runner.seed_baseline(Path(tmp) / "data", seed)
+            self.assertEqual((seed / "b1/baseline.json").read_text(), '{"files": 2}')

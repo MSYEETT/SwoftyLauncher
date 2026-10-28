@@ -52,7 +52,10 @@ def cli_version(cli):
         raise ToolError(f"{cli}: {e}") from e
     if out.returncode != 0:
         raise ToolError(f"{cli} --version exited {out.returncode}: {out.stderr.strip()}")
-    return out.stdout.strip().split()[-1]
+    words = out.stdout.split()
+    if not words:
+        raise ToolError(f"{cli} --version printed nothing")
+    return words[-1]
 
 
 def link_tree(src, dst):
@@ -75,8 +78,14 @@ def seed_baseline(source_data, seed):
     src = Path(source_data) / "baseline"
     if not src.is_dir():
         return None
-    if (seed / ".done").is_file():
+    manifests = sorted(p for p in src.glob("*/*.json") if p.parent.name != "objects")
+    if (seed / ".done").is_file() and all(
+        (seed / p.relative_to(src)).is_file() and (seed / p.relative_to(src)).read_bytes() == p.read_bytes()
+        for p in manifests
+    ):
+        link_tree(src / "objects", seed / "objects")
         return seed
+    (seed / ".done").unlink(missing_ok=True)
     for entry in src.iterdir():
         if entry.name == "objects":
             continue
