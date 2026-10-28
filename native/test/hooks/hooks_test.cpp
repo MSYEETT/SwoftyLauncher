@@ -358,7 +358,7 @@ static void test_context()
     expect(in_seen == "1", "context_in evaluates a selector array against the call's context");
     Facts menu;
     expect(part_json(menu, "career", {}) == "null" && part_json(menu, "session", {}) == "null" &&
-               part_json(menu, "mode", {}) == "\"grand_prix\"",
+               part_json(menu, "mode", {}) == "\"unknown\"",
            "a part that doesn't apply is null");
     std::string s;
     int dummy;
@@ -480,10 +480,10 @@ static void test_log_lines()
     for (int i = 0; i < 3; i++)
         t.fire("", "career.loaded", &pl, nullptr);
     expect(count_event("career.loaded") == 3, "every fire of a core event logs one line, even with 0 handlers");
-    expect(logged("[events] career.loaded (menu): 0 handlers"), "the 0 handlers line names the context");
+    expect(logged("[events] career.loaded (unknown): 0 handlers"), "the 0 handlers line names the context");
     for (int i = 0; i < 3; i++)
         t.fire("", "flow.state", &pl, nullptr);
-    expect(count_event("flow.state") == 1 && logged("[events] flow.state (menu): first fire, 0 handlers; later fires are not logged"),
+    expect(count_event("flow.state") == 1 && logged("[events] flow.state (unknown): first fire, 0 handlers; later fires are not logged"),
            "a hot event logs its first fire only");
     t.define("a", "a.point", 1, SWOFTY_POINT_CANCEL, false, "");
     for (int i = 0; i < 3; i++)

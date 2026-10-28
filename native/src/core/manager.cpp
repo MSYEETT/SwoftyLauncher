@@ -1970,6 +1970,21 @@ bool pending()
     return deferred_count() || waits(false) || !code_tasks.empty();
 }
 
+/* Standard library 1.6: once every addon has loaded (the window-stage commit, and on a packed build the
+   last deferred addon's init too, or the retries giving up), the core arms the game hook points, reports
+   undefined points and missing services, and fires game.boot, outside commit_lock. */
+std::atomic<bool> std16_window{false}, std16_settled{false};
+
+void std16_settle(bool force)
+{
+    if (!std16_window.load() || std16_settled.load() || (!force && pending()))
+        return;
+    if (std16_settled.exchange(true))
+        return;
+    swofty_core::hooks::window_stage();
+    swofty_core::services::report_missing();
+}
+
 DWORD WINAPI retry_worker(LPVOID)
 {
     for (int n = 1; n <= RETRIES && pending(); n++) {
@@ -1977,7 +1992,9 @@ DWORD WINAPI retry_worker(LPVOID)
         char pass[16];
         snprintf(pass, sizeof pass, "stage:%d", n);
         late_pass(pass, n == RETRIES);
+        std16_settle(false);
     }
+    std16_settle(true);
     return 0;
 }
 
@@ -1988,10 +2005,12 @@ void start_retries()
     api->log("[core] bindings: %zu binding(s) and %zu setup(s) still wait for their code to decrypt; retrying every %lu "
              "ms, %d time(s), then they fail closed",
              deferred_count(), code_tasks.size(), (unsigned long)RETRY_MS, RETRIES);
-    if (HANDLE t = CreateThread(nullptr, 0, retry_worker, nullptr, 0, nullptr))
+    if (HANDLE t = CreateThread(nullptr, 0, retry_worker, nullptr, 0, nullptr)) {
         CloseHandle(t);
-    else
+    } else {
         late_pass("stage:1", true);
+        std16_settle(true);
+    }
 }
 
 void bind_stage(int stage)
@@ -2001,6 +2020,7 @@ void bind_stage(int stage)
     late_pass("window", false);
     if (pending())
         start_retries();
+    std16_settle(false);
 }
 
 }
@@ -2079,6 +2099,15 @@ std::string mixin_overwrite_on(const std::string &binding, uintptr_t at)
                 if ((m.kind & SWOFTY_MIXIN_OVERWRITE) && (m.target == binding || (at && m.addr == at)))
                     return a.name;
     return {};
+}
+
+size_t addon_load_index(uint64_t module)
+{
+    std::lock_guard<std::recursive_mutex> c(commit_lock);
+    for (size_t i = 0; i < addons.size(); i++)
+        if (module && reinterpret_cast<uint64_t>(addons[i].module) == module)
+            return i + 1;
+    return 0;
 }
 
 std::string mixin_occupying(uintptr_t at)
@@ -2260,7 +2289,7 @@ extern "C" __declspec(dllexport) int SwoftyCoreInit(const wchar_t *name, SwoftyA
     return r;
 }
 
-extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
+static int commit_pass()
 {
     std::lock_guard<std::recursive_mutex> c(commit_lock);
     offer_core_sets();
@@ -2295,11 +2324,14 @@ extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
     save_scan_cache();
     if (pending() && runtime::load_stage() != "early")
         start_retries();
-    static bool std16_window;
-    if (!std16_window && (from || runtime::load_stage() != "early")) {
+    if (from || runtime::load_stage() != "early")
         std16_window = true;
-        swofty_core::hooks::window_stage();
-        swofty_core::services::report_missing();
-    }
     return (int)active;
+}
+
+extern "C" __declspec(dllexport) int SwoftyCoreCommit(void)
+{
+    int active = commit_pass();
+    std16_settle(false);
+    return active;
 }
