@@ -44,7 +44,7 @@ constexpr uint32_t fourcc(const char (&s)[5])
 constexpr uint32_t TYPE_BAG = fourcc("pbag");
 constexpr uint32_t TYPE_DSTR = fourcc("dstr");
 
-enum Top : uint16_t { T_CAREER = 1 };
+enum Top : uint16_t { T_CAREER = 1, T_TEST_PAD = 0x7f01 };
 enum CareerTag : uint16_t { C_ID = 1, C_FREEZE = 2, C_IDMAP = 3, C_MAJORS = 4, C_SEASON = 5 };
 enum SeasonTag : uint16_t { S_YEAR = 1, S_REGISTRY = 2, S_REFUSED = 3 };
 enum RegistryTag : uint16_t { R_NAME = 1, R_VERSION = 2, R_RECORDS = 3 };

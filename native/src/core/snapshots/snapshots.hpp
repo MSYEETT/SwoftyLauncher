@@ -49,6 +49,9 @@ public:
     bool saving(Bytes &body);
     // The splice wrote the body (or failed to); a failed write keeps the changes for the next save.
     void written(bool ok);
+    // Test hook: the next saving() writes an entry with a filler item of that many bytes (0: off), due even
+    // when nothing changed; one write only. Set by runtime.cpp from test_pad_bytes.
+    void set_test_pad(size_t bytes);
 
     void career_loaded(const std::string &id, reg::Context ctx);
     void career_unloaded();
@@ -78,6 +81,7 @@ private:
     format::Entry entry_;
     format::Decoded loaded_state_ = format::Decoded::ok;
     bool have_entry_ = false;
+    size_t test_pad_ = 0;
     std::set<std::string> dirty_, pending_;
     std::string active_;
     std::unique_ptr<Cache> cache_;
@@ -91,6 +95,10 @@ private:
                                        const format::Career *have, std::vector<std::string> &refused,
                                        std::vector<std::pair<std::string, std::string>> &owners, Stats &st);
 };
+
+// SWOFTY_TEST_SNAPSHOT_PAD: the filler size in bytes, honoured only when the test agent is armed (a live
+// `swofty test` run) and the value is a plain decimal between 1 byte and the entry cap minus 64 KB; 0 otherwise.
+size_t test_pad_bytes(const char *text, bool agent_armed);
 
 // A record's season: its year (career::Season::year), the year of the season it names
 // (career::DriverRatings::season), or a year(...) selector in its within. {0, 0}: no year.

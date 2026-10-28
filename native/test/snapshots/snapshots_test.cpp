@@ -881,6 +881,39 @@ static void fixture_tests(const std::filesystem::path &dir)
     expect(n > 0, "the fixtures folder has at least one fixture entry");
 }
 
+void test_pad_tests()
+{
+    using snap::test_pad_bytes;
+    expect(test_pad_bytes("65536", false) == 0, "test pad: ignored when the test agent is not armed");
+    expect(test_pad_bytes(nullptr, true) == 0 && test_pad_bytes("", true) == 0, "test pad: off by default");
+    expect(test_pad_bytes("65536", true) == 65536 && test_pad_bytes("262144", true) == 262144,
+           "test pad: 64 KB and 256 KB accepted");
+    expect(test_pad_bytes("0", true) == 0 && test_pad_bytes("12x", true) == 0 && test_pad_bytes("-5", true) == 0 &&
+               test_pad_bytes("99999999", true) == 0,
+           "test pad: zero, junk and past-the-cap values are refused");
+
+    reg::Store st;
+    snap::Book book(st);
+    fmt::Bytes none;
+    expect(!book.saving(none), "test pad: an untouched book has nothing due");
+    book.set_test_pad(65536);
+    fmt::Bytes body;
+    expect(book.saving(body), "test pad: the pad makes the next save due with no snapshot");
+    expect(body.size() > 65536 && body.size() < 2 * 65536, "test pad: the entry is the pad plus its encoding");
+    book.written(true);
+    fmt::Bytes again;
+    expect(!book.saving(again), "test pad: one write only");
+    book.set_test_pad(262144);
+    fmt::Bytes big;
+    expect(book.saving(big) && big.size() > 262144, "test pad: 256 KB entry");
+    fmt::Bytes payload;
+    std::string why;
+    fmt::Entry e;
+    expect(fmt::parse_bag(big, payload, why) && fmt::decode(payload, e, why) == fmt::Decoded::ok && e.extra.size() == 1 &&
+               e.extra[0].tag == fmt::T_TEST_PAD && e.extra[0].body.size() == 262144,
+           "test pad: the entry decodes with the filler kept as an unknown item");
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 3 && std::string(argv[1]) == "--generate")
@@ -895,6 +928,7 @@ int main(int argc, char **argv)
     career_id_tests();
     fuzz_tests();
     splice_tests();
+    test_pad_tests();
     if (argc == 3 && std::string(argv[1]) == "--fixtures")
         fixture_tests(argv[2]);
     printf("%s\n", fails ? "FAILED" : "all passed");

@@ -443,6 +443,20 @@ void snapshots_start(bool splice_live)
         std::string mode = n && n < sizeof v ? v : "";
         blocked = sn::save_blocked(mode, splice_live, splice_live ? sp::entry_blocked() : std::string());
         writes = blocked.empty();
+        {
+            char pv[16] = {};
+            DWORD pn = GetEnvironmentVariableA("SWOFTY_TEST_SNAPSHOT_PAD", pv, sizeof pv);
+            bool armed = runtime::test_run() && runtime::test_run_live();
+            size_t pad = snap::test_pad_bytes(pn && pn < sizeof pv ? pv : "", armed);
+            if (pad) {
+                the_book->set_test_pad(pad);
+                swofty::log("[registry] test: SWOFTY_TEST_SNAPSHOT_PAD set; the next profile save writes a %zu-byte "
+                            "filler in swofty_registry (needs SWOFTY_REGISTRY_SAVE=on)",
+                            pad);
+            } else if (pn)
+                swofty::log("[registry] test: SWOFTY_TEST_SNAPSHOT_PAD ignored (%s)",
+                            armed ? "not a size in 1..4128768" : "the test agent is not armed");
+        }
         if (splice_live)
             sp::set_entry_hooks({entry_loaded, entry_saving, entry_written});
         swofty::log("[registry] career snapshots on: %s", writes ? "saved in swofty_registry through the save splice"
