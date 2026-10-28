@@ -4,8 +4,8 @@
 #include <swofty/registry.hpp>
 #include <swofty/systems/forward.hpp>
 
-// Sounds: engine sounds (a bundle and where its mixing settings and tuning come from) and each car's
-// audio records. Both apply at boot; the bundle file is redirected when the game opens it.
+// Sounds: engine sounds (a bundle and where its mixing settings and tuning come from). They apply at boot;
+// the bundle file is redirected when the game opens it.
 
 namespace swofty::sounds {
 
@@ -20,19 +20,7 @@ struct EngineSound {
 };
 SWOFTY_RECORD(EngineSound, bundle, settings_from, tuning_from)
 
-struct CarAudio {
-    static constexpr Version version{1, 0};
-    Ref<cars::Vehicle> vehicle;
-    std::string switch_name;
-    Ref<EngineSound> engine_sound;
-    Ref<CarAudio> from;
-    json::Value extra;
-};
-SWOFTY_RECORD(CarAudio, vehicle, switch_name, engine_sound, from)
-SWOFTY_RECORD_REGISTRY(CarAudio, "audio.car")
-
 inline Registry<EngineSound> engine_sounds{"engine_sound", {.applies = Applies::boot}};
-inline Registry<CarAudio> car_audio{"audio.car", {.applies = Applies::boot}};
 
 }
 

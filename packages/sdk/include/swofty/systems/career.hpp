@@ -15,8 +15,7 @@
 #include <swofty/systems/ops.hpp>
 #include <swofty/systems/teams.hpp>
 
-// Career: modes, contents, seasons and their boxes, calendars, ratings, the market, contracts, R&D,
-// facilities, economy, sponsors, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
+// Career: modes, contents, seasons and their boxes, calendars, ratings, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
 // mode, so the career.mode record struct is ModeRecord. apply_teams, apply_lineup, set_driver_ratings,
 // swap_drivers, report_season, set_seat and set_car_number call the core's career operations
@@ -129,18 +128,6 @@ SWOFTY_RECORD(DriverRatings, season, driver, experience, racecraft, awareness, p
 inline Registry<DriverRatings> ratings{"career.driver_ratings",
                                        {.applies = Applies::read, .snapshot = true, .snapshot_budget = 65536}};
 
-struct RndDepartment {
-    static constexpr Version version{1, 0};
-    Text name;
-    Colour colour;
-    Path icon;
-    float cost_scale = 1.0f;
-    json::Value extra;
-};
-SWOFTY_RECORD(RndDepartment, name, colour, icon, cost_scale)
-SWOFTY_RECORD_REGISTRY(RndDepartment, "career.rnd.department")
-inline Registry<RndDepartment> rnd_departments{"career.rnd.department", {.applies = Applies::content}};
-
 struct CharacterSwap {
     std::string character;
     std::string with;
@@ -161,91 +148,6 @@ struct Character {
 SWOFTY_RECORD(Character, replaces, first_name, last_name, portrait, mute, data_group, swaps, strings)
 SWOFTY_RECORD_REGISTRY(Character, "career.character")
 inline Registry<Character> characters{"career.character", {.applies = Applies::content}};
-
-struct Retirement {
-    std::chrono::year_month_day date;
-    std::vector<Ref<drivers::Identity>> drivers;
-};
-SWOFTY_RECORD(Retirement, date, drivers)
-
-struct Market {
-    static constexpr Version version{1, 0};
-    std::string data_group;
-    std::vector<Retirement> retirements;
-    bool firings = true;
-    std::vector<Ref<drivers::Identity>> available;
-    json::Value extra;
-};
-SWOFTY_RECORD(Market, data_group, retirements, firings, available)
-SWOFTY_RECORD_REGISTRY(Market, "career.market")
-inline Registry<Market> markets{"career.market", {.applies = Applies::read, .snapshot = true}};
-
-struct ContractRules {
-    static constexpr Version version{1, 0};
-    std::string data_group;
-    std::map<std::string, std::array<int, 2>> rating_ranges;
-    std::array<int64_t, 2> salary{};
-    int secret_meetings = 9;
-    bool counteroffers = true;
-    json::Value extra;
-};
-SWOFTY_RECORD(ContractRules, data_group, rating_ranges, salary, secret_meetings, counteroffers)
-inline Registry<ContractRules> contract_rules{"career.contract_rules", {.applies = Applies::boot}};
-
-struct RndUpgrade {
-    int cost = 0, weighting = 0, size = 0;
-    int type = 0;
-    Ref<RndDepartment> department;
-    std::vector<int> links;
-    std::array<int, 2> grid_coordinates{};
-    int unlock_at_facility_level = 0;
-};
-SWOFTY_RECORD(RndUpgrade, cost, weighting, size, type, department, links, grid_coordinates, unlock_at_facility_level)
-
-struct RndTree {
-    static constexpr Version version{1, 0};
-    std::string data_group;
-    std::string token;
-    std::vector<Ref<RndDepartment>> departments;
-    std::vector<RndUpgrade> nodes;
-    json::Value extra;
-};
-SWOFTY_RECORD(RndTree, data_group, token, departments, nodes)
-inline Registry<RndTree> rnd_trees{"career.rnd.tree", {.applies = Applies::boot}};
-
-struct Facility {
-    static constexpr Version version{1, 0};
-    Text name;
-    std::string group;
-    std::vector<std::string> perk_tree;
-    StatId stat_id = StatId::automatic;
-    json::Value extra;
-};
-SWOFTY_RECORD(Facility, name, group, perk_tree, stat_id)
-inline Registry<Facility> facilities{"career.facility", {.applies = Applies::boot}};
-
-struct Economy {
-    static constexpr Version version{1, 0};
-    std::string data_group;
-    std::map<std::string, float> resource_point_rates;
-    std::map<std::string, int64_t> budgets;
-    int64_t initial_cash = 0;
-    json::Value extra;
-};
-SWOFTY_RECORD(Economy, data_group, resource_point_rates, budgets, initial_cash)
-inline Registry<Economy> economy{"career.economy", {.applies = Applies::boot}};
-
-struct Sponsor {
-    static constexpr Version version{1, 0};
-    Text name;
-    Path logo;
-    bool title = false;
-    std::vector<int> loyalty;
-    StatId stat_id = StatId::automatic;
-    json::Value extra;
-};
-SWOFTY_RECORD(Sponsor, name, logo, title, loyalty, stat_id)
-inline Registry<Sponsor> sponsors{"career.sponsor", {.applies = Applies::boot}};
 
 struct WizardStep {
     std::string route;
