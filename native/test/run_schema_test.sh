@@ -2,7 +2,8 @@
 # The core's schema check (src/core/registry/schema.cpp): its unit test, then the agreement test, which
 # validates every example and must-fail case under each registries folder with the core and with
 # tools/std/validate.py and fails on any difference in verdicts or error pointers (schema/agree.py), and
-# the pattern matcher against Python's re (schema/agree_patterns.py).
+# the pattern matcher against Python's re (schema/agree_patterns.py) and swofty::json::merge_patch against
+# stdschema.merge_patch (schema/agree_merge.py).
 set -euo pipefail
 SELF=$(readlink -f "$0")
 cd "$(dirname "$SELF")"
@@ -52,6 +53,8 @@ for root in "${ROOTS[@]}"; do
 done
 # The pattern matcher against Python's re on random patterns and texts.
 python3 schema/agree_patterns.py "$OUT/schema_agree" "${SCHEMA_PATTERN_ROUNDS:-20000}"
+# The keyed merge rule against stdschema.merge_patch, per rule and on random bases and patches.
+python3 schema/agree_merge.py "$OUT/schema_agree" "${SCHEMA_MERGE_ROUNDS:-5000}"
 if [[ $checked -eq 0 ]]; then
     echo "schema: no registries folder to check" >&2
     exit 1

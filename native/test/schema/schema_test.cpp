@@ -533,14 +533,21 @@ static void data_files()
           &with_chains);
     check(R"({"career.season":{"x":{"extends":"swofty.cs/c","teams":[{"slot":11,"seats":[]}]}}})", false, {}, &with_chains);
 
-    Value merged = s.merge(P(R"({"year":2017,"label":"a","teams":[{"slot":1,"seats":["game/a"],"team":"game/t"},{"slot":2,"seats":[]}]})"),
-                           P(R"({"label":null,"teams":[{"slot":1,"seats":["game/b"]},{"slot":2,"$delete":true},{"slot":5,"team":null,"seats":[]},{"seats":[]}]})"));
-    expect(swofty::json::dump(merged) ==
-               R"({"year":2017,"teams":[{"slot":1,"seats":["game/b"],"team":"game/t"},{"slot":5,"seats":[]},{"seats":[]}]})",
-           "Schema::merge merges keyed lists by key, removes $delete elements and nulls, appends keyless elements: " +
-               swofty::json::dump(merged));
-    expect(swofty::json::dump(s.merge(P(R"({"teams":[{"slot":1,"seats":[]}]})"), P(R"({"teams":[]})"))) == R"({"teams":[{"slot":1,"seats":[]}]})",
-           "an empty keyed list leaves the base's list, as stdschema.merge_patch does");
+    auto merge = [&](std::string_view base, std::string_view patch) {
+        Value t = P(base);
+        swofty::json::Error e;
+        return swofty::json::merge_patch(t, P(patch), s.keys(), &e) ? swofty::json::dump(t) : "error";
+    };
+    expect(merge(R"({"year":2017,"label":"a","teams":[{"slot":1,"seats":["game/a"],"team":"game/t"},{"slot":2,"seats":[]}]})",
+                 R"({"label":null,"teams":[{"slot":1,"seats":["game/b"]},{"slot":2,"$delete":true},{"slot":5,"team":null,"seats":[]}]})") ==
+               R"({"year":2017,"teams":[{"slot":1,"seats":["game/b"],"team":"game/t"},{"slot":5,"seats":[]}]})",
+           "keys() merges keyed lists by key, removing $delete elements and nulls");
+    expect(merge(R"({"teams":[{"slot":1,"seats":[]}]})", R"({"teams":[]})") == R"({"teams":[{"slot":1,"seats":[]}]})",
+           "an empty keyed list changes nothing");
+    expect(merge(R"({"teams":[{"slot":1,"seats":[]}]})", R"({"teams":[{"seats":[]}]})") == "error",
+           "an element without its key fields fails the merge");
+    check(R"({"career.season":{"x":{"extends":"swofty.cs/f1_2017","teams":[{"seats":[]}]}}})", false, {"1.0 /career.season/x/teams/0"},
+          &with_base);
 
     auto one = check_record(P(R"({"$protect":["year"],"year":2017,"teams":[)" + team2 + "]}"), "career.season", lookup_of(by_name, "career.season"));
     expect(one.ok(), "check_record strips $protect");

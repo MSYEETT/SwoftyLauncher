@@ -4,6 +4,7 @@
 //
 //   schema_agree <registries folder> <display prefix>
 //   schema_agree --patterns < cases.json    [[pattern, [text, ...]], ...] -> [[compiled, [matched, ...]], ...]
+//   schema_agree --merge < cases.json       [[schema, base, patch], ...] -> [merged or null when it fails, ...]
 
 #include "../../src/core/registry/schema.hpp"
 
@@ -364,10 +365,38 @@ int patterns()
     return 0;
 }
 
+int merges()
+{
+    std::ostringstream in;
+    in << std::cin.rdbuf();
+    swofty::json::Error perr;
+    Value cases = swofty::json::parse(in.str(), &perr);
+    if (!perr.ok() || !cases.is_array()) {
+        std::cerr << "schema_agree: --merge reads a JSON list of [schema, base, patch]\n";
+        return 2;
+    }
+    Value out = Value::array();
+    for (auto &c : *cases.if_array()) {
+        Schema::Error err;
+        auto s = Schema::compile(c[0], &err);
+        if (!s) {
+            std::cerr << "schema_agree: a merge case's schema doesn't compile: " << err.message << "\n";
+            return 2;
+        }
+        Value target = c[1];
+        swofty::json::Error merr;
+        out.push_back(swofty::json::merge_patch(target, c[2], s->keys(), &merr) ? std::move(target) : Value());
+    }
+    std::cout << swofty::json::dump(out) << "\n";
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 2 && std::string_view(argv[1]) == "--patterns")
         return patterns();
+    if (argc == 2 && std::string_view(argv[1]) == "--merge")
+        return merges();
     if (argc < 3) {
         std::cerr << "usage: schema_agree <registries folder> <display prefix>\n";
         return 2;
