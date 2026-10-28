@@ -1750,6 +1750,37 @@ void season_unloaded()
     g_failures = 0;
 }
 
+std::map<std::string, int> g_season_hook;
+std::map<int, season::Year> g_pristine;
+
+// swofty.progressive.season.apply (records.hpp), once per career and year in a session: 1 apply the year
+// (from the changed season when a before handler changed it), 2 a replace handler applied it.
+int season_hook(const std::string &key, int year)
+{
+    std::string id = key + ":" + std::to_string(year);
+    auto it = g_season_hook.find(id);
+    if (it != g_season_hook.end())
+        return it->second;
+    std::string text;
+    int r = records::season_apply(year, text);
+    if (r == 1) {
+        season::Data changed;
+        std::string err;
+        if (season::parse(text, changed, err) && changed.year(year)) {
+            if (!g_pristine.count(year))
+                g_pristine[year] = g_data.years[year];
+            g_data.years[year] = changed.years[year];
+        } else {
+            swofty::log("[progressive] season %d: the changed season was REFUSED (%s); the effective record applies",
+                        year, err.c_str());
+        }
+    } else if (auto p = g_pristine.find(year); p != g_pristine.end()) {
+        g_data.years[year] = p->second;
+        g_pristine.erase(p);
+    }
+    return g_season_hook[id] = r == 2 ? 2 : 1;
+}
+
 void season_hub(const swofty::career::State &state)
 {
     if (!progressive_career())
@@ -1807,6 +1838,11 @@ void season_hub(const swofty::career::State &state)
     if (entity_busy(e) || g_failures >= 3)
         return;
     player::Verdict before = player_check(e, c, "Team HQ, before the season apply");
+    if (season_hook(c->key, year) == 2) {
+        ratings::season(e, c, index, player, {});
+        contract_left_alone(before, c, year, "a swofty.progressive.season.apply handler applied the season");
+        return;
+    }
     bool new_season = c->applied_season != static_cast<int>(index);
     bool move_player = c->moves == "follow_driver";
     season::Resolve res = resolver();
@@ -2360,4 +2396,29 @@ extern "C" __declspec(dllexport) int ProgressiveRealTeam(uint32_t driver_stat, u
 extern "C" __declspec(dllexport) void ProgressiveNewCareer()
 {
     pg::new_career();
+}
+
+namespace {
+
+uint32_t history_real_team(uint32_t driver_stat, int year)
+{
+    if (year < progressive::season::kFirstYear || year > progressive::season::kLastYear || !pg::data())
+        return 0;
+    int team = pg::real_team(driver_stat, year);
+    return team > 0 ? static_cast<uint32_t>(team) : 0;
+}
+
+int history_career_year()
+{
+    pg::store::Career *c = pg::live_entry();
+    return c && pg::progressive_career() ? pg::live_year(c) : 0;
+}
+
+int history_follow_mode() { return ProgressiveFollowMode(); }
+
+}
+
+SWOFTY_ON_LOAD
+{
+    pg::records::publish(&history_real_team, &history_career_year, &history_follow_mode);
 }
