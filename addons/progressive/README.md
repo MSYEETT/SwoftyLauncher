@@ -1,6 +1,6 @@
 # Progressive Career
 
-A Driver Career that starts in any season from 2016 to 2026 as a real driver and moves through the real seasons. Each season brings that year's cars, liveries, helmets, team names and line-ups, and from 2026 on the career stays in 2026. Needs Swofty Launcher for F1 25 1.5.13 or later, and Classic Seasons with its 2016 to 2024 year addons.
+A Driver Career that starts in any season from 2016 to 2026 as a real driver and moves through the real seasons. Each season brings that year's cars, liveries, helmets, team names and line-ups, and from 2026 on the career stays in 2026. Needs Swofty Launcher for F1 25 1.5.27 or later, and Classic Seasons with its 2016 to 2024 year addons.
 
 ## Playing it
 
