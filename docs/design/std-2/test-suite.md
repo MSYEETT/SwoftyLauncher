@@ -86,6 +86,14 @@ The sandbox is a core feature at the save device's start (`Ne_SaveSystem2Win_Sta
 - The CLI never accepts the offline play terms for the player: a run without them fails with exit code 2.
 - Artefacts have size caps. Frames are optional.
 
+## What ships in 1.6.0
+
+- **The CLI:** `swofty test plan`, `run`, `shell` and `fixture capture|list|check`. Environments `none`, `boot`, `benchmark`, `route` and `career` (`team_hq`, `weekend_hub`); `grand_prix` and `time_trial` parse and are listed as needing session setup. The test file schema is in [Testing your addon](/std/testing#the-test-file).
+- **The test agent** (`native/src/core/testagent`): the mailbox, `route`, `skip`, `advance`, `ai_drives_player`, `read`, `set`, `sample`, `pad`, `capture`, `save`, `career load` and `title`. Test DLLs written with `swofty/test.hpp` load only in a test run.
+- **The save sandbox** (`native/src/core/save_sandbox.cpp`): the Steam remote-storage proxy, fail-closed on any doubt, and the fixture store.
+- **Checked only in the host tests** (no game run): the CLI's flow against a fake game and a fake agent, the run folder and token contract, the sandbox decision logic and the fixture check.
+- **Needs in-game runs:** the title pass, the pad, `career load` through the resume card, `advance`, `save now`, and the sandbox arming on the Steam build. The environment `career` with `at: session` answers `unavailable`.
+
 ## Build order
 
 1. **CLI only, now.** `swofty test plan` and `run` with the `boot` and `benchmark` environments: pass game arguments in a direct launch, stage the benchmark XML, and check logs, crashes, performance and that the game folder is clean afterwards. Most car-physics traces (T112 to T125) can run unattended this way.
