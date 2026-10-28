@@ -40,6 +40,16 @@ bool read_file(const fs::path &p, std::string &out)
     return true;
 }
 
+Value load(const fs::path &p, swofty::json::Error &err)
+{
+    std::string text;
+    if (!read_file(p, text)) {
+        err.message = "unreadable";
+        return Value();
+    }
+    return swofty::json::parse(text, swofty::json::ParseOptions::strict(), &err);
+}
+
 bool number(std::string_view t, int &out, bool zero_ok = true)
 {
     if (t.empty() || t.size() > 9 || !std::all_of(t.begin(), t.end(), [](char c) { return c >= '0' && c <= '9'; }))
@@ -129,6 +139,49 @@ bool is_data_file(const Value &doc, const std::string &name)
     return true;
 }
 
+// validate.py's Corpus with no addon id: the records of every valid example (and of the file being
+// checked), found by registry and key whatever the base id's namespace, except the game's.
+struct Corpus {
+    std::map<std::pair<std::string, std::string>, std::vector<const Value *>> records;
+    std::vector<const Value *> docs;
+
+    void add_data(const Value &doc, bool layers)
+    {
+        auto *o = doc.if_object();
+        if (layers || !o)
+            return;
+        docs.push_back(&doc);
+        for (auto &[top, recs] : *o) {
+            std::string name;
+            auto *by_key = recs.if_object();
+            if (!data_key_name(top, name) || !by_key)
+                continue;
+            for (auto &[key, value] : *by_key)
+                if (value.is_object())
+                    records[{name, key}].push_back(&value);
+        }
+    }
+
+    Corpus overlay(const Value &doc, bool layers) const
+    {
+        Corpus out = *this;
+        if (std::find(docs.begin(), docs.end(), &doc) == docs.end())
+            out.add_data(doc, layers);
+        return out;
+    }
+
+    const Value *find(std::string_view registry, std::string_view id) const
+    {
+        auto slash = id.find('/');
+        std::string_view ns = id.substr(0, slash);
+        std::string_view key = slash == std::string_view::npos ? std::string_view() : id.substr(slash + 1);
+        if (ns == "game")
+            return nullptr;
+        auto it = records.find({std::string(registry), std::string(key)});
+        return it != records.end() && it->second.size() == 1 ? it->second[0] : nullptr;
+    }
+};
+
 std::string quoted(const std::string &s)
 {
     return "'" + s + "'";
@@ -177,7 +230,8 @@ Value pairs(const std::vector<Schema::Error> &errors)
     return out;
 }
 
-Value check_example(const fs::path &file, const std::string &display, const std::string &name, bool valid)
+Value check_example(const fs::path &file, const std::string &display, const std::string &name, bool valid, const Corpus &corpus,
+                    const Value *loaded)
 {
     Value entry = Value::object();
     entry["file"] = display;
@@ -186,13 +240,13 @@ Value check_example(const fs::path &file, const std::string &display, const std:
     entry["kind"] = nullptr;
     entry["versions"] = Value::object();
     entry["problems"] = Value::array();
-    std::string text;
     swofty::json::Error perr;
-    Value doc;
-    if (!read_file(file, text))
-        perr.message = "unreadable";
-    else
-        doc = swofty::json::parse(text, &perr);
+    Value own;
+    if (!loaded) {
+        own = load(file, perr);
+        loaded = &own;
+    }
+    const Value &doc = *loaded;
     if (!perr.ok()) {
         entry["problems"].push_back(Value::array({"/", "not JSON: " + perr.message}));
         entry["ok"] = false;
@@ -204,15 +258,20 @@ Value check_example(const fs::path &file, const std::string &display, const std:
     if (is_data_file(doc, name)) {
         bool layers = is_layers_name(base);
         entry["kind"] = layers ? "layers" : "records";
+        Corpus here = corpus.overlay(doc, layers);
+        swofty_core::registry::BaseResolver base = [&](std::string_view r, std::string_view id) { return here.find(r, id); };
         DataOptions o;
         o.layers = layers;
         o.only = name;
         o.max_errors = 100000;
+        o.base = &base;
         report = check_data(doc, [&](std::string_view n, int major) { return pick_versions(std::string(n), major, pin); }, o);
     } else {
         entry["kind"] = "record";
+        swofty_core::registry::BaseResolver base = [&](std::string_view r, std::string_view id) { return corpus.find(r, id); };
         DataOptions o;
         o.max_errors = 100000;
+        o.base = &base;
         report = check_record(doc, name, pick_versions(name, 0, pin), o);
     }
     Value versions = Value::object();
@@ -263,11 +322,8 @@ void load_schemas(const fs::path &root)
             Version v;
             if (!version_file(f.filename().string(), v))
                 continue;
-            std::string text;
             swofty::json::Error perr;
-            if (!read_file(f, text))
-                continue;
-            auto doc = swofty::json::parse(text, &perr);
+            auto doc = load(f, perr);
             if (!perr.ok())
                 continue;
             Schema::Error err;
@@ -321,19 +377,38 @@ int main(int argc, char **argv)
     while (display.size() > 1 && display.back() == '/')
         display.pop_back();
     load_schemas(root);
-    Value examples = Value::array();
-    int failed = 0;
+    struct Found {
+        std::string name;
+        fs::path file;
+        bool valid;
+        std::string display;
+    };
+    std::vector<Found> found;
     for (auto &folder : sorted_entries(root, true)) {
         std::string name = folder.filename().string();
-        auto run = [&](const fs::path &dir, bool valid, const std::string &rel) {
-            for (auto &f : sorted_entries(dir, false)) {
-                auto entry = check_example(f, display + "/" + name + "/" + rel + f.filename().string(), name, valid);
-                failed += !entry["ok"].as_bool();
-                examples.push_back(std::move(entry));
-            }
-        };
-        run(folder / "examples", true, "examples/");
-        run(folder / "examples" / "must-fail", false, "examples/must-fail/");
+        for (auto &f : sorted_entries(folder / "examples", false))
+            found.push_back({name, f, true, display + "/" + name + "/examples/" + f.filename().string()});
+        for (auto &f : sorted_entries(folder / "examples" / "must-fail", false))
+            found.push_back({name, f, false, display + "/" + name + "/examples/must-fail/" + f.filename().string()});
+    }
+    std::map<fs::path, Value> docs;
+    Corpus corpus;
+    for (auto &x : found) {
+        swofty::json::Error perr;
+        Value doc = load(x.file, perr);
+        if (!perr.ok())
+            continue;
+        auto &kept = docs[x.file] = std::move(doc);
+        if (x.valid)
+            corpus.add_data(kept, is_layers_name(x.file.filename().string()));
+    }
+    Value examples = Value::array();
+    int failed = 0;
+    for (auto &x : found) {
+        auto it = docs.find(x.file);
+        auto entry = check_example(x.file, x.display, x.name, x.valid, corpus, it == docs.end() ? nullptr : &it->second);
+        failed += !entry["ok"].as_bool();
+        examples.push_back(std::move(entry));
     }
     Value report = Value::object();
     report["examples"] = examples;

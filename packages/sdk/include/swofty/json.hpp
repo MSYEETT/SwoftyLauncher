@@ -252,7 +252,17 @@ private:
     std::vector<std::pair<std::string, std::vector<std::string>>> paths_;
 };
 
+// parse's defaults take what most JSON readers do: a repeated key keeps its first place and its last
+// value, and a leading UTF-8 byte order mark is skipped. strict() refuses both, as Python's json with a
+// duplicate check does (the registry's data files are read that way).
+struct ParseOptions {
+    bool unique_keys = false;
+    bool allow_bom = true;
+    static ParseOptions strict() noexcept { return {true, false}; }
+};
+
 Value parse(std::string_view text, Error *err = nullptr);
+Value parse(std::string_view text, const ParseOptions &options, Error *err = nullptr);
 std::string dump(const Value &v, int indent = -1);
 
 bool merge_patch(Value &target, const Value &patch, const Keys &keys = {}, Error *err = nullptr);
@@ -339,11 +349,11 @@ inline bool number_equal(std::int64_t i, double d) noexcept
 
 class Parser {
 public:
-    Parser(std::string_view text, Error *err) : s_(text), err_(err) {}
+    Parser(std::string_view text, Error *err, ParseOptions options = {}) : s_(text), err_(err), opt_(options) {}
 
     Value run()
     {
-        if (s_.size() >= 3 && s_.substr(0, 3) == "\xEF\xBB\xBF")
+        if (opt_.allow_bom && s_.size() >= 3 && s_.substr(0, 3) == "\xEF\xBB\xBF")
             i_ = 3;
         ws();
         Value v;
@@ -361,6 +371,7 @@ private:
     std::string_view s_;
     std::size_t i_ = 0;
     Error *err_;
+    ParseOptions opt_;
 
     bool fail(const char *what)
     {
@@ -483,6 +494,8 @@ private:
             std::string key;
             if (!string(key))
                 return false;
+            if (opt_.unique_keys && o.contains(key))
+                return fail("duplicate key");
             ws();
             if (i_ >= s_.size() || s_[i_] != ':')
                 return fail("expected ':'");
@@ -1619,6 +1632,13 @@ inline Value parse(std::string_view text, Error *err)
     if (err)
         *err = Error();
     return detail::Parser(text, err).run();
+}
+
+inline Value parse(std::string_view text, const ParseOptions &options, Error *err)
+{
+    if (err)
+        *err = Error();
+    return detail::Parser(text, err, options).run();
 }
 
 inline std::string dump(const Value &v, int indent)

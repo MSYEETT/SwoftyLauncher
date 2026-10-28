@@ -479,7 +479,9 @@ static void data_files()
     std::string team2 = R"({"slot":1,"seats":[]},{"slot":2,"seats":[]})";
     check(R"({"career.season":{"2017":{"year":2017,"teams":[)" + team2 + R"(]}}})", false, {});
     check(R"({"career.season":{"2017/game/lewis_hamilton":{"year":2017,"teams":[)" + team2 + R"(]}}})", false, {});
-    check(R"({"career.season":{"a//b":{},"/a":{},"":{}}})", false, {"problem /career.season/a~1~1b", "problem /career.season/~1a", "problem /career.season/"});
+    check(R"({"career.season":{"a//b":{},"/a":{},"":{},"a b":{},"$x":{},"a/":{},"a?":{}}})", false,
+          {"problem /career.season/a~1~1b", "problem /career.season/~1a", "problem /career.season/", "problem /career.season/a b",
+           "problem /career.season/$x", "problem /career.season/a~1", "problem /career.season/a?"});
     check(R"({"career.season":{"x":{"year":"2017","teams":[)" + team2 + R"(]}}})", false, {"1.0 /career.season/x/year"});
     check(R"({"career.season":{"x":{"$protect":["teams"],"year":2017,"teams":[)" + team2 + R"(]}}})", false, {});
     check(R"({"career.season":{"x":{"$protect":"teams","year":2017,"teams":[)" + team2 + R"(]}}})", false,
@@ -513,6 +515,32 @@ static void data_files()
           false, {"1.0 /career.season/v10/teams"}, &with_base);
     check(R"({"career.season":{"v10":{"extends":"swofty.cs/short","label":"x"}}})", false, {"1.0 /career.season/v10/year"}, &with_base);
     check(R"({"career.season":{"v10":{"extends":"swofty.cs/unknown","label":"x"}}})", false, {}, &with_base);
+    check(R"({"career.season":{"v10":{"extends":"v8","label":"x"},"v9":{"extends":null}}})", false,
+          {"problem /career.season/v10/extends", "problem /career.season/v9/extends"}, &with_base);
+    check(R"({"career.season":{"v10":{"extends":"swofty.cs/short","year":"x"}}})", false, {"1.0 /career.season/v10/year"}, &with_base);
+
+    Value chain_a = P(R"({"extends":"swofty.cs/b","label":"a"})");
+    Value chain_b = P(R"({"extends":"swofty.cs/a","label":"b"})");
+    Value chain_c = P(R"({"extends":"swofty.cs/f1_2017","teams":[{"slot":2,"$delete":true}]})");
+    swofty_core::registry::BaseResolver chains = [&](std::string_view, std::string_view id) -> const Value * {
+        return id == "swofty.cs/a" ? &chain_a : id == "swofty.cs/b" ? &chain_b : id == "swofty.cs/c" ? &chain_c
+               : id == "swofty.cs/f1_2017" ? &base_ok : nullptr;
+    };
+    DataOptions with_chains;
+    with_chains.base = &chains;
+    check(R"({"career.season":{"x":{"extends":"swofty.cs/a"}}})", false, {"problem /career.season/x/extends"}, &with_chains);
+    check(R"({"career.season":{"x":{"extends":"swofty.cs/c","teams":[{"slot":3,"$delete":true}]}}})", false, {"1.0 /career.season/x/teams"},
+          &with_chains);
+    check(R"({"career.season":{"x":{"extends":"swofty.cs/c","teams":[{"slot":11,"seats":[]}]}}})", false, {}, &with_chains);
+
+    Value merged = s.merge(P(R"({"year":2017,"label":"a","teams":[{"slot":1,"seats":["game/a"],"team":"game/t"},{"slot":2,"seats":[]}]})"),
+                           P(R"({"label":null,"teams":[{"slot":1,"seats":["game/b"]},{"slot":2,"$delete":true},{"slot":5,"team":null,"seats":[]},{"seats":[]}]})"));
+    expect(swofty::json::dump(merged) ==
+               R"({"year":2017,"teams":[{"slot":1,"seats":["game/b"],"team":"game/t"},{"slot":5,"seats":[]},{"seats":[]}]})",
+           "Schema::merge merges keyed lists by key, removes $delete elements and nulls, appends keyless elements: " +
+               swofty::json::dump(merged));
+    expect(swofty::json::dump(s.merge(P(R"({"teams":[{"slot":1,"seats":[]}]})"), P(R"({"teams":[]})"))) == R"({"teams":[{"slot":1,"seats":[]}]})",
+           "an empty keyed list leaves the base's list, as stdschema.merge_patch does");
 
     auto one = check_record(P(R"({"$protect":["year"],"year":2017,"teams":[)" + team2 + "]}"), "career.season", lookup_of(by_name, "career.season"));
     expect(one.ok(), "check_record strips $protect");
