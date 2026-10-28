@@ -56,7 +56,7 @@ struct Owned {
 };
 
 struct Box {
-    std::string id, entrant_list, title, image;
+    std::string id, entrant_list, title, image, literal;
     int order = 0;
 };
 
@@ -514,10 +514,18 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
                          (scenario_id ? ", scenario stat id " + std::to_string(*scenario_id) : std::string()));
 }
 
-inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan)
+using BaseImage = std::function<std::string(const std::string &package)>;
+
+inline std::string title_tag(const std::string &entrant_list)
 {
-    const Value *pkg = rec["package"].is_string() ? lookup("content.package", std::string(rec["package"].as_string()))
-                                                  : nullptr;
+    return "lng_swofty_era_" + entrant_list;
+}
+
+inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
+                      const BaseImage &base_image = {})
+{
+    std::string package = rec["package"].is_string() ? std::string(rec["package"].as_string()) : std::string();
+    const Value *pkg = package.empty() ? nullptr : lookup("content.package", package);
     if (!pkg || !(*pkg)["entrant_list"].is_string()) {
         plan.lines.push_back("era.box " + id + ": its package is missing; no box");
         plan.refused++;
@@ -526,12 +534,20 @@ inline void lower_box(const std::string &id, const Value &rec, const Lookup &loo
     Box box;
     box.id = id;
     box.entrant_list = std::string((*pkg)["entrant_list"].as_string());
-    box.title = title_text(rec["title"]);
-    if (box.title.empty())
-        box.title = title_text((*pkg)["title"]);
-    if (box.title.empty())
-        box.title = box.entrant_list;
+    std::string title = title_text(rec["title"]);
+    if (title.empty())
+        title = title_text((*pkg)["title"]);
+    if (title.empty())
+        title = box.entrant_list;
+    if (title.rfind("lng_", 0) == 0) {
+        box.title = title;
+    } else {
+        box.title = title_tag(box.entrant_list);
+        box.literal = title;
+    }
     box.image = std::string(rec["image"].as_string());
+    if (box.image.empty() && base_image)
+        box.image = base_image(package);
     box.order = int(rec["order"].as_int());
     plan.boxes.push_back(box);
 }

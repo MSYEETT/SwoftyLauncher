@@ -482,6 +482,21 @@ inline void lower_team(const std::string &id, const Value &rec, const Lookup &lo
                           : tower_stock.empty() ? std::string() : ", timing tower badge " + tower_stock));
 }
 
+inline void lower_vehicle_team(const Value &rec, const Read &read, Plan &plan)
+{
+    if (!rec["team_from"].is_string() || !rec["label"].is_string())
+        return;
+    std::string from(rec["team_from"].as_string()), label(rec["label"].as_string());
+    if (from == label || !read(team_at(from) + "._metadata_") || read(team_at(label) + "._metadata_"))
+        return;
+    push_row(plan, TEAMS, team_at(from), Value::object({{"_metadata_", label}}));
+    std::size_t sides = 0;
+    for (auto &s : SIDE_TABLES)
+        sides += copy_side(plan, s, read, from, label);
+    plan.lines.push_back("vehicle team " + label + ": row copied from " + from + " with " + std::to_string(sides) +
+                         " side row(s)");
+}
+
 inline void lower_pit_times(const std::string &id, const Value &rec, const Lookup &lookup, const Read &read,
                             const TeamRefs &refs, Plan &plan)
 {
