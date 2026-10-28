@@ -473,7 +473,8 @@ void log_grid(uintptr_t e, const season::Plan &p, const char *when)
 // The season apply through the core's career.apply_lineup (SwoftyCoreCareerOps, standard library 1.6): the
 // plan's moves, repositions, releases, numbers, cars and looks as the core's lineup request, which the core
 // writes with the same sequence apply() below uses. -2: the core could not take it (apply() runs instead).
-int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, bool visuals, const std::string &why)
+int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, const std::vector<Row> &rows, bool visuals,
+               const std::string &why)
 {
     namespace sj = swofty::json;
     int plan_team = -1;
@@ -483,11 +484,17 @@ int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, bool visuals, 
                 plan_team = g_data.slots[i].team_stat;
     sj::Value moves = sj::Value::array(), repositions = sj::Value::array(), releases = sj::Value::array(),
               numbers = sj::Value::array(), cars = sj::Value::array(), looks = sj::Value::array();
+    auto holder = [&](int slot, int seat) -> int64_t {
+        int h = p.holder[slot][seat];
+        return h >= 0 && static_cast<size_t>(h) < rows.size() ? static_cast<int64_t>(stat_of(driver_of(rows[h].rec))) : -1;
+    };
     for (auto &m : p.moves)
         moves.push_back(sj::Value::object({{"driver", static_cast<int64_t>(m.driver)},
                                            {"team", g_data.slots[m.to.slot].team_stat},
                                            {"seat", m.to.index},
-                                           {"car", p.vehicles[m.to.slot].stat}}));
+                                           {"car", p.vehicles[m.to.slot].stat},
+                                           {"holder", holder(m.to.slot, m.to.index)},
+                                           {"mate", holder(m.to.slot, 1 - m.to.index)}}));
     for (auto &m : p.repositions)
         repositions.push_back(sj::Value::object({{"driver", static_cast<int64_t>(m.driver)}, {"seat", m.to.index}}));
     for (uint32_t d : p.releases)
@@ -549,7 +556,7 @@ int apply_core(const SwoftyCareerOps *ops, const season::Plan &p, bool visuals, 
 int apply(uintptr_t e, const season::Plan &p, const std::vector<Row> &rows, bool visuals, const std::string &why)
 {
     if (const SwoftyCareerOps *ops = records::core_ops())
-        if (int n = apply_core(ops, p, visuals, why); n != -2)
+        if (int n = apply_core(ops, p, rows, visuals, why); n != -2)
             return n;
     uintptr_t manager = contracts_manager();
     if (!manager) {
