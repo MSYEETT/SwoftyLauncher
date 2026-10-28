@@ -61,6 +61,15 @@ class Parsing(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class Crashes(unittest.TestCase):
+    def test_a_crash_line_is_the_same_apart_from_names_times_and_loader_offsets(self):
+        one = ("[crash] crash report swofty\\crash-20261029-052647.txt: unhandled ACCESS_VIOLATION reading 0x10 at x.dll+0x1f23; "
+               "stack x.dll+0x1f23 .text fn +0x1f00+0x23 < VERSION.dll+0x6005 .text fn +0x5fe0+0x25; written in 0.1 s")
+        two = one.replace("052647", "052655").replace("0x6005", "0x65c5").replace("+0x5fe0+0x25", "+0x65a0+0x25")
+        self.assertEqual(harness.clean(one), harness.clean(two))
+        self.assertIn("x.dll+0x1f23", harness.clean(one))
+
+
 class Comparing(unittest.TestCase):
     def pair(self, mutate):
         b = parsed()
@@ -143,6 +152,21 @@ class Comparing(unittest.TestCase):
             b["start"]["x.dll"].append("x: extra line")
         out = self.pair(mutate)
         self.assertEqual(sorted(d["category"] for d in out["differences"]), ["register", "start", "unresolved"])
+
+    def test_registry_notes_added_on_b_are_expected_but_other_new_lines_are_not(self):
+        def mutate(b):
+            b["start"]["x.dll"].insert(0, "[registry] career.content x/c: provided by x (career::content::add)")
+        out = self.pair(mutate)
+        self.assertTrue(out["same"])
+        self.assertEqual(len(out["allowed"]), 1)
+        self.assertIn("registry notes", out["allowed"][0]["explained"])
+
+        def mutate_more(b):
+            mutate(b)
+            b["start"]["x.dll"].append("x: something else")
+        out = self.pair(mutate_more)
+        self.assertEqual([d["category"] for d in out["differences"]], ["start"])
+        self.assertEqual(out["differences"][0]["b"], ["x: something else"])
 
     def test_allow_moves_a_category_to_allowed(self):
         b = parsed()

@@ -18,11 +18,14 @@ DEFAULT_CAP = 1 << 20
 PROFILE = "compat"
 CATEGORIES = ("dll", "drop", "chain", "conflict", "unresolved", "register", "start", "run")
 CORE_DLL = "swofty_core.dll"
+REGISTRY_NOTE = "[registry] "
 CORE_DLLS = (CORE_DLL, "swofty_gamelog.dll")
 
 STAMP = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(?:\.\d+)? \[\s*\d+\] ?")
 POINTER = re.compile(r"\b0x[0-9a-fA-F]{9,}\b|\b[0-9A-F]{16}\b")
-DURATION = re.compile(r"\b\d+ ?ms\b")
+DURATION = re.compile(r"\b\d+(?:\.\d+)? ?m?s\b")
+CRASH_NAME = re.compile(r"crash-\d{8}-\d{6}")
+LOADER_FRAME = re.compile(r"(?:VERSION|swofty_core|swofty_gamelog)\.dll\+0x[0-9a-f]+(?: \.text fn \+0x[0-9a-f]+\+0x[0-9a-f]+)?")
 LOADED = re.compile(r"^addon (\S+): loaded at \S+, (.*)$")
 ALSO = re.compile(r"^addon (\S+): (also in|settings\.json lists|listed twice|loaded at \S+ but exports no|too many|exports SwoftyCoreAttach but did not)(.*)$")
 DROPPED = re.compile(r"^\[core\] addon (\S+) dropped: (.*)$")
@@ -47,6 +50,8 @@ def clean(line, roots=()):
         for v in (root, "Z:" + root.replace("/", "\\"), "Z:" + root.replace("/", "\\\\")):
             line = line.replace(v, "<game>")
     line = POINTER.sub("<ptr>", line)
+    line = CRASH_NAME.sub("crash-<t>", line)
+    line = LOADER_FRAME.sub(lambda m: m.group(0).split("+")[0] + "+<off>", line)
     return DURATION.sub("<ms>", line)
 
 
@@ -199,6 +204,11 @@ def compare_logs(a, b, allow=()):
         if dll in CORE_DLLS:
             continue
         sa, sb = a["start"].get(dll, []), b["start"].get(dll, [])
+        notes = [l for l in sb if l.startswith(REGISTRY_NOTE) and l not in sa]
+        if notes:
+            sb = [l for l in sb if l not in notes]
+            allowed.append(dict(_diff("start", f"{dll}: start lines", [], notes, dll),
+                                explained="registry notes the 1.6 core adds when a 1.5 call lands in a registry"))
         if sa != sb:
             diffs.append(_diff("start", f"{dll}: start lines", [l for l in sa if l not in sb] or sa,
                                [l for l in sb if l not in sa] or sb, dll))
