@@ -199,6 +199,7 @@ static void unavailable_without_core()
     auto toro = teams::identities.add("toro_rosso", {
                                                         .donor = teams::identities["game/tororosso"],
                                                         .constructor = teams::constructors["constructor/toro_rosso"],
+                                                        .provides = {teams::constructors["constructor/toro_rosso"]},
                                                         .names = {.title = Text::key("lng_cs_team_17_toro_rosso"), .code = "STR"},
                                                         .livery_name = "cs17_toro_rosso",
                                                     });

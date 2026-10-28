@@ -60,6 +60,7 @@ struct Identity {
     static constexpr Version version{1, 0};
     Ref<Identity> donor;
     Ref<Constructor> constructor;
+    std::vector<Ref<Constructor>> provides;
     Names names;
     Colours colours;
     std::optional<Colours> wear;
@@ -71,8 +72,8 @@ struct Identity {
     StatId stat_id = StatId::automatic;
     json::Value extra;
 };
-SWOFTY_RECORD(Identity, donor, constructor, names, colours, wear, livery_name, logo, audio_id, prestige, nationality,
-              stat_id)
+SWOFTY_RECORD(Identity, donor, constructor, provides, names, colours, wear, livery_name, logo, audio_id, prestige,
+              nationality, stat_id)
 
 struct PitTimes {
     static constexpr Version version{1, 0};

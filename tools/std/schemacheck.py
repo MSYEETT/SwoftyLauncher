@@ -137,6 +137,15 @@ class Checker:
         budget = schema.get("x-snapshot-budget")
         if budget is not None and not (isinstance(budget, int) and not isinstance(budget, bool) and budget >= 0):
             self.add("meta", f, "x-snapshot-budget is a whole number of bytes")
+        shared = schema.get("x-shared")
+        if "x-shared" in schema:
+            if not isinstance(shared, dict) or set(shared) != {"provider_registry", "provides", "resolved"}:
+                self.add("meta", f, "x-shared is {\"provider_registry\", \"provides\", \"resolved\"}")
+            else:
+                if not all(isinstance(shared[k], str) and shared[k] for k in shared):
+                    self.add("meta", f, "x-shared fields are non-empty strings")
+                elif not (shared["provides"].startswith("/") and shared["resolved"].startswith("/")):
+                    self.add("meta", f, "x-shared provides and resolved are JSON pointers")
         if "x-adapter" in schema and version[0] == 1:
             self.add("meta", f, "x-adapter belongs on the first file of a later major")
         if S.types_of(schema) != ["object"]:
@@ -502,6 +511,9 @@ class Comparer:
 
     def k_x_applies(self, o, n, path):
         self.k_generic("x-applies", o, n, path)
+
+    def k_x_shared(self, o, n, path):
+        self.k_generic("x-shared", o, n, path)
 
     def k_x_snapshot(self, o, n, path):
         self.k_generic("x-snapshot", o, n, path)

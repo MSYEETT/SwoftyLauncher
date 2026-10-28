@@ -50,6 +50,7 @@ struct State {
     std::unique_ptr<Expansion> plan, boot;
     std::vector<std::string> boot_lines;
     std::map<std::string, std::set<std::string>> refused;
+    bool stock_seeded = false;
 };
 
 State &state()
@@ -112,8 +113,39 @@ rows::Base base_of(Database &d)
     };
 }
 
+void ensure_stock(Store &st)
+{
+    State &s = state();
+    if (s.stock_seeded || (in_load_order(st, "team.identity").empty() && in_load_order(st, "team.pit_times").empty()))
+        return;
+    Database &d = database();
+    if (!d.ok)
+        return;
+    s.stock_seeded = true;
+    rows::Base base = base_of(d);
+    Read read = [&base](const std::string &path) -> std::optional<std::string> {
+        auto r = base(gvdb::fnv64(path));
+        if (!r)
+            return std::nullopt;
+        return r->text;
+    };
+    for (auto &c : CONSTRUCTOR_SEEDS)
+        st.add_base("team.constructor", c.key,
+                    Value::object({{"name", Value(std::string(c.name))}, {"country", Value(std::string(c.country))},
+                                   {"team", Value()}}));
+    std::size_t teams = 0;
+    for (auto &t : stock_teams(read)) {
+        st.add_base("team.identity", t.label, t.record);
+        teams++;
+    }
+    st.stock_loaded("team.identity", true);
+    swofty::log("[apply] content: %zu stock team record(s) and %zu constructor id(s) declared from the game database", teams,
+                std::size(CONSTRUCTOR_SEEDS));
+}
+
 bool has_records(Store &st)
 {
+    ensure_stock(st);
     for (const char *reg : ROW_REGISTRIES)
         if (!in_load_order(st, reg).empty())
             return true;
@@ -377,7 +409,15 @@ void set_up_dresser()
             return nullptr;
         return &(keep[id] = rec.value);
     };
-    l.stat_of = [](const std::string &id) -> int64_t { return ids::store().get("team.identity", id).id; };
+    l.stat_of = [](const std::string &id) -> int64_t {
+        int64_t got = ids::store().get("team.identity", id).id;
+        if (got >= 0)
+            return got;
+        auto rec = registry::store().get("team.identity", id);
+        return rec.status == registry::Status::ok && rec.value["stat_id"].is_int() ? rec.value["stat_id"].as_int() : -1;
+    };
+    l.record = &runtime::team_record_of;
+    runtime::team_record_inserted([](uint16_t stat, uint8_t *record) { redress(stat, record); });
     career_ops::teams::dresser() = &dress_slot;
 }
 
@@ -472,6 +512,7 @@ public:
     void boot(Store &st, Report &report) override
     {
         std::lock_guard g(mu);
+        ensure_stock(st);
         std::map<std::string, Value> keep;
         Lookup lookup = own_lookup(st, keep);
         TeamRefs refs = refs_of(st, lookup);

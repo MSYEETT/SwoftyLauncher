@@ -76563,6 +76563,60 @@
     "native/src/core/hooks/session_points.cpp"
    ],
    "func_start": "0x14389a120"
+  },
+  {
+   "id": "teams.load_insert_call",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 8B 7C 24 4C 4C 8D 74 24 68",
+   "match": "0x1424697f4",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424697f4",
+   "kind": "mid",
+   "expect": "E8 47 25 87 FE",
+   "names": [
+    "site_Team_LoadInsertCall"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w21b",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/team_slots.cpp"
+   ]
+  },
+  {
+   "id": "teams.load_inserted",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 8B 7C 24 4C 4C 8D 74 24 68",
+   "match": "0x1424697f4",
+   "anchor": "0x5",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1424697f9",
+   "kind": "mid",
+   "expect": "8B 7C 24 4C 4C 8D 74 24 68",
+   "names": [
+    "site_Team_LoadInserted"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-28",
+     "by": "w21b",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/team_slots.cpp"
+   ]
   }
  ]
 }

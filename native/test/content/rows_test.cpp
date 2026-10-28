@@ -1,6 +1,7 @@
 #include "../../src/core/apply/content/boot.hpp"
 #include "../../src/core/apply/ids.hpp"
 #include "../../src/core/career_ops/teams_plan.hpp"
+#include "../../src/core/team_slots_logic.hpp"
 #include "../../src/core/registry/table.hpp"
 #include "../../src/core/registry/validate.hpp"
 
@@ -481,9 +482,9 @@ static void team_tests(const std::string &regs)
       "team.logo": { "toro_rosso_2017": { "images": { "hud": "logos/hud.png", "driver_select": "logos/ds.png",
                                                        "hub": { "stock": "tororosso" } } },
                      "plain": { "images": { "team_select": "logos/ts.png" } } },
-      "team.constructor": { "toro_rosso": { "name": "Scuderia Toro Rosso", "country": "italy" } },
       "team.identity": {
-        "toro_rosso_2017": { "donor": "game/tororosso", "constructor": "mod.a/toro_rosso",
+        "toro_rosso_2017": { "donor": "game/tororosso", "constructor": "constructor/toro_rosso",
+          "provides": [ "constructor/toro_rosso" ],
           "names": { "title": "lng_cs_toro", "short_name": { "literal": "Toro Rosso" }, "super_short": { "literal": "STR" }, "code": "STR" },
           "colours": { "menu": "#0A1E3C", "primary": "#0A1E3C", "secondary": "#C8102E", "tertiary": "#80FFFFFF" },
           "wear": null, "livery_name": "cs17_toro_rosso", "logo": "mod.a/toro_rosso_2017", "prestige": 2,
@@ -502,6 +503,24 @@ static void team_tests(const std::string &regs)
     check(r1 == SWOFTY_ASSET_OK && r2 == SWOFTY_ASSET_OK, "the team records register");
     Db db;
     stock_team_rows(db);
+    content::Read stock_read = [&](const std::string &path) -> std::optional<std::string> {
+        auto r = db.base()(content::gvdb::fnv64(path));
+        return r ? std::optional<std::string>(r->text) : std::nullopt;
+    };
+    for (auto &c : content::CONSTRUCTOR_SEEDS)
+        st.add_base("team.constructor", c.key,
+                    Value::object({{"name", Value(std::string(c.name))}, {"country", Value(std::string(c.country))}, {"team", Value()}}));
+    auto stock = content::stock_teams(stock_read);
+    for (auto &t : stock)
+        st.add_base("team.identity", t.label, t.record);
+    st.stock_loaded("team.identity", true);
+    check(stock.size() == 2 && stock[0].label == "mercedes" && stock[1].record["stat_id"].as_int() == 3, "the stock team rows become team.identity bases with their stat ids");
+    auto stock_mer = st.get("team.identity", "game/mercedes");
+    check(stock_mer.status == registry::Status::ok && stock_mer.value["names"]["title"]["literal"].as_string() == "lng_stock" &&
+              stock_mer.value["colours"]["primary"].as_string() == "#FFFC18" && stock_mer.value["provides"][0].as_string() == "constructor/mercedes",
+          "a stock base takes its names and colours from the row and provides its real team's constructor id");
+    auto cm = st.get("team.constructor", "constructor/mercedes");
+    check(cm.status == registry::Status::ok && cm.value["team"].as_string() == "game/mercedes", "constructor/mercedes resolves to the stock row");
     auto pins = content::pins(st);
     check(pins.size() == 1 && pins[0].registry == "team.identity" && pins[0].stat_id == 600, "the pinned team stat id");
     apply::ids::Store ids;
@@ -526,7 +545,8 @@ static void team_tests(const std::string &regs)
         std::printf("      %s\n", l.c_str());
     for (auto &l : x.lines["team.pit_times"])
         std::printf("      %s\n", l.c_str());
-    check(x.records["team.identity"] == 3 && x.refused["team.identity"] == 2, "three teams apply, the one with no donor row and the one with a taken label do not");
+    check(x.records["team.identity"] == 3 && x.refused["team.identity"] == 1 && st.get("team.identity", "mod.a/lost").status != registry::Status::ok,
+          "three teams apply; the one with a taken label does not, and with the stock rows declared the one whose donor is no stock team never registers");
     check(written(x.engine, "entrants.teams._team_instancecount_") == "5", "the team row count grows by three");
     auto field = [&](const std::string &row, const char *f) { return written(x.engine, "entrants.teams." + row + "." + f); };
     auto team_row = [&](const char *label) {
@@ -653,11 +673,64 @@ static void team_tests(const std::string &regs)
     check(done.first == 1 && done.second == 0, "apply_teams dresses the slot row through the dresser");
     check(std::string(bufs[0].c_str()) == "B Toro" && std::string(bufs[3].c_str()) == "STR" && primary == int32_t(0xFF0A1E3C),
           "the loaded record takes the season team's names and colours");
+    std::vector<uint8_t> reloaded(0x768, 0);
+    std::vector<std::string> bufs2(4, std::string(0x80, 'y'));
+    for (std::size_t i = 0; i < 4; i++) {
+        char *p = bufs2[i].data();
+        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT, content::team_record::CODE};
+        std::memcpy(reloaded.data() + at[i], &p, sizeof p);
+    }
+    check(content::redress(600, reloaded.data()) && std::string(bufs2[0].c_str()) == "B Toro",
+          "a record the loader stores again is dressed again from the slot's remembered team");
+    check(!content::redress(601, reloaded.data()), "and a stat id nobody dressed is left alone");
+
+    live.stat_of = [&](const std::string &id) -> int64_t {
+        int64_t got = ids.get("team.identity", id).id;
+        if (got >= 0)
+            return got;
+        auto rec = st.get("team.identity", id);
+        return rec.status == registry::Status::ok && rec.value["stat_id"].is_int() ? rec.value["stat_id"].as_int() : -1;
+    };
+    std::vector<uint8_t> stock_record(0x768, 0);
+    std::vector<std::string> bufs3(4, std::string(0x80, 'z'));
+    for (std::size_t i = 0; i < 4; i++) {
+        char *p = bufs3[i].data();
+        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT, content::team_record::CODE};
+        std::memcpy(stock_record.data() + at[i], &p, sizeof p);
+    }
+    live.record = [&](uint16_t stat) -> uint8_t * { return stat == 3 ? stock_record.data() : nullptr; };
+    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b") && std::string(bufs3[0].c_str()) == "B Toro",
+          "a stock slot row dresses through the stat id of its stock record");
+    check(ct::dresser()("g", 2, "game/tororosso", "game/tororosso") && std::string(bufs3[0].c_str()) == "lng_stock" && !live.wears.count(3),
+          "a slot that returns to its own team gets the stock names back and is forgotten");
     ct::dresser() = nullptr;
+}
+
+static void slot_tests()
+{
+    std::map<uintptr_t, uintptr_t> mem;
+    uintptr_t vector = 0x1000, entries = 0x2000;
+    mem[vector + 8] = entries;
+    mem[vector + 0x10] = entries + 4 * 0x10;
+    mem[entries + 3 * 0x10 + 8] = 0xabc000;
+    auto read = [&](uintptr_t at, uintptr_t &out) {
+        auto it = mem.find(at);
+        if (it == mem.end())
+            return false;
+        out = it->second;
+        return true;
+    };
+    check(team_slots::record_in(vector, 3, read) == 0xabc000, "a stat id's record is read through the slot vector");
+    check(team_slots::record_in(vector, 4, read) == 0 && team_slots::record_in(0, 3, read) == 0, "a stat id past the vector's end has none");
+    mem[vector + 0x10] = entries + 4 * 0x10 + 3;
+    check(team_slots::record_in(vector, 3, read) == 0, "a vector whose size is not a whole number of entries is not read");
+    auto k = team_slots::key_of((600u << 16) | 1u);
+    check(k.stat == 600 && k.set == 1 && team_slots::key_of(3u << 16).set == 0, "the key carries the stat id in its high word and the set in its low byte");
 }
 
 int main(int argc, char **argv)
 {
+    slot_tests();
     engine_tests();
     livery_tests();
     if (argc > 1)

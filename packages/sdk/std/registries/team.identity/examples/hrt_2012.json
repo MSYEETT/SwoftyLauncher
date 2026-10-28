@@ -3,6 +3,9 @@
     "hrt": {
       "extends": "game/williams",
       "constructor": "constructor/hrt",
+      "provides": [
+        "constructor/hrt"
+      ],
       "names": {
         "title": {
           "literal": "HRT F1 Team"
