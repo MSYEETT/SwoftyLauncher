@@ -21,7 +21,8 @@
 // copied row takes every key the source row holds (its row shape's keys in row_keys.inc, nested tables included)
 // plus the plan's fields list for the table, with the set values over the source's text and tag, at the table's
 // next index, and the table's instance count goes up by one. The view is the database the game loaded (a Base) under
-// the records the engine has written; every key keeps its last value and the addon that wrote it.
+// the records the engine has written; every key keeps its last value and the addon that wrote it. A key one record
+// created is never written by another: that operation fails.
 
 namespace swofty_core::apply::content::rows {
 
@@ -38,7 +39,7 @@ struct Write {
     std::string path;
     uint64_t key = 0;
     int tag = -1;
-    std::string text, owner, registry;
+    std::string text, owner, registry, record;
     bool fresh = false;
 };
 
@@ -151,10 +152,11 @@ public:
             }
     }
 
-    void attribute(std::string owner, std::string registry)
+    void attribute(std::string owner, std::string registry, std::string record = {})
     {
         owner_ = std::move(owner);
         registry_ = std::move(registry);
+        record_ = std::move(record);
     }
 
     std::optional<Rec> get(uint64_t key) const
@@ -268,6 +270,12 @@ public:
         if (!why.empty())
             return why;
         for (auto &x : w)
+            if (auto it = index_.find(x.key); it != index_.end()) {
+                const Write &had = out_[it->second];
+                if (had.fresh && !had.record.empty() && !record_.empty() && had.record != record_)
+                    return x.path + ": " + had.record + " created it, and a record never writes another's rows";
+            }
+        for (auto &x : w)
             write(std::move(x));
         return {};
     }
@@ -323,6 +331,8 @@ private:
             Write &old = out_[it->second];
             undo_.push_back({w.key, old});
             w.fresh = old.fresh;
+            if (old.fresh)
+                w.record = old.record;
             old = std::move(w);
             return;
         }
@@ -341,6 +351,7 @@ private:
         w.text = std::move(text);
         w.owner = owner_;
         w.registry = registry_;
+        w.record = record_;
         return w;
     }
 
@@ -568,7 +579,7 @@ private:
     Base base_;
     const Keys *keys_;
     std::map<std::string, std::vector<std::string>> fields_;
-    std::string owner_, registry_;
+    std::string owner_, registry_, record_;
     std::unordered_map<uint64_t, std::size_t> index_;
     std::vector<Write> out_;
     std::vector<Undo> undo_;

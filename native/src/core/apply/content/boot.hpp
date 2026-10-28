@@ -52,20 +52,58 @@ inline std::vector<std::string> in_load_order(registry::Store &st, const std::st
     return ids;
 }
 
-// A variant has stat ids of its own: an explicit stat_id it only inherits from its base counts as "auto".
-inline Value own_ids(registry::Store &st, const std::string &reg, const std::string &id, const Value &rec)
+// A variant writes rows of its own and never its base's. Every value that names a row and that the variant only
+// inherits from its base is made its own: an explicit stat_id counts as "auto"; a vehicle's label becomes the
+// variant's key and its audio switch its label; an engine sound's bundle file is the base's, whose row it uses as
+// the game's; a package's database block names the rows of the variant's own entrant list and no scenario id.
+inline Value own_value(registry::Store &st, const std::string &reg, const std::string &id, const Value &rec)
 {
-    if (!rec["stat_id"].is_int())
-        return rec;
     std::vector<std::string> chain = st.chain(reg, id);
     if (chain.size() < 2 || chain[0] != id)
         return rec;
-    registry::Record base = st.get(reg, chain[1]);
-    if (base.status != registry::Status::ok || !(base.value["stat_id"] == rec["stat_id"]))
+    registry::Record found = st.get(reg, chain[1]);
+    if (found.status != registry::Status::ok)
         return rec;
+    const Value &base = found.value;
     Value v = rec;
-    v["stat_id"] = Value("auto");
+    auto inherited = [&](std::string_view field) { return !rec[field].is_null() && rec[field] == base[field]; };
+    if (rec["stat_id"].is_int() && inherited("stat_id"))
+        v["stat_id"] = Value("auto");
+    if (reg == "vehicle") {
+        if (!rec["label"].is_string() || inherited("label"))
+            v["label"] = Value(key_of(id));
+        if (rec["audio_switch"].is_string() && inherited("audio_switch"))
+            v["audio_switch"] = Value(std::string(static_cast<const Value &>(v)["label"].as_string()));
+    } else if (reg == "engine_sound") {
+        if (rec["bundle"].is_string() && inherited("bundle"))
+            v["bundle"] = Value::object({{"stock", Value("audio/2025/bundles/" + bundle_name(rec) + ".bdl")}});
+    } else if (reg == "content.package") {
+        Value db = rec["database"];
+        if (db.is_object() && inherited("database") && !inherited("entrant_list")) {
+            std::string list(rec["entrant_list"].as_string());
+            db["entrant_list"] = Value(list);
+            db["entrant_prefix"] = Value(list + "-");
+            db["standings"] = Value(list + "_teams");
+            db.erase("scenario_stat_id");
+            v["database"] = std::move(db);
+        }
+    }
     return v;
+}
+
+// The store's effective records, each made its own (own_value).
+inline Lookup own_lookup(registry::Store &st, std::map<std::string, Value> &keep)
+{
+    return [&st, &keep](const std::string &reg, const std::string &id) -> const Value * {
+        std::string k = reg + "|" + id;
+        auto it = keep.find(k);
+        if (it != keep.end())
+            return &it->second;
+        auto rec = st.get(reg, id);
+        if (rec.status != registry::Status::ok)
+            return nullptr;
+        return &(keep[k] = own_value(st, reg, id, rec.value));
+    };
 }
 
 struct Pin {
@@ -79,14 +117,12 @@ inline std::vector<Pin> pins(registry::Store &st)
 {
     std::vector<Pin> out;
     std::map<std::string, Value> keep;
-    Lookup lookup = store_lookup(st, keep);
+    Lookup lookup = own_lookup(st, keep);
     for (const char *reg : {"vehicle.package", "vehicle", "content.package"})
         for (auto &id : in_load_order(st, reg)) {
-            const Value *found = lookup(reg, id);
-            if (!found)
+            const Value *rec = lookup(reg, id);
+            if (!rec)
                 continue;
-            Value own = own_ids(st, reg, id, *found);
-            const Value *rec = &own;
             if (int64_t p = pin_of(*rec); p >= 0)
                 out.push_back({reg, id, p});
             if (std::string_view(reg) != "content.package")
@@ -113,7 +149,7 @@ struct Expansion {
 inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const std::set<std::string> &skip = {})
 {
     std::map<std::string, Value> keep;
-    Lookup lookup = store_lookup(st, keep);
+    Lookup lookup = own_lookup(st, keep);
     Source source = [&x](const std::string &key) -> std::optional<Stock> {
         auto r = x.engine.get(gvdb::fnv64(key));
         if (!r)
@@ -123,14 +159,12 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
     for (const char *reg : ROW_REGISTRIES) {
         auto &lines = x.lines[reg];
         for (auto &id : in_load_order(st, reg)) {
-            const Value *found = lookup(reg, id);
-            if (!found)
+            const Value *rec = lookup(reg, id);
+            if (!rec)
                 continue;
             std::string owner = addon_of(id);
             if (skip.count(owner))
                 continue;
-            Value own = own_ids(st, reg, id, *found);
-            const Value *rec = &own;
             Plan plan;
             std::string r = reg;
             if (r == "engine_sound")
@@ -142,7 +176,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             else
                 lower_package(id, *rec, lookup, plan, stat);
             x.engine.add_fields(plan.fields);
-            x.engine.attribute(owner, reg);
+            x.engine.attribute(owner, reg, id);
             std::size_t mark = x.engine.mark();
             std::string why;
             for (std::size_t i = 0; i < plan.ops.size() && why.empty(); i++)

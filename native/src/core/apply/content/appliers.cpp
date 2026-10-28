@@ -332,7 +332,7 @@ public:
     void install_read(Store &st, Report &report) override
     {
         std::map<std::string, Value> keep;
-        Lookup lookup = store_lookup(st, keep);
+        Lookup lookup = own_lookup(st, keep);
         Plan plan;
         for (auto &id : in_load_order(st, "era.box"))
             if (const Value *rec = lookup("era.box", id))

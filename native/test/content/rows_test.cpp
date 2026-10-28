@@ -126,6 +126,17 @@ static void engine_tests()
           "two rows with the label fail");
     check(rows::shape_of("a.b_12.c.d_3") == "a.b_N.c.d_N" && rows::shape_of("audio.x_2025.y") == "audio.x_N.y",
           "row shapes");
+
+    rows::Engine guard(db.base(), keys);
+    guard.attribute("a.x", "vehicle", "a.x/one");
+    guard.apply(op(R"({"op":"put-record","key":"audio.car.sw.bundle","type":2,"value":"61"})"));
+    guard.attribute("b.y", "vehicle", "b.y/two");
+    check(guard.apply(op(R"({"op":"put-record","key":"audio.car.sw.bundle","type":2,"value":"62"})")).find("a.x/one created it") !=
+                  std::string::npos &&
+              written(guard, "audio.car.sw.bundle") == "a",
+          "a record never writes a key another record created");
+    check(guard.apply(op(R"({"op":"put-record","key":"t.list.items","type":13,"value":"62"})")).empty(),
+          "keys the game holds stay shared");
 }
 
 // A small database with the stock rows a package copies.
@@ -186,6 +197,12 @@ static void stock_package_rows(Db &db)
     row("entrants.entrant_setup_modes.entrant_setup_mode_0", {{"_metadata_", "swofty_f1"}});
     db.put("entrants.entrant_setup_modes.entrant_setup_mode_0.entrant_lists", 13, "f1_2025");
     db.put("entrants.entrant_setup_modes.entrant_setup_mode_0.selectable_entrant_lists", 13, "f1_2025");
+    db.put("audio.audio_bundle_settings._audio_bundle_settings_instancecount_", 0, "1");
+    row("audio.audio_bundle_settings.audio_bundle_settings_0",
+        {{"_metadata_", "mercedes_2025"}, {"bundle_name", "mercedes_2025"}, {"era", "x"}, {"engine", "e"}, {"exhaust", "x"}, {"cabin", "c"}});
+    for (auto &[f, v] : std::initializer_list<std::pair<const char *, const char *>>{
+             {"_metadata_", "f1_m_mercedes"}, {"bundle_name", "mercedes_2025.bdl"}, {"engine_offset_x", "0.1"}})
+        db.put(std::string("audio.audio_car_data.f1_m_mercedes.") + f, std::string_view(f) == "engine_offset_x" ? 1 : 2, v);
     db.put("entrants.vehicles._vehicle_instancecount_", 0, "1");
     row("entrants.vehicles.vehicle_0", {{"_metadata_", "mercedes_2025"}, {"performance_tier", "0"}, {"tyre_wear_scale", "1"}});
     db.put("entrants.vehicles.vehicle_0.stat_id", 0, "508");
@@ -206,7 +223,10 @@ static void variant_tests(const std::string &regs)
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }
     int r1 = registry::load_data_file("swofty.classic-seasons-2017", "registry/content.json", R"j({
-      "vehicle": { "mercedes": { "label": "cs17_mercedes", "donor": "game/mercedes_2025", "stat_id": 520 } },
+      "engine_sound": { "mercedes": { "bundle": "sounds/cs17_mercedes.bdl", "settings_from": "game/mercedes_2025" } },
+      "vehicle": { "mercedes": { "label": "cs17_mercedes", "donor": "game/mercedes_2025", "stat_id": 520,
+                                 "engine_sound": "swofty.classic-seasons-2017/mercedes",
+                                 "audio_switch": "f1_M_mercedes", "audio_from": "f1_m_mercedes" } },
       "content.package": { "f1_2017": {
         "title": "lng_cs_f1_2017", "entrant_list": "cs_f1_2017", "season": 2017, "stat_id": 106,
         "teams": [ { "key": "mercedes", "vehicle": null,
@@ -218,7 +238,11 @@ static void variant_tests(const std::string &regs)
                       "looks": { "mercedes/lewis_hamilton": "2017-cs_mercedes_lewis_hamilton",
                                  "redbull/max_verstappen": "2017-cs_redbull_max_verstappen" } } } } })j");
     int r2 = registry::load_data_file("mod.esp", "registry/content.json", R"j({
-      "vehicle": { "mercedes_v10": { "extends": "swofty.classic-seasons-2017/mercedes", "label": "esp_cs17_mercedes" } },
+      "engine_sound": { "v10_screamer": { "bundle": "sounds/v10_screamer.bdl", "settings_from": "game/mercedes_2025" },
+                        "mercedes_mix": { "extends": "swofty.classic-seasons-2017/mercedes", "settings_from": "game/mercedes_2025" } },
+      "vehicle": { "mercedes_v10": { "extends": "swofty.classic-seasons-2017/mercedes", "label": "esp_cs17_mercedes",
+                                     "engine_sound": "mod.esp/v10_screamer" },
+                   "mercedes_copy": { "extends": "swofty.classic-seasons-2017/mercedes" } },
       "content.package": { "f1_2017_v10": {
         "extends": "swofty.classic-seasons-2017/f1_2017",
         "title": { "literal": "F1 2017 (V10)" }, "entrant_list": "esp_f1_2017_v10", "stat_id": "auto" } } })j");
@@ -283,13 +307,37 @@ static void variant_tests(const std::string &regs)
     std::string car = has_label("entrants.vehicles", "vehicle", "cs17_mercedes");
     std::string v10 = has_label("entrants.vehicles", "vehicle", "esp_cs17_mercedes");
     check(!car.empty() && written(x.engine, car + ".stat_id") == "520", "the base car keeps its pinned stat id");
-    check(!v10.empty() && written(x.engine, v10 + ".stat_id") == "509",
+    check(!v10.empty() && written(x.engine, v10 + ".stat_id") == "510" &&
+              written(x.engine, has_label("entrants.vehicles", "vehicle", "mercedes_copy") + ".stat_id") == "509",
           "its variant gets one of its own from the pool, not the base's");
+    std::string base_sw = "audio.audio_car_data.f1_M_mercedes.", v10_sw = "audio.audio_car_data.esp_cs17_mercedes.";
+    check(written(x.engine, base_sw + "_metadata_") == "f1_M_mercedes" &&
+              written(x.engine, base_sw + "bundle_name") == "cs17_mercedes.bdl",
+          "the base car's sound rows keep the base's sound");
+    check(written(x.engine, v10_sw + "_metadata_") == "esp_cs17_mercedes" &&
+              written(x.engine, v10_sw + "bundle_name") == "v10_screamer.bdl" &&
+              written(x.engine, v10_sw + "engine_offset_x") == "0.1",
+          "its variant's sound rows are under an audio switch of its own, named by its label");
+    std::string copy = has_label("entrants.vehicles", "vehicle", "mercedes_copy");
+    check(!copy.empty() && has_label("entrants.vehicles", "vehicle", "cs17_mercedes") == car &&
+              written(x.engine, "audio.audio_car_data.mercedes_copy.bundle_name") == "cs17_mercedes.bdl",
+          "a variant that inherits the label gets its key as its label and audio switch");
+    int bundles = 0;
+    for (int i = 0; i < 8; i++)
+        bundles += written(x.engine, "audio.audio_bundle_settings.audio_bundle_settings_" + std::to_string(i) +
+                                         "._metadata_") == "cs17_mercedes";
+    check(bundles == 1 && !has_label("audio.audio_bundle_settings", "audio_bundle_settings", "v10_screamer").empty(),
+          "an engine sound variant with its base's bundle adds no second row for it");
+    int refused_rows = 0;
+    for (auto &[k, n] : x.refused)
+        refused_rows += n;
+    check(refused_rows == 0 && x.records["vehicle"] == 3 && x.records["engine_sound"] == 3,
+          "every base and variant applies");
     check(written(x.engine, "entrants.entrant_setup_modes.entrant_setup_mode_0.entrant_lists") ==
               "f1_2025,cs_f1_2017,esp_f1_2017_v10",
           "both lists join the setup mode, in load order");
     std::size_t base_keys = x.addon_fresh["swofty.classic-seasons-2017"], var_keys = x.addon_fresh["mod.esp"];
-    check(base_keys > 0 && base_keys == var_keys, "each addon's new keys are counted to it");
+    check(base_keys > 0 && var_keys > 0 && x.fresh["vehicle"] > 0, "each addon's new keys are counted to it");
 
     auto adm = content::admit(st.order(), x.addon_fresh, base_keys + var_keys - 1);
     check(adm.skip.size() == 1 && adm.skip.count("mod.esp"), "past the room, the later addon is left out whole");
