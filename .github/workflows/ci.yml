@@ -374,6 +374,10 @@ jobs:
         run: native/test/run_events_test.sh
       - name: Hook points, events and services host test
         run: native/test/run_hooks_test.sh
+      - name: Game hook points host test
+        run: native/test/run_game_points_test.sh
+      - name: Session control, AI controller and spectator points host test
+        run: native/test/run_session_points_test.sh
       - name: Hook points review test
         run: native/test/run_w5_review_test.sh
       - name: swofty::json unit test
