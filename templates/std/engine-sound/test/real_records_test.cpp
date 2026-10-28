@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include <cstdio>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -118,6 +119,29 @@ int main()
         check(!p.lines.empty() && p.lines[0].find("esp_cs17_redbull: row copied from cs17_redbull") != std::string::npos,
               "its team row is copied from the real car's");
         check(p.ops.size() >= 1, "as an operation");
+        bool logos = !p.logos.empty();
+        for (auto &l : p.logos)
+            logos = logos && l.key == "esp_cs17_redbull" && l.stock == "cs17_redbull" && l.fallback && l.file.empty();
+        check(logos, "and it takes the real car's team logo in every context");
+        std::set<std::string> arrays;
+        for (auto &l : p.logos)
+            arrays.insert(l.array);
+        check(arrays.count("teams.driver_select_team_logos") && arrays.count("team_logos.driver_career_2024_team_select"),
+              "including driver select and team select");
+    }
+    {
+        content::Plan pp;
+        content::StatIds none;
+        content::lower_package("mod.esp/f1_2017_v10", *lookup("content.package", "mod.esp/f1_2017_v10"), lookup, pp, none);
+        std::string tag = "lng_swofty_era_esp_f1_2017_v10";
+        std::string category;
+        category = swofty::json::dump(pp.ops);
+        check(category.find("\"loc_tag\":\"" + tag + "\"") != std::string::npos,
+              "the variant's car type row names its own language tag");
+        bool text = false;
+        for (auto &[t, v] : pp.texts)
+            text = text || (t == tag && v == "F1 2017 (V10)");
+        check(text, "whose text is the variant's title");
     }
     check(swofty::content::packages.schema().find("\"type\":[\"number\",\"null\"]") != std::string::npos,
           "an optional field's schema accepts null");

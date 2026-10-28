@@ -219,6 +219,7 @@ struct Expansion {
     std::vector<Folder> folders;
     std::vector<Owned> owned;
     std::vector<LogoImage> logos;
+    std::vector<std::pair<std::string, std::string>> texts;
     std::set<std::string> owners;
 };
 
@@ -335,6 +336,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             x.folders.insert(x.folders.end(), plan.folders.begin(), plan.folders.end());
             x.owned.insert(x.owned.end(), plan.owned.begin(), plan.owned.end());
             x.logos.insert(x.logos.end(), plan.logos.begin(), plan.logos.end());
+            x.texts.insert(x.texts.end(), plan.texts.begin(), plan.texts.end());
             if (plan.refused && (r == "livery" || is_wear_registry(r)))
                 x.refused[reg] += int(plan.refused);
         }

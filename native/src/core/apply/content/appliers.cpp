@@ -383,6 +383,13 @@ void apply_liveries(Expansion &x, Report &report, const std::string &registry)
         report.summary = report.summary.empty() ? summary : report.summary + "; " + summary;
 }
 
+void apply_texts(Expansion &x)
+{
+    if (const SwoftyLang *lang = runtime::lang_table())
+        for (auto &[tag, text] : x.texts)
+            lang->override_set("*", tag.c_str(), text.c_str());
+}
+
 void apply_logos(Expansion &x, Report &report)
 {
     Live &live_teams = live();
@@ -491,6 +498,8 @@ public:
             std::string_view(registry_) == "suit" || std::string_view(registry_) == "gloves" ||
             std::string_view(registry_) == "driver.head")
             apply_liveries(x, report, registry_);
+        if (std::string_view(registry_) == "content.package")
+            apply_texts(x);
         if (std::string_view(registry_) == "team.identity")
             apply_logos(x, report);
         if (staged) {
