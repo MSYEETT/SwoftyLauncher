@@ -41,3 +41,4 @@ re/trace_plugin/build/
 *.swoftymod
 templates/addon/native/build/
 re/db/*.tmp
+!packages/sdk/std/fixtures/*.bin
