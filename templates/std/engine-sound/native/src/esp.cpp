@@ -37,6 +37,7 @@ SWOFTY_REGISTER
                                             [=](content::Package &p) {
         p.title = Text::literal("F1 2017 (V10)");
         p.entrant_list = "esp_f1_2017_v10";
+        p.stat_id = StatId::automatic;                       // its own stat id, not the 2017 package's
         for (const auto &[team, car] : v10_cars)
             p.teams.at(team).vehicle = car;
     });
