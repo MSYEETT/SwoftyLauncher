@@ -155,3 +155,4 @@ tables evaluated by `Ai_Eval_LookaheadGraph`.)
   live `AiHandlingConfig` table.
 
 ## Inbox
+- 2026-10-28 11:55 car-re: car-d (car-re), 2026-10-28: AI-only PHYSICS knobs (all VTF data, no difficulty multiplier found): BrakeECU ASCStrengthForAI (2025 Ferrari 0.0), ASCMaxBrakeAI 0.5, ASCMinYawRatioAI 0.25, ASCMaxYawRatioAI 0.75, BrakeMigrationTorqueAI 450 (Car_Read_BrakeECU 0x1446752f0); tyre SlipRatioMin/MaxLimitAIDegrees and WetnessDownslopeFactorAI/SpeedDownslopeFactorAI (Car_Read_SuspensionSystem 0x1446aa090); Vehicle.FineUpdateRateAI and Vehicle.TyreContactSubStepCycleAI (Game_Read_VehicleConfig 0x14463a800). Scenario rules parser Car_Parse_ScenarioRules 0x14139d600 (L1) carries ai_level + vehicle_mass and distance-based difficulty_at_min/max_distance + vehicle_mass_at_min/max_distance: a scripted AI-level/mass handicap path worth tracing for the difficulty slider question. Notes: subsystems/car.md#ai.
