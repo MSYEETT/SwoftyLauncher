@@ -653,7 +653,13 @@ impl<'a> Planner<'a> {
                 *self.track_removals.entry(origin.addon.clone()).or_default() += ours.track_removals;
             }
             if let (Some(lists), Some(was)) = (lists, was) {
-                let kept = lists.keep(db, &was);
+                let (kept, left_out) = lists.keep(db, &was);
+                self.skipped.extend(left_out.into_iter().map(|l| {
+                    format!(
+                        "{}: left out the entrant list {l}: its drivers, teams or cars are missing from the database",
+                        origin.addon
+                    )
+                }));
                 if !kept.is_empty() {
                     self.kept_lists
                         .entry(origin.addon.clone())

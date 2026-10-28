@@ -3761,7 +3761,7 @@ mod tests {
         assert_eq!(
             out.get_text(&format!("{lists}._entrant_list_instancecount_"))
                 .as_deref(),
-            Some("4")
+            Some("3")
         );
         assert_eq!(
             out.get_text(&format!("{lists}.entrant_list_1._metadata_"))
@@ -3774,7 +3774,7 @@ mod tests {
             ("display_name", "lng_f2_2026"),
         ] {
             assert_eq!(
-                out.get_text(&format!("{lists}.entrant_list_3.{field}"))
+                out.get_text(&format!("{lists}.entrant_list_2.{field}"))
                     .as_deref(),
                 Some(value)
             );
