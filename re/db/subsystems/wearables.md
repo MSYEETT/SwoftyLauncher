@@ -35,3 +35,4 @@ Item rows (`customisation.custom_avatar.suits.Suit_N`, `gloves.Gloves_N`, `helme
 - `Wear_Resolve_SuitSetup`/`Wear_Resolve_GloveSetup` (0x142490800/0x142490a70) are L1: called with the suit/gloves label from both loaders.
 
 ## Inbox
+- 2026-10-28 23:56 team-v1: team-v1 2026-10-28: Wear_Resolve_SuitSetup 0x142490800 and Wear_Resolve_GloveSetup 0x142490a70 re-read (V rows filed): setup = {vtable, kind byte 2 suit / 3 gloves at +8, u16 id at +10}; id = row field 'id' if the key <table>.<row>.id exists else 'stat_id'; 0xffff when the label is missing; no colours. proto: void *Wear_Resolve_SuitSetup(void *out, const char *label, char flag). Ready to raise to L2 by the lane owner (kb.py refused wear-re: wearables is owned by re-wear). Also: wearables.md cites 0x1413e8d52 for the driver-customisation availability pass; that address is the selection_domains pass, the real one compares at 0x1413eadf9..0x1413eae16.
