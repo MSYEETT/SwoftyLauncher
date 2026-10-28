@@ -1388,7 +1388,7 @@ fn season_2012(e: &Evidence) -> Diagnosis {
              The crash comes from the cars {addon} adds, and it happens with and without Classic Seasons on."
         ),
         steps: vec![
-            format!("Turn off {addon} in your profile, or turn off Classic Seasons while you play 2012."),
+            format!("Turn off {addon} in your profile, then press Play again."),
             "Press Play again.".to_owned(),
             format!("Report the crash to the author of {addon}."),
         ],
