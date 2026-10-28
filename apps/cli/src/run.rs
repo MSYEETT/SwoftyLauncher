@@ -448,7 +448,13 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     }
     say("info", &format!("game build supported: {}", probe.report));
     let journal = swofty_core::offline::journal_path(&store.root);
-    for note in swofty_core::offline::stage(&game, &artifacts, &journal)? {
+    let staged = swofty_core::offline::stage(&game, &artifacts, &journal);
+    if let Err(swofty_core::Error::MissingStock { files, version }) = &staged {
+        swofty_core::stock::Report::missing(files.clone(), &game, version.clone())
+            .write(&store.root)
+            .ok();
+    }
+    for note in staged? {
         say("info", &format!("offline play: {note}"));
     }
     say(
