@@ -39,3 +39,6 @@ mkdir -p "$OUT"
 "${PIN[@]}" zig c++ -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -I../../packages/sdk/include \
     -o "$OUT/storage_logic_test" storage_logic_test.cpp
 "$OUT/storage_logic_test"
+"${PIN[@]}" zig c++ -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -I../../packages/sdk/include \
+    -o "$OUT/state_logic_test" state_logic_test.cpp
+"$OUT/state_logic_test"

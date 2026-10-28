@@ -57,9 +57,9 @@ fn edits(host: &mut Host) -> Value {
 
 // The values the core applied in the last session, or null before the game has run once
 fn last_session(host: &mut Host) -> Value {
-    host.call("game_dir", Value::Null)
+    host.call("registry_dir", Value::Null)
         .ok()
-        .and_then(|d| d.as_str().map(|d| format!("{d}/swofty/registry/effective.json")))
+        .and_then(|d| d.as_str().map(|d| format!("{d}/effective.json")))
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|t| serde_json::from_str(&t).ok())
         .unwrap_or(Value::Null)

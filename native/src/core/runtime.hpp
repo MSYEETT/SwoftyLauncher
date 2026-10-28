@@ -42,6 +42,7 @@ const json::Value &config();
 const std::string &config_source();
 const std::wstring &game_root();
 const std::wstring &swofty_root();
+const std::wstring &state_root();
 bool enabled(const char *feature, const char *what);
 std::string load_stage();
 bool same_build();

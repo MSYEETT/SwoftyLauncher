@@ -64,6 +64,7 @@ game_original            { rel }          a path to a clean copy of the file
 game_original_lang       { code }         a path to the stock language_<code>.lng
 game_dir          1.0.10                  the game folder, or null                              Folders
 addon_game_dir    1.0.10                  the addon's folder in the game, or null
+registry_dir      1.6.0                   the folder of the core's reports: effective.json, conflicts.json
 steam_save_dir    1.0.10                  the Steam Cloud save folder, or null
 game_status       1.0.10                  { running, pid, since, session }                      Game status
 profile_tracks    1.0.12                  the tracks in the profile's last build, or null       Profile tracks

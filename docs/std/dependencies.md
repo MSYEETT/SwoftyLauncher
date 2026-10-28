@@ -135,7 +135,7 @@ SWOFTY_REGISTER
 
 - **A `venue/…` reference** resolves to the last enabled track in load order that provides it, like every other contest. An exact id (`mod.sochi/sochi`) pins one addon. When two enabled tracks provide one venue, the conflicts view lists both.
 - **A track's venue comes from its record,** never from its code. `mod.bahrain24` uses the `bahrain24` slot and is Sepang.
-- **Stat ids are kept.** The core keeps one stat-id store per install, in the game, at `<game>/swofty/registry/ids.json`. The first id a track, driver, team or vehicle gets stays with it. An id is given to another record only when no career uses it.
+- **Stat ids are kept.** The core keeps one stat-id store per install, in the launcher's data folder, at `$DATA/registry/ids.json`. The first id a track, driver, team or vehicle gets stays with it. An id is given to another record only when no career uses it.
 - **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, the guard stops the load and names both records.
 
 ```text
@@ -316,7 +316,7 @@ Each season of a career uses a box, chosen when the career was created. When the
 
 ## Careers remember what they were made with
 
-Every career gets an id and a dependency record when it's created. The record is written again at each Team HQ visit after a change. It's saved in the career's entry in `swofty_registry`, the save container the core keeps outside the game's save heap, and mirrored to `<game>/swofty/careers/index.json` for the launcher:
+Every career gets an id and a dependency record when it's created. The record is written again at each Team HQ visit after a change. It's saved in the career's entry in `swofty_registry`, the save container the core keeps outside the game's save heap, and mirrored to `$DATA/careers/index.json` in the launcher's data folder:
 
 ```json
 // career.deps "f1_career_progressive/pg-1849223-max_verstappen"
