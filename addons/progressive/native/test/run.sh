@@ -78,3 +78,5 @@ export ZIG_GLOBAL_CACHE_DIR=$OUT/zig-cache ZIG_LOCAL_CACHE_DIR=$OUT/zig-cache
 "$OUT/fuel_logic_test"
 
 register/run.sh
+
+PG_TEST_DIR=$OUT records/run.sh

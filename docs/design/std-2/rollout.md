@@ -43,6 +43,7 @@ Each release goes through the usual flow: a prep commit on main, the main CI, th
   - an addon's tile in the launcher and in ADDON SETTINGS shows a status line when something didn't apply.
 - **Developer mode** in the launcher, with the `swofty dev` tools: `new`, `link`, `run`, `logs`, `check`, `test` with a fake core, and `pack`. `swofty dev pack` runs the addon's `SWOFTY_REGISTER` against a recorder and writes `registry.lock.json`: the ids it registers, their labels and what it provides. Nothing is applied from it.
 - **Progressive Career on the registry:** it provides `career::seasons` and `career::ratings`, every DLL reads the effective values instead of `years.json`, and it publishes the `progressive.history` service and the `swofty.progressive.season.apply` point. Its `GetProcAddress` exports stay.
+- **The first career operations,** moved into the core from Progressive's proven seat, swap and ratings code: `career::apply_lineup`, `career::set_driver_ratings`, `career::swap_drivers` and `career::set_slots`. Progressive calls them on a 1.6 core and keeps its own path for older cores.
 - **Classic Seasons on the registry:** each season addon provides its `content::packages`, `content::era_boxes`, `cars::vehicles` and `sounds::engine_sounds` records under its own keys. Its hand-written operations shrink to what those records don't cover.
 - **Two example addons**, which the first two guides build:
   - `templates/std/whatif`: a launcher page that saves seats in the addon's per-profile storage, and a DLL that applies them as a `Scope::profile` layer on `career::seasons`;
@@ -84,7 +85,7 @@ Each release goes through the usual flow: a prep commit on main, the main CI, th
 **Ships:**
 
 - `teams::identities` and `teams::logos` (names, colours, logos), and `drivers::identities` (names, numbers, looks);
-- the operations `career::apply_lineup`, `career::set_seat`, `career::set_driver_ratings`, `career::set_car_number`, `teams::set_logo` and `tracks::set_track_fuel`.
+- the operations `career::set_seat`, `career::set_car_number`, `teams::set_logo` and `tracks::set_track_fuel` (`career::apply_lineup`, `career::set_driver_ratings` and `career::swap_drivers` ship in 1.6.0).
 
 **Done when:** Progressive and Career Editor call the operations instead of their own copies of that code.
 
