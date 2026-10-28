@@ -32,6 +32,26 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/content.package/1.0.json"),
     ),
     (
+        "driver.head",
+        include_str!("../../../sdk/std/registries/driver.head/1.0.json"),
+    ),
+    (
+        "driver.identity",
+        include_str!("../../../sdk/std/registries/driver.identity/1.0.json"),
+    ),
+    (
+        "driver.look",
+        include_str!("../../../sdk/std/registries/driver.look/1.0.json"),
+    ),
+    (
+        "driver.person",
+        include_str!("../../../sdk/std/registries/driver.person/1.0.json"),
+    ),
+    (
+        "driver.stats",
+        include_str!("../../../sdk/std/registries/driver.stats/1.0.json"),
+    ),
+    (
         "engine_sound",
         include_str!("../../../sdk/std/registries/engine_sound/1.0.json"),
     ),
@@ -40,12 +60,41 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/era.box/1.0.json"),
     ),
     (
+        "gloves",
+        include_str!("../../../sdk/std/registries/gloves/1.0.json"),
+    ),
+    (
+        "helmet",
+        include_str!("../../../sdk/std/registries/helmet/1.0.json"),
+    ),
+    ("suit", include_str!("../../../sdk/std/registries/suit/1.0.json")),
+    (
+        "team.constructor",
+        include_str!("../../../sdk/std/registries/team.constructor/1.0.json"),
+    ),
+    (
+        "team.identity",
+        include_str!("../../../sdk/std/registries/team.identity/1.0.json"),
+    ),
+    (
+        "team.logo",
+        include_str!("../../../sdk/std/registries/team.logo/1.0.json"),
+    ),
+    (
+        "team.pit_times",
+        include_str!("../../../sdk/std/registries/team.pit_times/1.0.json"),
+    ),
+    (
         "vehicle",
         include_str!("../../../sdk/std/registries/vehicle/1.0.json"),
     ),
     (
         "vehicle.package",
         include_str!("../../../sdk/std/registries/vehicle.package/1.0.json"),
+    ),
+    (
+        "wearable.season_set",
+        include_str!("../../../sdk/std/registries/wearable.season_set/1.0.json"),
     ),
 ];
 
@@ -273,6 +322,9 @@ mod tests {
                 "swofty.classic-seasons-2017/ferrari": { "model": { "erp": "cars/ferrari.erp", "resources": ["eaid://x"] } },
                 "game/mercedes_2025": { "model": { "stock": "2025_asset_groups/x.erp" } }
               },
+              "team.logo": { "williams_2017": { "images": { "hud": "logos/williams_hud.png", "hub": { "stock": "ui/hub.png" } } } },
+              "helmet": { "hamilton_2017": { "archive": "helmets/hamilton_2017.erp", "colours": null } },
+              "driver.head": { "senna": { "archive": "heads/senna/", "rig_from": "game/male_ls222" } },
               "someone.own": { "x": { "file": "not/a/schema/path.bin" } },
               "career.season": { "y": { "name": "sounds/v10_screamer.bdl" } }
             }"#,
@@ -281,7 +333,14 @@ mod tests {
         named.sort();
         assert_eq!(
             named,
-            ["cars/ferrari.erp", "cars/ferrari/", "sounds/v10_screamer.bdl"]
+            [
+                "cars/ferrari.erp",
+                "cars/ferrari/",
+                "heads/senna/",
+                "helmets/hamilton_2017.erp",
+                "logos/williams_hud.png",
+                "sounds/v10_screamer.bdl"
+            ]
         );
     }
 

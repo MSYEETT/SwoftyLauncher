@@ -12,7 +12,7 @@ registries/
       must-fail/      data files that every schema of their major refuses
 ```
 
-The 1.6.0 registries: `career.season`, `career.driver_ratings`, `content.package`, `era.box`, `vehicle`, `vehicle.package`, `engine_sound`.
+The 1.6.0 registries: `career.season`, `career.driver_ratings`, `content.package`, `era.box`, `vehicle`, `vehicle.package`, `engine_sound`, `team.constructor`, `team.identity`, `team.logo`, `team.pit_times`, `driver.person`, `driver.identity`, `driver.head`, `driver.look`, `driver.stats`, `helmet`, `suit`, `gloves`, `wearable.season_set`.
 
 ## A schema file
 

@@ -32,10 +32,23 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("career.driver_ratings", "1.0"),
     ("career.season", "1.0"),
     ("content.package", "1.0"),
+    ("driver.head", "1.0"),
+    ("driver.identity", "1.0"),
+    ("driver.look", "1.0"),
+    ("driver.person", "1.0"),
+    ("driver.stats", "1.0"),
     ("engine_sound", "1.0"),
     ("era.box", "1.0"),
+    ("gloves", "1.0"),
+    ("helmet", "1.0"),
+    ("suit", "1.0"),
+    ("team.constructor", "1.0"),
+    ("team.identity", "1.0"),
+    ("team.logo", "1.0"),
+    ("team.pit_times", "1.0"),
     ("vehicle", "1.0"),
     ("vehicle.package", "1.0"),
+    ("wearable.season_set", "1.0"),
 ];
 
 /// What the launcher knows about one addon's 1.6 files.
