@@ -399,9 +399,7 @@ int settings_get(const char *id, uint32_t type, SwoftySettingValue *out)
     if (ok && out) {
         Option shown = *o;
         shown.current = older::option_current(rec, option_states(*o), o->current);
-        *out = value_of(shown.current == o->current ? *o : shown);
-        if (shown.current != o->current)
-            *out = value_of(*o, shown.current);
+        *out = value_of(shown);
     }
     ReleaseSRWLockExclusive(&lock);
     const char *want = type < 4 ? type_names[type] : "?";
