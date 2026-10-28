@@ -388,6 +388,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "A year pack", link: "/make/year-pack", icon: "file" },
               { text: "A career mode", link: "/make/career", icon: "file" },
               { text: "Your own system", link: "/make/own-system", icon: "file" },
+              { text: "Moving a 1.5 addon to the registry", link: "/make/migrate", icon: "file" },
             ],
           },
           {
