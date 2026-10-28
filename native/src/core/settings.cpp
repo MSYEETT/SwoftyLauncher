@@ -203,9 +203,9 @@ BOOL CALLBACK close_main(HWND h, LPARAM count)
     return TRUE;
 }
 
-SwoftySettingValue value_of(const Option &o)
+SwoftySettingValue value_of(const Option &o, size_t at)
 {
-    const State &s = o.states[o.current];
+    const State &s = o.states[at];
     SwoftySettingValue v{o.type, 0, 0, nullptr};
     if (o.type == SWOFTY_SETTING_TOGGLE)
         v.toggle = s.value.b;
@@ -397,9 +397,7 @@ int settings_get(const char *id, uint32_t type, SwoftySettingValue *out)
     bool ok = o && o->type == type;
     bool warn = !ok && warned.insert((w->addon < 0 ? w->dll : addons[w->addon].id) + '\n' + id).second;
     if (ok && out) {
-        Option shown = *o;
-        shown.current = older::option_current(rec, option_states(*o), o->current);
-        *out = value_of(shown);
+        *out = value_of(*o, older::option_current(rec, option_states(*o), o->current));
     }
     ReleaseSRWLockExclusive(&lock);
     const char *want = type < 4 ? type_names[type] : "?";
@@ -473,13 +471,15 @@ bool settings_command(uint32_t hash)
     Option *o = c.kind == SET ? &m->options[c.option] : nullptr;
     std::vector<Watcher> call;
     SwoftySettingValue v{};
+    Option changed;
     AcquireSRWLockExclusive(&io);
     AcquireSRWLockExclusive(&lock);
     if (o) {
         o->current = c.state;
         o->requested = true;
         call = o->watchers;
-        v = value_of(*o);
+        v = value_of(*o, o->current);
+        changed = *o;
     } else if (m) {
         m->enabled = (int)c.state;
     } else {
@@ -488,6 +488,8 @@ bool settings_command(uint32_t hash)
     unsigned long long n = ++seq;
     std::string text = requests_text();
     ReleaseSRWLockExclusive(&lock);
+    if (o)
+        put_option(m->id, changed);
     if (o)
         api->log("[settings] %s.%s = %s", m->id.c_str(), o->id.c_str(), o->states[c.state].text.c_str());
     else if (m)
