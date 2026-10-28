@@ -830,8 +830,10 @@ typedef struct SwoftyServices {
    qualifying fuel), {"track", "set", "burn_per_lap": <kg>}, or {"copy": [{"set", "from"}, ...], "track"}
    (every pair checked before anything is written), or {"restore": true}; "why" names the reason in the
    log. The data sets are f1_2025, sprint_f1_2025, f1_2026 and sprint_f1_2026. The core puts the bytes
-   back on career.unloaded and on restore. */
-#define SWOFTY_CAREER_OPS_VERSION 4
+   back on career.unloaded and on restore. Table version 5 adds set_logo(team_id, logo_id): the team.identity
+   record's logo for the rest of the session is the team.logo record (both ids as the registry spells them);
+   SWOFTY_REFUSED when either record does not exist. */
+#define SWOFTY_CAREER_OPS_VERSION 5
 enum { SWOFTY_REFUSED = 5 };
 enum { SWOFTY_NUMBER_SWAP = 1 };
 
@@ -848,6 +850,7 @@ typedef struct SwoftyCareerOps {
     int (*set_seat)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_car_number)(uint32_t driver_stat, int32_t number, uint32_t flags);
     int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
+    int (*set_logo)(const char *team_id, const char *logo_id);
 } SwoftyCareerOps;
 
 typedef struct SwoftyApi {

@@ -102,7 +102,7 @@ Result set_car_number(Ref<drivers::Identity> driver, int number);
 }
 // swofty/systems/teams.hpp
 namespace swofty::teams {
-Result set_logo(Ref<Identity> team, Ref<Logo> logo);
+Result set_logo(Ref<Identity> team, Ref<Logo> logo);     // career operations table version 5
 Result set_name(Ref<Identity> team, Names names);
 }
 // swofty/systems/tracks.hpp
