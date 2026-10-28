@@ -134,6 +134,8 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+// W4 career snapshots (native/src/core/snapshots/runtime.cpp): started once the save splice settles.
+void snapshots_start(bool splice_live);
 std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 void hud_setup();
