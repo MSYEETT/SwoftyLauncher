@@ -5024,6 +5024,7 @@ mod tests {
     fn a_resource_edit_that_leaves_stale_tsmd_stats_gets_them_rebuilt() {
         use swofty_formats::bxml::{Document, Element, Kind};
         use swofty_formats::erp::{Erp, Fragment, HEADER_LEN, MAGIC, Resource, STORED};
+        let _pin = crate::builtin::LoaderPin::none();
         let root = std::env::temp_dir().join(format!("swofty-build-tsmd-{}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         let dir = root.join("game");
