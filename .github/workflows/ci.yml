@@ -374,6 +374,8 @@ jobs:
         run: native/test/run_events_test.sh
       - name: swofty::json unit test
         run: native/test/run_json_test.sh
+      - name: Schema check unit and agreement test
+        run: native/test/run_schema_test.sh
       - name: Standard library 1.6 headers compile test
         run: native/test/run_sdk_headers_test.sh
       - name: Overlay draw-list unit test
