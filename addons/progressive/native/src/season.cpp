@@ -57,7 +57,9 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
+#include <array>
 #include <cstring>
+#include <optional>
 #include <map>
 #include <mutex>
 #include <set>
@@ -73,6 +75,8 @@
 #include <swofty/events.hpp>
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
+#include <swofty/registry.hpp>
+#include <swofty/systems/teams.hpp>
 #include <swofty/json.hpp>
 #include <swofty/storage.hpp>
 
@@ -357,21 +361,29 @@ void clear_titles()
         swofty::lang::clear(key);
 }
 
+std::optional<std::array<std::string, 3>> identity_names(const std::string &team)
+{
+    if (!swofty::detail::registry_table())
+        return std::nullopt;
+    std::optional<swofty::teams::Identity> rec = swofty::teams::identities.get(swofty::Ref<swofty::teams::Identity>(team));
+    if (!rec)
+        return std::nullopt;
+    auto literal = [](const swofty::Text &t) { return t.is_literal() ? t.str() : std::string(); };
+    return std::array<std::string, 3>{literal(rec->names.title), literal(rec->names.short_name),
+                                      literal(rec->names.super_short)};
+}
+
 void set_names(int year, const char *why)
 {
     if (!swofty::lang::available() || !data())
         return;
-    const season::Year *y = g_data.year(year);
     size_t set = 0;
-    for (int i = 0; i < season::kSlots; ++i)
-        for (auto &key : g_data.slots[i].name_keys) {
-            if (key.empty())
-                continue;
-            if (year >= season::kLastYear || !y || y->teams[i].name.empty())
-                swofty::lang::clear(key);
-            else if (swofty::lang::set(key, y->teams[i].name) == swofty::lang::Result::ok)
-                ++set;
-        }
+    for (auto &w : season::team_name_writes(g_data, year, identity_names)) {
+        if (w.clear)
+            swofty::lang::clear(w.key);
+        else if (swofty::lang::set(w.key, w.text) == swofty::lang::Result::ok)
+            ++set;
+    }
     set_titles(year, why);
     swofty::lang::refresh();
     g_names_year = year;

@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -396,6 +397,45 @@ inline bool names_new_teams(const Data &d, int year)
         if (!y->teams[i].team_id.empty() && y->teams[i].team_id != d.slots[i].team)
             return true;
     return false;
+}
+
+inline bool added_team(const Data &d, const Year &y, int slot)
+{
+    const std::string &id = y.teams[slot].team_id;
+    return !id.empty() && id != d.slots[slot].team && id.rfind("constructor/", 0) != 0;
+}
+
+struct NameWrite {
+    std::string key, text;
+    bool clear = false;
+};
+
+using IdentityNames = std::function<std::optional<std::array<std::string, 3>>(const std::string &team)>;
+
+inline std::vector<NameWrite> team_name_writes(const Data &d, int year, const IdentityNames &identity)
+{
+    std::vector<NameWrite> out;
+    const Year *y = d.year(year);
+    for (int i = 0; i < kSlots; ++i) {
+        bool added = year < kLastYear && y && added_team(d, *y, i);
+        std::optional<std::array<std::string, 3>> own;
+        if (added && identity)
+            own = identity(y->teams[i].team_id);
+        for (size_t k = 0; k < d.slots[i].name_keys.size(); ++k) {
+            const std::string &key = d.slots[i].name_keys[k];
+            if (key.empty())
+                continue;
+            if (year >= kLastYear || !y)
+                out.push_back({key, {}, true});
+            else if (added)
+                out.push_back(own && !(*own)[k].empty() ? NameWrite{key, (*own)[k], false} : NameWrite{key, {}, true});
+            else if (y->teams[i].name.empty())
+                out.push_back({key, {}, true});
+            else
+                out.push_back({key, y->teams[i].name, false});
+        }
+    }
+    return out;
 }
 
 inline std::string season_team(const Data &d, const Plan &p, int slot)
