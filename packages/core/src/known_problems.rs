@@ -139,6 +139,8 @@ pub struct Evidence {
     pub loader: String,
     /// The crash report the core wrote for the session, when it can be found.
     pub report: Option<String>,
+    /// The session's perf.log.
+    pub perf: Option<String>,
     /// The names of the files and folders in the game folder.
     pub game_files: Vec<String>,
     /// Addon names by id, for addons the rules name.
@@ -163,6 +165,7 @@ impl Evidence {
             .find(|p| p.is_file())
             .and_then(|p| read_capped(&p))
             .unwrap_or_default();
+        let perf = read_perf(&session.dir);
         let report = report_name(&loader).and_then(|name| {
             let mut dirs = vec![session.dir.clone(), session.dir.join("game-logs")];
             if let Some(game) = game {
@@ -188,6 +191,7 @@ impl Evidence {
         Self {
             loader,
             report,
+            perf,
             game_files,
             names,
             code,
@@ -218,12 +222,29 @@ impl Evidence {
 
 /// The cause of the crash `session` ended with, when a rule recognises it.
 pub fn crash(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Option<Diagnosis> {
+    diagnose(&evidence(session, game, store))
+}
+
+/// Why `session`, which ended without a crash, never got going, when a rule
+/// recognises it.
+pub fn stall(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Option<Diagnosis> {
+    perf_start_screen(&read_perf(&session.dir)?).filter(|s| *s >= BOOT_STALL_SECS)?;
+    stalled(&evidence(session, game, store))
+}
+
+fn evidence(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Evidence {
     let addons = store.addons().unwrap_or_default();
     let names = addons
         .iter()
         .map(|(id, m)| (id.clone(), m.name.clone()))
         .collect();
-    diagnose(&Evidence::read(session, game, names).with_profile(store, &addons))
+    Evidence::read(session, game, names).with_profile(store, &addons)
+}
+
+fn read_perf(dir: &Path) -> Option<String> {
+    ["perf.log", "game-logs/perf.log"]
+        .iter()
+        .find_map(|rel| read_capped(&dir.join(rel)))
 }
 
 fn read_capped(path: &Path) -> Option<String> {
@@ -699,6 +720,13 @@ const PITLANE_AFTER_SECS: f64 = 0.5;
 /// The highest control mode a car really has; Manual Pit Lane prints a
 /// garbage one when it read the car as the game moved it.
 const PITLANE_MODES: u64 = 0xffff;
+/// Addons known to keep F1 25 on Loading... after Press any button, so it never
+/// reaches the main menu.
+const BOOT_STALLS: &[&str] = &["crew8006.bp-ultimate-livery"];
+/// The screen F1 25 shows after Press any button while it loads the main menu.
+const START_SCREEN: &str = "splash_transition";
+/// How long a session that ended on that screen had been on it to count as stuck.
+const BOOT_STALL_SECS: f64 = 45.0;
 
 fn name(e: &Evidence, id: &str) -> String {
     e.names.get(id).cloned().unwrap_or_else(|| id.to_owned())
@@ -1021,6 +1049,11 @@ fn hang(e: &Evidence, f: &Fatal, mods: &[(&'static str, Vec<String>)]) -> Diagno
         let addon = name(e, &addon);
         what.push_str(&format!(" {addon} kept the game busy while it froze."));
         steps.push(format!("Turn off {addon} in your profile, then play again."));
+    } else if let Some((addon, _)) = boot_stall(e) {
+        what.push_str(&format!(
+            " It never got past Loading... after Press any button, which {addon} is known to cause."
+        ));
+        steps.push(format!("Turn off {addon} in your profile, then play again."));
     } else if let Some((module, vendor, frame_gen)) = driver_error_before(e, f) {
         let during = frame_gen.map(|w| format!(" during {w}")).unwrap_or_default();
         what.push_str(&format!(
@@ -1058,6 +1091,114 @@ fn hang(e: &Evidence, f: &Fatal, mods: &[(&'static str, Vec<String>)]) -> Diagno
         what,
         steps,
     }
+}
+
+/// A row of perf.log's timeline: when it started, in seconds after the core
+/// attached, and what the game was doing.
+fn timeline_row(line: &str) -> Option<(f64, &str)> {
+    let mut rest = line;
+    let mut at = None;
+    for i in 0..6 {
+        let (field, more) = rest.trim_start().split_once(' ')?;
+        match i {
+            0 => {
+                let mut hms = field.split(':').map(|n| n.parse::<u32>().ok());
+                let (h, m, s) = (hms.next()??, hms.next()??, hms.next()??);
+                at = Some(f64::from(h * 3600 + m * 60 + s));
+            }
+            _ if field != "-" && field.parse::<f64>().is_err() => return None,
+            _ => {}
+        }
+        rest = more;
+    }
+    let what = rest.trim_start();
+    let what = what.split("  [").next().unwrap_or(what);
+    Some((at?, what.trim_end().trim_end_matches(" (current)")))
+}
+
+/// How long the game had been on the start screen when perf.log was last
+/// written, when that is the last screen its timeline shows.
+fn perf_start_screen(perf: &str) -> Option<f64> {
+    let uptime: f64 = perf
+        .lines()
+        .find_map(|l| l.strip_prefix("uptime: "))?
+        .split(' ')
+        .next()?
+        .parse()
+        .ok()?;
+    let mut timeline = false;
+    let mut last = None;
+    for line in perf.lines() {
+        if let Some(section) = line.strip_prefix("== ") {
+            timeline = section.starts_with("Timeline");
+            continue;
+        }
+        let Some((at, what)) = timeline.then(|| timeline_row(line)).flatten() else {
+            continue;
+        };
+        if let Some(screen) = what.split("; ").filter_map(|w| w.strip_prefix("screen ")).last() {
+            last = Some((at, screen));
+        }
+    }
+    let (at, screen) = last?;
+    (screen == START_SCREEN).then_some(uptime - at)
+}
+
+/// How long the game had been on the start screen when it ended: from the
+/// crash report's black box, or else perf.log.
+fn start_screen_secs(e: &Evidence) -> Option<f64> {
+    let screen = e.report.as_deref().and_then(|r| {
+        r.lines()
+            .find_map(|l| l.trim_start().strip_prefix("last screen"))
+            .map(str::trim_start)
+    });
+    match screen {
+        Some(screen) => {
+            let rest = screen
+                .strip_prefix(START_SCREEN)?
+                .trim_start()
+                .strip_prefix('(')?;
+            rest.split(' ').next()?.parse().ok()
+        }
+        None => perf_start_screen(e.perf.as_deref()?),
+    }
+}
+
+/// An addon known to stall the boot, when the game sat on the start screen for
+/// [`BOOT_STALL_SECS`] or more and never left it: its name and the seconds.
+fn boot_stall(e: &Evidence) -> Option<(String, f64)> {
+    let secs = start_screen_secs(e).filter(|s| *s >= BOOT_STALL_SECS)?;
+    let on = |id: &str| match e.enabled.is_empty() {
+        true => e.names.contains_key(id),
+        false => e.enabled.iter().any(|on| on == id),
+    };
+    let id = BOOT_STALLS.iter().find(|id| on(id))?;
+    Some((name(e, id), secs))
+}
+
+fn minutes(secs: f64) -> String {
+    match (secs / 60.0).round() as u64 {
+        0 | 1 => format!("{} seconds", secs.round() as u64),
+        n => format!("{n} minutes"),
+    }
+}
+
+/// The cause of a session that ended without a crash, from the first rule that
+/// recognises it.
+pub fn stalled(e: &Evidence) -> Option<Diagnosis> {
+    let (addon, secs) = boot_stall(e)?;
+    Some(Diagnosis {
+        id: "boot_stall",
+        title: format!("{addon} kept F1 25 on the loading screen"),
+        what: format!(
+            "F1 25 stayed on Loading... after Press any button for {} and never reached the main menu. \
+             {addon} is known to cause this.",
+            minutes(secs)
+        ),
+        steps: vec![format!(
+            "Turn off {addon} in your profile, then press Play again."
+        )],
+    })
 }
 
 /// F1 25's Insufficient Storage dialog: the drive it names, and the MiB free
@@ -1746,6 +1887,119 @@ mod tests {
         );
     }
 
+    fn perf(rows: &[&str], uptime: u32) -> String {
+        format!(
+            "Swofty Launcher performance report (format 1)\n\
+             == Summary\n\
+             uptime: {uptime} s\n\
+             \n\
+             == Timeline (last 15; each row runs until the next one)\n\
+             at          took ms   frames   slow   worst ms  swofty ms  what\n{}\n",
+            rows.join("\n")
+        )
+    }
+
+    const SPLASH: &[&str] = &[
+        "00:00:37      44811     2157      4        624      33.71  screen splash  [core flow tick 20.39 ms]",
+        "00:01:27       1772      105      0         18      57.27  flow #a4d3a4b2 Exiting; flow #04fc8ffa Entering  [core flow tick 50.48 ms]",
+        "00:01:29     232600    13654      7       1866     331.45  screen splash_transition  [core flow tick 306.18 ms]",
+        "00:05:21      86418     5061      3       1219          -  flow #04fc8ffa Exiting (current)",
+    ];
+
+    const LIVERY: (&str, &str) = ("crew8006.bp-ultimate-livery", "BP Ultimate Livery");
+
+    fn stuck(rows: &[&str], uptime: u32, names: &[(&str, &str)]) -> Evidence {
+        with_names(
+            Evidence {
+                perf: Some(perf(rows, uptime)),
+                ..Default::default()
+            },
+            names,
+        )
+    }
+
+    #[test]
+    fn reads_the_last_screen_from_the_perf_timeline() {
+        assert_eq!(perf_start_screen(&perf(SPLASH, 408)), Some(319.0));
+        let menu = [
+            SPLASH[2],
+            "00:01:45      27019     2404     15        271     189.46  flow #04fc8ffa Exiting; screen playercard  [x]",
+            "00:02:12        653       31      0         50      11.96  screen fe_home (current)",
+        ];
+        assert_eq!(perf_start_screen(&perf(&menu, 408)), None);
+        assert_eq!(
+            timeline_row(
+                "00:04:44    2585578   469557      7       1420          -  screen splash_transition (current)"
+            ),
+            Some((284.0, "screen splash_transition"))
+        );
+        assert_eq!(
+            timeline_row("at          took ms   frames   slow   worst ms  swofty ms  what"),
+            None
+        );
+    }
+
+    #[test]
+    fn a_boot_stuck_on_loading_names_the_addon_known_to_cause_it() {
+        let d = stalled(&stuck(
+            SPLASH,
+            408,
+            &[LIVERY, ("giggles.helmet-exchange", "Helmet Exchange")],
+        ))
+        .unwrap();
+        assert_eq!(d.id, "boot_stall");
+        assert_eq!(d.title, "BP Ultimate Livery kept F1 25 on the loading screen");
+        assert!(d.what.contains("for 5 minutes"), "{}", d.what);
+        assert_eq!(
+            d.steps,
+            ["Turn off BP Ultimate Livery in your profile, then press Play again."]
+        );
+        assert_eq!(
+            stalled(&stuck(
+                SPLASH,
+                408,
+                &[("giggles.helmet-exchange", "Helmet Exchange")]
+            )),
+            None
+        );
+        assert_eq!(
+            stalled(&stuck(SPLASH, 120, &[LIVERY])),
+            None,
+            "30 s is a normal load"
+        );
+        let mut off = stuck(SPLASH, 408, &[LIVERY]);
+        off.enabled = vec!["giggles.helmet-exchange".into()];
+        assert_eq!(stalled(&off), None, "installed but off");
+        let menu = [
+            SPLASH[2],
+            "00:05:21        653       31      0         50      11.96  screen fe_home (current)",
+        ];
+        assert_eq!(stalled(&stuck(&menu, 408, &[LIVERY])), None);
+    }
+
+    #[test]
+    fn the_hang_watchdog_on_the_loading_screen_names_the_addon_known_to_stall_it() {
+        let report = "== Game state (from the black box)\n  last flow      #04fc8ffa Entering (2584.6 s before this report)\n  \
+                      last screen    splash_transition (2581.5 s before this report)\n";
+        let mut e = with_names(ev(WATCHDOG, &["F1_25.exe"]), &[LIVERY]);
+        e.report = Some(report.to_owned());
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "hang_watchdog");
+        assert!(
+            d.what
+                .contains("never got past Loading... after Press any button, which BP Ultimate Livery"),
+            "{}",
+            d.what
+        );
+        assert_eq!(
+            d.steps[0],
+            "Turn off BP Ultimate Livery in your profile, then play again."
+        );
+        e.report = Some(report.replace("splash_transition", "fe_home"));
+        e.perf = Some(perf(SPLASH, 408));
+        assert!(!diagnose(&e).unwrap().what.contains("BP Ultimate Livery"));
+    }
+
     const GAME_HEAP: &str = "\
 2026-10-27 14:21:24.880 [17796] [crash] Ne heap error 0xc (fatal) on thread 17796: Allocation error. Requested size:3528, Free Memory:829408, Largest Free Block:1392, HeapSize:204472320, Alignment: 8; heap 00000000636F4590 'GAME_DEFAULT', capacity 204472320
 2026-10-27 14:21:24.880 [16100] [crash] writing a crash report: fatal Ne heap error 0xc in heap 'GAME_DEFAULT': Allocation error. Requested size:3528
@@ -2059,7 +2313,8 @@ mod tests {
     }
 
     /// `SWOFTY_KP_CASES=<folder of extracted Send Logs bundles> cargo test -p swofty-core --lib
-    /// diagnoses_real_bundles -- --ignored --nocapture` prints each crashed session's diagnosis.
+    /// diagnoses_real_bundles -- --ignored --nocapture` prints each crashed session's diagnosis,
+    /// and each other session a rule recognises.
     #[test]
     #[ignore]
     fn diagnoses_real_bundles() {
@@ -2108,12 +2363,9 @@ mod tests {
                     .iter()
                     .find_map(|rel| read_capped(&session.join(rel)))
                     .unwrap_or_default();
-                if !record.crashed()
-                    && !loader.contains("reached the top-level filter")
-                    && !loader.contains(LOW_DISK)
-                {
-                    continue;
-                }
+                let crashed = record.crashed()
+                    || loader.contains("reached the top-level filter")
+                    || loader.contains(LOW_DISK);
                 let report = report_name(&loader).and_then(|n| read_capped(&logs.join("crash").join(n)));
                 let game_files = report.as_deref().map(game_folder_modules).unwrap_or_default();
                 let mut e = Evidence::read(&record, None, BTreeMap::new());
@@ -2128,7 +2380,14 @@ mod tests {
                     kept_lists: conflicts.kept_lists.clone(),
                     ..e
                 };
-                let found = diagnose(&e).map_or_else(
+                let found = match crashed {
+                    true => diagnose(&e),
+                    false => stalled(&e),
+                };
+                if !crashed && found.is_none() {
+                    continue;
+                }
+                let found = found.map_or_else(
                     || "-".to_owned(),
                     |d| format!("{}\t{}\t{}", d.id, d.title, d.text()),
                 );

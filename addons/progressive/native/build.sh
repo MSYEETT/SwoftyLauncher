@@ -42,6 +42,9 @@ CXX=("${ZIG[@]}" c++ -target x86_64-windows-gnu -std=c++23)
     -o progressive_logos.dll src/ui/logos.cpp
 
 "${CXX[@]}" -O2 -Wall -Wextra -Wno-nullability-completeness -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
+    -o progressive_numbers.dll src/ui/numbers.cpp
+
+"${CXX[@]}" -O2 -Wall -Wextra -Wno-nullability-completeness -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
     -o progressive_teamlogos.dll src/ui/teamlogos.cpp
 
 "${CXX[@]}" -O2 -Wall -Wextra -Wno-nullability-completeness -I"$GAME" -I$SDK -D__USE_MINGW_ANSI_STDIO=1 -shared -s \
@@ -51,4 +54,4 @@ CXX=("${ZIG[@]}" c++ -target x86_64-windows-gnu -std=c++23)
     -o progressive_fuel.dll src/ui/fuel.cpp
 
 rm -f ./*.lib
-echo "built $(pwd)/progressive.dll progressive_ui.dll progressive_suffix.dll progressive_back.dll progressive_rnd.dll progressive_follow.dll progressive_cards.dll progressive_logos.dll progressive_teamlogos.dll progressive_resume.dll progressive_fuel.dll"
+echo "built $(pwd)/progressive.dll progressive_ui.dll progressive_suffix.dll progressive_back.dll progressive_rnd.dll progressive_follow.dll progressive_cards.dll progressive_logos.dll progressive_numbers.dll progressive_teamlogos.dll progressive_resume.dll progressive_fuel.dll"

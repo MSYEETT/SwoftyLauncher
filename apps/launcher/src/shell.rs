@@ -726,10 +726,11 @@ impl Shell {
                 self.launch = None;
             }
         }
-        if let Some(s) = probe.session.as_ref().filter(|s| s.crashed())
+        if let Some(s) = probe.session.as_ref().filter(|s| s.crashed() || s.end.is_some())
             && self.crash.as_ref().is_none_or(|(d, _)| *d != s.dir)
         {
             let session = s.clone();
+            let crashed = s.crashed();
             let game_dir = self.install.as_ref().map(|i| i.dir.clone());
             let store = self.store.clone();
             let fresh = s
@@ -741,6 +742,11 @@ impl Shell {
                 let (summary, diagnosis) = cx
                     .background_executor()
                     .spawn(async move {
+                        if !crashed {
+                            let stall =
+                                swofty_core::known_problems::stall(&session, game_dir.as_deref(), &store);
+                            return (Ok(String::new()), stall);
+                        }
                         let summary = game::crash_summary(&session, game_dir.as_deref());
                         let diagnosis =
                             swofty_core::known_problems::crash(&session, game_dir.as_deref(), &store);
@@ -748,10 +754,13 @@ impl Shell {
                     })
                     .await;
                 this.update(cx, |s, cx| {
-                    if let Ok(text) = &summary {
+                    if let Ok(text) = &summary
+                        && (crashed || diagnosis.is_some())
+                    {
                         s.crash_view = Some(CrashView {
                             dir: dir.clone(),
                             diagnosis,
+                            crashed,
                             summary: text.clone(),
                         });
                         s.crash_open |= fresh;
