@@ -590,14 +590,14 @@ mod tests {
 
     #[test]
     fn finds_the_layers_on_the_programs_that_start_the_game() {
-        let game = Path::new(r"E:\Games\F1 25");
+        let game = Path::new(r"D:\Games\F1 25");
         let user = concat!(
             "\r\n",
             "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers\r\n",
             "    C:\\Tools\\Swofty Launcher\\swofty-launcher.exe    REG_SZ    ~ WIN8RTM\r\n",
-            "    E:\\Games\\F1 25\\F1_25.exe    REG_SZ    ~ HIGHDPIAWARE\r\n",
+            "    D:\\Games\\F1 25\\F1_25.exe    REG_SZ    ~ HIGHDPIAWARE\r\n",
             "    D:\\Battlefield\\EAAntiCheat.GameServiceLauncher.exe    REG_SZ    ~ RUNASADMIN\r\n",
-            "    e:\\games\\f1 25\\eaanticheat.gameservicelauncher.exe    REG_SZ    WIN7RTM\r\n",
+            "    d:\\games\\f1 25\\eaanticheat.gameservicelauncher.exe    REG_SZ    WIN7RTM\r\n",
             "    C:\\Other\\EADesktop.exe.bak    REG_SZ    ~ RUNASADMIN\r\n",
             "    C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EALauncher.exe    REG_SZ    ~\r\n",
         );
