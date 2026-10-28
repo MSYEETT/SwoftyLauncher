@@ -5,7 +5,7 @@
 // up), offsets from the system pointer: the F1WingDamage data object is embedded at +0x18 (reader offset = field - 0x18;
 // data-class vtable vt_Car_F1WingDamageData 0x145bf9030, reader Car_Read_F1WingDamage_Thunk, writer Car_Write_F1WingDamage). Car_FrontWing_OnCollision 0x14465fdc0 is the impact callback: gated by
 // CarLive+0x130 bit 0, ignores near-vertical normals (|n.up| > 0.8) and impacts below +0x28/+0x40,
-// then damage = impulse * +0x2c, added to the left or right side by the impact's lateral sign and clamped
+// then damage = surface x +0x40 x impulse * +0x2c (V1300), added to the left or right side by the impact's lateral sign and clamped
 // to +0x38; overflow beyond the clamp goes to the F1SuspensionDamage system (CarLive+0x5d0) +0x138 left / +0x13c
 // right, scaled by that system's XOR pair +0x38/+0x40. When CarLive+0x130 bit 1 is set it writes
 // clamp((left+right)/max, 0, 1) to F1Aero+0x199c (the front wing aero loss factor Car_Physics_StepVehicle reads).

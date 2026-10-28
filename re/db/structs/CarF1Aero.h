@@ -102,7 +102,7 @@ struct CarF1Aero {
     /* 0x19c8 */ float rear_wing_drag;                        // L2 decomp:re/decomp/1446c9680.c;xref:0x145bfca88 RearWingCoD0 + CoD1*s + (CoD2*s)^2
     /* 0x19d8 */ float drag_force;                            // L1 decomp:re/decomp/1446dceb0.c;xref:0x1446de3cf drag force magnitude (older note); stored at 0x1446de3cf
     /* 0x19e4 */ float total_lift;                            // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 body front + rear + wing terms x air density x speed^2 (stored 0x1446ddf0d)
-    /* 0x19e8 */ float total_drag;                            // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 total drag coefficient x density x speed^2 (stored 0x1446de114)
+    /* 0x19e8 */ float total_drag;                            // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 total drag coefficient x density x speed^2; one writer (0x1446de114), no reader found (the +0x19e8 reads at 0x142948f81/0x14296dbe2 are another object)
     /* 0x19ec */ float rear_downforce;                        // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 rear BODY lift: (BrakeDuctRearCoeffLift x mean RL/RR wheel+0x130 + RadiatorOpeningRearCoeffLift + curves) x RearCoeffLiftMultiplier x lift_scale (stored 0x1446dda91). Older inbox note had front/rear swapped
     /* 0x19f0 */ float front_downforce;                       // L2 decomp:re/decomp/1446dceb0.c;xref:0x1446dda91,0x1446ddda4,0x1446ddf0d,0x1446de114 front BODY lift, same with Front* keys, minus FrontCoLByWingDamageMult x front_wing_damage (stored 0x1446ddda4)
 };

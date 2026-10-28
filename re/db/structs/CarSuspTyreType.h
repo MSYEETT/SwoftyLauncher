@@ -1,8 +1,8 @@
 // struct: CarSuspTyreType
 // subsystem: car
 // size: ?  L1 decomp:re/decomp/1446aa090.c
-// notes: VTF SuspensionSystem/Tyre[name] record (CarSuspension.tyre_types[i]); plain floats. Also the first qword
-// of each CarTyreState (Car_Tyre_GripScale reads +0x1c, +0x638..+0x64c). Debris*/SlipAngleLimit*/SlipRatio*Limit* keys are read
+// notes: VTF SuspensionSystem/Tyre[name] record (CarSuspension.tyre_types[i]); plain floats except the six Debris* XOR pairs at +0x70..+0xc0 (V1285). Also the first qword
+// of each CarTyreState (Car_Tyre_GripScale reads +0x1c, +0x638..+0x64c). SlipAngleLimit*/SlipRatio*Limit* keys are read
 // into locals and stored converted (offsets not mapped).
 struct CarSuspTyreType {
     /* 0x0000 */ char name[16];                               // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension Tyre name attribute (Front/Rear), compared to find the record
@@ -29,6 +29,12 @@ struct CarSuspTyreType {
     /* 0x0064 */ float blowout_min_time;                      // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/BlowoutMinTime
     /* 0x0068 */ float blowout_max_time;                      // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/BlowoutMaxTime
     /* 0x006c */ float burst_grip_multiplier;                 // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/BurstGripMultiplier
+    /* 0x0070 */ CarObfFloat debris_puncture_min_speed;     // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisPunctureMinSpeed; XOR pair (V1285)
+    /* 0x0080 */ CarObfFloat debris_puncture_max_speed;     // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisPunctureMaxSpeed; XOR pair (V1285)
+    /* 0x0090 */ CarObfFloat debris_puncture_probability_at_min_speed; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisPunctureProbabilityAtMinSpeed; XOR pair (V1285)
+    /* 0x00a0 */ CarObfFloat debris_puncture_probability_at_max_speed; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisPunctureProbabilityAtMaxSpeed; XOR pair (V1285)
+    /* 0x00b0 */ CarObfFloat debris_puncture_invulnerability_period; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisPunctureInvulnerabilityPeriod; XOR pair (V1285)
+    /* 0x00c0 */ CarObfFloat debris_next_gen_puncture_probability_multiplier; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/DebrisNextGenPunctureProbabilityMultiplier; XOR pair (V1285)
     /* 0x00d0 */ CarSpline collision_speed_tyre_damage_rate_spline; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/CollisionSpeedTyreDamageRateSpline
     /* 0x0378 */ CarSpline puncture_speed_tyre_damage_rate_spline; // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/PunctureSpeedTyreDamageRateSpline
     /* 0x0630 */ float upgrade_wear_factor;                   // L2 decomp:re/decomp/1446aa090.c;kb:subsystems/car.md#suspension VTF SuspensionSystem/Tyre/UpgradeWearFactor; radUpgradeTyreWear op * 0.825 (and radUpgradeTyreLife)
