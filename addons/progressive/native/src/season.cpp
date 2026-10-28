@@ -1873,7 +1873,7 @@ void season_unloaded()
 
 std::map<std::string, int> g_season_hook;
 std::map<int, season::Year> g_pristine;
-std::set<std::string> g_reported;
+std::set<std::string> g_reported, g_report_waiting;
 
 // The core's career.season.start (records::report_season): the season's year at its moment
 // (season::season_moment), before the season hook and the apply, so both read the frozen season.
@@ -1886,6 +1886,16 @@ void report_season(uintptr_t e, const store::Career &c, uint32_t game_index, uin
         return;
     g_reported.insert(id);
     const char *r = records::report_season(year, static_cast<int>(game_index));
+    if (!std::strcmp(r, "late") || !std::strcmp(r, "unavailable")) {
+        g_reported.erase(id);
+        if (!g_report_waiting.insert(id).second)
+            return;
+        swofty::log("[progressive] season %d: the core answered %s to the report for career %s; it is retried at every "
+                    "idle Team HQ until the core takes it",
+                    year, r, c.key.c_str());
+        return;
+    }
+    g_report_waiting.erase(id);
     swofty::log("[progressive] season %d: reported to the core as season index %u of career %s%s: %s", year, game_index,
                 c.key.c_str(), c.test_seasons ? " (includes test seasons)" : "", r);
 }
