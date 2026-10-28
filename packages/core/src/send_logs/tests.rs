@@ -1640,3 +1640,14 @@ fn memory_names_the_page_file_when_windows_gives_the_commit_limit() {
     );
     assert_eq!(memory_text(32 * gb, None), ", 32 GB memory");
 }
+
+#[test]
+fn carries_the_blocked_record_when_there_is_one() {
+    let root = tmp("blocked");
+    let (store, game) = fake_data(&root);
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    assert!(!bundle.entries.iter().any(|e| e.path == "state/blocked.json"));
+    put(&store.root.join("state/blocked.json"), "{\"files\":[]}");
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261020-101010");
+    assert!(bundle.entries.iter().any(|e| e.path == "state/blocked.json"));
+}
