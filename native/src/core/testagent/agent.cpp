@@ -34,6 +34,58 @@ namespace {
 
 namespace ta = testagent;
 
+// The game addresses the agent uses, each resolved by its signature in re/db/signatures.json when the
+// agent arms; a build where one does not match only loses the commands that need it. Struct layouts
+// below are the KB build's, so the commands that read them also check runtime::same_build().
+const runtime::Sig SIG_INTRO_UPDATE{"fe_flow.state_intro_on_update", "41 57 41 56 56 57 53 48 83 EC 70 48 89 D6 48 89 CF 48 8B 89 F8 0B 00 00", 0x36da4d0};
+const runtime::Sig SIG_NODE_SET_BOOL{"vm.node_set_bool", "41 56 56 57 55 53 48 81 EC 20 03 00 00 F6 41 26 01 0F 85 ?? ?? ?? ?? 44 89 CB 44 89 C7 49 89 D6 48 89 CE 48 8B 49 58 48 8B 01 FF 50 38 84 DB 75 0E 0F B6 08", 0x973e20};
+const runtime::Sig SIG_SYNC_COMPLETE{"vm.sync_point_is_complete", "E9 ?? ?? ?? ?? 33 47 0F 84 F2 95 46 01 98 73 7B A4 A3", 0x42626c0};
+const runtime::Sig SIG_INTRO_VT{"session.intro", "48 8D 05 ?? ?? ?? ?? 48 89 01 48 81 C1 E0 0D 00 00", 0x585bff0, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_BOOL_TYPE{"vm.bool_type_desc", "48 8D 0D ?? ?? ?? ?? FF 50 10 39 C3 75 17 48 8B 07", 0x6129dc0, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_EMPTY_NODE{"vm.empty_node_handle", "0F 85 ?? ?? ?? ?? 48 8B 1D ?? ?? ?? ?? C5 F8 57 C0 C5 F8 29 44 24 30 48 C7 44 24 40 00 00 00 00 48 8D 15 ?? ?? ?? ?? 4C 8D 05", 0x6ca0e90, runtime::Sig::riprel, 39, 42, 7};
+const runtime::Sig SIG_FE_CAREER_VT{"game.fe_career_view_model", "48 8D 05 ?? ?? ?? ?? 49 89 07 48 8D 05 ?? ?? ?? ?? 49 89 87 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 68 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 87 98 02 00 00 66 41 C7 87 A8 03 00 00 00 01", 0x57385b0, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_CAREER_ITEM_VT{"fe_tiles.career_kind_item", "48 8D 05 ?? ?? ?? ?? 48 89 06 48 8D 8E 78 01 00 00", 0x5703eb0, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_CONTINUE_HANDLE{"game.career_continue_handle_command", "56 48 83 EC 20 48 8B 02 48 85 C0 74 38", 0x1a1db90};
+const runtime::Sig SIG_CONTINUE_DRIVER_VT{"game.career_continue_driver_view_model", "48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05 ?? ?? ?? ?? 49 89 84 24 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 84 24 68 02 00 00 49 C7 84 24 B8 13 00 00 00 00 00 00", 0x57264a0, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_CONTINUE_MY_TEAM_VT{"game.career_continue_my_team_view_model", "48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05 ?? ?? ?? ?? 49 89 84 24 60 02 00 00 48 8D 05 ?? ?? ?? ?? 49 89 84 24 68 02 00 00 48 8B 4B E8", 0x5726670, runtime::Sig::riprel, 0, 3, 7};
+const runtime::Sig SIG_HQ_UPDATE{"game.team_hq_advance_view_model_update", "56 57 53 48 83 EC 40 48 89 CE 48 8B 89 E8 06 00 00", 0x22ca380};
+const runtime::Sig SIG_HQ_COMMAND{"game.team_hq_advance_view_model_on_command_raised", "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC B8 03 00 00 4C 8B B1 20 06 00 00", 0x22c3540};
+const runtime::Sig SIG_HQ_VT{"game.team_hq_advance_view_model", "C4 C1 78 11 84 24 90 06 00 00 48 8D 05 ?? ?? ?? ?? 49 89 04 24 48 8D 05", 0x577a9c0, runtime::Sig::riprel, 10, 13, 7};
+const runtime::Sig SIG_GAME_MANAGER{"game.manager", "48 8B B8 98 01 00 00 48 85 FF 0F 84 ?? ?? ?? ?? 48 8D 4C 24 70 E8 ?? ?? ?? ?? 48 8B 05", 0x604c2c8, runtime::Sig::riprel, 26, 29, 7};
+const runtime::Sig SIG_SAVE_KEY{"game.save_mgr_system_key", "49 89 84 24 80 14 00 00 49 8B B4 24 70 14 00 00 48 8D 05", 0x6100ca8, runtime::Sig::riprel, 16, 19, 7};
+const runtime::Sig SIG_SAVE_REQUEST{"game.save_mgr_request_profile_save_thunk", "E9 ?? ?? ?? ?? FF AB 62 24 E9 79 90", 0x36595b0};
+const runtime::Sig SIG_VEHICLE_TABLE{"session.vehicle_table", "76 0E 48 8D 05 ?? ?? ?? ?? 4C 8B 3C D8", 0x6ce86e0, runtime::Sig::riprel, 2, 5, 7};
+const runtime::Sig SIG_VEHICLE_COUNT{"session.vehicle_count", "74 E5 38 1D ?? ?? ?? ?? 76 0E 48 8D 05", 0x6ce86dc, runtime::Sig::riprel, 2, 4, 6};
+const runtime::Sig SIG_ADVANCE_VT{"game.message_set_advance_destination", "48 8D 0D ?? ?? ?? ?? 48 89 4C 24 50 48 C7 44 24 60 02 00 00 00", 0x57548b8, runtime::Sig::riprel, 0, 3, 7};
+
+struct Resolved {
+    uintptr_t intro_update = 0, node_set_bool = 0, sync_complete = 0, intro_vt = 0, bool_type = 0, empty_node = 0, fe_career_vt = 0, career_item_vt = 0, continue_handle = 0, continue_driver_vt = 0, continue_my_team_vt = 0, hq_update = 0, hq_command = 0, hq_vt = 0, game_manager = 0, save_key = 0, save_request = 0, vehicle_table = 0, vehicle_count = 0, advance_vt = 0;
+} ga;
+
+void resolve_game()
+{
+    ga.intro_update = runtime::find(SIG_INTRO_UPDATE, "test", "test");
+    ga.node_set_bool = runtime::find(SIG_NODE_SET_BOOL, "test", "test");
+    ga.sync_complete = runtime::find(SIG_SYNC_COMPLETE, "test", "test");
+    ga.intro_vt = runtime::find(SIG_INTRO_VT, "test", "test");
+    ga.bool_type = runtime::find(SIG_BOOL_TYPE, "test", "test");
+    ga.empty_node = runtime::find(SIG_EMPTY_NODE, "test", "test");
+    ga.fe_career_vt = runtime::find(SIG_FE_CAREER_VT, "test", "test");
+    ga.career_item_vt = runtime::find(SIG_CAREER_ITEM_VT, "test", "test");
+    ga.continue_handle = runtime::find(SIG_CONTINUE_HANDLE, "test", "test");
+    ga.continue_driver_vt = runtime::find(SIG_CONTINUE_DRIVER_VT, "test", "test");
+    ga.continue_my_team_vt = runtime::find(SIG_CONTINUE_MY_TEAM_VT, "test", "test");
+    ga.hq_update = runtime::find(SIG_HQ_UPDATE, "test", "test");
+    ga.hq_command = runtime::find(SIG_HQ_COMMAND, "test", "test");
+    ga.hq_vt = runtime::find(SIG_HQ_VT, "test", "test");
+    ga.game_manager = runtime::find(SIG_GAME_MANAGER, "test", "test");
+    ga.save_key = runtime::find(SIG_SAVE_KEY, "test", "test");
+    ga.save_request = runtime::find(SIG_SAVE_REQUEST, "test", "test");
+    ga.vehicle_table = runtime::find(SIG_VEHICLE_TABLE, "test", "test");
+    ga.vehicle_count = runtime::find(SIG_VEHICLE_COUNT, "test", "test");
+    ga.advance_vt = runtime::find(SIG_ADVANCE_VT, "test", "test");
+}
+
 constexpr DWORD POLL_MS = 20;
 constexpr size_t LOG_RING = 4096;
 
@@ -120,7 +172,6 @@ void make_str(swofty::game::NeStr **s, const char *text)
 
 std::atomic<void *> home_vm{nullptr}, home_vt{nullptr};
 // fe_career's view model (vt_Game_FECareerViewModel 0x1457385b0, L2), seen at the same populate loop.
-constexpr uintptr_t FE_CAREER_VT = 0x57385b0;
 std::atomic<void *> career_vm{nullptr};
 uintptr_t a_fire;
 safetyhook::MidHook h_populate;
@@ -157,7 +208,7 @@ void populate_mid(safetyhook::Context &c)
         if (runtime::readable(vt, 11 * sizeof(void *)) &&
             reinterpret_cast<uintptr_t>(vt[10]) == a_home_cmd)
             set_home(v);
-        else if (runtime::same_build() && reinterpret_cast<uintptr_t>(vt) == swofty::api->module_base() + FE_CAREER_VT) {
+        else if (ga.fe_career_vt && reinterpret_cast<uintptr_t>(vt) == ga.fe_career_vt) {
             if (career_vm.exchange(v) != v)
                 swofty::log("[test] fe_career view model %p", v);
         }
@@ -197,8 +248,6 @@ void routes_setup()
 // next update returns the front-end link. The agent sets the two nodes with Vm_NodeSet_Bool
 // (0x140973e20, (node, &value, 0, 0) as the sync point's own writes do) once the title's view exists
 // ([[state+0xc88]+0x140]+0x198), so the game's own path runs from there.
-constexpr uintptr_t INTRO_UPDATE = 0x36da4d0, INTRO_VTABLE = 0x585bff0, NODESET_BOOL = 0x973e20,
-                    SYNC_COMPLETE = 0x42626c0, BOOL_TYPE = 0x6129dc0, EMPTY_NODE = 0x6ca0e90;
 constexpr size_t INTRO_SYNC = 0xcd0, SYNC_REQUEST = 0x80, SYNC_UI = 0xa0, INTRO_SENT = 0xef3, INTRO_ENGAGED = 0xef4;
 
 using IntroUpdate_t = uint32_t *(void *state, uint32_t *link);
@@ -211,16 +260,16 @@ std::atomic<bool> title_wanted{false}, title_engaged{false}, title_set{false};
 std::atomic<uint32_t> title_view{0};
 std::string title_why = "not set up", continue_why = "not set up", hq_why = "not set up";
 
-uint8_t *game_at(uintptr_t rva)
+uint8_t *addr_of(uintptr_t a)
 {
-    return reinterpret_cast<uint8_t *>(swofty::api->module_base() + rva);
+    return reinterpret_cast<uint8_t *>(a);
 }
 
 // A live bool node: not null, not the empty handle, not read-only (+0x26 bit 0), valid (vt+0x20) and
 // holding the bool type (as the sync point's own checks).
 bool bool_node(void *node)
 {
-    void *empty = *reinterpret_cast<void **>(game_at(EMPTY_NODE));
+    void *empty = *reinterpret_cast<void **>(ga.empty_node);
     if (!node || node == empty || !runtime::readable(node, 0x60) || (static_cast<uint8_t *>(node)[0x26] & 1))
         return false;
     auto **vt = *static_cast<void ***>(node);
@@ -231,7 +280,7 @@ bool bool_node(void *node)
         return false;
     auto **hvt = *static_cast<void ***>(holder);
     void *type = reinterpret_cast<void *(*)(void *)>(hvt[1])(holder);
-    auto *bool_type = game_at(BOOL_TYPE);
+    auto *bool_type = addr_of(ga.bool_type);
     auto **tvt = *reinterpret_cast<void ***>(type);
     auto **bvt = *reinterpret_cast<void ***>(bool_type);
     return reinterpret_cast<int (*)(void *)>(tvt[2])(type) == reinterpret_cast<int (*)(void *)>(bvt[2])(bool_type);
@@ -262,13 +311,13 @@ void title_nodes(uint8_t *state)
         void *node = *reinterpret_cast<void **>(sync + off);
         if (!bool_node(node) || node_value(node))
             continue;
-        reinterpret_cast<NodeSetBool_t *>(game_at(NODESET_BOOL))(node, &one, 0, 0);
+        reinterpret_cast<NodeSetBool_t *>(ga.node_set_bool)(node, &one, 0, 0);
         swofty::log("[test] title: set the sync point's %s node (sync_points.boot) to true",
                     off == SYNC_REQUEST ? "request (+0x80)" : "ui (+0xa0)");
     }
     if (!title_set.exchange(true))
         swofty::log("[test] title: sync point complete -> %d; the title sends its own request next",
-                    int(reinterpret_cast<SyncComplete_t *>(game_at(SYNC_COMPLETE))(sync)));
+                    int(reinterpret_cast<SyncComplete_t *>(ga.sync_complete)(sync)));
 }
 
 uint32_t *intro_detour(void *state, uint32_t *link)
@@ -288,16 +337,20 @@ uint32_t *intro_detour(void *state, uint32_t *link)
 void title_setup()
 {
     if (!runtime::same_build()) {
-        title_why = "FeFlow_StateIntro_OnUpdate (0x1436da4d0) has no signature and this is not the build the KB "
-                    "describes";
+        title_why = "StateIntro's state layout (+0xcd0, +0xef3, +0xef4) is the KB build's and this is not that build";
         return;
     }
-    auto **vt = reinterpret_cast<void **>(game_at(INTRO_VTABLE));
-    if (!runtime::readable(vt, 10 * 8) || vt[9] != game_at(INTRO_UPDATE)) {
+    if (!ga.intro_update || !ga.intro_vt || !ga.node_set_bool || !ga.sync_complete || !ga.bool_type || !ga.empty_node) {
+        title_why = "FeFlow_StateIntro_OnUpdate, Vm_NodeSet_Bool, Vm_SyncPoint_IsComplete or the bool node type did not "
+                    "resolve on this build";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(ga.intro_vt);
+    if (!runtime::readable(vt, 10 * 8) || vt[9] != addr_of(ga.intro_update)) {
         title_why = "vt_Sess_Intro slot 9 is not FeFlow_StateIntro_OnUpdate";
         return;
     }
-    auto h = safetyhook::InlineHook::create(game_at(INTRO_UPDATE), reinterpret_cast<void *>(intro_detour));
+    auto h = safetyhook::InlineHook::create(addr_of(ga.intro_update), reinterpret_cast<void *>(intro_detour));
     if (!h) {
         title_why = "the hook on FeFlow_StateIntro_OnUpdate failed";
         return;
@@ -413,7 +466,6 @@ void pad_setup()
 // Cars: g_Sess_VehicleTable (0x146ce86e0, L2, no signature) holds a CarLive per vehicle id, so it is
 // read only on the build the KB describes. The field table is the KB's L3 rows (re/db/structs/Car*.h);
 // "obf" fields are CarObfFloat pairs: the float's bits XOR the key 8 bytes on.
-constexpr uintptr_t VEHICLE_TABLE = 0x6ce86e0, VEHICLE_COUNT = 0x6ce86dc;
 constexpr size_t CAR_VEHICLE_ID = 0xe8, CAR_IS_AI = 0x124;
 enum class Ty { f32, obf, u32, i32, u8 };
 struct Field {
@@ -446,16 +498,16 @@ const char *ty_name(Ty t)
 std::string car_unbound()
 {
     if (!runtime::same_build())
-        return "the vehicle table (g_Sess_VehicleTable 0x146ce86e0) has no signature and this is not the build the KB "
-               "describes";
+        return "the car field offsets are the KB build's and this is not that build";
+    if (!ga.vehicle_table || !ga.vehicle_count)
+        return "g_Sess_VehicleTable or g_Sess_VehicleCount did not resolve on this build";
     return {};
 }
 
 uint8_t *car_at(int index, std::string &why)
 {
-    uintptr_t base = swofty::api->module_base();
-    auto *count = reinterpret_cast<uint32_t *>(base + VEHICLE_COUNT);
-    auto **table = reinterpret_cast<uint8_t **>(base + VEHICLE_TABLE);
+    auto *count = reinterpret_cast<uint32_t *>(ga.vehicle_count);
+    auto **table = reinterpret_cast<uint8_t **>(ga.vehicle_table);
     if (!runtime::readable(count, 4) || !runtime::readable(table, 8 * 26)) {
         why = "the vehicle table is not readable";
         return nullptr;
@@ -474,8 +526,7 @@ uint8_t *car_at(int index, std::string &why)
 
 int player_index(std::string &why)
 {
-    uintptr_t base = swofty::api->module_base();
-    auto *count = reinterpret_cast<uint32_t *>(base + VEHICLE_COUNT);
+    auto *count = reinterpret_cast<uint32_t *>(ga.vehicle_count);
     if (!runtime::readable(count, 4) || !*count) {
         why = "no cars in the session";
         return -1;
@@ -701,9 +752,8 @@ struct InGame : ta::Game {
 
     ta::Outcome skip(int destination, int session_type) override
     {
-        if (!runtime::same_build())
-            return ta::Outcome::unavailable("MessageSetAdvanceDestination's vtable (0x1457548b8) has no signature and this "
-                                            "is not the build the KB describes");
+        if (!ga.advance_vt)
+            return ta::Outcome::unavailable("MessageSetAdvanceDestination's vtable did not resolve on this build");
         const SwoftyCareer *career = runtime::career_table();
         if (!career || !career->post)
             return ta::Outcome::unavailable("the career API's message post is not available");
@@ -711,7 +761,7 @@ struct InGame : ta::Game {
             void *vt;
             uint64_t zero;
             uint32_t destination, session;
-        } m{reinterpret_cast<void *>(swofty::api->module_base() + 0x57548b8), 0, uint32_t(destination),
+        } m{reinterpret_cast<void *>(ga.advance_vt), 0, uint32_t(destination),
             uint32_t(session_type)};
         int r = career->post(&m);
         swofty::log("[test] skip: MessageSetAdvanceDestination destination %d session %d posted -> %d", destination,
@@ -965,8 +1015,9 @@ struct InGame : ta::Game {
 // slot 5; its kind is the NeStr at item+0x178 (djb2 0x73b00842 driver_career, 0x353c4a02 my_team_career).
 // get_action(item, &action) writes {u32 type, NeStr *route}: type 1 and solo_career_continue_* while the
 // mode has a visible slot, else a route into the new-career wizard. The tile screen fires that route
-// as Vm_Fire_Route(vm->router, vm, &route, 0) on select_pressed, and so does the agent.
-constexpr uintptr_t CAREER_ITEM_VT = 0x5703eb0;
+// as Vm_Fire_Route(vm->router, vm, &route, 0) on select_pressed, and so does the agent. get_action is
+// not read-only: with no save to continue it also resets the wizard state and the current game mode
+// (the same reset a press on that tile makes), so the agent calls it only on the tile it is asked for.
 constexpr uint32_t KIND_DRIVER = 0x73b00842, KIND_MY_TEAM = 0x353c4a02;
 
 std::string nestr_text(const swofty::game::NeStr *s)
@@ -985,13 +1036,13 @@ std::string nestr_text(const swofty::game::NeStr *s)
 ta::Outcome InGame::career_tile(const std::string &mode)
 {
     if (!runtime::same_build())
-        return ta::Outcome::unavailable("the career tile's item vtable (0x145703eb0) has no signature and this is not "
-                                        "the build the KB describes");
+        return ta::Outcome::unavailable("the career tile's item layout is the KB build's and this is not that build");
     if (!route_why.empty())
         return ta::Outcome::unavailable(route_why);
+    if (!ga.fe_career_vt || !ga.career_item_vt)
+        return ta::Outcome::unavailable("the fe_career or career tile vtable did not resolve on this build");
     auto *vm = static_cast<uint8_t *>(career_vm.load());
-    uintptr_t base = swofty::api->module_base();
-    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8) || *reinterpret_cast<uintptr_t *>(vm) != base + FE_CAREER_VT)
+    if (!vm || !runtime::readable(vm, VM_TILE_LIST + 8) || *reinterpret_cast<uintptr_t *>(vm) != ga.fe_career_vt)
         return ta::Outcome::unavailable("no fe_career view model: the career screen has not built its tiles yet");
     auto *list = *reinterpret_cast<uint8_t **>(vm + VM_TILE_LIST);
     if (!list || !runtime::readable(list, 0x90))
@@ -1002,7 +1053,7 @@ ta::Outcome InGame::career_tile(const std::string &mode)
     std::vector<std::pair<uint32_t, uint8_t *>> careers;
     for (; it < end; it += 0x10) {
         auto *item = *reinterpret_cast<uint8_t **>(it + 8);
-        if (!item || !runtime::readable(item, 0x180) || *reinterpret_cast<uintptr_t *>(item) != base + CAREER_ITEM_VT)
+        if (!item || !runtime::readable(item, 0x180) || *reinterpret_cast<uintptr_t *>(item) != ga.career_item_vt)
             continue;
         auto *kind = *reinterpret_cast<uint8_t **>(item + 0x178);
         if (!kind || !runtime::readable(kind, 4))
@@ -1051,12 +1102,12 @@ ta::Outcome InGame::career_tile(const std::string &mode)
 }
 
 // The resume screens (CareerContinueDriverViewModel vt 0x1457264a0, CareerContinueMyTeamViewModel vt
-// 0x145726670): the agent sees them in Game_CareerContinue_HandleCommand (0x141a1db90, slot 10, L1 with
-// an agree in V1485), which the UI raises transition_in_finished into when the screen opens. Cards are
+// 0x145726670): the agent sees them in Game_CareerContinue_HandleCommand (0x141a1db90, slot 10, L2 with
+// agrees in V1485 and V1496), which the UI raises transition_in_finished into when the screen opens. Cards are
 // the 0x540-byte entries at vm+0x328 (three), has_save at +0, the slot id at +8. A press is
 // HandleCommand(vm, &"slot_focused", &{type, data = card}) then the same with "slot_pressed"; the
-// handler reads only the data byte at +8. Presses are ignored while vm+0x1380 is set.
-constexpr uintptr_t CONTINUE_HANDLE = 0x1a1db90, CONTINUE_DRIVER_VT = 0x57264a0, CONTINUE_MY_TEAM_VT = 0x5726670;
+// handler reads only the data byte at +8. Presses are ignored while vm+0x1380 is set (PressSlot) and,
+// for slot_pressed, while the bool node vm+0x12f0 is true (the handler).
 constexpr size_t CARDS = 0x328, CARD_SIZE = 0x540, CARD_COUNT = 3, CONTINUE_BUSY = 0x1380;
 
 using ContinueHandle_t = uint64_t(void *vm, swofty::game::NeStr **cmd, void *value);
@@ -1066,10 +1117,8 @@ std::atomic<void *> continue_vm{nullptr};
 uint64_t continue_detour(void *vm, swofty::game::NeStr **cmd, void *value)
 {
     uintptr_t vt = vm && runtime::readable(vm, 8) ? *static_cast<uintptr_t *>(vm) : 0;
-    uintptr_t base = swofty::api->module_base();
-    if ((vt == base + CONTINUE_DRIVER_VT || vt == base + CONTINUE_MY_TEAM_VT) && continue_vm.exchange(vm) != vm)
-        swofty::log("[test] career: resume screen view model %p (%s)", vm,
-                    vt == base + CONTINUE_DRIVER_VT ? "driver" : "my team");
+    if ((vt == ga.continue_driver_vt || vt == ga.continue_my_team_vt) && continue_vm.exchange(vm) != vm)
+        swofty::log("[test] career: resume screen view model %p (%s)", vm, vt == ga.continue_driver_vt ? "driver" : "my team");
     return h_continue.call<uint64_t>(vm, cmd, value);
 }
 
@@ -1077,16 +1126,19 @@ uint64_t continue_detour(void *vm, swofty::game::NeStr **cmd, void *value)
 void continue_setup()
 {
     if (!runtime::same_build()) {
-        continue_why = "Game_CareerContinue_HandleCommand (0x141a1db90) has no signature and this is not the build the "
-                       "KB describes";
+        continue_why = "the resume screens' card layout is the KB build's and this is not that build";
         return;
     }
-    auto **vt = reinterpret_cast<void **>(game_at(CONTINUE_DRIVER_VT));
-    if (!runtime::readable(vt, 11 * 8) || vt[10] != game_at(CONTINUE_HANDLE)) {
+    if (!ga.continue_handle || !ga.continue_driver_vt || !ga.continue_my_team_vt || !ga.node_set_bool) {
+        continue_why = "Game_CareerContinue_HandleCommand or the resume screens' vtables did not resolve on this build";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(ga.continue_driver_vt);
+    if (!runtime::readable(vt, 11 * 8) || vt[10] != addr_of(ga.continue_handle)) {
         continue_why = "CareerContinueDriverViewModel's slot 10 is not Game_CareerContinue_HandleCommand";
         return;
     }
-    auto h = safetyhook::InlineHook::create(game_at(CONTINUE_HANDLE), reinterpret_cast<void *>(continue_detour));
+    auto h = safetyhook::InlineHook::create(addr_of(ga.continue_handle), reinterpret_cast<void *>(continue_detour));
     if (!h) {
         continue_why = "the hook on Game_CareerContinue_HandleCommand failed";
         return;
@@ -1100,9 +1152,8 @@ ta::Outcome InGame::resume_press(const std::string &slot)
     if (!continue_why.empty())
         return ta::Outcome::unavailable(continue_why);
     auto *vm = static_cast<uint8_t *>(continue_vm.load());
-    uintptr_t base = swofty::api->module_base();
     uintptr_t vt = vm && runtime::readable(vm, CONTINUE_BUSY + 8) ? *reinterpret_cast<uintptr_t *>(vm) : 0;
-    if (vt != base + CONTINUE_DRIVER_VT && vt != base + CONTINUE_MY_TEAM_VT)
+    if (vt != ga.continue_driver_vt && vt != ga.continue_my_team_vt)
         return ta::Outcome::unavailable("no resume screen view model yet (it is seen when the screen opens)");
     if (vm[CONTINUE_BUSY])
         return ta::Outcome::unavailable("the resume screen ignores presses for now (vm+0x1380 is set)");
@@ -1131,7 +1182,7 @@ ta::Outcome InGame::resume_press(const std::string &slot)
     for (const char *c : {"slot_focused", "slot_pressed"}) {
         swofty::game::NeStr *s = nullptr;
         make_str(&s, c);
-        reinterpret_cast<ContinueHandle_t *>(game_at(CONTINUE_HANDLE))(vm, &s, &v);
+        reinterpret_cast<ContinueHandle_t *>(ga.continue_handle)(vm, &s, &v);
         make_str(&s, nullptr);
     }
     swofty::log("[test] career: slot_focused and slot_pressed raised on card %d (slot %u)", card, id);
@@ -1139,46 +1190,48 @@ ta::Outcome InGame::resume_press(const std::string &slot)
 }
 
 // Team HQ's advance (TeamHQAdvanceViewModel, vt 0x14577a9c0, L2): Game_TeamHQAdvanceViewModel_Update
-// (0x1422ca380, slot 12, L2) runs every frame with rcx = the view model, so a mid hook at its entry
-// captures it. The agent raises timeline_advance_pressed through its onCommandRaised (0x1422c3540,
+// (0x1422ca380, slot 12, L2) runs every frame with rcx = the view model, so a hook on it captures it. The agent raises timeline_advance_pressed through its onCommandRaised (0x1422c3540,
 // slot 10, L2) as the Advance button does: PressAdvance checks vm+0x620, canAdvance (+0x758) and
 // advancing (+0x759) and shows today's cards (0x1422c7080) instead when there are any, else runs
 // Career_TeamHqAdvance_Start and the screen's start_advancing. The game advances a day per tick until
-// the next event; for N days the agent raises timeline_stop_pressed once the day (u32
-// [[vm+0x6e0]+0x2b0] >> 5, / 1440) reaches the start + N.
-constexpr uintptr_t HQ_ADVANCE_VT = 0x577a9c0, HQ_ADVANCE_UPDATE = 0x22ca380, HQ_ADVANCE_COMMAND = 0x22c3540;
+// the next event; for N days the agent raises timeline_stop_pressed once the day (the game's own
+// (u32 [[vm+0x6e0]+0x2b0] >> 5) / 45, the clock in minutes over 1440) reaches the start + N.
 constexpr size_t HQ_READY = 0x620, HQ_CAN_ADVANCE = 0x758, HQ_ADVANCING = 0x759, HQ_CLOCK = 0x6e0, HQ_CLOCK_MIN = 0x2b0;
 
 using HqCommand_t = uint64_t(void *vm, swofty::game::NeStr **cmd, void *data);
-safetyhook::MidHook h_hq;
+using HqUpdate_t = uint64_t(void *vm);
+safetyhook::InlineHook h_hq;
 std::atomic<void *> hq_vm{nullptr};
 struct {
     bool on = false, stop_sent = false;
     int from = 0, last = 0, target = 0;
 } adv;
 
-void hq_mid(safetyhook::Context &c)
+uint64_t hq_detour(void *vm)
 {
-    auto *vm = reinterpret_cast<void *>(c.rcx);
     if (vm && hq_vm.exchange(vm) != vm)
         swofty::log("[test] Team HQ advance view model %p", vm);
+    return h_hq.call<uint64_t>(vm);
 }
 
 void hq_setup()
 {
     if (!runtime::same_build()) {
-        hq_why = "Game_TeamHQAdvanceViewModel_Update (0x1422ca380) has no signature and this is not the build the KB "
-                 "describes";
+        hq_why = "Team HQ's advance view model layout is the KB build's and this is not that build";
         return;
     }
-    auto **vt = reinterpret_cast<void **>(game_at(HQ_ADVANCE_VT));
-    if (!runtime::readable(vt, 13 * 8) || vt[12] != game_at(HQ_ADVANCE_UPDATE) || vt[10] != game_at(HQ_ADVANCE_COMMAND)) {
+    if (!ga.hq_update || !ga.hq_command || !ga.hq_vt) {
+        hq_why = "Game_TeamHQAdvanceViewModel_Update, its onCommandRaised or its vtable did not resolve on this build";
+        return;
+    }
+    auto **vt = reinterpret_cast<void **>(ga.hq_vt);
+    if (!runtime::readable(vt, 13 * 8) || vt[12] != addr_of(ga.hq_update) || vt[10] != addr_of(ga.hq_command)) {
         hq_why = "vt_Game_TeamHQAdvanceViewModel's slots 10 and 12 are not onCommandRaised and update";
         return;
     }
-    auto h = safetyhook::MidHook::create(game_at(HQ_ADVANCE_UPDATE), hq_mid);
+    auto h = safetyhook::InlineHook::create(addr_of(ga.hq_update), reinterpret_cast<void *>(hq_detour));
     if (!h) {
-        hq_why = "the hook on Game_TeamHQAdvanceViewModel_Update failed: " + runtime::hook_error(h.error());
+        hq_why = "the hook on Game_TeamHQAdvanceViewModel_Update failed";
         return;
     }
     h_hq = std::move(*h);
@@ -1188,7 +1241,7 @@ void hq_setup()
 uint8_t *live_hq()
 {
     auto *vm = static_cast<uint8_t *>(hq_vm.load());
-    return vm && runtime::readable(vm, 0x790) && *reinterpret_cast<uintptr_t *>(vm) == swofty::api->module_base() + HQ_ADVANCE_VT
+    return vm && runtime::readable(vm, 0x790) && *reinterpret_cast<uintptr_t *>(vm) == ga.hq_vt
                ? vm
                : nullptr;
 }
@@ -1198,7 +1251,7 @@ int hq_day(uint8_t *vm)
     auto *clock = *reinterpret_cast<uint8_t **>(vm + HQ_CLOCK);
     if (!clock || !runtime::readable(clock + HQ_CLOCK_MIN, 4))
         return -1;
-    return int((*reinterpret_cast<uint32_t *>(clock + HQ_CLOCK_MIN) >> 5) / 1440);
+    return int((*reinterpret_cast<uint32_t *>(clock + HQ_CLOCK_MIN) >> 5) / 45);
 }
 
 void hq_command(uint8_t *vm, const char *name)
@@ -1209,7 +1262,7 @@ void hq_command(uint8_t *vm, const char *name)
     } data{4, 0, 0, 0};
     swofty::game::NeStr *s = nullptr;
     make_str(&s, name);
-    reinterpret_cast<HqCommand_t *>(game_at(HQ_ADVANCE_COMMAND))(vm, &s, &data);
+    reinterpret_cast<HqCommand_t *>(ga.hq_command)(vm, &s, &data);
     make_str(&s, nullptr);
 }
 
@@ -1264,36 +1317,41 @@ ta::Outcome InGame::advance_poll()
 // Save now: Game_SaveMgr_RequestProfileSave_Thunk (0x1436595b0, L2) with the save manager system, as
 // Team HQ's own autosave after an advance does: (mgr, &{fn 0, ctx 0}, 1, 0). The manager is the system
 // keyed k_Game_SaveMgrSystemKey (0x146100ca8) in g_Game_Manager's system map ([0x14604c2c8]+0x30):
-// idx = 0x14030ffd0(map, &key), a miss returns the entry count; entries are 0x10 bytes from [map+0x18]
-// with the system at +8. The save is done when the sandbox has served a FileWrite.
-constexpr uintptr_t GAME_MANAGER = 0x604c2c8, SYSTEM_FIND = 0x30ffd0, SAVE_MGR_KEY = 0x6100ca8, SAVE_REQUEST = 0x36595b0;
+// a flat hash map (find 0x14030ffd0): entries {key = that address, system} are 0x10 bytes from [map+0x18]
+// with one control byte each from [map+0x20] (zero when free); the agent scans them instead of hashing.
+// The save is done when the sandbox has served a FileWrite.
 uint32_t save_writes_before;
 
 ta::Outcome InGame::save_now()
 {
     if (!runtime::same_build())
-        return ta::Outcome::unavailable("Game_SaveMgr_RequestProfileSave_Thunk (0x1436595b0) has no signature and this is "
-                                        "not the build the KB describes");
-    auto *mgr = *reinterpret_cast<uint8_t **>(game_at(GAME_MANAGER));
+        return ta::Outcome::unavailable("the game manager's layout is the KB build's and this is not that build");
+    if (!ga.save_request || !ga.game_manager || !ga.save_key)
+        return ta::Outcome::unavailable("Game_SaveMgr_RequestProfileSave_Thunk or the game manager did not resolve on "
+                                        "this build");
+    auto *mgr = *reinterpret_cast<uint8_t **>(ga.game_manager);
     if (!mgr || !runtime::readable(mgr, 0x38))
         return ta::Outcome::unavailable("g_Game_Manager is not set yet");
     auto *map = *reinterpret_cast<uint8_t **>(mgr + 0x30);
     if (!map || !runtime::readable(map, 0x28))
         return ta::Outcome::unavailable("the game manager has no system map yet");
-    void *key = game_at(SAVE_MGR_KEY);
-    uint64_t idx = reinterpret_cast<uint64_t (*)(void *, void **)>(game_at(SYSTEM_FIND))(map, &key);
-    auto *first = *reinterpret_cast<uint8_t **>(map + 0x18), *last = *reinterpret_cast<uint8_t **>(map + 0x20);
-    uint64_t count = first && last >= first ? uint64_t(last - first) >> 4 : 0;
-    if (idx >= count || !runtime::readable(first + idx * 0x10, 0x10))
-        return ta::Outcome::unavailable("the save manager system is not registered yet");
-    void *save_mgr = *reinterpret_cast<void **>(first + idx * 0x10 + 8);
+    auto *first = *reinterpret_cast<uint8_t **>(map + 0x18), *ctrl = *reinterpret_cast<uint8_t **>(map + 0x20);
+    uint64_t count = first && ctrl >= first ? uint64_t(ctrl - first) >> 4 : 0;
+    if (!count || count > 0x10000 || !runtime::readable(first, count * 0x10 + count))
+        return ta::Outcome::unavailable("the game manager's system map is not readable");
+    void *save_mgr = nullptr;
+    for (uint64_t i = 0; i < count; i++)
+        if (ctrl[i] && *reinterpret_cast<uintptr_t *>(first + i * 0x10) == ga.save_key) {
+            save_mgr = *reinterpret_cast<void **>(first + i * 0x10 + 8);
+            break;
+        }
     if (!save_mgr)
-        return ta::Outcome::unavailable("the save manager system is null");
+        return ta::Outcome::unavailable("the save manager system is not registered yet");
     struct {
         void *fn, *ctx;
     } cb{nullptr, nullptr};
     save_writes_before = runtime::save_sandbox_writes();
-    bool r = reinterpret_cast<bool (*)(void *, void *, uint8_t, uint8_t)>(game_at(SAVE_REQUEST))(save_mgr, &cb, 1, 0);
+    bool r = reinterpret_cast<bool (*)(void *, void *, uint8_t, uint8_t)>(ga.save_request)(save_mgr, &cb, 1, 0);
     swofty::log("[test] save now: the profile save requested from the save manager %p -> %d", save_mgr, int(r));
     return ta::Outcome::ok();
 }
@@ -1328,6 +1386,7 @@ void refuse(const std::string &why)
 
 void watch()
 {
+    resolve_game();
     routes_setup();
     pad_setup();
     controller_setup();
