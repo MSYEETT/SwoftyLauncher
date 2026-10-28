@@ -4,11 +4,13 @@ import datetime
 import json
 import os
 import shutil
+import signal
+import subprocess
 import sys
 import traceback
 from pathlib import Path
 
-from . import catalog, compare, fetch, report, runner
+from . import catalog, compare, fetch, harness, report, runner
 
 DEFAULT_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "swofty-compat"
 DEFAULT_GAME = os.environ.get("F1_25_DIR", "/mnt/gaming/SteamLibrary/steamapps/common/F1 25")
@@ -158,10 +160,15 @@ def _build_both(args, a, b, index, item, seed, out, addons, game):
         )
         _write_json(Path(out) / "snapshots" / f"{_safe(item['set'])}.{side.name}.json", snaps[side.name])
         kept = Path(out) / side.name / work.name
-        if args.keep:
+        if args.keep or args.slim:
             shutil.rmtree(kept, ignore_errors=True)
             kept.parent.mkdir(parents=True, exist_ok=True)
             os.replace(work, kept)
+            if args.slim and snaps[side.name].get("buildhash"):
+                mapping = harness.side_mapping(Path(out), side.name, index)
+                harness.slim_data(kept / "data", snaps[side.name]["buildhash"], mapping, args.slim_cap_mb << 20)
+            elif args.slim:
+                shutil.rmtree(kept / "data", ignore_errors=True)
         else:
             shutil.rmtree(work, ignore_errors=True)
     return snaps
@@ -239,7 +246,7 @@ def cmd_run(args):
     _write_json(out / "report.json", rep)
     text = report.summary(rep)
     (out / "summary.txt").write_text(text)
-    if not args.keep:
+    if not (args.keep or args.slim):
         shutil.rmtree(out / "work", ignore_errors=True)
         shutil.rmtree(out / "sides", ignore_errors=True)
     print()
@@ -296,13 +303,145 @@ def cmd_recompare(args):
 
 
 def cmd_harness(args):
-    print(
-        "swofty-compat harness: the Wine half of the gate (boot each build to the main menu and compare "
-        "the loaded DLLs, mixin chains and start lines) is not built yet; see tools/compat/README.md, "
-        "\"The Wine harness\".",
-        file=sys.stderr,
-    )
-    return 2
+    out = Path(args.run).resolve()
+    try:
+        rep = json.loads((out / "report.json").read_text())
+    except (OSError, ValueError) as e:
+        raise runner.ToolError(f"{out}: {e}; pass a `run --keep` output folder") from e
+    repo = Path(__file__).resolve().parents[3]
+    work = out / "harness"
+    work.mkdir(parents=True, exist_ok=True)
+    ids = None
+    if not args.no_synth:
+        ids = harness.synth_ids(out / "sides" / s / "loader" / "swofty" / "addons" / "core" / "bindings.json"
+                                for s in ("a", "b"))
+    if args.recompare:
+        return _harness_recompare(args, out, rep, work)
+    exe = harness.build_fake_exe(repo, args.fake_exe or work / "fake" / "F1_25.exe", ids)
+    prefix = work / "prefix"
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(2))
+    lock = harness.Lock(args.lock, args.queue, harness.WHO, args.lock_wait, args.hold)
+    allow = set(args.allow or [])
+    results, waiting = [], None
+    pick = set(args.set or [])
+    try:
+        for index, r in enumerate(rep["results"]):
+            if pick and r["set"] not in pick:
+                continue
+            result = {"set": r["set"], "addons": r.get("addons", []), "notes": []}
+            results.append(result)
+            if r.get("error") or r.get("status") == "error":
+                result["skipped"] = "the build half failed for this set"
+                continue
+            if r.get("status") == "diff":
+                result["skipped"] = "the build half found differences in this set"
+                continue
+            if not all((r.get("buildhash") or {}).get(s) for s in ("a", "b")):
+                result["skipped"] = "the build wrote no plan on one side (both builds failed alike?)"
+                continue
+            try:
+                hashes = r["buildhash"]
+                plans = {s: harness.load_plan(out, s, index, hashes[s]) + (hashes[s],) for s in ("a", "b")}
+            except (KeyError, OSError, ValueError) as e:
+                result["error"] = f"no kept build for this set ({type(e).__name__}: {e}); run with --keep"
+                continue
+            if lock.since is None or lock.expired():
+                lock.release()
+                lock.take()
+            try:
+                result.update(_harness_pair(args, work, exe, prefix, index, plans, allow, result["notes"]))
+            except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+                result["error"] = str(e)
+    except harness.LockWait as e:
+        waiting = str(e)
+        results[-1]["skipped"] = "waiting for the game lock"
+    finally:
+        lock.release()
+    meta = {
+        "a": dict(rep["meta"].get("a", {})),
+        "b": dict(rep["meta"].get("b", {})),
+        "allow": sorted(allow),
+        "notes": ["Wine harness, synthetic level: the fake F1_25.exe from native/test/fake_game.c under wine and xvfb-run",
+                  f"input: {out}"] + ([f"Wine harness: waiting for the lock: {waiting}"] if waiting else []),
+    }
+    final = report.build(meta, results)
+    harness.write_json(work / "report.json", final)
+    text = report.summary(final)
+    (work / "summary.txt").write_text(text)
+    print(text, end="")
+    print(f"report: {work / 'report.json'}")
+    if waiting:
+        print(f"Wine harness: waiting for the lock ({waiting})", file=sys.stderr)
+        return 3
+    return final["exit"]
+
+
+def _harness_recompare(args, out, rep, work):
+    allow = set(args.allow or [])
+    results = []
+    for index, r in enumerate(rep["results"]):
+        result = {"set": r["set"], "addons": r.get("addons", []), "notes": []}
+        results.append(result)
+        base = work / f"s{index:04d}"
+        logs = {}
+        for side in ("a", "b"):
+            try:
+                logs[side] = (base / side / "loader.log").read_text(errors="replace")
+            except OSError:
+                break
+        if len(logs) < 2:
+            result["skipped"] = "no saved loader.log for this set"
+            continue
+        parsed = {s: harness.parse_log(t, [str(base / s / "game")]) for s, t in logs.items()}
+        result["comparison"] = harness.compare_logs(parsed["a"], parsed["b"], allow)
+        result["chains"] = {s: len(parsed[s]["chains"]) for s in parsed}
+        result["dlls"] = {s: len(parsed[s]["dlls"]) for s in parsed}
+    meta = {"a": dict(rep["meta"].get("a", {})), "b": dict(rep["meta"].get("b", {})), "allow": sorted(allow),
+            "notes": ["Wine harness, synthetic level, compared again from the saved loader.log files", f"input: {out}"]}
+    final = report.build(meta, results)
+    harness.write_json(work / "report.json", final)
+    text = report.summary(final)
+    (work / "summary.txt").write_text(text)
+    print(text, end="")
+    print(f"report: {work / 'report.json'}")
+    return final["exit"]
+
+
+def _harness_pair(args, work, exe, prefix, index, plans, allow, notes):
+    base = work / f"s{index:04d}"
+    parsed = {}
+    for side in ("a", "b"):
+        data, plan, _ = plans[side]
+        mapping = harness.side_mapping(Path(args.run).resolve(), side, index)
+        game = base / side / "game"
+        info = harness.prepare_game(plan, mapping, game, exe, args.max_copy_mb << 20, harness.settings_path(data, plans[side][1], plans[side][2]))
+        if not args.no_synth:
+            info["synth"] = harness.synth_bindings(game)
+        if info["missing"]:
+            notes.append(f"{side}: {len(info['missing'])} plan file(s) not found in the kept data dir, e.g. {info['missing'][0]}")
+        if info["skipped"]:
+            notes.append(f"{side}: {len(info['skipped'])} game file(s) over {args.max_copy_mb} MB not copied (the synthetic game reads none)")
+        rc, text, stdout = harness.run_wine(game, prefix, args.mode, args.timeout, pin=not args.no_pin)
+        (base / side / "loader.log").write_text(text)
+        (base / side / "stdout.txt").write_text(stdout)
+        if not text:
+            raise RuntimeError(f"{side}: the synthetic game wrote no loader.log (exit {rc}); see {base / side / 'stdout.txt'}")
+        parsed[side] = harness.parse_log(text, [str(game)])
+        parsed[side]["exit"] = rc
+        if not args.keep_games:
+            shutil.rmtree(game, ignore_errors=True)
+    if parsed["a"]["exit"] != parsed["b"]["exit"]:
+        notes.append(f"the synthetic game exited {parsed['a']['exit']} on a and {parsed['b']['exit']} on b")
+    harness.write_json(base / "parsed.json", parsed)
+    cmp = harness.compare_logs(parsed["a"], parsed["b"], allow)
+    if parsed["a"]["exit"] != parsed["b"]["exit"]:
+        cmp["differences"].append({"category": "run", "what": "exit code of the synthetic game",
+                                   "a": parsed["a"]["exit"], "b": parsed["b"]["exit"]})
+        cmp["same"] = False
+    return {"comparison": cmp,
+            "buildhash": {s: plans[s][1].get("hash") for s in plans},
+            "chains": {s: len(parsed[s]["chains"]) for s in parsed},
+            "dlls": {s: len(parsed[s]["dlls"]) for s in parsed}}
 
 
 def parser():
@@ -348,6 +487,10 @@ def parser():
     r.add_argument("--retries", type=int, default=2,
                    help="build a set again when the game folder changed during it and the builds differ (default %(default)s)")
     r.add_argument("--keep", action="store_true", help="keep the scratch data dirs")
+    r.add_argument("--slim", action="store_true",
+                   help="like --keep, but each kept data dir keeps only the files its plan.json lists (for `harness`)")
+    r.add_argument("--slim-cap-mb", type=int, default=harness.DEFAULT_CAP >> 20,
+                   help="--slim drops listed game files larger than this, loader files excepted (default %(default)s)")
     r.add_argument("--no-pin", action="store_true", help="do not run the CLIs under taskset and nice")
     r.add_argument("--allow", action="append", choices=compare.CATEGORIES,
                    help="report this category of difference without failing (repeatable)")
@@ -365,8 +508,24 @@ def parser():
     rc.add_argument("--allow", action="append", choices=compare.CATEGORIES)
     rc.set_defaults(func=cmd_recompare)
 
-    h = sub.add_parser("harness", help="the Wine half of the gate (round 3; not built yet)")
-    h.add_argument("rest", nargs=argparse.REMAINDER)
+    h = sub.add_parser("harness", help="the Wine half of the gate: boot each kept build in the synthetic game")
+    h.add_argument("run", help="a `run --keep` output folder")
+    h.add_argument("--set", action="append", help="only this set (repeatable)")
+    h.add_argument("--mode", default="gate", help="argument for the synthetic F1_25.exe (default %(default)s)")
+    h.add_argument("--fake-exe", help="a built synthetic F1_25.exe (default: built from native/test/fake_game.c)")
+    h.add_argument("--allow", action="append", choices=harness.CATEGORIES)
+    h.add_argument("--lock", default=os.environ.get("SWOFTY_GAME_LOCK", harness.DEFAULT_LOCK))
+    h.add_argument("--queue", default=os.environ.get("SWOFTY_GAME_QUEUE", harness.DEFAULT_QUEUE))
+    h.add_argument("--lock-wait", type=int, default=3600, help="seconds to wait for the game lock (default %(default)s)")
+    h.add_argument("--hold", type=int, default=540, help="seconds to hold the lock before releasing it (default %(default)s)")
+    h.add_argument("--timeout", type=int, default=300, help="seconds per synthetic game (default %(default)s)")
+    h.add_argument("--max-copy-mb", type=int, default=harness.DEFAULT_CAP >> 20, help="game files larger than this are not copied")
+    h.add_argument("--recompare", action="store_true",
+                   help="compare the loader.log files saved by an earlier harness run again; start nothing")
+    h.add_argument("--no-synth", action="store_true",
+                   help="leave the game's bindings alone (then the real addresses do not resolve in the synthetic game)")
+    h.add_argument("--keep-games", action="store_true", help="keep the scratch game folders")
+    h.add_argument("--no-pin", action="store_true")
     h.set_defaults(func=cmd_harness)
     return p
 
