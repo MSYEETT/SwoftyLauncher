@@ -257,7 +257,7 @@ class Gate(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp, redirect_stderr(io.StringIO()):
             self.assertEqual(main(["run", "--cli-a", f"{tmp}/nope", "--cli-b", f"{tmp}/nope", "--offline"]), 2)
-            self.assertEqual(main(["harness"]), 2)
+            self.assertEqual(main(["harness", str(Path(tmp) / "nowhere")]), 2)
             silent = Path(tmp) / "silent"
             silent.write_text("#!/bin/sh\nexit 0\n")
             silent.chmod(0o755)

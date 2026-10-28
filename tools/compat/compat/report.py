@@ -1,6 +1,6 @@
 import json
 
-PASS, DIFF, ERROR = "pass", "diff", "error"
+PASS, DIFF, ERROR, SKIP = "pass", "diff", "error", "skip"
 DETAIL_LIMIT = 20
 
 
@@ -10,12 +10,16 @@ def _short(value, limit=300):
 
 
 def status_of(result):
+    if result.get("skipped"):
+        return SKIP
     if result.get("error"):
         return ERROR
     return PASS if result["comparison"]["same"] else DIFF
 
 
 def first_difference(result):
+    if result.get("skipped"):
+        return result["skipped"]
     if result.get("error"):
         return result["error"]
     diffs = result["comparison"]["differences"]
@@ -37,7 +41,7 @@ def build(meta, results):
     counts = {PASS: 0, DIFF: 0, ERROR: 0}
     for r in results:
         r["status"] = status_of(r)
-        counts[r["status"]] += 1
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
     return {"meta": meta, "counts": counts, "exit": exit_code(results), "results": results}
 
 
@@ -78,5 +82,6 @@ def summary(report):
             out.append(f"  and {len(diffs) - DETAIL_LIMIT} more in report.json")
     c = report["counts"]
     out.append("")
-    out.append(f"{c[PASS]} pass, {c[DIFF]} with differences, {c[ERROR]} tool errors; exit {report['exit']}")
+    skipped = f", {c[SKIP]} skipped" if c.get(SKIP) else ""
+    out.append(f"{c[PASS]} pass, {c[DIFF]} with differences, {c[ERROR]} tool errors{skipped}; exit {report['exit']}")
     return "\n".join(out) + "\n"
