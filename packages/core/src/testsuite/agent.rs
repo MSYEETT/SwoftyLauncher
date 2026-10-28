@@ -1,13 +1,12 @@
-//! The test agent's mailbox: a folder `<game>/swofty/test/<run>/` that the
-//! CLI and the core's test agent share. The CLI writes `session.json` (the
-//! run's token and the test DLLs) and appends one JSON command per line to
-//! `commands.jsonl`; the agent appends one JSON line per result or event to
-//! `results.jsonl`. The agent arms only when the game's environment carries
-//! the run (`SWOFTY_TEST`) and the token (`SWOFTY_TEST_TOKEN`) that
-//! `session.json` holds.
+//! The test agent's mailbox: the `agent/` folder of a test run folder
+//! (`super::sandbox::RunDir`), shared by the CLI and the core's test agent.
+//! The CLI appends one JSON command per line to `commands.jsonl`; the agent
+//! appends one JSON line per result or event to `results.jsonl`. The agent
+//! arms only in a test run: the game's environment names the run folder
+//! (`SWOFTY_TEST_RUN`) and its token (`SWOFTY_TEST_TOKEN`), which `run.json`
+//! holds; the test DLLs it loads are the ones `run.json` lists.
 
 use std::collections::BTreeMap;
-use std::hash::{BuildHasher, Hasher};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -18,13 +17,8 @@ use super::Error;
 use super::suite::Step;
 
 pub const PROTOCOL: u64 = 1;
-pub const DIR: &str = "swofty/test";
-pub const SESSION: &str = "session.json";
 pub const COMMANDS: &str = "commands.jsonl";
 pub const RESULTS: &str = "results.jsonl";
-pub const DLL_DIR: &str = "dll";
-pub const ENV_RUN: &str = "SWOFTY_TEST";
-pub const ENV_TOKEN: &str = "SWOFTY_TEST_TOKEN";
 
 /// The commands the agent knows, in protocol 1.
 pub const COMMANDS_V1: &[&str] = &[
@@ -43,11 +37,9 @@ pub const COMMANDS_V1: &[&str] = &[
     "save",
     "quit",
     "run_test",
+    "title",
+    "career",
 ];
-
-pub fn dir(game: &Path, run: &str) -> PathBuf {
-    game.join(DIR).join(run)
-}
 
 /// A run name the agent accepts as a folder name.
 pub fn valid_run(run: &str) -> bool {
@@ -59,123 +51,11 @@ pub fn valid_run(run: &str) -> bool {
         && !run.starts_with('.')
 }
 
-/// A fresh token for one game start: 128 bits from the process's random
-/// hasher keys, the time and the pid.
-pub fn token() -> String {
-    let mut out = String::new();
-    for i in 0..2u64 {
-        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-        h.write_u64(now_ms());
-        h.write_u32(std::process::id());
-        h.write_u64(i);
-        out.push_str(&format!("{:016x}", h.finish()));
-    }
-    out
-}
-
 pub fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Session {
-    pub run: String,
-    pub token: String,
-    pub created_ms: u64,
-    /// Test DLLs, relative to the mailbox folder.
-    pub dlls: Vec<String>,
-}
-
-impl Session {
-    pub fn new(run: &str) -> Self {
-        Session {
-            run: run.to_owned(),
-            token: token(),
-            created_ms: now_ms(),
-            dlls: Vec::new(),
-        }
-    }
-
-    pub fn json(&self) -> String {
-        json!({
-            "v": PROTOCOL,
-            "run": self.run,
-            "token": self.token,
-            "created_ms": self.created_ms,
-            "dlls": self.dlls,
-        })
-        .to_string()
-    }
-
-    /// The game's environment for this run.
-    pub fn env(&self) -> Vec<(String, String)> {
-        vec![
-            (ENV_RUN.to_owned(), self.run.clone()),
-            (ENV_TOKEN.to_owned(), self.token.clone()),
-        ]
-    }
-}
-
-/// The mailbox folder of one game start, made by the CLI.
-#[derive(Debug, Clone)]
-pub struct Mailbox {
-    pub dir: PathBuf,
-    pub session: Session,
-    dll_sources: Vec<(PathBuf, String)>,
-}
-
-impl Mailbox {
-    pub fn new(game: &Path, session: Session) -> Self {
-        Mailbox {
-            dir: dir(game, &session.run),
-            session,
-            dll_sources: Vec::new(),
-        }
-    }
-
-    /// Stage a test DLL: it is copied into `dll/<name>` when the mailbox is
-    /// written.
-    pub fn add_dll(&mut self, source: &Path, name: &str) {
-        let rel = format!("{DLL_DIR}/{name}");
-        if !self.session.dlls.contains(&rel) {
-            self.session.dlls.push(rel.clone());
-            self.dll_sources.push((source.to_path_buf(), rel));
-        }
-    }
-
-    /// Write whatever is missing: the DLLs, an empty command file and, last,
-    /// `session.json`. Safe to call again: a launch that clears the folder
-    /// gets it back on the next call.
-    pub fn write(&self) -> std::io::Result<()> {
-        std::fs::create_dir_all(self.dir.join(DLL_DIR))?;
-        for (src, rel) in &self.dll_sources {
-            let dest = self.dir.join(rel);
-            if !dest.exists() {
-                std::fs::copy(src, &dest)?;
-            }
-        }
-        let commands = self.dir.join(COMMANDS);
-        if !commands.exists() {
-            std::fs::write(&commands, "")?;
-        }
-        let session = self.dir.join(SESSION);
-        if !session.exists() {
-            let tmp = self.dir.join("session.json.tmp");
-            std::fs::write(&tmp, self.session.json())?;
-            std::fs::rename(&tmp, &session)?;
-        }
-        Ok(())
-    }
-
-    pub fn remove(&self) -> std::io::Result<()> {
-        match std::fs::remove_dir_all(&self.dir) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
-            _ => Ok(()),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -426,6 +306,30 @@ pub fn parse_shell(line: &str) -> Result<(String, Value, Option<u64>), String> {
         "run_test" | "test" => {
             need(1, "run_test <fn>")?;
             ("run_test".into(), json!({ "fn": rest[0] }), None)
+        }
+        "title" => (cmd, Value::Null, None),
+        "career" => {
+            let usage = "career load <slot|newest> [at team_hq|weekend_hub|session] [mode driver_career|my_team_career]";
+            need(2, usage)?;
+            if rest[0] != "load" {
+                return Err(format!("usage: {usage}"));
+            }
+            let mut a = json!({ "op": "load" });
+            a["slot"] = match rest[1].parse::<u64>() {
+                Ok(n) => json!(n),
+                Err(_) if rest[1] == "newest" => json!("newest"),
+                Err(_) => return Err(format!("{}: a slot is a number or newest", rest[1])),
+            };
+            let mut i = 2;
+            while i < rest.len() {
+                match (rest[i], rest.get(i + 1)) {
+                    ("at", Some(at)) => a["at"] = json!(at),
+                    ("mode", Some(m)) => a["mode"] = json!(m),
+                    _ => return Err(format!("usage: {usage}")),
+                }
+                i += 2;
+            }
+            (cmd, a, None)
         }
         other => {
             return Err(format!(

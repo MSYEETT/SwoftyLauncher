@@ -5,7 +5,7 @@
 //! session's logs and writes the reports. `swofty test shell` starts the
 //! game in test mode and sends the agent the commands a person types.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
@@ -14,6 +14,7 @@ use std::time::{Duration, Instant, SystemTime};
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use serde_json::{Value, json};
+use swofty_core::addon_storage;
 use swofty_core::builtin::CORE_ID;
 use swofty_core::install::Game;
 use swofty_core::journal::Journal;
@@ -21,12 +22,15 @@ use swofty_core::process::{descends_from, game_processes, games_in, stop_process
 use swofty_core::recovery::SessionLock;
 use swofty_core::session::{LOADER_LOG, LogMark, SessionRecord, request_stop};
 use swofty_core::store::Store;
-use swofty_core::testsuite::agent::{self, Client, Mailbox, Outcome, Session};
+use swofty_core::testsuite::agent::{self, Client, Outcome};
 use swofty_core::testsuite::bench;
+use swofty_core::testsuite::career;
 use swofty_core::testsuite::checks::{self, Evidence, Failure};
+use swofty_core::testsuite::fixture::{self, Fixture};
 use swofty_core::testsuite::lock::{self, GameLock};
 use swofty_core::testsuite::plan::{self, Batch, Plan};
 use swofty_core::testsuite::report::{self, BatchReport, Report, Status, StepReport, TestReport, exit};
+use swofty_core::testsuite::sandbox::{self, RunDir, RunOptions};
 use swofty_core::testsuite::suite::{self, Env, Kind, Selector, Suite, Test};
 
 use crate::time::{now_secs, stamp};
@@ -42,9 +46,14 @@ pub enum TestCommand {
     )]
     Run(RunArgs),
     #[command(
-        about = "Start F1 25 in test mode and send the test agent the commands you type (route, read, wait, pad, capture, quit...)"
+        about = "Start F1 25 in test mode and send the test agent the commands you type (route, read, wait, pad, capture, career load, quit...)"
     )]
     Shell(ShellArgs),
+    #[command(
+        subcommand,
+        about = "Capture, list and check fixtures: saved games in a known state"
+    )]
+    Fixture(FixtureCommand),
 }
 
 #[derive(Args)]
@@ -76,6 +85,80 @@ pub struct ShellArgs {
         help = "The machine's game lock folder (as for swofty test run)"
     )]
     lock: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "FIXTURE",
+        help = "Start in the save sandbox with this fixture's saves (a fixture folder or a name in the fixture store), so career load, advance and save now work"
+    )]
+    fixture: Option<String>,
+}
+
+#[derive(Subcommand)]
+pub enum FixtureCommand {
+    #[command(
+        about = "Copy a test run's sandbox saves and addon storage into a new fixture in the fixture store"
+    )]
+    Capture(CaptureArgs),
+    #[command(about = "List the fixtures in the fixture store and check their files")]
+    List(StoreArgs),
+    #[command(about = "Check a fixture's files against its fixture.json")]
+    Check(CheckArgs),
+}
+
+#[derive(Args)]
+pub struct StoreArgs {
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "The fixture store (default: $SWOFTY_TEST_FIXTURES, else test-fixtures in the data folder)"
+    )]
+    store: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct CaptureArgs {
+    #[arg(help = "The new fixture's name (letters, digits, - _ .)")]
+    name: String,
+    #[arg(
+        long,
+        value_name = "RUN",
+        conflicts_with = "from",
+        help = "The test run whose sandbox to capture, as named under test-runs/ (default: the newest)"
+    )]
+    run: Option<String>,
+    #[arg(
+        long,
+        value_name = "DIR",
+        help = "Capture a save folder instead of a test run: a Steam remote/ folder or the userdata/<app> folder holding \
+                one, such as a copy of a backup. Never the live folder"
+    )]
+    from: Option<PathBuf>,
+    #[arg(long, help = "What the fixture holds, in a sentence")]
+    description: Option<String>,
+    #[arg(
+        long = "addon",
+        value_name = "ID=VERSION",
+        help = "An addon the fixture's careers need (repeatable; a run's addons are recorded on their own)"
+    )]
+    addons: Vec<String>,
+    #[arg(
+        long = "career",
+        value_name = "MODE[:SLOT]",
+        help = "A career the fixture holds, by its game mode and save slot (repeatable)"
+    )]
+    careers: Vec<String>,
+    #[arg(long, help = "Free text for fixture.json's holds.notes")]
+    notes: Option<String>,
+    #[command(flatten)]
+    store: StoreArgs,
+}
+
+#[derive(Args)]
+pub struct CheckArgs {
+    #[arg(help = "A fixture name in the store or a fixture folder")]
+    fixture: String,
+    #[command(flatten)]
+    store: StoreArgs,
 }
 
 #[derive(Args)]
@@ -165,7 +248,21 @@ pub fn command(store: &Store, cmd: TestCommand) -> Result<ExitCode> {
         TestCommand::Plan(a) => plan_command(&a),
         TestCommand::Run(a) => run_command(store, a),
         TestCommand::Shell(a) => shell_command(store, a),
+        TestCommand::Fixture(c) => fixture_command(store, c),
     }
+}
+
+/// The folder of each suite's test file: a test's `fixture` path is relative to it.
+fn bases(suites: &[Suite]) -> BTreeMap<String, PathBuf> {
+    suites
+        .iter()
+        .map(|s| {
+            (
+                s.id.clone(),
+                s.file.parent().map(Path::to_path_buf).unwrap_or_default(),
+            )
+        })
+        .collect()
 }
 
 fn load(select: &Select) -> std::result::Result<(Vec<Suite>, Plan), String> {
@@ -242,7 +339,16 @@ fn run_command(store: &Store, a: RunArgs) -> Result<ExitCode> {
         false
     } else {
         let ids: Vec<String> = suites.iter().map(|s| s.id.clone()).collect();
-        match run_with_game(store, &a, &plan, &run_id, &ids, &out, &mut report) {
+        match run_with_game(
+            store,
+            &a,
+            &plan,
+            &run_id,
+            &ids,
+            &bases(&suites),
+            &out,
+            &mut report,
+        ) {
             Ok(()) => false,
             Err(Stop::Busy(why)) => {
                 report.errors.push(why);
@@ -283,12 +389,14 @@ enum Stop {
 
 const MIN_FREE: u64 = 1 << 30;
 
+#[allow(clippy::too_many_arguments)]
 fn run_with_game(
     store: &Store,
     a: &RunArgs,
     plan: &Plan,
     run_id: &str,
     suites: &[String],
+    bases: &BTreeMap<String, PathBuf>,
     out: &Path,
     report: &mut Report,
 ) -> std::result::Result<(), Stop> {
@@ -296,6 +404,11 @@ fn run_with_game(
     crate::build::supported(&g).ok();
     report.game_build = swofty_core::exe_version::read(&g.dir.join(swofty_core::GAME_EXE));
     preflight(store, &g, plan, out).map_err(Stop::Infra)?;
+    let exe_sha = sandbox_preflight(store, &g, plan, bases).map_err(Stop::Infra)?;
+    let live_saves = exe_sha
+        .as_ref()
+        .and_then(|_| swofty_core::steam::find_game())
+        .and_then(|i| swofty_core::steam::save_dir(&i.steam_root));
     let dir = a.lock.clone().unwrap_or_else(|| lock::default_path(&store.root));
     let owner = lock::owner_line(run_id, suites, &hh_mm());
     let lock = take_lock(&dir, &owner, a.wait)?;
@@ -313,9 +426,12 @@ fn run_with_game(
         game: &g.dir,
         out,
         profile: &profile,
-        run: run_id,
         launcher: &mut launcher,
         times: Times::default(),
+        run_id,
+        bases: bases.clone(),
+        exe_sha,
+        live_saves,
     };
     h.run(plan, report);
     if store.profile_names().is_ok_and(|n| n.contains(&profile))
@@ -376,6 +492,93 @@ fn preflight(store: &Store, g: &Game, plan: &Plan, out: &Path) -> std::result::R
         ));
     }
     addons_installed(store, plan)
+}
+
+/// A career environment runs only in the save sandbox, and only on an exe
+/// whose core bindings carry the sandbox's install point (verified in the
+/// KB). Its fixture must resolve and match its fixture.json. Returns the
+/// exe's sha256 when a batch needs the sandbox.
+fn sandbox_preflight(
+    store: &Store,
+    g: &Game,
+    plan: &Plan,
+    bases: &BTreeMap<String, PathBuf>,
+) -> std::result::Result<Option<String>, String> {
+    let need: Vec<&Batch> = plan
+        .batches
+        .iter()
+        .filter(|b| sandboxed(b) && b.starts_game())
+        .collect();
+    if need.is_empty() {
+        return Ok(None);
+    }
+    let mut hashes = swofty_core::baseline::Hashes::load(&store.root);
+    let exe = g.dir.join(swofty_core::GAME_EXE);
+    let sha = hashes
+        .sha256(&exe)
+        .map_err(|e| format!("could not hash {}: {e}", exe.display()))?;
+    hashes.save();
+    let loader = swofty_core::builtin::loader_dir();
+    check_sandbox(
+        loader.as_deref(),
+        &sha,
+        &need,
+        bases,
+        &fixture::store(&store.root),
+    )?;
+    Ok(Some(sha))
+}
+
+pub(crate) fn sandboxed(b: &Batch) -> bool {
+    b.env.kind == Kind::Career
+}
+
+pub(crate) fn check_sandbox(
+    loader: Option<&Path>,
+    exe_sha: &str,
+    batches: &[&Batch],
+    bases: &BTreeMap<String, PathBuf>,
+    store: &Path,
+) -> std::result::Result<(), String> {
+    let Some(loader) = loader else {
+        return Err(
+            "a career environment needs the save sandbox, and the launcher's loader (version.dll and the \
+                    core) was not found"
+                .to_owned(),
+        );
+    };
+    let proof = sandbox::verified(loader, exe_sha)
+        .map_err(|e| format!("a career environment needs the save sandbox: {e}"))?;
+    say(&format!("save sandbox: verified for this F1_25.exe by {proof}"));
+    for b in batches {
+        let f = batch_fixture(b, bases, store).map_err(|e| format!("{}: {e}", b.label()))?;
+        if f.manifest.exe.sha256 != exe_sha {
+            say(&format!(
+                "{}: fixture {} was saved on another F1_25.exe ({}); older saves normally load forward",
+                b.label(),
+                f.manifest.name,
+                &f.manifest.exe.sha256[..f.manifest.exe.sha256.len().min(16)]
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn batch_fixture(
+    b: &Batch,
+    bases: &BTreeMap<String, PathBuf>,
+    store: &Path,
+) -> std::result::Result<Fixture, String> {
+    let spec = b
+        .env
+        .str("fixture")
+        .ok_or("a career environment names no fixture")?;
+    let base = b
+        .tests
+        .first()
+        .and_then(|t| bases.get(&t.suite))
+        .map(PathBuf::as_path);
+    fixture::load(&fixture::resolve(spec, base, store)?)
 }
 
 /// The offline play terms are the player's to accept; a test run never
@@ -638,8 +841,11 @@ pub(crate) struct Times {
     pub grace: Duration,
     /// How long the game gets to close after the agent's quit.
     pub quit: Duration,
-    /// How often the title screen gets a pad press.
+    /// How often the title screen gets a pad press when the agent can't
+    /// pass it without input.
     pub title_press: Duration,
+    /// How long a career environment's `career load` may take.
+    pub career: Duration,
 }
 
 impl Default for Times {
@@ -655,6 +861,7 @@ impl Default for Times {
             grace: Duration::from_secs(10),
             quit: Duration::from_secs(30),
             title_press: Duration::from_secs(3),
+            career: Duration::from_secs(900),
         }
     }
 }
@@ -664,14 +871,31 @@ pub(crate) struct Harness<'a> {
     pub game: &'a Path,
     pub out: &'a Path,
     pub profile: &'a str,
-    pub run: &'a str,
     pub launcher: &'a mut dyn Launcher,
     pub times: Times,
+    pub run_id: &'a str,
+    /// Each suite's test file folder, for fixture paths.
+    pub bases: BTreeMap<String, PathBuf>,
+    /// The game exe's sha256 when a batch needs the save sandbox.
+    pub exe_sha: Option<String>,
+    /// The player's Steam save folder: a sandboxed batch compares its
+    /// listing (names, sizes, times; never contents) before and after.
+    pub live_saves: Option<PathBuf>,
 }
 
-/// A batch's line to the test agent.
+/// A batch's save sandbox: the fixture copied into the run folder's saves
+/// and the player's save folder listing before the game started.
+struct Sandbox {
+    fixture: String,
+    /// The fixture's careers' game mode, when it tells which to continue.
+    mode: Option<String>,
+    storage_ids: BTreeSet<String>,
+    live_before: Option<BTreeMap<String, (u64, Option<SystemTime>)>>,
+}
+
+/// A batch's test run folder and its line to the test agent.
 struct Agent {
-    mailbox: Mailbox,
+    run: RunDir,
     client: Client,
     hello: bool,
     /// Values the steps read, by their `as` name, and sampled series.
@@ -812,10 +1036,10 @@ impl Harness<'_> {
         }
     }
 
-    fn profile(&self, b: &Batch) -> Result<()> {
+    fn profile(&self, b: &Batch, name: &str) -> Result<()> {
         let installed = self.store.addons()?;
         let registry = self.store.registry()?;
-        let mut p = self.store.profile(self.profile)?;
+        let mut p = self.store.profile(name)?;
         let keep = |id: &str| {
             id == CORE_ID || b.addons.iter().any(|a| a == id) || registry.get(id).is_some_and(|e| e.locked)
         };
@@ -862,16 +1086,71 @@ impl Harness<'_> {
             fail_all(&mut reports, "the batch did not start");
             return (br, reports);
         }
-        if let Err(e) = self.profile(b) {
+        let sandboxed = sandboxed(b);
+        let profile = match sandboxed {
+            true => format!("{}-{index}", self.profile),
+            false => self.profile.to_owned(),
+        };
+        if let Err(e) = self.profile(b, &profile) {
             br.error = Some(format!("the test profile: {e:#}"));
             fail_all(&mut reports, "the batch did not start");
+            self.drop_profile(sandboxed, &profile, &mut br);
             return (br, reports);
         }
+        let needs_agent = sandboxed || runnable.iter().any(|&i| b.tests[i].needs_agent());
+        let mut agent = match needs_agent {
+            false => None,
+            true => match self.open_run(b, index, &dir, sandboxed) {
+                Ok(a) => Some(a),
+                Err(e) => {
+                    br.error = Some(format!("the test run folder: {e}"));
+                    fail_all(&mut reports, "the batch did not start");
+                    self.drop_profile(sandboxed, &profile, &mut br);
+                    return (br, reports);
+                }
+            },
+        };
+        let sandbox = match (sandboxed, agent.as_ref()) {
+            (true, Some(a)) => match batch_fixture(b, &self.bases, &fixture::store(&self.store.root))
+                .and_then(|f| self.open_sandbox(f, b, &profile, &a.run))
+            {
+                Ok(s) => {
+                    br.notes.push(format!(
+                        "save sandbox {} with fixture {}",
+                        a.run.saves().display(),
+                        s.fixture
+                    ));
+                    Some(s)
+                }
+                Err(e) => {
+                    br.error = Some(format!("the save sandbox: {e}"));
+                    fail_all(&mut reports, "the batch did not start");
+                    self.close_run(agent.take(), &mut br);
+                    self.drop_profile(sandboxed, &profile, &mut br);
+                    return (br, reports);
+                }
+            },
+            _ => None,
+        };
+        let env = agent.as_ref().map(|a| a.run.env()).unwrap_or_default();
         let mut staged = match Staged::write(self.game, b) {
             Ok(s) => s,
             Err(e) => {
                 br.error = Some(format!("could not write the benchmark XML: {e}"));
                 fail_all(&mut reports, "the batch did not start");
+                if let Some(s) = sandbox {
+                    self.close_sandbox(
+                        s,
+                        agent.as_ref().map(|a| &a.run),
+                        b,
+                        &profile,
+                        &mut br,
+                        &mut reports,
+                        &runnable,
+                    );
+                }
+                self.close_run(agent.take(), &mut br);
+                self.drop_profile(sandboxed, &profile, &mut br);
                 return (br, reports);
             }
         };
@@ -884,28 +1163,26 @@ impl Harness<'_> {
             Kind::Benchmark => bench::args(),
             _ => Vec::new(),
         };
-        let mut agent = match runnable.iter().any(|&i| b.tests[i].needs_agent()) {
-            false => None,
-            true => match self.mailbox(b, index, &dir) {
-                Ok(a) => Some(a),
-                Err(e) => {
-                    br.error = Some(format!("the test agent's mailbox: {e}"));
-                    fail_all(&mut reports, "the batch did not start");
-                    return (br, reports);
-                }
-            },
-        };
-        let env = agent
-            .as_ref()
-            .map(|a| a.mailbox.session.env())
-            .unwrap_or_default();
         say(&format!("batch {index}: starting F1 25 ({})", br.env));
         let started = Instant::now();
-        let mut run = match self.launcher.launch(self.profile, &args, &env, &dir) {
+        let mut run = match self.launcher.launch(&profile, &args, &env, &dir) {
             Ok(r) => r,
             Err(e) => {
                 br.error = Some(format!("could not start the game: {e:#}"));
                 fail_all(&mut reports, "the batch did not start");
+                if let Some(s) = sandbox {
+                    self.close_sandbox(
+                        s,
+                        agent.as_ref().map(|a| &a.run),
+                        b,
+                        &profile,
+                        &mut br,
+                        &mut reports,
+                        &runnable,
+                    );
+                }
+                self.close_run(agent.take(), &mut br);
+                self.drop_profile(sandboxed, &profile, &mut br);
                 return (br, reports);
             }
         };
@@ -913,6 +1190,8 @@ impl Harness<'_> {
         let kind = b.env.kind;
         let mut told_title = false;
         let mut pressed: Option<Instant> = None;
+        let mut title: Option<u64> = None;
+        let mut by_pad = false;
         let ready = loop {
             if let Some(a) = agent.as_mut()
                 && let Err(why) = a.keep_up()
@@ -923,14 +1202,30 @@ impl Harness<'_> {
             if text.contains(checks::ready_line(kind)) {
                 break Ok(());
             }
-            let at_title = matches!(kind, Kind::Boot | Kind::Route) && text.contains(checks::TITLE);
-            if let Some(a) = agent.as_mut().filter(|a| a.hello && at_title)
-                && pressed.is_none_or(|p| p.elapsed() >= self.times.title_press)
+            if agent.is_some()
+                && let Some(line) = text.lines().find(|l| l.contains(sandbox::FAILED_LINE))
             {
-                pressed = Some(Instant::now());
-                a.client
-                    .send("pad", json!({ "press": "a", "ms": 150 }), None)
-                    .ok();
+                break Err(format!("the core refused the test run and the game quit: {line}"));
+            }
+            let at_title = matches!(kind, Kind::Boot | Kind::Route) && text.contains(checks::TITLE);
+            if let Some(a) = agent.as_mut().filter(|a| a.hello && at_title) {
+                match title {
+                    None => title = a.client.send("title", Value::Null, None).ok(),
+                    Some(seq) => {
+                        if let Some(r) = a.client.take_reply(seq) {
+                            by_pad = r.outcome != Outcome::Ok;
+                            if by_pad {
+                                say(&format!("title: {}; pressing the virtual pad instead", r.text()));
+                            }
+                        }
+                    }
+                }
+                if by_pad && pressed.is_none_or(|p| p.elapsed() >= self.times.title_press) {
+                    pressed = Some(Instant::now());
+                    a.client
+                        .send("pad", json!({ "press": "a", "ms": 150 }), None)
+                        .ok();
+                }
             } else if at_title && agent.is_none() && !told_title {
                 told_title = true;
                 say("at the title screen: it waits for a button press before the main menu");
@@ -952,7 +1247,13 @@ impl Harness<'_> {
             Some(a) => {
                 let left = self.times.start.saturating_sub(started.elapsed());
                 a.hello(left, self.times.poll, &mut *run)?;
-                self.env_routes(&b.env, a, &mut *run)
+                self.env_routes(&b.env, a, &mut *run)?;
+                self.env_career(
+                    &b.env,
+                    sandbox.as_ref().and_then(|s| s.mode.as_deref()),
+                    a,
+                    &mut *run,
+                )
             }
         });
         match &ready {
@@ -1016,10 +1317,6 @@ impl Harness<'_> {
                 br.notes
                     .push(format!("could not keep the test agent's results: {e}"));
             }
-            if let Err(e) = a.mailbox.remove() {
-                br.notes
-                    .push(format!("could not remove {}: {e}", a.mailbox.dir.display()));
-            }
         }
         let unstaged = staged.as_mut().map(|s| s.remove());
         drop(staged);
@@ -1079,10 +1376,143 @@ impl Harness<'_> {
                 false => Status::Fail,
             };
         }
+        if let Some(s) = sandbox {
+            self.close_sandbox(
+                s,
+                agent.as_ref().map(|a| &a.run),
+                b,
+                &profile,
+                &mut br,
+                &mut reports,
+                &runnable,
+            );
+        }
+        self.close_run(agent.take(), &mut br);
+        self.drop_profile(sandboxed, &profile, &mut br);
         let (clean, notes) = self.clean(unstaged);
         br.clean = Some(clean);
         br.notes.extend(notes);
         (br, reports)
+    }
+
+    /// The fixture's saves in the run folder's sandbox and the fixture's
+    /// addon storage as the batch profile's copy, which the session loads
+    /// into the addons' storage when it starts.
+    fn open_sandbox(
+        &self,
+        f: Fixture,
+        b: &Batch,
+        profile: &str,
+        run: &RunDir,
+    ) -> std::result::Result<Sandbox, String> {
+        let data = &self.store.root;
+        let ids: BTreeSet<String> = f
+            .storage_ids()
+            .into_iter()
+            .chain(b.addons.iter().cloned())
+            .collect();
+        for id in &ids {
+            let d = addon_storage::profile_dir(data, id, profile);
+            if d.exists() {
+                std::fs::remove_dir_all(&d).map_err(|e| format!("{}: {e}", d.display()))?;
+            }
+        }
+        let copied = f.install(&run.remote(), &|id| addon_storage::profile_dir(data, id, profile))?;
+        let installed = self.store.addons().map_err(|e| e.to_string())?;
+        let addons: BTreeMap<String, String> = b
+            .addons
+            .iter()
+            .filter_map(|id| Some((id.clone(), installed.get(id)?.version.to_string())))
+            .collect();
+        std::fs::write(
+            run.root.join("addons.json"),
+            serde_json::to_vec_pretty(&addons).expect("serialisable"),
+        )
+        .map_err(|e| format!("{}: {e}", run.root.display()))?;
+        for id in f.storage_ids().iter().filter(|id| !b.addons.contains(id)) {
+            say(&format!(
+                "fixture {}: it carries storage for {id}, which the batch does not enable; the game won't see it",
+                f.manifest.name
+            ));
+        }
+        say(&format!(
+            "save sandbox {}: fixture {} ({} file(s)) copied in",
+            run.saves().display(),
+            f.manifest.name,
+            copied.len()
+        ));
+        Ok(Sandbox {
+            fixture: f.manifest.name.clone(),
+            mode: career_mode(&f, b.env.uint("slot")),
+            storage_ids: ids,
+            live_before: self.live_saves.as_deref().map(sandbox::listing),
+        })
+    }
+
+    /// After the batch: keep its addon storage in the run folder for a
+    /// capture, check the core armed the sandbox and the player's save folder
+    /// did not change, and retire the run token.
+    #[allow(clippy::too_many_arguments)]
+    fn close_sandbox(
+        &self,
+        s: Sandbox,
+        run: Option<&RunDir>,
+        b: &Batch,
+        profile: &str,
+        br: &mut BatchReport,
+        reports: &mut [TestReport],
+        runnable: &[usize],
+    ) {
+        let data = &self.store.root;
+        let Some(run) = run else { return };
+        for id in &s.storage_ids {
+            let from = addon_storage::profile_dir(data, id, profile);
+            let to = run.storage().join(id);
+            if from.is_dir() && copy_tree(&from, &to).is_err() {
+                br.notes
+                    .push(format!("could not keep {id}'s storage in {}", to.display()));
+            }
+        }
+        let status = run.status();
+        let mut why = match &status {
+            None if br.started_game => Some(
+                "the core never reported the save sandbox (no sandbox.json): the save device may not have started"
+                    .to_owned(),
+            ),
+            Some(st) if !st.armed() => Some(format!("the save sandbox did not arm: {}", st.why)),
+            _ => None,
+        };
+        if let (Some(before), Some(dir)) = (&s.live_before, &self.live_saves) {
+            let changed = sandbox::changed(before, &sandbox::listing(dir));
+            if !changed.is_empty() {
+                why = Some(format!(
+                    "THE PLAYER'S STEAM SAVE FOLDER CHANGED during a sandboxed run ({}): {}",
+                    dir.display(),
+                    changed.join(", ")
+                ));
+            }
+        }
+        if let Some(why) = why {
+            say(&format!("{}: {why}", b.label()));
+            br.error = Some(why.clone());
+            for &i in runnable {
+                reports[i].status = Status::Error;
+                reports[i].reason = Some(why.clone());
+            }
+        }
+    }
+
+    fn drop_profile(&self, sandboxed: bool, profile: &str, br: &mut BatchReport) {
+        if sandboxed
+            && self
+                .store
+                .profile_names()
+                .is_ok_and(|n| n.contains(&profile.to_owned()))
+            && let Err(e) = self.store.delete_profile(profile)
+        {
+            br.notes
+                .push(format!("could not delete the batch profile {profile}: {e}"));
+        }
     }
 
     fn steps(
@@ -1218,12 +1648,8 @@ impl Harness<'_> {
 }
 
 impl Agent {
-    /// Write the mailbox again until the agent has said hello, and read what
-    /// it has written.
+    /// Read what the agent has written since the last call.
     fn keep_up(&mut self) -> std::result::Result<(), String> {
-        if !self.hello {
-            self.mailbox.write().ok();
-        }
         self.client.poll();
         self.hello |= self.client.hello.is_some();
         match &self.client.refused {
@@ -1238,15 +1664,7 @@ impl Agent {
         poll: Duration,
         run: &mut dyn Running,
     ) -> std::result::Result<(), String> {
-        let mailbox = self.mailbox.clone();
-        let hello = self.client.wait_hello(
-            limit,
-            poll,
-            || !run.finished(),
-            || {
-                mailbox.write().ok();
-            },
-        )?;
+        let hello = self.client.wait_hello(limit, poll, || !run.finished(), || {})?;
         self.hello = true;
         say(&format!(
             "test agent: hello (pid {}, protocol {})",
@@ -1281,13 +1699,13 @@ impl Agent {
         {
             let frames = self.keep_dir.join("frames");
             std::fs::create_dir_all(&frames).ok();
-            std::fs::copy(self.mailbox.dir.join(f), frames.join(name)).ok();
+            std::fs::copy(self.run.agent().join(f), frames.join(name)).ok();
         }
         Ok(r)
     }
 
-    /// Keep what the agent wrote in the batch folder: the game's own
-    /// session end may clear the mailbox before the CLI gets to it.
+    /// Keep what the agent wrote in the batch folder: a run folder without
+    /// the sandbox is removed after the batch.
     fn keep(&self) -> std::io::Result<()> {
         let mut text = self.client.lines.join("\n");
         text.push('\n');
@@ -1305,11 +1723,17 @@ fn agent_failure(check: String, expected: String, actual: String) -> Failure {
 }
 
 impl Harness<'_> {
-    fn mailbox(&self, b: &Batch, index: usize, keep_dir: &Path) -> std::io::Result<Agent> {
-        let mut m = Mailbox::new(self.game, Session::new(&format!("{}-b{index}", self.run)));
+    /// The batch's test run folder (`<data>/test-runs/<run>-<batch>/`):
+    /// run.json with a fresh token, the test DLLs in `agent/dll/` and, for a
+    /// career, the save sandbox's `saves/remote/`.
+    fn open_run(&self, b: &Batch, index: usize, keep_dir: &Path, sandbox: bool) -> std::io::Result<Agent> {
+        let mut dlls: Vec<(PathBuf, String)> = Vec::new();
         for t in &b.tests {
             if let Some(dll) = t.dll() {
-                m.add_dll(&dll, &format!("{}.dll", t.suite));
+                let name = format!("{}.dll", t.suite);
+                if !dlls.iter().any(|(_, n)| *n == name) {
+                    dlls.push((dll, name));
+                }
             } else if let Some(f) = &t.function {
                 return Err(std::io::Error::other(format!(
                     "{} runs fn {f}, and there is no native/tests.dll next to {}",
@@ -1318,17 +1742,64 @@ impl Harness<'_> {
                 )));
             }
         }
-        m.remove()?;
-        m.write()?;
-        let client = Client::new(&m.dir);
+        let options = RunOptions {
+            sandbox,
+            exe_sha256: self.exe_sha.clone(),
+            dlls,
+        };
+        let run = RunDir::create(&self.store.root, &format!("{}-{index}", self.run_id), options)?;
+        let client = Client::new(&run.agent());
         Ok(Agent {
-            mailbox: m,
+            run,
             client,
             hello: false,
             values: BTreeMap::new(),
             series: BTreeMap::new(),
             keep_dir: keep_dir.to_path_buf(),
         })
+    }
+
+    /// After the batch: retire the run's token, which stops the agent, and
+    /// remove a run folder that holds no saves to capture.
+    fn close_run(&self, agent: Option<Agent>, br: &mut BatchReport) {
+        let Some(a) = agent else { return };
+        let done = match a.run.sandboxed() {
+            true => a.run.retire(),
+            false => a.run.remove(),
+        };
+        if let Err(e) = done {
+            br.notes.push(format!(
+                "could not retire the test run in {}: {e}",
+                a.run.root.display()
+            ));
+        }
+    }
+
+    /// A career environment: the agent continues the fixture's career to
+    /// the place the test names and logs `[test] career ready at <at>`.
+    fn env_career(
+        &self,
+        env: &Env,
+        mode: Option<&str>,
+        a: &mut Agent,
+        run: &mut dyn Running,
+    ) -> std::result::Result<(), String> {
+        if env.kind != Kind::Career {
+            return Ok(());
+        }
+        let (cmd, args) = career::agent_command(env, mode);
+        let slot = args["slot"]
+            .as_str()
+            .map_or_else(|| args["slot"].to_string(), str::to_owned);
+        say(&format!("career load {slot} at {}", career::at(env)));
+        let reply = a.call(&cmd, args, self.times.career, &self.times, run)?;
+        match reply.outcome {
+            Outcome::Ok => {
+                say(&format!("career ready at {} ({})", career::at(env), reply.value));
+                Ok(())
+            }
+            _ => Err(reply.text()),
+        }
     }
 
     /// A route environment: fire its routes from the home screen in order.
@@ -1585,6 +2056,46 @@ fn shell_session(store: &Store, game: &Path, a: &ShellArgs, run_id: &str) -> Res
     if let Err(Stop::Busy(why) | Stop::Infra(why)) = free_the_game(store, a.take_over, a.wait) {
         return Ok(infra(why));
     }
+    let fixture = match &a.fixture {
+        None => None,
+        Some(spec) => {
+            let cwd = std::env::current_dir()?;
+            let path = match Path::new(spec).join(fixture::FILE).is_file() {
+                true => cwd.join(spec),
+                false => match fixture::resolve(spec, Some(&cwd), &fixture::store(&store.root)) {
+                    Ok(p) => p,
+                    Err(e) => return Ok(infra(e)),
+                },
+            };
+            match fixture::load(&path) {
+                Ok(f) => Some(f),
+                Err(e) => return Ok(infra(e)),
+            }
+        }
+    };
+    let exe_sha = match &fixture {
+        None => None,
+        Some(_) => {
+            let mut hashes = swofty_core::baseline::Hashes::load(&store.root);
+            let sha = hashes.sha256(&game.join(swofty_core::GAME_EXE))?;
+            hashes.save();
+            let loader = swofty_core::builtin::loader_dir();
+            match loader.as_deref().map(|l| sandbox::verified(l, &sha)) {
+                Some(Ok(proof)) => say(&format!("save sandbox: verified for this F1_25.exe by {proof}")),
+                Some(Err(e)) => return Ok(infra(format!("the shell's save sandbox: {e}"))),
+                None => {
+                    return Ok(infra(
+                        "the shell's save sandbox needs the launcher's loader, which was not found",
+                    ));
+                }
+            }
+            Some(sha)
+        }
+    };
+    let live_saves = exe_sha
+        .as_ref()
+        .and_then(|_| swofty_core::steam::find_game())
+        .and_then(|i| swofty_core::steam::save_dir(&i.steam_root));
     let launch_json = store.root.join("state/launch.json");
     let saved = std::fs::read(&launch_json).ok();
     let profile = format!("test-{run_id}");
@@ -1599,21 +2110,27 @@ fn shell_session(store: &Store, game: &Path, a: &ShellArgs, run_id: &str) -> Res
         game,
         out: &out,
         profile: &profile,
-        run: run_id,
         launcher: &mut launcher,
         times: Times::default(),
+        run_id,
+        bases: BTreeMap::new(),
+        exe_sha,
+        live_saves,
     };
     let b = Batch {
         key: "shell".into(),
         env: Env {
-            kind: Kind::Boot,
+            kind: match fixture {
+                Some(_) => Kind::Career,
+                None => Kind::Boot,
+            },
             params: Default::default(),
         },
         addons: a.addons.clone(),
         settings: Default::default(),
         tests: Vec::new(),
     };
-    let code = shell_loop(h, &b, &out);
+    let code = shell_loop(h, &b, &out, fixture);
     if store.profile_names().is_ok_and(|n| n.contains(&profile)) {
         store.delete_profile(&profile).ok();
     }
@@ -1624,11 +2141,26 @@ fn shell_session(store: &Store, game: &Path, a: &ShellArgs, run_id: &str) -> Res
     code
 }
 
-fn shell_loop(h: Harness, b: &Batch, out: &Path) -> Result<ExitCode> {
-    h.profile(b)?;
-    let mut agent = h.mailbox(b, 1, out)?;
-    let env = agent.mailbox.session.env();
-    say("starting F1 25 in test mode");
+fn shell_loop(h: Harness, b: &Batch, out: &Path, fixture: Option<Fixture>) -> Result<ExitCode> {
+    h.profile(b, h.profile)?;
+    let (mut br, mut reports) = Harness::blank(b, 1);
+    let mut agent = h.open_run(b, 1, out, fixture.is_some())?;
+    let sandbox = match fixture {
+        None => None,
+        Some(f) => match h.open_sandbox(f, b, h.profile, &agent.run) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                h.close_run(Some(agent), &mut br);
+                return Ok(infra(format!("the save sandbox: {e}")));
+            }
+        },
+    };
+    let env = agent.run.env();
+    say(&format!(
+        "starting F1 25 in test mode (run folder {}{})",
+        agent.run.root.display(),
+        if sandbox.is_some() { ", save sandbox" } else { "" }
+    ));
     let mut run = h.launcher.launch(h.profile, &[], &env, out)?;
     let times = Times::default();
     let mut ok = agent
@@ -1638,7 +2170,7 @@ fn shell_loop(h: Harness, b: &Batch, out: &Path) -> Result<ExitCode> {
         eprintln!("swofty: {e}");
     } else {
         eprintln!(
-            "type a command (route <name>, read <path>, wait <event> [s], pad <button>, capture [name], quit); end with Ctrl-D"
+            "type a command (title, route <name>, read <path>, wait <event> [s], pad <button>, capture [name], career load <slot|newest> [at <place>], save now, quit); end with Ctrl-D"
         );
     }
     let stdin = std::io::stdin();
@@ -1660,7 +2192,13 @@ fn shell_loop(h: Harness, b: &Batch, out: &Path) -> Result<ExitCode> {
                 continue;
             }
         };
-        let limit = timeout.map_or(Duration::from_secs(60), Duration::from_millis);
+        let limit = timeout.map_or(
+            match cmd.as_str() {
+                "career" => times.career,
+                _ => Duration::from_secs(60),
+            },
+            Duration::from_millis,
+        );
         let before = agent.client.events.len();
         match agent.call(&cmd, args, limit, &times, &mut *run) {
             Ok(r) => println!("{}", r.text()),
@@ -1678,9 +2216,57 @@ fn shell_loop(h: Harness, b: &Batch, out: &Path) -> Result<ExitCode> {
     h.finish(&mut *run).ok();
     agent.client.poll();
     agent.keep().ok();
-    agent.mailbox.remove().ok();
+    br.started_game = true;
+    let sandboxed = sandbox.is_some();
+    if let Some(s) = sandbox {
+        h.close_sandbox(s, Some(&agent.run), b, h.profile, &mut br, &mut reports, &[]);
+    }
+    let id = agent.run.id.clone();
+    h.close_run(Some(agent), &mut br);
+    for n in br.error.iter().chain(&br.notes) {
+        eprintln!("swofty: {n}");
+    }
+    if sandboxed {
+        eprintln!("capture its saves with: swofty test fixture capture <name> --run {id}");
+    }
     eprintln!("results: {}", out.display());
-    Ok(ExitCode::SUCCESS)
+    Ok(match br.error {
+        Some(_) => ExitCode::from(exit::INFRA),
+        None => ExitCode::SUCCESS,
+    })
+}
+
+/// The game mode of the career a career environment continues, from the
+/// fixture's `holds`: the career in the test's slot, else the only one.
+fn career_mode(f: &Fixture, slot: Option<u64>) -> Option<String> {
+    let careers = &f.manifest.holds.careers;
+    let c = match slot {
+        Some(n) => careers.iter().find(|c| c.slot == Some(n)),
+        None if careers.len() == 1 => careers.first(),
+        None => None,
+    }?;
+    let m = c.mode.to_ascii_lowercase();
+    if m.contains("my_team") || m.contains("myteam") {
+        Some("my_team_career".into())
+    } else if m.contains("driver") {
+        Some("driver_career".into())
+    } else {
+        None
+    }
+}
+
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for e in std::fs::read_dir(from)? {
+        let e = e?;
+        let (src, dst) = (e.path(), to.join(e.file_name()));
+        if e.file_type()?.is_dir() {
+            copy_tree(&src, &dst)?;
+        } else {
+            std::fs::copy(&src, &dst)?;
+        }
+    }
+    Ok(())
 }
 
 fn until_polled(limit: Duration, poll: Duration, mut done: impl FnMut() -> bool) -> bool {
@@ -1693,6 +2279,194 @@ fn until_polled(limit: Duration, poll: Duration, mut done: impl FnMut() -> bool)
             return false;
         }
         std::thread::sleep(poll);
+    }
+}
+
+fn store_dir(store: &Store, a: &StoreArgs) -> PathBuf {
+    a.store.clone().unwrap_or_else(|| fixture::store(&store.root))
+}
+
+fn fixture_command(store: &Store, cmd: FixtureCommand) -> Result<ExitCode> {
+    match cmd {
+        FixtureCommand::Capture(a) => capture_command(store, a),
+        FixtureCommand::List(a) => {
+            let dir = store_dir(store, &a);
+            let all = fixture::list(&dir);
+            if all.is_empty() {
+                println!("no fixtures in {}", dir.display());
+            }
+            let mut bad = false;
+            for f in all {
+                match f {
+                    Ok(f) => println!(
+                        "{:<32} {} file(s), exe {}, {}",
+                        f.manifest.name,
+                        f.manifest.files.len(),
+                        &f.manifest.exe.sha256[..f.manifest.exe.sha256.len().min(16)],
+                        f.manifest.description
+                    ),
+                    Err(e) => {
+                        bad = true;
+                        println!("BROKEN: {e}");
+                    }
+                }
+            }
+            Ok(if bad { ExitCode::FAILURE } else { ExitCode::SUCCESS })
+        }
+        FixtureCommand::Check(a) => {
+            let dir = store_dir(store, &a.store);
+            let path = match Path::new(&a.fixture).join(fixture::FILE).is_file() {
+                true => PathBuf::from(&a.fixture),
+                false => match fixture::resolve(&a.fixture, None, &dir) {
+                    Ok(p) => p,
+                    Err(e) => return Ok(infra(e)),
+                },
+            };
+            match fixture::load(&path) {
+                Ok(f) => {
+                    println!(
+                        "{}: {} file(s) match fixture.json ({})",
+                        f.manifest.name,
+                        f.manifest.files.len(),
+                        path.display()
+                    );
+                    Ok(ExitCode::SUCCESS)
+                }
+                Err(e) => Ok(infra(e)),
+            }
+        }
+    }
+}
+
+fn careers(specs: &[String]) -> std::result::Result<Vec<fixture::Career>, String> {
+    specs
+        .iter()
+        .map(|c| {
+            let (mode, slot) = match c.split_once(':') {
+                Some((m, s)) => (
+                    m,
+                    Some(
+                        s.parse::<u64>()
+                            .map_err(|_| format!("--career {c}: the slot is not a number"))?,
+                    ),
+                ),
+                None => (c.as_str(), None),
+            };
+            Ok(fixture::Career {
+                mode: mode.to_owned(),
+                slot,
+                ..Default::default()
+            })
+        })
+        .collect()
+}
+
+/// The saves under a folder given to `--from`: the folder itself when it
+/// holds the profile save, else its `remote/`.
+fn remote_in(dir: &Path) -> PathBuf {
+    match dir.join(fixture::PROFILE_FILES[0]).is_file() {
+        true => dir.to_path_buf(),
+        false => dir.join(sandbox::REMOTE),
+    }
+}
+
+fn capture_command(store: &Store, a: CaptureArgs) -> Result<ExitCode> {
+    let dest = store_dir(store, &a.store);
+    let mut addons: BTreeMap<String, String> = BTreeMap::new();
+    let mut exe = fixture::Exe::default();
+    let (remote, storage, source) = match &a.from {
+        Some(dir) => {
+            if let Some(live) =
+                swofty_core::steam::find_game().and_then(|i| swofty_core::steam::save_dir(&i.steam_root))
+                && let (Ok(x), Ok(y)) = (dir.canonicalize(), live.canonicalize())
+                && (x == y || y.starts_with(&x))
+            {
+                return Ok(infra(format!(
+                    "{} is the player's live Steam save folder; capture from a copy of it, never the live folder",
+                    dir.display()
+                )));
+            }
+            (remote_in(dir), Vec::new(), format!("folder {}", dir.display()))
+        }
+        None => {
+            let run = match &a.run {
+                Some(id) => RunDir::open(&store.root, id),
+                None => RunDir::latest(&store.root),
+            };
+            let Some(run) = run else {
+                return Ok(infra(format!(
+                    "no test run with saves in {}; name one with --run or a save folder with --from",
+                    sandbox::runs_dir(&store.root).display()
+                )));
+            };
+            if let Ok(b) = std::fs::read(run.root.join("addons.json"))
+                && let Ok(m) = serde_json::from_slice::<BTreeMap<String, String>>(&b)
+            {
+                addons = m;
+            }
+            if let Ok(b) = std::fs::read(run.root.join(sandbox::RUN_FILE))
+                && let Ok(v) = serde_json::from_slice::<serde_json::Value>(&b)
+                && let Some(sha) = v["exe_sha256"].as_str()
+            {
+                exe.sha256 = sha.to_owned();
+            }
+            let storage: Vec<(String, PathBuf)> = std::fs::read_dir(run.storage())
+                .into_iter()
+                .flatten()
+                .flatten()
+                .map(|e| (e.file_name().to_string_lossy().into_owned(), e.path()))
+                .collect();
+            (run.remote(), storage, format!("test run {}", run.id))
+        }
+    };
+    for spec in &a.addons {
+        let Some((id, v)) = spec.split_once('=') else {
+            return Ok(infra(format!("--addon {spec}: expected ID=VERSION")));
+        };
+        addons.insert(id.to_owned(), v.to_owned());
+    }
+    if exe.sha256.is_empty()
+        && let Ok(g) = crate::build::game(store, None)
+    {
+        let mut hashes = swofty_core::baseline::Hashes::load(&store.root);
+        if let Ok(sha) = hashes.sha256(&g.dir.join(swofty_core::GAME_EXE)) {
+            exe.sha256 = sha;
+            exe.version = swofty_core::exe_version::read(&g.dir.join(swofty_core::GAME_EXE));
+        }
+        hashes.save();
+    }
+    let holds = fixture::Holds {
+        careers: match careers(&a.careers) {
+            Ok(c) => c,
+            Err(e) => return Ok(infra(e)),
+        },
+        notes: a.notes.clone().unwrap_or_default(),
+    };
+    let meta = fixture::Meta {
+        description: a.description.clone().unwrap_or_default(),
+        created: stamp(),
+        exe,
+        addons,
+        holds,
+        source,
+    };
+    if let Err(e) = std::fs::create_dir_all(&dest) {
+        return Ok(infra(format!("{}: {e}", dest.display())));
+    }
+    match fixture::capture(&a.name, &dest, &remote, &storage, meta) {
+        Ok(f) => {
+            println!(
+                "fixture {} captured: {} file(s) in {}",
+                f.manifest.name,
+                f.manifest.files.len(),
+                f.dir.display()
+            );
+            for rel in f.manifest.files.keys() {
+                println!("  {rel}");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Err(e) => Ok(infra(e)),
     }
 }
 

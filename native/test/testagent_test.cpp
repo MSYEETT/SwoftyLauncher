@@ -38,7 +38,13 @@ struct FakeGame : ta::Game {
         return ta::Outcome::ok();
     }
     ta::Outcome skip(int d, int s) override { return ta::Outcome::ok("{\"d\":" + std::to_string(d) + ",\"s\":" + std::to_string(s) + "}"); }
-    ta::Outcome advance(int) override { return ta::Outcome::unavailable("no Team HQ view model"); }
+    ta::Outcome advance(int) override
+    {
+        if (!hq_vm)
+            return ta::Outcome::unavailable("no Team HQ view model");
+        ++advances;
+        return ta::Outcome::ok();
+    }
     ta::Outcome ai_drives_player(bool on) override { return ta::Outcome::ok(on ? "1" : "0"); }
     ta::Outcome read(const std::string &p) override
     {
@@ -57,6 +63,12 @@ struct FakeGame : ta::Game {
         return ++capture_polls < 3 ? ta::Outcome::pending() : ta::Outcome::ok("{\"file\":\"frames/x.png\"}");
     }
     ta::Outcome save_now() override { return ta::Outcome::unavailable("no save trigger"); }
+    int save_polls = 0, advance_polls = 0;
+    ta::Outcome save_poll() override { return ++save_polls < 3 ? ta::Outcome::pending() : ta::Outcome::ok("{\"writes\":2}"); }
+    ta::Outcome advance_poll() override
+    {
+        return ++advance_polls < 3 ? ta::Outcome::pending() : ta::Outcome::ok("{\"from_day\":10,\"to_day\":17}");
+    }
     ta::Outcome quit() override { return ta::Outcome::ok(); }
     ta::Outcome pad(const ta::PadState &p) override
     {
@@ -77,6 +89,41 @@ struct FakeGame : ta::Game {
             out.push_back(log[i]);
         return log.size();
     }
+
+    bool sandbox = false, title_bound = true, engaged = false, fe_career = false, resume = false, hq_vm = false;
+    int presses = 0, tiles = 0, cards = 0, advances = 0;
+    std::string tile_error, card_error, session_why = "the garage's go-to-track step is not found";
+    std::vector<std::string> notes;
+
+    ta::Outcome title_press() override
+    {
+        if (!title_bound)
+            return ta::Outcome::unavailable("the title's sync point is not bound on this build");
+        ++presses;
+        return ta::Outcome::ok();
+    }
+    std::string title_state() override { return engaged ? "engaged" : "waiting: the request has not called back"; }
+    ta::Outcome career_tile(const std::string &mode) override
+    {
+        if (!fe_career)
+            return ta::Outcome::unavailable("no fe_career view model yet");
+        ++tiles;
+        if (!tile_error.empty())
+            return ta::Outcome::fail(tile_error);
+        return ta::Outcome::ok("{\"route\":\"solo_career_continue_" + std::string(mode == "driver_career" ? "driver" : "my_team") + "\"}");
+    }
+    ta::Outcome resume_press(const std::string &slot) override
+    {
+        if (!resume)
+            return ta::Outcome::unavailable("the resume screen's cards are not filled yet");
+        ++cards;
+        if (!card_error.empty())
+            return ta::Outcome::fail(card_error);
+        return ta::Outcome::ok("{\"index\":0,\"slot\":" + (slot == "newest" ? std::string("3") : slot) + "}");
+    }
+    ta::Outcome session_start() override { return ta::Outcome::unavailable(session_why); }
+    bool sandboxed() override { return sandbox; }
+    void note(const std::string &l) override { notes.push_back(l); }
 };
 
 static std::vector<std::string> run(ta::Runner &r, uint64_t &now, int ticks, uint64_t step = 10)
@@ -100,27 +147,6 @@ static size_t answered(const std::vector<std::string> &out)
 static void submit(ta::Runner &r, const std::string &line)
 {
     r.submit(ta::parse_command(line));
-}
-
-static void arming()
-{
-    const std::string tok = "0123456789abcdef0123456789abcdef";
-    std::string good = "{\"v\":1,\"run\":\"r1-b1\",\"token\":\"" + tok + "\",\"created_ms\":1000000,\"dlls\":[\"dll/a.dll\"]}";
-    ta::Session s;
-    expect(ta::arm_check("r1-b1", tok, good, 1000000 + 5000, &s).empty(), "the run, the token and a fresh session.json arm");
-    expect(s.dlls.size() == 1 && s.dlls[0] == "dll/a.dll", "the session's test DLLs are read");
-    expect(ta::arm_check("r1-b1", tok, "", 1000000, nullptr) == "no session.json in the run's mailbox", "no session.json: refused");
-    expect(has(ta::arm_check("r1-b1", "fedcba9876543210fedcba9876543210", good, 1000000, nullptr), "does not match"),
-           "a different token: refused");
-    expect(has(ta::arm_check("r1-b1", "", good, 1000000, nullptr), "SWOFTY_TEST_TOKEN"), "no token in the environment: refused");
-    expect(has(ta::arm_check("r1-b1", tok, good, 1000000 + 16 * 60 * 1000, nullptr), "older than 15 minutes"),
-           "a stale session.json: refused");
-    expect(has(ta::arm_check("../x", tok, good, 1000000, nullptr), "run name"), "a run name with a path: refused");
-    expect(has(ta::arm_check("r2", tok, good, 1000000, nullptr), "for run r1-b1"), "another run's session: refused");
-    std::string outside = good;
-    outside.replace(outside.find("dll/a.dll"), 9, "../../x.dll");
-    expect(has(ta::arm_check("r1-b1", tok, outside, 1000000, &s), "outside the mailbox"), "a DLL outside the mailbox: refused");
-    expect(has(ta::arm_check("r1-b1", tok, "{\"v\":2}", 1000000, nullptr), "protocol 2"), "another protocol: refused");
 }
 
 static void parsing()
@@ -226,10 +252,191 @@ static void runner()
     submit(r, "{\"seq\":20,\"cmd\":\"bogus\"}");
     out = run(r, now, 8);
     expect(answered(out) == 5, "every command answers");
-    expect(has(out[0], "\"unavailable\"") && has(out[1], "\"unavailable\""), "unbound advance and save answer unavailable");
+    expect(has(out[0], "\"status\":\"error\"") && has(out[0], "advance runs only in the save sandbox") &&
+               has(out[1], "save now runs only in the save sandbox"),
+           "advance and save now are refused outside the save sandbox");
     expect(has(out[2], "\"seq\":18,\"status\":\"ok\""), "run_test answers when the test ends");
     expect(has(out[3], "no test DLL registers nope"), "an unknown test function is unavailable");
     expect(has(out[4], "unknown command 'bogus'"), "an unknown command is an error");
+}
+
+static void flow(ta::Runner &r, const char *name)
+{
+    r.fires().fired(std::string("flow:") + name);
+}
+
+static ta::Runner &fast(ta::Runner &r)
+{
+    auto &t = r.career_times();
+    t.title = 400, t.route = 300, t.tile = 300, t.card = 300, t.team_hq = 600, t.advance = 300, t.hub = 600, t.session = 300;
+    t.retry = 50;
+    return r;
+}
+
+static void career()
+{
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{\"op\":\"load\",\"slot\":\"newest\",\"at\":\"team_hq\"}}");
+        auto out = run(r, now, 1);
+        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "career load runs only in the save sandbox"),
+               "career load is refused outside the save sandbox");
+        g.sandbox = true;
+        submit(r, "{\"seq\":2,\"cmd\":\"career\",\"args\":{\"slot\":\"x1\"}}");
+        submit(r, "{\"seq\":3,\"cmd\":\"career\",\"args\":{\"at\":\"pit_lane\"}}");
+        submit(r, "{\"seq\":4,\"cmd\":\"career\",\"args\":{\"mode\":\"grand_prix\"}}");
+        out = run(r, now, 3);
+        expect(has(out[0], "a career slot is a number or newest") && has(out[1], "team_hq, weekend_hub or session") &&
+                   has(out[2], "driver_career or my_team_career"),
+               "a bad slot, place or mode is an error");
+    }
+    {
+        FakeGame g;
+        g.sandbox = true;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{\"slot\":3,\"at\":\"team_hq\",\"mode\":\"my_team_career\"}}");
+        auto out = run(r, now, 5);
+        expect(!answered(out) && g.presses >= 1, "at the title the load presses it without input and waits");
+        g.engaged = true;
+        out = run(r, now, 3);
+        expect(!answered(out) && g.routes.empty(), "then route career waits for the home view model");
+        g.home = true;
+        out = run(r, now, 6);
+        expect(g.routes.size() == 1 && g.routes[0] == "career" && g.tiles == 0, "route career fires once the home view model is there");
+        g.fe_career = true;
+        out = run(r, now, 6);
+        expect(g.tiles == 1 && g.cards == 0, "the career tile's action runs once fe_career is up");
+        g.resume = true;
+        out = run(r, now, 6);
+        expect(g.cards == 1 && !answered(out), "the resume card is pressed, then the load waits for Team HQ");
+        flow(r, "StateTeamHQ");
+        out = run(r, now, 1);
+        expect(answered(out) == 1 && has(out[0], "\"status\":\"ok\"") && has(out[0], "\"at\":\"team_hq\"") &&
+                   has(out[0], "\"slot\":\"3\"") && has(out[0], "\"card\":{\"index\":0"),
+               "StateTeamHQ answers the load");
+        expect(g.notes.size() == 1 && g.notes[0] == "[test] career ready at team_hq (slot 3)",
+               "the agent logs the line the CLI waits for");
+    }
+    {
+        FakeGame g;
+        g.sandbox = g.engaged = g.home = g.fe_career = g.resume = true;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        flow(r, "StateTeamHQ");
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{\"at\":\"weekend_hub\"}}");
+        auto out = run(r, now, 4);
+        expect(!answered(out) && g.cards == 1, "a Team HQ entered before the press does not count");
+        flow(r, "StateTeamHQ");
+        out = run(r, now, 3);
+        expect(!answered(out) && g.advances == 0, "weekend_hub: the advance waits for Team HQ's advance view model");
+        g.hq_vm = true;
+        out = run(r, now, 3);
+        expect(g.advances == 1 && !answered(out), "then advances once and waits for the weekend");
+        flow(r, "StateSession");
+        out = run(r, now, 1);
+        expect(has(out[0], "\"status\":\"ok\"") && has(out[0], "\"at\":\"weekend_hub\"") &&
+                   g.notes.back() == "[test] career ready at weekend_hub (slot newest)",
+               "StateSession answers weekend_hub");
+    }
+    {
+        FakeGame g;
+        g.sandbox = g.engaged = g.home = g.fe_career = g.resume = g.hq_vm = true;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{\"at\":\"session\"}}");
+        auto out = run(r, now, 3);
+        flow(r, "StateTeamHQ");
+        out = run(r, now, 3);
+        flow(r, "StateSession");
+        out = run(r, now, 2);
+        expect(has(out[0], "\"status\":\"unavailable\"") &&
+                   has(out[0], "career load at session: the garage's go-to-track step is not found"),
+               "at session answers unavailable with why");
+    }
+    struct Case {
+        const char *what, *step;
+        void (*set)(FakeGame &);
+    } cases[] = {
+        {"a title that never passes times out naming the press", "the title screen's press did not happen within 0 s",
+         [](FakeGame &) {}},
+        {"an unbound title falls back to the pad and says so", "pressing the virtual pad's a instead",
+         [](FakeGame &g) { g.title_bound = false; }},
+        {"no home view model times out naming route career", "route career from the main menu did not happen within 0 s (no home view model)",
+         [](FakeGame &g) { g.engaged = true; }},
+        {"no fe_career times out naming the tile", "the career tile's continue action did not happen", [](FakeGame &g) { g.engaged = g.home = true; }},
+        {"no cards time out naming the resume card", "the resume card's press did not happen", [](FakeGame &g) { g.engaged = g.home = g.fe_career = true; }},
+        {"no Team HQ times out naming it", "the career loading into Team HQ (StateTeamHQ) did not happen",
+         [](FakeGame &g) { g.engaged = g.home = g.fe_career = g.resume = true; }},
+    };
+    for (auto &k : cases) {
+        FakeGame g;
+        g.sandbox = true;
+        k.set(g);
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{}}");
+        auto out = run(r, now, 200);
+        expect(answered(out) == 1 && has(out[0], "\"status\":\"timeout\"") && has(out[0], k.step), k.what);
+    }
+    {
+        FakeGame g;
+        g.sandbox = g.engaged = g.home = g.fe_career = true;
+        g.tile_error = "the My Team tile has no saved career (its action routes to my_team_career)";
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{}}");
+        auto out = run(r, now, 20);
+        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "the career tile's continue action: the My Team tile has no saved"),
+               "a tile without a save fails at once with its step");
+    }
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"title\"}");
+        auto out = run(r, now, 3);
+        expect(!answered(out) && g.presses >= 1, "title presses without input and waits");
+        flow(r, "StateFrontend");
+        out = run(r, now, 1);
+        expect(has(out[0], "\"seq\":1,\"status\":\"ok\"") && g.notes.back() == "[test] title passed without input",
+               "the front end flow answers title");
+        g.title_bound = false;
+        ta::Runner r2(g);
+        submit(r2, "{\"seq\":2,\"cmd\":\"title\"}");
+        out = run(r2, now, 1);
+        expect(has(out[0], "\"status\":\"unavailable\"") && has(out[0], "not bound"),
+               "an unbound title answers unavailable, so the CLI falls back to the pad");
+    }
+}
+
+static void sandboxed_ops()
+{
+    FakeGame g;
+    g.sandbox = true;
+    ta::Runner r(g);
+    uint64_t now = 1000;
+    submit(r, "{\"seq\":1,\"cmd\":\"advance\",\"args\":{\"days\":7}}");
+    auto out = run(r, now, 2);
+    expect(has(out[0], "\"status\":\"unavailable\"") && has(out[0], "no Team HQ view model"),
+           "in the sandbox, advance without Team HQ answers unavailable");
+    g.hq_vm = true;
+    submit(r, "{\"seq\":2,\"cmd\":\"advance\",\"args\":{\"days\":7}}");
+    out = run(r, now, 2);
+    expect(!answered(out) && g.advances == 1, "advance presses once and waits for the advance to stop");
+    out = run(r, now, 3);
+    expect(answered(out) == 1 && has(out[0], "\"to_day\":17"), "then answers with the days");
+    submit(r, "{\"seq\":3,\"cmd\":\"save\",\"args\":{\"what\":\"now\"}}");
+    out = run(r, now, 3);
+    expect(has(out[0], "\"status\":\"unavailable\"") && has(out[0], "no save trigger"), "an unbound save now answers unavailable");
 }
 
 // The coroutine runner: a fake host answers the test's ops.
@@ -323,7 +530,8 @@ static void coroutines()
 int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
-    arming();
+    career();
+    sandboxed_ops();
     parsing();
     runner();
     coroutines();

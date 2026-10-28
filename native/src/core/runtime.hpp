@@ -137,6 +137,25 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+// Test save sandbox (save_sandbox.cpp): only under `swofty test` with a run token.
+std::vector<CoreMixins> save_sandbox_mixins();
+void save_sandbox_commit();
+bool save_sandbox_test_mode();
+bool save_sandbox_armed();
+// FileWrite calls the sandbox has served: a save that reached the save device.
+uint32_t save_sandbox_writes();
+// The test run `swofty test` started the game for (SWOFTY_TEST_RUN, SWOFTY_TEST_TOKEN and run.json, read
+// once by save_sandbox.cpp, which ends the game when they disagree); null outside a test run.
+struct TestRun {
+    std::wstring dir;
+    std::string id, token;
+    bool sandbox = false;
+    int agent_v = 0;
+    std::vector<std::string> dlls;
+};
+const TestRun *test_run();
+// run.json still holds the token: false once `swofty test` has retired the run.
+bool test_run_live();
 // W4 career snapshots (native/src/core/snapshots/runtime.cpp): started once the save splice settles.
 void snapshots_start(bool splice_live);
 // career::report_season from caller (an addon id): SWOFTY_ASSET_OK, _LATE, _INVALID or SWOFTY_REFUSED.

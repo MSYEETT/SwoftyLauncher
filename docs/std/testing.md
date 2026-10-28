@@ -147,9 +147,11 @@ The test DLL loads only during `swofty test`, never in normal play.
 A fixture is a saved game in a known state: a career after ten races, a My Team at the contract window, a Grand Prix weekend. Capture one from a running test session:
 
 ```sh
-swofty test shell                       # start the game in test mode
+swofty test shell --fixture swofty-profile-20261028   # start the game in test mode, in the save sandbox
 > career load 1                         # or play to the state you want
-> fixture capture progressive-2018-r10
+> save now
+> quit
+swofty test fixture capture progressive-2018-r10 --run <the run the shell named>
 ```
 
 ```text
@@ -159,7 +161,17 @@ fixtures/progressive-2018-r10/
   storage/            addon storage that lives outside the save
 ```
 
-Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud.
+Outside the shell, `swofty test fixture capture <name>` captures the last test run's saves, and `--from <folder>` a copy of a save folder. `swofty test fixture list` and `swofty test fixture check <name>` check a fixture's files against its `fixture.json`. A test names a fixture by a folder next to its test file, or by name in your fixture store (`SWOFTY_TEST_FIXTURES`, else `test-fixtures` in the launcher's data folder).
+
+```json
+{ "kind": "career", "fixture": "fixtures/progressive-2018-r10", "at": "team_hq", "slot": 2 }
+```
+
+`at` is `team_hq` (the default), `weekend_hub` or `session`. `slot` picks the career by its save slot when the fixture holds more than one; without it the newest is continued. `session` isn't available yet: the step from the garage to the track still needs reverse engineering.
+
+`career load`, `advance` and `save now` work only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused.
+
+Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud: if the launcher can't make sure of that for your game's build, the test doesn't start.
 
 ## Running tests
 
