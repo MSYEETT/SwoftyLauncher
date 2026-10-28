@@ -244,10 +244,7 @@ mod tests {
         );
         let line = action("restore the game folder")
             .file(Path::new("/games/F1 25/2025_asset_groups/x.erp"))
-            .line(
-                &roots,
-                &format!("{} is in use", home.join("Desktop/save.bin").display()),
-            );
+            .line(&roots, &format!("{}/Desktop/save.bin is in use", home.display()));
         assert_eq!(
             line,
             "failed: restore the game folder; file <game>/2025_asset_groups/x.erp: ~/Desktop/save.bin is in use"

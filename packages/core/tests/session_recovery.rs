@@ -494,6 +494,7 @@ fn a_build_whose_process_died_is_cleaned_up_by_the_next_session() {
     b.step = busy::Step::Copying;
     b.done = 3;
     b.total = 7;
+    b.since = 1_793_154_000.5;
     b.write(&f.data).unwrap();
     let inst = Installer {
         session: true,
