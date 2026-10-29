@@ -244,7 +244,7 @@ auto toro_rosso = teams::identities.add("toro_rosso", {
 teams::pit_times.add("toro_rosso", { .team = toro_rosso, .from = teams::pit_times["game/tororosso"] });
 ```
 
-A team's principal and base are `team_boss` and `team_base` (`team.identity` 1.1, launcher 1.6.2). `team_boss` names a row of `entrants.characters` by its label, and the game's loaded team record keeps that character's stat id. `team_base` is the base text, a lang key or a literal. A field the record leaves out keeps the donor's value. A 1.6.0 or 1.6.1 core keeps both in the record's `extra` and writes the donor's values.
+A team's principal and base are `team_boss` and `team_base` (`team.identity` 1.1, launcher 1.6.3). `team_boss` names a row of `entrants.characters` by its label, and the game's loaded team record keeps that character's stat id. `team_base` is the base text, a lang key or a literal. A field the record leaves out keeps the donor's value. A 1.6.0 or 1.6.1 core keeps both in the record's `extra` and writes the donor's values.
 
 ```json
 // registry/teams.json

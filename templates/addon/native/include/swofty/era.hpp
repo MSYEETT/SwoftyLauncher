@@ -38,7 +38,7 @@ enum class Result { ok, late, unavailable, invalid };
 // #overrides.home_screen.tiles_solo_6x6[<entrant_list>], an overrides entry named after the list. Boxes
 // show in ascending order, then in registration order. time_trial is the entrant list the box selects on
 // the Time Trial picker, set up like entrant_list (in swofty_f1's entrant lists); empty means
-// entrant_list; a core before launcher 1.6.2 ignores it. Strings are copied.
+// entrant_list; a core before launcher 1.6.3 ignores it. Strings are copied.
 struct Box {
     std::string_view entrant_list;
     std::string_view title = {};
