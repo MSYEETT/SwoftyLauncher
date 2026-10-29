@@ -21,6 +21,10 @@ pub enum RegistryCommand {
     Conflicts,
     #[command(about = "Show what didn't apply for each addon in your last session")]
     Status,
+    #[command(
+        about = "Show each box's track list from your last session: its calendar, more tracks and what it leaves out"
+    )]
+    Tracks,
 }
 
 fn game_dir(store: &Store) -> Option<std::path::PathBuf> {
@@ -48,7 +52,50 @@ pub fn command(store: &Store, profile: &str, cmd: RegistryCommand) -> Result<Exi
             }
             Ok(ExitCode::SUCCESS)
         }
+        RegistryCommand::Tracks => {
+            for l in track_lines(store) {
+                println!("{l}");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
     }
+}
+
+/// The box track lists of the core's last `catalog.json`, a few lines per box and mode.
+fn track_lines(store: &Store) -> Vec<String> {
+    let game = game_dir(store);
+    let Some(boxes) = reports::read_box_tracks(&store.root, game.as_deref()) else {
+        return vec![format!(
+            "no box track lists yet: the core writes them in {} when you pick a box",
+            reports::path(&store.root, reports::CATALOG).display()
+        )];
+    };
+    box_lines(&boxes)
+}
+
+fn box_lines(boxes: &reports::BoxTracks) -> Vec<String> {
+    let mut out = vec!["as of your last session:".to_owned()];
+    for (id, modes) in boxes {
+        for (mode, list) in modes {
+            out.push(format!(
+                "box {id} ({}): calendar {}, more tracks {}, left out {}",
+                mode.replace('_', " "),
+                list.calendar.len(),
+                list.more.len(),
+                list.left_out.len()
+            ));
+            if !list.calendar.is_empty() {
+                out.push(format!("  calendar: {}", list.calendar.join(", ")));
+            }
+            if !list.more.is_empty() {
+                out.push(format!("  more tracks: {}", list.more.join(", ")));
+            }
+            for l in &list.left_out {
+                out.push(format!("  left out {}: {}", l.track, l.reason));
+            }
+        }
+    }
+    out
 }
 
 /// The profile's dependency check, as the build runs it before Play.
@@ -159,4 +206,29 @@ pub fn careers_needing(store: &Store, id: &str) -> Vec<careers::Career> {
         .into_iter()
         .filter(|c| c.addons.iter().any(|a| a.id == id))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn box_lines_list_each_box_and_mode() {
+        let text = r#"{ "tracks": { "game/f1_2026": {
+            "grand_prix": { "calendar": ["game/melbourne"], "more": ["mod.okayama/okayama"],
+                            "left_out": [ { "track": "mod.x/x", "reason": "no Time Trial support" } ] },
+            "time_trial": { "calendar": [], "more": [], "left_out": [] } } } }"#;
+        let boxes = reports::box_tracks(text).unwrap();
+        assert_eq!(
+            box_lines(&boxes),
+            [
+                "as of your last session:",
+                "box game/f1_2026 (grand prix): calendar 1, more tracks 1, left out 1",
+                "  calendar: game/melbourne",
+                "  more tracks: mod.okayama/okayama",
+                "  left out mod.x/x: no Time Trial support",
+                "box game/f1_2026 (time trial): calendar 0, more tracks 0, left out 0",
+            ]
+        );
+    }
 }
