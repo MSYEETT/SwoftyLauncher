@@ -14,12 +14,13 @@
 #include <mutex>
 #include <unordered_map>
 
-// The core's appliers for the track registries at boot. Before the database loads (database_keys) the database
-// file under the older addons' edits is scanned once: the stock rows, venues and data blocks are seeded, the tracks
-// made for 1.5 are read from older-tracks.json, every record track is lowered without stat ids to count its new keys,
-// and its data blocks become variants of its base's. At boot the record tracks are lowered again with stat ids from
-// the track pool (254 down, pinned in ids.json), their records are staged for gamedb.cpp, and the effective base is
-// built for the box lists and the guard.
+// The core's appliers for the track registries at boot. Before the database loads (database_keys) the tracks made
+// for 1.5 are read from older-tracks.json and, when they or any addon's record or layer in the track registries
+// exist, the database file under the older addons' edits is scanned once: the stock rows, venues and data blocks are
+// seeded, every record track is lowered without stat ids to count its new keys, and its data blocks become variants
+// of its base's. With neither, the file is not read: only the venues are seeded and the base is empty. At boot the
+// record tracks are lowered again with stat ids from the track pool (254 down, pinned in ids.json), their records are
+// staged for gamedb.cpp, and the effective base is built for the box lists and the guard.
 
 namespace swofty_core::apply::tracks {
 
@@ -30,7 +31,7 @@ std::recursive_mutex mu;
 struct State {
     content::gvdb::File file;
     std::unordered_map<uint64_t, Rec> edits;
-    bool loaded = false, ok = false, seeded = false, booted = false;
+    bool loaded = false, ok = false, skipped = false, seeded = false, booted = false;
     Scan scan;
     OlderFile older;
     std::unique_ptr<Plan> plan;
@@ -80,11 +81,31 @@ std::string build_profile()
     return err.message.empty() ? std::string(doc["profile"].as_string()) : std::string();
 }
 
-void load(State &s)
+bool has_track_records(registry::Store &st)
+{
+    static const char *const registries[] = {"track", "track.venue", "track.data", "track.per_package"};
+    std::vector<std::string> addons = st.order();
+    for (const char *reg : registries) {
+        if (!st.list(reg, "").empty())
+            return true;
+        for (auto &a : addons)
+            if (st.layer_count(a, reg))
+                return true;
+    }
+    return false;
+}
+
+void load(State &s, registry::Store &st)
 {
     if (s.loaded)
         return;
     s.loaded = true;
+    std::string older = runtime::read_file(data_registry() + L"\\older-tracks.json", size_t(16) << 20);
+    s.older = parse_older(older, build_profile());
+    if (s.older.tracks.empty() && !has_track_records(st)) {
+        s.skipped = true;
+        return;
+    }
     std::wstring path = runtime::game_root() + L"\\game_package\\gamedatabases\\gamedatabases.2025.bin";
     s.ok = s.file.load(runtime::read_file(path));
     if (!s.ok) {
@@ -100,17 +121,27 @@ void load(State &s)
     });
     Db db(reader(s));
     s.scan = scan(db, builtin_tables());
-    std::string older = runtime::read_file(data_registry() + L"\\older-tracks.json", size_t(16) << 20);
-    s.older = parse_older(older, build_profile());
 }
 
 void ensure(registry::Store &st)
 {
     State &s = state();
-    load(s);
-    if (s.seeded || !s.ok)
+    load(s, st);
+    if (s.seeded)
         return;
     s.seeded = true;
+    for (auto &l : s.older.lines)
+        swofty::log("%s", l.c_str());
+    if (!s.ok) {
+        for (auto &b : seeds({}, {}).base)
+            st.add_base(b.registry, b.key, b.value);
+        st.stock_loaded("track.venue", true);
+        swofty::log("[tracks] %s: %zu venue(s) seeded, the track base is empty",
+                    s.skipped ? "no track records and no tracks made for 1.5, so the game database is not read"
+                              : "the game database file is unreadable",
+                    std::size(VENUE_SEEDS));
+        return;
+    }
     Seeds seeded = seeds(s.scan, s.older.tracks);
     declare_seeds(st, seeded);
     std::size_t dormant = 0;
@@ -120,8 +151,6 @@ void ensure(registry::Store &st)
                 "%zu track(s) made for 1.5",
                 s.scan.rows.size(), dormant, std::size(VENUE_SEEDS), s.scan.blocks.size(), s.scan.sets.size(),
                 s.older.tracks.size());
-    for (auto &l : s.older.lines)
-        swofty::log("%s", l.c_str());
     for (auto &o : s.older.tracks) {
         std::string how = "the launcher's; made for 1.5 by " + o.addon + (o.venue.empty() ? ", no venue" : ", provides " + o.venue);
         swofty::log("[tracks] %s: stat id %lld (%s)", o.code.c_str(), static_cast<long long>(o.stat_id), how.c_str());
