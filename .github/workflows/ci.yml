@@ -394,6 +394,8 @@ jobs:
         run: native/test/run_career_ops_test.sh
       - name: Live apply paths (scheduler, put-back, context, budgets, sizing, stat ids, reports)
         run: native/test/run_apply_test.sh
+      - name: Box track lists (fit rules, calendar and More tracks, per-box entries, fuel plan, guard decision)
+        run: native/test/run_track_lists_test.sh
       - name: Content registries (row engine, Classic Seasons lowering, variants, stat-id pools)
         run: native/test/run_content_test.sh
       - name: Progressive registration test

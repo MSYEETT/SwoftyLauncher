@@ -13,6 +13,7 @@
 #include "../../registry/table.hpp"
 
 #include "../../runtime.hpp"
+#include "../tracks/box.hpp"
 
 #include <swofty/mixin.hpp>
 
@@ -668,6 +669,7 @@ void register_appliers()
         make<Boxes>();
         make<Constructors>();
         make<Logos>();
+        tracks::register_appliers();
         set_up_dresser();
     });
 }
