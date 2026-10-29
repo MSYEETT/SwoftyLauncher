@@ -179,6 +179,8 @@ std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> track_acclim_mixins();
 void track_acclim_commit();
+std::vector<CoreMixins> track_select_mixins();
+void track_select_commit();
 std::vector<CoreMixins> team_slots_mixins();
 void team_slots_commit();
 uint8_t *team_record_of(uint16_t stat);

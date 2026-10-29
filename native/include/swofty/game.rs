@@ -2583,6 +2583,10 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
+pub type Trk_GrandPrixTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> *mut *mut c_void;
+pub type Trk_TimeTrialTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> u64;
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
 pub type Vm_List_AppendChild_t = unsafe extern "C" fn(list: *mut c_void) -> *mut *mut c_void;
@@ -3560,6 +3564,16 @@ pub mod bindings {
     };
     pub const Sess_Weekend_Start: Binding = Binding {
         id: "Sess_Weekend_Start",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_GrandPrixTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_GrandPrixTrackSelectVm_OnCommandRaised",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_TimeTrialTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_TimeTrialTrackSelectVm_OnCommandRaised",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5025,6 +5039,11 @@ pub mod bindings {
     };
     pub const site_Team_TimingPillBadgeLabel: Binding = Binding {
         id: "site_Team_TimingPillBadgeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Trk_TrackData_SetMatched: Binding = Binding {
+        id: "site_Trk_TrackData_SetMatched",
         kind: "site",
         status: Status::Experimental,
     };
