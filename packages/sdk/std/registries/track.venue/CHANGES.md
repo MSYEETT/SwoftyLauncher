@@ -1,1 +1,1 @@
-1.0: first version (launcher 1.6.3), experimental.
+1.0: first version (launcher 1.6.5), experimental.

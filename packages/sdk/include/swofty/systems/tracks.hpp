@@ -12,7 +12,7 @@
 #include <swofty/systems/forward.hpp>
 
 // Tracks: the operations on the game's track data and the session.fuel.load hook point (1.6.0), and the four
-// tracks registries (1.6.3, experimental): tracks (track; stock rows are game/<code>), venues (track.venue;
+// tracks registries (1.6.5, experimental): tracks (track; stock rows are game/<code>), venues (track.venue;
 // core-owned shared ids venue/<key>, resolved to the last enabled track in load order that provides one), data
 // (track.data; id <track id>/<data set>; an added track's blocks are variants of its base's) and per_package
 // (track.per_package; id <package id>/<key>; one box's data for one track or venue). track.layer, track.slots

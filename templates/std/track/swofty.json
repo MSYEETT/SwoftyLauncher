@@ -8,5 +8,5 @@
   "license": "MIT",
   "kind": ["files"],
   "category": "tracks",
-  "compat": { "game": "f1_25", "launcher": ">=1.6.3" }
+  "compat": { "game": "f1_25", "launcher": ">=1.6.5" }
 }

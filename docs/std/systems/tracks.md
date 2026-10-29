@@ -15,11 +15,11 @@ A few terms used on this page:
 - A **box** is one of the year tiles a player picks in Grand Prix or Time Trial. In code it's a [content package](/std/content).
 - The **base** is the data every year shares. A track an addon adds goes into the base.
 
-::: warning Experimental in 1.6.3
-The four tracks registries, `tracks::tracks` (`track`), `tracks::venues` (`track.venue`), `tracks::data` (`track.data`) and `tracks::per_package` (`track.per_package`), are experimental: each one's `status.json` is `{ "status": "experimental", "since": "1.6.3", "feature": "registry_tracks" }`, and their shapes can change before they are stable (see [Status](/std/versioning#status)).
+::: warning Experimental in 1.6.5
+The four tracks registries, `tracks::tracks` (`track`), `tracks::venues` (`track.venue`), `tracks::data` (`track.data`) and `tracks::per_package` (`track.per_package`), are experimental: each one's `status.json` is `{ "status": "experimental", "since": "1.6.5", "feature": "registry_tracks" }`, and their shapes can change before they are stable (see [Status](/std/versioning#status)).
 :::
 
-What 1.6.3 ships:
+What 1.6.5 ships:
 
 - **The four registries,** in code and in data files, with their schemas in `packages/sdk/std/registries/`.
 - **The stock tracks as records.** Every `tracks.Track` row with assets is `game/<code>` with `time_trial` true, each real circuit is `venue/<key>`, and each stock data block is `game/<code>/<data set>`.
@@ -31,7 +31,7 @@ What 1.6.3 ships:
 - **An example addon,** `templates/std/track`: Hockenheim as a track record, in data files and in code, with its tests.
 - **From 1.6.0:** `set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`, `tracks::Fuel` and `session.fuel.load` (`tracks::events::FuelLoad`).
 
-Not in 1.6.3; their sections describe the design:
+Not in 1.6.5; their sections describe the design:
 
 - `track.layer`, `track.slots` and `track.ai_line`. `PackageTrack::world` is stored and not applied.
 - The `track.data.get` point, `tracks::set_data` and `tracks::track_list`. The core uses its own track list and data writer.
@@ -92,7 +92,7 @@ struct TrackData {                                 // track.data: one TrackData 
     int laps = 0;                                  // number_of_laps
     Fuel fuel;
     Tyres tyres;
-    Ref<tyres::Class> tyre_class;                  // stored; tyre.class is not in 1.6.3
+    Ref<tyres::Class> tyre_class;                  // stored; tyre.class is not in 1.6.5
     Pit pit;
     Ref<cars::Vehicle> safety_car;                 // TrackSafetyCarData.safety_car_vehicle
     TrackNames names;                              // per-set names
@@ -107,7 +107,7 @@ struct PackageTrack {                              // track.per_package: one box
     Ref<Venue> venue;                              // or a venue: the data goes to whichever track the venue resolves to
     bool offered = true;                           // false: the box leaves this track out
     int order = 0;                                 // its place under "More tracks"; 0 keeps the base order
-    Ref<Layer> world;                              // stored; track.layer is not in 1.6.3
+    Ref<Layer> world;                              // stored; track.layer is not in 1.6.5
     std::optional<int> laps;                       // empty fields come from the track's data, layers included
     std::optional<Fuel> fuel;
     Ref<tyres::Class> tyre_class;
@@ -160,12 +160,12 @@ struct FuelLoad {                                  // the race fuel lookup at se
 
 The records and their ids:
 
-- **`track`:** stock rows are `game/<code>`. A dormant stock row (one without assets, such as `game/sochi`) is a record a `slot` can name, and is offered nowhere. A track made for 1.5 is `<addon id>/<code>`.
+- **`track`:** stock rows are `game/<code>`. A dormant stock row (one without assets, such as `game/sochi`) is a record a `slot` can name, and is offered nowhere. A track made for 1.5 is `<addon id>/<code>`, listed by each build in `$DATA/registry/older-tracks.json`; it fills the stock row `game/<code>` when the game ships a row with its code (`mod.sochi` fills `game/sochi`).
 - **`track.venue`:** `venue/<key>` ids, seeded by the core. A track lists the venues it provides in `provides`; the venue's `track` is the last enabled provider in load order. A stock track provides its real circuit (`game/melbourne` provides `venue/albert_park`). Reverse layouts and dormant rows provide nothing.
 - **`track.data`:** `<track id>/<data set>`. The core seeds `game/<code>/<data set>` for every stock block. An added track's blocks are variants of its base's, so a layer on `game/austria/f1_2026` reaches `mod.hockenheim/hockenheim/f1_2026` until it sets that field itself.
 - **`track.per_package`:** `<package id>/<key>`, applied while that box is picked and put back when it's left.
 
-`track.data` applies at boot in 1.6.3: the core writes each block's registered values into the database before it loads. At session load it writes fuel again into the data set the session reads. A layer added after boot on another field is logged as taking effect at the next start.
+`track.data` applies at boot in 1.6.5: the core writes each block's registered values into the database before it loads. At session load it writes fuel again into the data set the session reads. A layer added after boot on another field is logged as taking effect at the next start.
 
 ## The venues
 
@@ -372,7 +372,7 @@ Every Classic Seasons season from 2016 to 2024 registers its calendar this way, 
 The same calendar serves boxes and careers:
 
 - **A box** shows it first in its track list (see the next section).
-- **A career** keeps its own calendar in 1.6.3. In the design, a career can race each season's real calendar. The career wizard offers the choice, and new careers default to real calendars. The core rebuilds the calendar at each season break from that season's calendar (`career::Season::calendar`), and drops a round whose venue no enabled track provides.
+- **A career** keeps its own calendar in 1.6.5. In the design, a career can race each season's real calendar. The career wizard offers the choice, and new careers default to real calendars. The core rebuilds the calendar at each season break from that season's calendar (`career::Season::calendar`), and drops a round whose venue no enabled track provides.
 
 A [guard](/std/dependencies) stops a saved career whose track has gone missing.
 
@@ -391,6 +391,19 @@ A track that doesn't fit is left out of that box, with the reason in the log. A 
 - **Grid size.** That world, with any extra slots from `tracks::slots`, has a grid slot for every car the box runs. Grid size is one boot setting per install, and each box is clamped to it.
 - **AI data.** Every car in the box has AI data at the track: an AI line for its `ai_package_folder/asset_filename`, and the track's `ai_track_difficulties` entry for its package.
 - **Time Trial support.** In a Time Trial box, the track has `time_trial` set.
+
+Each build writes what the rules read to `$DATA/registry/track-facts.json`: the track layers, and per track code the grid slots, garages and pit boxes of each world after the grid extension, the AI folders, the `ai_track_difficulties` packages, whether Time Trial can run there (`time_trial_why` when not) and, for a track record, the menu lists it has pictures in. A rule with no facts passes and logs `[tracks] <code>: no facts (<what>)`.
+
+```json
+{ "version": 1, "profile": "Classic Seasons", "inputs": "3f9a0c2e71d4b8a5", "grid_size": 22,
+  "layers": [ { "label": "swofty_f1", "setup_modes": ["swofty_f1"], "seasons": ["season_2023"],
+                "weekend_formats": ["default", "sprint"], "world": "f1_26" } ],
+  "tracks": { "melbourne": { "worlds": { "f1_26": { "grid": 22, "garages": 11, "pit_boxes": 11 } },
+                             "ai": ["f1_2025/f1_2025_car"], "ai_difficulties": ["f1_2025"], "time_trial": true },
+              "hockenheim": { "worlds": { "f1_26": { "grid": 22, "garages": 11, "pit_boxes": 11 } },
+                              "ai": ["f1_2025/f1_2025_car"], "ai_difficulties": ["f1_2025"], "time_trial": true,
+                              "ui_lists": ["fe_world.tracks_spline", "tracks.flags_circle"] } } }
+```
 
 <template #example>
 <Example root="swofty-core" code-file="src/tracks/track_list.cpp" files="include/swofty/systems/tracks.hpp, src/tracks/fits.cpp">
@@ -436,6 +449,16 @@ tracks::TrackList tracks::track_list(Ref<content::Package> box, events::Mode mod
 [tracks] box game/f1_2026 (time_trial): 26 tracks; left out 4 added tracks (no Time Trial support)
 ```
 
+A venue a calendar repeats, such as 2020's two races at the Red Bull Ring, is listed once and counted as one round. `swofty registry tracks` prints the lists of your last session from `$DATA/registry/catalog.json`:
+
+```text
+as of your last session:
+box swofty.classic-seasons-2016/f1_2016 (grand prix): calendar 20, more tracks 9, left out 1
+  calendar: game/melbourne, game/bahrain, game/shanghai, ...
+  more tracks: game/melbourne_reverse, mod.okayama/okayama, ...
+  left out mod.miami24/igora_drive: its swofty_f1 world has 10 garages; the box has 11 teams
+```
+
 The track select screen's list builder needs reverse engineering (`ui.track_select.build`, `ui::events::TrackSelectBuild`). Until it's understood, the screen shows every track in the base in the game's own order. A guard on the screen stops a track that doesn't fit before the session loads:
 
 ```text
@@ -455,7 +478,7 @@ A box can also give a track its own data: laps, fuel, tyre class, pit lane, name
 - **`offered = false`** leaves a track out of the box. **`order`** places a track under "More tracks".
 - **A variant package** (F1 2017 V10) inherits its base package's track data.
 - **It applies when the box is picked.** The core writes the box's data into the track data the game reads (`Game_TrackData_GetTrack`), and puts it back when the box is left.
-- **In 1.6.3 the core writes `fuel`.** `laps`, `pit`, `names`, `date` and `tyre_class` are stored, and apply once those fields of the game's track data are mapped (see [Readiness and limits](#readiness-and-limits)).
+- **In 1.6.5 the core writes `fuel`.** `laps`, `pit`, `names`, `date` and `tyre_class` are stored, and apply once those fields of the game's track data are mapped (see [Readiness and limits](#readiness-and-limits)).
 
 <template #example>
 <Example root="swofty.classic-seasons-2016" code-file="native/src/tracks.cpp" data-file="registry/tracks.json" files="swofty.json, native/src/calendar.cpp, native/src/content.cpp">
@@ -527,7 +550,7 @@ A track imported from a zip, or made for 1.5, is an addon with `track.add` in `o
 
 1. **Without a track record, `track.add` runs as in 1.5.** The launcher adds the rows, places the files and gives the track the stat id after the highest enabled one. It reports each track to the core, which lists it as `<addon id>/<code>` with `time_trial` false.
 2. **The venue comes from the track's name, never its code.** `mod.bahrain24` is Sepang, `mod.hanoi` is Valencia and `mod.miami24` is Igora Drive. The launcher matches the name against the venues' names.
-3. **With a track record,** `track.add` places the files only: the archive, mipmaps, asset groups, UI art, the extra grid slots and the AI line fix. The core clones the base track's rows in every data set at boot, adds the menu entries and names, takes the stat id from the install's store and provides the venue.
+3. **With a track record,** `track.add` places the files only: the archive, mipmaps, asset groups, UI art, the extra grid slots and the AI line fix. The core clones the base track's rows in every data set at boot, routes the track resource to the track's own asset groups, points its `TrackTextures` at the menu pictures the build made (the facts file's `ui_lists`), adds the menu entries and names, takes the stat id from the install's store and provides the venue.
 4. **Package fixes happen once, at import:** stand-in worlds, mip paths, passing space on the AI line.
 5. **Calendars** that ask for the venue resolve live.
 
@@ -602,7 +625,7 @@ Two tracks that provide the same venue both stay in the base. The venue, and eve
 
 ## Worlds, slots and AI lines
 
-Not in 1.6.3: `track.layer`, `track.slots` and `track.ai_line` have no registry yet. This section is the design.
+Not in 1.6.5: `track.layer`, `track.slots` and `track.ai_line` have no registry yet. This section is the design.
 
 A bigger grid needs more grid slots, garages and pit boxes than a world has. Custom Grid Size provides them per world. Grid size is one boot setting per install, and the core patches the slots for that size into the world archives at boot:
 
@@ -625,7 +648,7 @@ tracks::layers.add("hockenheim_swofty_f1", {
 
 ## Track data at run time
 
-Not in 1.6.3: the `track.data.get` point and `tracks::set_data`. This section is the design.
+Not in 1.6.5: the `track.data.get` point and `tracks::set_data`. This section is the design.
 
 `track.data.get` is a hot hook point: the game calls it from 110 places. Its handlers run once per track when the core builds the point's table (a box picked, a career loaded, a session loaded), and the game's calls read the table.
 
@@ -646,9 +669,10 @@ tracks::set_data(tracks::tracks["game/monaco"], [](tracks::TrackData &d) { d.lap
 
 ## Readiness and limits
 
-- **The four registries are experimental** in 1.6.3. Their shapes can change before they are stable.
+- **The four registries are experimental** in 1.6.5. Their shapes can change before they are stable.
 - **Records:** stock rows, venues, record tracks and tracks made for 1.5 are records at boot. A record track's rows, names and stat id come from the core; the launcher places its files.
-- **Calendars:** Classic Seasons 2016 to 2024 name their real calendars. Careers keep their own calendars in 1.6.3.
+- **No tracks registry records, no track made for 1.5:** the core seeds the venues and doesn't read the game database for the base. The base is empty, each box's list is empty and the guard lets every track through.
+- **Calendars:** Classic Seasons 2016 to 2024 name their real calendars. Careers keep their own calendars in 1.6.5.
 - **Track data at boot:** `track.data` values are written into the database before it loads, so they hold from the first session. At session load the core writes fuel again into the data set the session reads.
 - **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
 - **The box's track list: logged, not shown.** The core works out each box's list and writes it to the log and `catalog.json`. The track select screen still shows its own list, built from view-model nodes (`track_data.track_list`, `track_info.gm_track_list`). The list builder behind `ui.track_select.build` isn't found yet.
