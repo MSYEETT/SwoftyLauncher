@@ -148,13 +148,16 @@ std::string tail(const std::wstring &path, uint64_t *offset)
 }
 
 // The home view model, from the tile list populate loop: the view model that owns the list in r14
-// (its TileList at +0x2c8) is on the stack, and the home one has FeHome_Handle_Command in vtable slot
-// 10. Routes fire from it as the home tiles fire them: Vm_Fire_Route(vm->router (+0x28), vm, &name, 0).
+// is on the stack. Tile screens such as fe_career keep their TileList at +0x2c8; the home one
+// (FEHomeViewModel, FeHome_Handle_Command in vtable slot 10) keeps it at +0x358:
+// Game_FEHomeViewModel_OnScreenActivated (0x141bb17f0) stores the list it builds there and passes it
+// to FeTile_Build_List as `self` (L2, re/db/structs/FEHomeViewModel.h). Routes fire from it as the
+// home tiles fire them: Vm_Fire_Route(vm->router (+0x28), vm, &name, 0).
 const runtime::Sig S_POPULATE_LOOP{"site_FeTile_PopulateLoop", "49 8B 76 78 4D 8B B6 80 00 00 00 4C 39 F6 8B AC 24 00 03 00 00",
                                    0x1745016};
 const runtime::Sig S_FIRE_CALL{"Vm_Fire_Route", "48 8B 4E 28 48 89 F2 49 89 F8 45 31 C9 E8 ?? ?? ?? ?? E9 E4 00 00 00",
                                0x42c0e20, runtime::Sig::rel32, 13, 14, 5};
-constexpr size_t VM_TILE_LIST = 0x2c8, VM_ROUTER = 0x28, STACK_SCAN = 0x1000;
+constexpr size_t VM_TILE_LIST = 0x2c8, HOME_TILE_LIST = 0x358, VM_ROUTER = 0x28, STACK_SCAN = 0x1000;
 
 using Fire_t = void(void *router, void *vm, swofty::game::NeStr **name, uint64_t a4);
 using MakeStr_t = uint32_t(swofty::game::NeStr **out, const char *s, uint32_t flags, uintptr_t len);
@@ -177,18 +180,89 @@ uintptr_t a_fire;
 safetyhook::MidHook h_populate;
 std::string route_why = "not set up";
 
+// The newest tile screen the populate loop built (home included): the screen the player is on, whose
+// view model fires that screen's routes and whose TileList holds its tiles.
+struct TileScreen {
+    void *vm = nullptr, *vt = nullptr;
+    size_t list_at = 0;
+};
+std::mutex screen_lock;
+TileScreen tile_screen;
+
+// Routes Vm_Run_Route ran (career_start.cpp's wrap reports each), so a fire can tell whether the
+// view model's route group held the name.
+std::mutex ran_lock;
+std::vector<std::string> ran_routes;
+
+void set_screen(void *vm, size_t list_at)
+{
+    std::lock_guard<std::mutex> g(screen_lock);
+    tile_screen = {vm, *static_cast<void **>(vm), list_at};
+}
+
 void set_home(void *vm)
 {
     if (home_vm.load() != vm)
         swofty::log("[test] home view model %p", vm);
     home_vt = *static_cast<void **>(vm);
     home_vm = vm;
+    set_screen(vm, HOME_TILE_LIST);
+}
+
+void *live_screen()
+{
+    std::lock_guard<std::mutex> g(screen_lock);
+    void *v = tile_screen.vm;
+    return v && runtime::readable(v, tile_screen.list_at + 8) && *static_cast<void **>(v) == tile_screen.vt ? v : nullptr;
 }
 
 void *live_home()
 {
     void *v = home_vm.load();
-    return v && runtime::readable(v, VM_TILE_LIST + 8) && *static_cast<void **>(v) == home_vt.load() ? v : nullptr;
+    return v && runtime::readable(v, HOME_TILE_LIST + 8) && *static_cast<void **>(v) == home_vt.load() ? v : nullptr;
+}
+
+bool owns_list(const uint8_t *v, size_t at, const void *list)
+{
+    return runtime::readable(v + at, 8) && *reinterpret_cast<void *const *>(v + at) == list;
+}
+
+std::string nestr_text(const swofty::game::NeStr *s);
+
+// A TileList's items: entries {node, Tile *} 0x10 bytes from +0x78 to +0x80, the item at Tile+0xd0,
+// its id NeStr at item+0x10 (re/db/structs/TileEntry.h, Tile.h, HomeItem.h).
+std::vector<uint8_t *> list_items(const uint8_t *list)
+{
+    std::vector<uint8_t *> out;
+    if (!list || !runtime::readable(list, 0x90))
+        return out;
+    auto *it = *reinterpret_cast<uint8_t *const *>(list + 0x78), *end = *reinterpret_cast<uint8_t *const *>(list + 0x80);
+    if (!it || end < it || size_t(end - it) > 0x10 * 64 || !runtime::readable(it, size_t(end - it)))
+        return out;
+    for (; it < end; it += 0x10) {
+        auto *tile = *reinterpret_cast<uint8_t **>(it + 8);
+        auto *item = tile && runtime::readable(tile, 0xd8) ? *reinterpret_cast<uint8_t **>(tile + 0xd0) : nullptr;
+        out.push_back(item && runtime::readable(item, 0x18) ? item : nullptr);
+    }
+    return out;
+}
+
+std::string item_id(const uint8_t *item)
+{
+    return item ? nestr_text(*reinterpret_cast<swofty::game::NeStr *const *>(item + 0x10)) : std::string();
+}
+
+void log_screen(void *vm, const uint8_t *list)
+{
+    static void *last;
+    if (last == vm)
+        return;
+    last = vm;
+    std::string ids;
+    for (auto *item : list_items(list))
+        ids += (ids.empty() ? "" : ", ") + (item ? item_id(item) : std::string("?"));
+    swofty::log("[test] tile screen %p (vtable base+0x%llx): %s", vm,
+                (unsigned long long)(*static_cast<uintptr_t *>(vm) - swofty::api->module_base()), ids.c_str());
 }
 
 void populate_mid(safetyhook::Context &c)
@@ -202,16 +276,27 @@ void populate_mid(safetyhook::Context &c)
             return;
         uint8_t *v;
         std::memcpy(&v, sp + off, sizeof v);
-        if (!v || !runtime::readable(v, VM_TILE_LIST + 8) || *reinterpret_cast<void **>(v + VM_TILE_LIST) != list)
+        if (!v || !runtime::readable(v, 8))
             continue;
         auto **vt = *reinterpret_cast<void ***>(v);
-        if (runtime::readable(vt, 11 * sizeof(void *)) &&
-            reinterpret_cast<uintptr_t>(vt[10]) == a_home_cmd)
-            set_home(v);
-        else if (ga.fe_career_vt && reinterpret_cast<uintptr_t>(vt) == ga.fe_career_vt) {
+        if (!vt || !runtime::readable(vt, 11 * sizeof(void *)))
+            continue;
+        if (reinterpret_cast<uintptr_t>(vt[10]) == a_home_cmd) {
+            if (owns_list(v, HOME_TILE_LIST, list)) {
+                set_home(v);
+                log_screen(v, static_cast<uint8_t *>(list));
+                return;
+            }
+            continue;
+        }
+        if (!owns_list(v, VM_TILE_LIST, list))
+            continue;
+        if (ga.fe_career_vt && reinterpret_cast<uintptr_t>(vt) == ga.fe_career_vt) {
             if (career_vm.exchange(v) != v)
                 swofty::log("[test] fe_career view model %p", v);
         }
+        set_screen(v, VM_TILE_LIST);
+        log_screen(v, static_cast<uint8_t *>(list));
         return;
     }
 }
@@ -732,23 +817,55 @@ struct InGame : ta::Game {
                                ",\"bindings\":" + c + ",\"tests\":" + names + "]}");
     }
 
+    // Fire a route from the current tile screen's view model, else from the home one. With the
+    // career start gate on Vm_Run_Route live, a fire counts only when that route ran.
     ta::Outcome route(const std::string &name) override
     {
         if (!route_why.empty())
             return ta::Outcome::unavailable(route_why);
-        void *vm = live_home();
-        if (!vm)
+        void *home = live_home();
+        void *screen = live_screen();
+        if (!home && !screen)
             return ta::Outcome::unavailable("no home view model: the home screen has not been built since the agent armed");
-        void *router = *reinterpret_cast<void **>(static_cast<uint8_t *>(vm) + VM_ROUTER);
-        if (!router)
-            return ta::Outcome::unavailable("the home view model has no router");
-        swofty::game::NeStr *s = nullptr;
-        make_str(&s, name.c_str());
-        reinterpret_cast<Fire_t *>(a_fire)(router, vm, &s, 0);
-        make_str(&s, nullptr);
-        swofty::log("[test] route %s fired from the home view model", name.c_str());
-        return ta::Outcome::ok();
+        bool checked = runtime::career_start_live();
+        std::string tried;
+        for (void *vm : {screen, home}) {
+            if (!vm || (vm == home && vm == screen && !tried.empty()))
+                continue;
+            const char *from = vm == home ? "home" : "screen";
+            void *router = *reinterpret_cast<void **>(static_cast<uint8_t *>(vm) + VM_ROUTER);
+            if (!router)
+                continue;
+            {
+                std::lock_guard<std::mutex> g(ran_lock);
+                ran_routes.clear();
+            }
+            swofty::game::NeStr *s = nullptr;
+            make_str(&s, name.c_str());
+            reinterpret_cast<Fire_t *>(a_fire)(router, vm, &s, 0);
+            make_str(&s, nullptr);
+            bool ran = !checked;
+            {
+                std::lock_guard<std::mutex> g(ran_lock);
+                for (auto &r : ran_routes)
+                    ran |= r == name;
+            }
+            tried += std::string(tried.empty() ? "" : ", ") + from;
+            if (!ran)
+                continue;
+            swofty::log("[test] route %s fired from the %s view model %p", name.c_str(), from, vm);
+            return ta::Outcome::ok("{\"from\":\"" + std::string(from) + "\"}");
+        }
+        if (tried.empty())
+            return ta::Outcome::unavailable("the view model has no router");
+        swofty::log("[test] route %s: no route of that name ran from the %s view model(s)", name.c_str(), tried.c_str());
+        return ta::Outcome::fail("route " + name + " is not a route of the current screen or the home screen (tried " +
+                                 tried + ")");
     }
+
+    bool home_ready() override { return live_home() != nullptr; }
+
+    ta::Outcome tile_find(const std::string &id, ta::TileAt &at) override;
 
     ta::Outcome skip(int destination, int session_type) override
     {
@@ -1047,12 +1164,8 @@ ta::Outcome InGame::career_tile(const std::string &mode)
     auto *list = *reinterpret_cast<uint8_t **>(vm + VM_TILE_LIST);
     if (!list || !runtime::readable(list, 0x90))
         return ta::Outcome::unavailable("fe_career has no tile list yet");
-    auto *it = *reinterpret_cast<uint8_t **>(list + 0x78), *end = *reinterpret_cast<uint8_t **>(list + 0x80);
-    if (!it || end < it || size_t(end - it) > 0x10 * 64 || !runtime::readable(it, size_t(end - it)))
-        return ta::Outcome::unavailable("fe_career's tile list is not readable");
     std::vector<std::pair<uint32_t, uint8_t *>> careers;
-    for (; it < end; it += 0x10) {
-        auto *item = *reinterpret_cast<uint8_t **>(it + 8);
+    for (uint8_t *item : list_items(list)) {
         if (!item || !runtime::readable(item, 0x180) || *reinterpret_cast<uintptr_t *>(item) != ga.career_item_vt)
             continue;
         auto *kind = *reinterpret_cast<uint8_t **>(item + 0x178);
@@ -1365,6 +1478,59 @@ ta::Outcome InGame::save_poll()
     return ta::Outcome::ok("{\"writes\":" + std::to_string(n - save_writes_before) + "}");
 }
 
+// The selected tile: TileList+0x58 is the selected_button node, an int index into the items
+// (FeTile_List_GetSelectedItem reads it, L2); its value is read through the node's holder (node+0x58,
+// holder vtable slot 7 returns the value's address), as the bool nodes above.
+int selected_index(const uint8_t *list)
+{
+    void *node = *reinterpret_cast<void *const *>(list + 0x58);
+    void *empty = ga.empty_node ? *reinterpret_cast<void **>(ga.empty_node) : nullptr;
+    if (!node || node == empty || !runtime::readable(node, 0x60))
+        return -1;
+    void *holder = static_cast<void **>(node)[0xb];
+    if (!holder || !runtime::readable(holder, 8))
+        return -1;
+    auto **hvt = *static_cast<void ***>(holder);
+    if (!runtime::readable(hvt, 8 * 8))
+        return -1;
+    auto *v = reinterpret_cast<const int32_t *(*)(void *)>(hvt[7])(holder);
+    return v && runtime::readable(v, 4) ? *v : -1;
+}
+
+ta::Outcome InGame::tile_find(const std::string &id, ta::TileAt &at)
+{
+    if (!runtime::same_build())
+        return ta::Outcome::unavailable("the tile list layout is the KB build's and this is not that build");
+    if (!route_why.empty())
+        return ta::Outcome::unavailable(route_why);
+    void *vm = live_screen();
+    if (!vm)
+        return ta::Outcome::unavailable("no tile screen: no tile list has been built since the agent armed");
+    size_t list_at;
+    {
+        std::lock_guard<std::mutex> g(screen_lock);
+        list_at = tile_screen.list_at;
+    }
+    auto *list = *reinterpret_cast<uint8_t **>(static_cast<uint8_t *>(vm) + list_at);
+    auto items = list_items(list);
+    at = {};
+    at.count = int(items.size());
+    std::string ids;
+    for (size_t i = 0; i < items.size(); i++) {
+        std::string t = item_id(items[i]);
+        ids += (ids.empty() ? "" : ", ") + t;
+        if (t == id && at.index < 0)
+            at.index = int(i);
+    }
+    if (at.index < 0)
+        return ta::Outcome::fail("the current tile screen has no tile " + id + " (its tiles: " + ids + ")");
+    at.selected = selected_index(list);
+    if (at.selected < 0 || at.selected >= at.count)
+        return ta::Outcome::unavailable("the current tile screen's selected tile is not readable (read " +
+                                        std::to_string(at.selected) + " of " + std::to_string(at.count) + ")");
+    return ta::Outcome::ok();
+}
+
 ta::Outcome InGame::session_start()
 {
     return ta::Outcome::unavailable(
@@ -1555,8 +1721,17 @@ void testagent_flow(const std::string &name, uint32_t to)
 
 void testagent_home_vm(void *vm)
 {
-    if (armed.load() && vm && runtime::readable(vm, VM_TILE_LIST + 8))
+    if (armed.load() && vm && runtime::readable(vm, HOME_TILE_LIST + 8) && !live_home())
         set_home(vm);
+}
+
+void testagent_route_ran(const std::string &name)
+{
+    if (!armed.load())
+        return;
+    std::lock_guard<std::mutex> g(ran_lock);
+    if (ran_routes.size() < 64)
+        ran_routes.push_back(name);
 }
 
 }

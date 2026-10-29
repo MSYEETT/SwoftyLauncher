@@ -39,6 +39,8 @@ pub const COMMANDS_V1: &[&str] = &[
     "run_test",
     "title",
     "career",
+    "home",
+    "tile",
 ];
 
 /// A run name the agent accepts as a folder name.
@@ -180,10 +182,19 @@ pub fn step_commands(step: &Step) -> Result<Vec<(String, Value)>, Error> {
             let name = v.get("name").and_then(Value::as_str).unwrap_or("frame");
             one("capture", json!({ "name": name }))
         }
-        "wait" => match arg.get("event") {
-            Some(e) => one("wait", json!({ "event": e })),
-            None => Ok(Vec::new()),
+        "wait" => match (arg.get("event"), arg.get("screen")) {
+            (Some(e), _) => one("wait", json!({ "event": e })),
+            (None, Some(n)) => one("at", json!({ "phase": n })),
+            _ => Ok(Vec::new()),
         },
+        "home" => one("home", Value::Null),
+        "tile" => {
+            let mut a = json!({ "tile": arg });
+            if let Some(axis) = v.get("axis") {
+                a["axis"] = axis.clone();
+            }
+            one("tile", a)
+        }
         "set" => {
             let o = arg
                 .as_object()
@@ -229,8 +240,9 @@ pub fn parse_shell(line: &str) -> Result<(String, Value, Option<u64>), String> {
     Ok(match cmd.as_str() {
         "hello" | "status" | "quit" => (cmd, Value::Null, None),
         "route" => {
-            need(1, "route <name>")?;
-            (cmd, json!({ "route": rest[0] }), None)
+            need(1, "route <name> [seconds]")?;
+            let t = secs(rest.get(1))?;
+            (cmd, json!({ "route": rest[0] }), t)
         }
         "skip" => {
             need(1, "skip next|simulate|session|quick_practice [session type]")?;
@@ -273,9 +285,28 @@ pub fn parse_shell(line: &str) -> Result<(String, Value, Option<u64>), String> {
             None,
         ),
         "wait" => {
-            need(1, "wait <event> [seconds]")?;
+            need(1, "wait <event> [seconds], or wait screen=<name> [seconds]")?;
             let t = secs(rest.get(1))?;
-            (cmd, json!({ "event": rest[0] }), t)
+            match rest[0].strip_prefix("screen=") {
+                Some("") => return Err("usage: wait screen=<name> [seconds]".into()),
+                Some(name) => ("at".into(), json!({ "phase": name }), t),
+                None => (cmd, json!({ "event": rest[0] }), t),
+            }
+        }
+        "home" => {
+            let t = secs(rest.first())?;
+            (cmd, Value::Null, t)
+        }
+        "tile" => {
+            need(1, "tile <tile id> [across|down]")?;
+            let mut a = json!({ "tile": rest[0] });
+            if let Some(axis) = rest.get(1) {
+                if !matches!(*axis, "across" | "down") {
+                    return Err(format!("{axis}: a tile axis is across or down"));
+                }
+                a["axis"] = json!(axis);
+            }
+            (cmd, a, None)
         }
         "at" => {
             need(1, "at <screen or flow state> [seconds]")?;

@@ -73,7 +73,29 @@ struct FakeGame : ta::Game {
     ta::Outcome pad(const ta::PadState &p) override
     {
         pads.push_back(p);
+        int step = (p.buttons == 0x0008 && !down_axis) || (p.buttons == 0x0002 && down_axis)   ? 1
+                   : (p.buttons == 0x0004 && !down_axis) || (p.buttons == 0x0001 && down_axis) ? -1
+                                                                                               : 0;
+        if (step && !frozen && sel + step >= 0 && sel + step < int(tile_ids.size()))
+            sel += step;
+        a_presses += p.buttons == 0x1000;
         return ta::Outcome::ok();
+    }
+    std::vector<std::string> tile_ids;
+    int sel = 0, a_presses = 0;
+    bool down_axis = false, frozen = false;
+    bool home_ready() override { return home; }
+    ta::Outcome tile_find(const std::string &id, ta::TileAt &at) override
+    {
+        if (tile_ids.empty())
+            return ta::Outcome::unavailable("no tile screen");
+        at = {};
+        at.count = int(tile_ids.size());
+        at.selected = sel;
+        for (size_t i = 0; i < tile_ids.size(); i++)
+            if (tile_ids[i] == id)
+                at.index = int(i);
+        return at.index < 0 ? ta::Outcome::fail("the current tile screen has no tile " + id) : ta::Outcome::ok();
     }
     std::string phase() override { return screen; }
     ta::Outcome test_start(const std::string &fn) override
@@ -178,10 +200,12 @@ static void runner()
     FakeGame g;
     ta::Runner r(g);
     uint64_t now = 1000;
-    submit(r, "{\"seq\":1,\"cmd\":\"route\",\"args\":{\"route\":\"career\"}}");
-    auto out = run(r, now, 1);
-    expect(answered(out) == 1 && has(out[0], "\"seq\":1,\"status\":\"unavailable\",\"error\":\"no home view model\""),
-           "route without a home view model answers unavailable, not a crash");
+    g.engaged = true;
+    submit(r, "{\"seq\":1,\"cmd\":\"route\",\"args\":{\"route\":\"career\"},\"timeout_ms\":100}");
+    auto out = run(r, now, 12);
+    expect(answered(out) == 1 && has(out[0], "\"seq\":1,\"status\":\"timeout\"") &&
+               has(out[0], "route career: not within 0 s (no home view model: the home screen has not been built)"),
+           "route without a home view model waits for it and times out naming it, not a crash");
     g.home = true;
     submit(r, "{\"seq\":2,\"cmd\":\"route\",\"args\":{\"route\":\"career\"}}");
     submit(r, "{\"seq\":3,\"cmd\":\"read\",\"args\":{\"path\":\"car[0].chassis.mass\"}}");
@@ -265,13 +289,15 @@ static void flow(ta::Runner &r, const char *name)
     r.fires().fired(std::string("flow:") + name);
 }
 
-static_assert(ta::CareerTimes{}.title == 15000, "the title wait is 15 s, then the CLI presses the pad");
+static_assert(ta::CareerTimes{}.title == 90000 && ta::CareerTimes{}.title_pad_after == 3000,
+              "the title wait is 90 s, and the agent presses the virtual pad itself after 3 s");
 
 static ta::Runner &fast(ta::Runner &r)
 {
     auto &t = r.career_times();
     t.title = 400, t.route = 300, t.tile = 300, t.card = 300, t.team_hq = 600, t.advance = 300, t.hub = 600, t.session = 300;
-    t.retry = 50;
+    t.retry = 50, t.title_pad_after = 100, t.pad_hold = 20, t.pad_gap = 30, t.notice_after = 100, t.nav_hold = 20,
+    t.nav_settle = 30;
     return r;
 }
 
@@ -367,9 +393,9 @@ static void career()
     } cases[] = {
         {"a title that never passes times out naming the press", "the title screen's press did not happen within 0 s",
          [](FakeGame &) {}},
-        {"an unbound title falls back to the pad and says so", "pressing the virtual pad's a instead",
+        {"an unbound title falls back to the pad and says so", "press(es) of the virtual pad's a",
          [](FakeGame &g) { g.title_bound = false; }},
-        {"no home view model times out naming route career", "route career from the main menu did not happen within 0 s (no home view model)",
+        {"no home view model times out naming route career", "route career from the main menu did not happen within 0 s (no home view model",
          [](FakeGame &g) { g.engaged = true; }},
         {"no fe_career times out naming the tile", "the career tile's continue action did not happen", [](FakeGame &g) { g.engaged = g.home = true; }},
         {"no cards time out naming the resume card", "the resume card's press did not happen", [](FakeGame &g) { g.engaged = g.home = g.fe_career = true; }},
@@ -411,12 +437,142 @@ static void career()
         out = run(r, now, 1);
         expect(has(out[0], "\"seq\":1,\"status\":\"ok\"") && g.notes.back() == "[test] title passed without input",
                "the front end flow answers title");
+        expect(g.pads.empty(), "a title that passes within the grace gets no pad press");
         g.title_bound = false;
         ta::Runner r2(g);
         submit(r2, "{\"seq\":2,\"cmd\":\"title\"}");
         out = run(r2, now, 1);
         expect(has(out[0], "\"status\":\"unavailable\"") && has(out[0], "not bound"),
                "an unbound title answers unavailable, so the CLI falls back to the pad");
+    }
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"title\"}");
+        auto out = run(r, now, 9);
+        expect(!answered(out) && g.pads.empty(), "within the grace the title waits on its own press");
+        out = run(r, now, 30);
+        size_t downs = 0, ups = 0;
+        for (auto &p : g.pads)
+            (p.buttons == 0x1000 ? downs : ups) += 1;
+        expect(!answered(out) && downs >= 2 && ups >= 1 && downs - ups <= 1,
+               "past the grace the agent presses and releases the virtual pad's a");
+        g.engaged = true;
+        out = run(r, now, 1);
+        expect(has(out[0], "\"seq\":1,\"status\":\"ok\"") && has(out[0], "\"pad_presses\":") &&
+                   g.notes.back().rfind("[test] title passed after ", 0) == 0,
+               "the title answers ok with the number of pad presses");
+        expect(g.pads.back().buttons == 0, "the pad is let go once the title has passed");
+    }
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        fast(r);
+        r.career_times().title = 300;
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"title\"}");
+        auto out = run(r, now, 40);
+        expect(has(out[0], "\"status\":\"timeout\"") && has(out[0], "press(es) of the virtual pad's a") &&
+                   g.pads.back().buttons == 0,
+               "a title the pad can't pass times out saying how often it pressed, with the pad let go");
+    }
+}
+
+static void home_and_tiles()
+{
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"route\",\"args\":{\"route\":\"f1_world\"},\"timeout_ms\":5000}");
+        auto out = run(r, now, 5);
+        expect(!answered(out) && g.routes.empty() && g.presses >= 1, "route from boot passes the title first");
+        flow(r, "StateFrontend");
+        g.screen = "|frontend_transition|#5f9ae18b|";
+        size_t before = g.pads.size();
+        out = run(r, now, 5);
+        expect(!answered(out) && g.pads.size() == before, "on the transition screen the notice gets no press at first");
+        out = run(r, now, 60);
+        expect(!answered(out) && g.a_presses >= 1, "past notice_after the virtual pad's a answers the notice");
+        g.home = true;
+        g.screen = "|fe_home|#957880c6|";
+        out = run(r, now, 2);
+        expect(answered(out) == 1 && has(out[0], "\"seq\":1,\"status\":\"ok\"") && g.routes.size() == 1 &&
+                   g.routes[0] == "f1_world" && g.pads.back().buttons == 0,
+               "once the home view model is there the route fires and the pad is let go");
+        submit(r, "{\"seq\":2,\"cmd\":\"home\"}");
+        out = run(r, now, 1);
+        expect(has(out[0], "\"seq\":2,\"status\":\"ok\",\"value\":{\"home\":true}"), "home answers at once on the main menu");
+    }
+    {
+        FakeGame g;
+        g.engaged = true;
+        g.screen = "|fe_title||";
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"home\",\"timeout_ms\":200}");
+        auto out = run(r, now, 30);
+        expect(has(out[0], "\"status\":\"timeout\"") && has(out[0], "home: not within") && g.pads.empty(),
+               "away from the transition screen home presses nothing and times out");
+    }
+    {
+        FakeGame g;
+        g.tile_ids = {"grand_prix", "time_trial", "retry_connection"};
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"time_trial\"}}");
+        auto out = run(r, now, 200);
+        expect(answered(out) == 1 && has(out[0], "\"status\":\"ok\"") && has(out[0], "\"index\":1,\"moves\":1") &&
+                   g.sel == 1 && g.a_presses == 1 && g.pads.back().buttons == 0,
+               "tile moves the selection right to the tile and presses a");
+        submit(r, "{\"seq\":2,\"cmd\":\"tile\",\"args\":{\"tile\":\"grand_prix\"}}");
+        out = run(r, now, 200);
+        expect(has(out[0], "\"status\":\"ok\"") && g.sel == 0 && g.a_presses == 2, "a tile before the selection moves left");
+        submit(r, "{\"seq\":3,\"cmd\":\"tile\",\"args\":{\"tile\":\"braking_point\"}}");
+        out = run(r, now, 5);
+        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "no tile braking_point"), "an unknown tile is an error");
+        submit(r, "{\"seq\":4,\"cmd\":\"tile\",\"args\":{\"tile\":\"x\",\"axis\":\"diagonal\"}}");
+        out = run(r, now, 1);
+        expect(has(out[0], "across or down"), "a bad axis is an error");
+    }
+    {
+        FakeGame g;
+        g.tile_ids = {"braking_point", "career", "mod_menu", "f1_world"};
+        g.down_axis = true;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"f1_world\"}}");
+        auto out = run(r, now, 400);
+        expect(has(out[0], "\"status\":\"ok\"") && g.sel == 3 && g.a_presses == 1,
+               "a selection that doesn't move across switches to down");
+    }
+    {
+        FakeGame g;
+        g.tile_ids = {"a", "b"};
+        g.frozen = true;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"b\"}}");
+        auto out = run(r, now, 400);
+        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "the selection does not move with the pad") &&
+                   g.a_presses == 0,
+               "a selection that moves on neither axis fails without pressing a");
+    }
+    {
+        FakeGame g;
+        ta::Runner r(g);
+        fast(r);
+        uint64_t now = 1000;
+        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"time_trial\"},\"timeout_ms\":100}");
+        auto out = run(r, now, 20);
+        expect(has(out[0], "\"status\":\"timeout\"") && has(out[0], "no tile screen"), "no tile screen times out naming it");
     }
 }
 
@@ -533,6 +689,7 @@ int main()
 {
     setvbuf(stdout, nullptr, _IONBF, 0);
     career();
+    home_and_tiles();
     sandboxed_ops();
     parsing();
     runner();

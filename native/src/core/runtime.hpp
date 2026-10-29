@@ -207,6 +207,7 @@ void testagent_fired(const std::string &id, bool hot);
 void testagent_screen(const char *name);
 void testagent_flow(const std::string &name, uint32_t to);
 void testagent_home_vm(void *vm);
+void testagent_route_ran(const std::string &name);
 bool frame_capture_request(const std::wstring &path);
 int frame_capture_poll(std::string *why);
 int group_add(const json::Value &entry);

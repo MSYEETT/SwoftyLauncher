@@ -245,6 +245,11 @@ inline bool parse_car_path(const std::string &p, CarPath &out, std::string &why)
     return true;
 }
 
+// A tile on the current tile screen: its index, the selected one and how many there are.
+struct TileAt {
+    int index = -1, selected = -1, count = 0;
+};
+
 // What the agent asks of the game. Each returns unavailable, with the reason, when its bindings
 // didn't resolve; pending from a *_poll means "not yet".
 struct Game {
@@ -283,6 +288,10 @@ struct Game {
     virtual Outcome resume_press(const std::string &slot) = 0;
     // From the weekend hub to the track.
     virtual Outcome session_start() = 0;
+    // The home screen's view model is live (the main menu has been built).
+    virtual bool home_ready() = 0;
+    // Find the tile with this id on the current tile screen and the selected tile.
+    virtual Outcome tile_find(const std::string &id, TileAt &at) = 0;
     // The save sandbox armed for this run (sandbox.json says armed).
     virtual bool sandboxed() = 0;
     virtual void note(const std::string &line) = 0;
@@ -378,9 +387,12 @@ inline const char *career_step_name(CareerStep s)
 }
 
 struct CareerTimes {
-    uint64_t title = 15000, route = 30000, tile = 30000, card = 30000, team_hq = 180000, advance = 60000,
-             hub = 300000, session = 120000, retry = 500;
+    uint64_t title = 90000, route = 60000, tile = 30000, card = 30000, team_hq = 180000, advance = 60000,
+             hub = 300000, session = 120000, retry = 500, title_pad_after = 3000, pad_hold = 250, pad_gap = 1750,
+             notice_after = 4000, nav_hold = 150, nav_settle = 600;
 };
+
+constexpr const char *SCREEN_FRONTEND_TRANSITION = "frontend_transition";
 
 inline uint64_t career_limit(const CareerTimes &t, CareerStep s)
 {
@@ -466,9 +478,16 @@ class Runner {
     CareerTimes ctimes_;
     CareerPlan plan_;
     CareerStep cstep_ = CareerStep::done;
-    uint64_t cstep_at_ = 0, tried_at_ = 0, mark_ = 0;
-    bool tried_ = false, pad_down_ = false;
-    std::string cwhy_, card_;
+    uint64_t cstep_at_ = 0, tried_at_ = 0, mark_ = 0, title_from_ = 0, pad_next_ = 0, pad_up_ = 0;
+    bool tried_ = false, pad_down_ = false, title_bound_ = true;
+    int title_presses_ = 0, notice_presses_ = 0;
+    uint64_t transition_at_ = 0;
+    std::string cwhy_, card_, route_;
+    // `tile <id>`: the pad moves the selection to the tile, then presses a.
+    TileAt tile_at_;
+    std::string tile_id_;
+    int tile_stage_ = 0, tile_moves_ = 0, tile_axis_ = 0, tile_stuck_ = 0;
+    uint64_t tile_at_ms_ = 0;
 
     static constexpr const char *SANDBOX_ONLY =
         " runs only in the save sandbox (a career environment, or swofty test shell --fixture): the game would save "
@@ -500,27 +519,118 @@ class Runner {
         return g_.title_state() == "engaged" || fires_.seen("flow:" + std::string(FLOW_FRONTEND)) > 0;
     }
 
+    void title_begin(uint64_t now)
+    {
+        title_from_ = now;
+        pad_next_ = 0;
+        title_presses_ = 0;
+        title_bound_ = true;
+        tried_ = false;
+        cwhy_.clear();
+    }
+
+    void pad_release()
+    {
+        if (!pad_down_)
+            return;
+        g_.pad(PadState{});
+        pad_down_ = false;
+    }
+
+    // The virtual pad's a, held for pad_hold and released for pad_gap: long enough for a frame to see
+    // it while the game runs slowly in the background.
+    void pad_pulse(uint64_t now)
+    {
+        if (pad_down_) {
+            if (now >= pad_up_) {
+                pad_release();
+                pad_next_ = now + ctimes_.pad_gap;
+            }
+            return;
+        }
+        if (now < pad_next_ || g_.pad(pad_of(0x1000)).status != Status::ok)
+            return;
+        pad_down_ = true;
+        pad_up_ = now + ctimes_.pad_hold;
+        ++title_presses_;
+    }
+
+    // One poll of the title pass: the agent's own press (title_press, the title's sync point) and,
+    // when that is not bound or has not passed the title within title_pad_after, the virtual pad.
+    bool title_tick(uint64_t now)
+    {
+        if (title_passed()) {
+            pad_release();
+            return true;
+        }
+        if (title_bound_ && due(now)) {
+            Outcome o = g_.title_press();
+            title_bound_ = o.status != Status::unavailable;
+            cwhy_ = o.status == Status::ok ? g_.title_state() : o.error;
+        }
+        if (!title_bound_ || now - title_from_ >= ctimes_.title_pad_after) {
+            pad_pulse(now);
+            if (title_presses_)
+                cwhy_ = (title_bound_ ? g_.title_state() : cwhy_.substr(0, cwhy_.find("; "))) + "; " +
+                        std::to_string(title_presses_) + " press(es) of the virtual pad's a";
+        }
+        return false;
+    }
+
+    // Waiting for the home screen after the title: the core's notice (shown over the front end's
+    // transition screen as the main menu loads) holds the home screen back until it is answered, so
+    // once the screen has sat on frontend_transition for notice_after the virtual pad's a answers it.
+    bool home_tick(uint64_t now)
+    {
+        if (g_.home_ready()) {
+            pad_release();
+            transition_at_ = 0;
+            return true;
+        }
+        if (g_.phase().find(std::string("|") + SCREEN_FRONTEND_TRANSITION + "|") == std::string::npos) {
+            pad_release();
+            transition_at_ = 0;
+            return false;
+        }
+        if (!transition_at_)
+            transition_at_ = now;
+        if (now - transition_at_ >= ctimes_.notice_after) {
+            int before = title_presses_;
+            pad_pulse(now);
+            notice_presses_ += title_presses_ - before;
+            title_presses_ = before;
+        }
+        return false;
+    }
+
+    std::string home_why() const
+    {
+        return notice_presses_ ? "the front end's transition screen; " + std::to_string(notice_presses_) +
+                                     " press(es) of the virtual pad's a for the notice"
+                               : std::string("the home screen has not been built");
+    }
+
+    std::string title_value() const
+    {
+        return std::string("{\"title\":\"engaged\",\"pad_presses\":") + std::to_string(title_presses_) + "}";
+    }
+
     Outcome career_poll(uint64_t now)
     {
         for (int guard = 0; guard < 16; guard++) {
             Outcome o;
             switch (cstep_) {
             case CareerStep::title:
-                if (title_passed()) {
+                if (title_tick(now)) {
                     step_to(CareerStep::route, now);
                     continue;
                 }
-                if (due(now)) {
-                    o = g_.title_press();
-                    cwhy_ = o.status == Status::ok ? g_.title_state() : o.error;
-                    if (o.status == Status::unavailable) {
-                        pad_down_ = !pad_down_;
-                        g_.pad(pad_down_ ? pad_of(0x1000) : PadState{});
-                        cwhy_ += "; pressing the virtual pad's a instead";
-                    }
-                }
                 break;
             case CareerStep::route:
+                if (!home_tick(now)) {
+                    cwhy_ = "no home view model: " + home_why();
+                    break;
+                }
                 if (!due(now))
                     break;
                 o = g_.route("career");
@@ -604,11 +714,63 @@ class Runner {
         }
         uint64_t lim = career_limit(ctimes_, cstep_);
         if (now - cstep_at_ >= lim || now >= deadline_) {
+            pad_release();
             uint64_t secs = (now >= deadline_ ? deadline_ - started_ : lim) / 1000;
             return {Status::timeout, "null",
                     std::string("career load: ") + career_step_name(cstep_) + " did not happen within " +
                         std::to_string(secs) + " s" + (cwhy_.empty() ? "" : " (" + cwhy_ + ")")};
         }
+        return Outcome::pending();
+    }
+
+    // tile: stage 0 reads the selection and presses toward the tile (right/down, or left/up when the
+    // tile is before it) and waits nav_settle; a press that doesn't move the selection switches the
+    // axis once; stage 1 holds a, stage 2 lets go and answers.
+    Outcome tile_poll(uint64_t now)
+    {
+        auto press = [&](uint16_t b) {
+            g_.pad(pad_of(b));
+            pad_down_ = true;
+            pad_up_ = now + ctimes_.nav_hold;
+        };
+        if (pad_down_) {
+            if (now >= pad_up_)
+                pad_release();
+            return Outcome::pending();
+        }
+        if (now >= deadline_)
+            return {Status::timeout, "null", "tile " + tile_id_ + ": not within " +
+                                                 std::to_string((deadline_ - started_) / 1000) + " s" +
+                                                 (cwhy_.empty() ? "" : " (" + cwhy_ + ")")};
+        if (now < tile_at_ms_)
+            return Outcome::pending();
+        if (tile_stage_ == 2)
+            return Outcome::ok("{\"tile\":" + esc(tile_id_) + ",\"index\":" + std::to_string(tile_at_.index) +
+                               ",\"moves\":" + std::to_string(tile_moves_) + "}");
+        TileAt at;
+        Outcome o = g_.tile_find(tile_id_, at);
+        if (o.status == Status::error)
+            return o;
+        if (o.status == Status::ok) {
+            if (tile_moves_ && at.selected == tile_at_.selected && at.index != at.selected) {
+                if (++tile_stuck_ > 1)
+                    return Outcome::fail("tile " + tile_id_ + ": the selection does not move with the pad (at " +
+                                         std::to_string(at.selected) + ", the tile is " + std::to_string(at.index) + ")");
+                tile_axis_ = !tile_axis_;
+            }
+            tile_at_ = at;
+            if (at.index == at.selected) {
+                press(0x1000);
+                tile_stage_ = 2;
+            } else {
+                bool fwd = at.index > at.selected;
+                press(tile_axis_ ? (fwd ? 0x0002 : 0x0001) : (fwd ? 0x0008 : 0x0004));
+                ++tile_moves_;
+            }
+            tile_at_ms_ = now + ctimes_.nav_hold + ctimes_.nav_settle;
+            return Outcome::pending();
+        }
+        cwhy_ = o.error;
         return Outcome::pending();
     }
 
@@ -626,11 +788,33 @@ class Runner {
         const json::Value &a = cur_.args;
         if (c == "hello" || c == "status")
             return g_.hello();
-        if (c == "route") {
-            std::string r = a["route"].str();
-            if (r.empty())
+        if (c == "route" || c == "home") {
+            route_ = c == "home" ? std::string() : a["route"].str();
+            if (c == "route" && route_.empty())
                 return Outcome::fail("route needs {\"route\": <name>}");
-            return g_.route(r);
+            title_begin(now);
+            notice_presses_ = 0;
+            transition_at_ = 0;
+            if (!route_.empty()) {
+                Outcome o = g_.route(route_);
+                if (o.status != Status::unavailable || o.error.find("no home view model") == std::string::npos)
+                    return o;
+            } else if (g_.home_ready())
+                return Outcome::ok("{\"home\":true}");
+            deadline_ = now + limit(ctimes_.route);
+            return poll(now);
+        }
+        if (c == "tile") {
+            tile_id_ = a["tile"].str();
+            if (tile_id_.empty())
+                return Outcome::fail("tile needs {\"tile\": <tile id>}");
+            tile_stage_ = 0, tile_moves_ = 0, tile_stuck_ = 0, tile_at_ms_ = 0;
+            std::string axis = a["axis"].str("across");
+            if (axis != "across" && axis != "down")
+                return Outcome::fail("a tile axis is across or down, not '" + axis + "'");
+            tile_axis_ = axis == "down";
+            deadline_ = now + limit(DEFAULT_WAIT_MS);
+            return poll(now);
         }
         if (c == "skip") {
             std::string to = a["to"].str();
@@ -653,11 +837,15 @@ class Runner {
             return Outcome::pending();
         }
         if (c == "title") {
+            title_begin(now);
             if (title_passed())
-                return Outcome::ok("{\"title\":\"engaged\"}");
+                return Outcome::ok(title_value());
+            Outcome o = g_.title_press();
+            if (o.status == Status::unavailable)
+                return o;
+            tried_ = true;
+            tried_at_ = now;
             deadline_ = now + limit(ctimes_.title);
-            tried_ = false;
-            cwhy_.clear();
             return poll(now);
         }
         if (c == "career") {
@@ -670,6 +858,7 @@ class Runner {
             card_.clear();
             deadline_ = now + limit(15 * 60 * 1000);
             step_to(CareerStep::title, now);
+            title_begin(now);
             return poll(now);
         }
         if (c == "ai_drives_player") {
@@ -785,22 +974,43 @@ class Runner {
         if (c == "career")
             return career_poll(now);
         if (c == "title") {
-            if (title_passed()) {
-                g_.note("[test] title passed without input");
-                return Outcome::ok("{\"title\":\"engaged\"}");
+            if (title_tick(now)) {
+                g_.note(title_presses_ ? "[test] title passed after " + std::to_string(title_presses_) +
+                                             " press(es) of the virtual pad's a"
+                                       : std::string("[test] title passed without input"));
+                return Outcome::ok(title_value());
             }
-            if (due(now)) {
-                Outcome o = g_.title_press();
-                if (o.status == Status::unavailable)
-                    return o;
-                cwhy_ = o.status == Status::ok ? g_.title_state() : o.error;
-            }
-            if (now >= deadline_)
+            if (now >= deadline_) {
+                pad_release();
                 return {Status::timeout, "null",
                         "title: the title screen did not pass within " + std::to_string((deadline_ - started_) / 1000) +
                             " s (" + cwhy_ + ")"};
+            }
             return Outcome::pending();
         }
+        if (c == "route" || c == "home") {
+            if (!title_passed()) {
+                title_tick(now);
+                cwhy_ = "the title: " + cwhy_;
+            } else if (home_tick(now)) {
+                if (route_.empty())
+                    return Outcome::ok("{\"home\":true,\"notice_presses\":" + std::to_string(notice_presses_) + "}");
+                Outcome o = g_.route(route_);
+                if (o.status != Status::unavailable || o.error.find("no home view model") == std::string::npos)
+                    return o;
+                cwhy_ = o.error;
+            } else
+                cwhy_ = "no home view model: " + home_why();
+            if (now >= deadline_) {
+                pad_release();
+                return {Status::timeout, "null",
+                        (route_.empty() ? std::string("home") : "route " + route_) + ": not within " +
+                            std::to_string((deadline_ - started_) / 1000) + " s (" + cwhy_ + ")"};
+            }
+            return Outcome::pending();
+        }
+        if (c == "tile")
+            return tile_poll(now);
         if (c == "wait") {
             if (fires_.take(want_))
                 return Outcome::ok("{\"event\":" + esc(want_) + ",\"fires\":" + std::to_string(fires_.count[want_]) + "}");

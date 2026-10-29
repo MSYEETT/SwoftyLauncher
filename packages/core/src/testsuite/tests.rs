@@ -899,7 +899,54 @@ mod mailbox {
         );
         assert!(p("bogus").unwrap_err().starts_with("unknown command bogus"));
         assert_eq!(p("advance soon").unwrap_err(), "soon: expected days");
-        assert_eq!(p("route").unwrap_err(), "usage: route <name>");
+        assert_eq!(p("route").unwrap_err(), "usage: route <name> [seconds]");
+        assert_eq!(
+            p("route play 90").unwrap(),
+            ("route".into(), json!({"route":"play"}), Some(90_000))
+        );
+        assert_eq!(p("home").unwrap(), ("home".into(), Value::Null, None));
+        assert_eq!(
+            p("home 120").unwrap(),
+            ("home".into(), Value::Null, Some(120_000))
+        );
+        assert_eq!(
+            p("tile time_trial").unwrap(),
+            ("tile".into(), json!({"tile":"time_trial"}), None)
+        );
+        assert_eq!(
+            p("tile f1_world down").unwrap().1,
+            json!({"tile":"f1_world","axis":"down"})
+        );
+        assert!(p("tile x sideways").unwrap_err().contains("across or down"));
+        assert_eq!(
+            p("wait screen=time_trial_select 20").unwrap(),
+            ("at".into(), json!({"phase":"time_trial_select"}), Some(20_000))
+        );
+        assert!(p("wait screen=").unwrap_err().starts_with("usage: wait screen="));
+    }
+
+    #[test]
+    fn tile_home_and_screen_steps_go_to_the_agent() {
+        let t = one_test(
+            r#"{"id":"tt","env":{"kind":"boot"},"steps":[
+                {"home":true},{"route":"f1_world"},{"route":"play"},{"tile":"time_trial"},
+                {"tile":"f1_world","axis":"down"},{"wait":{"screen":"time_trial_select"},"timeout_s":20}]}"#,
+        )
+        .unwrap();
+        assert!(t.needs_agent());
+        let cmds: Vec<Vec<(String, Value)>> =
+            t.steps.iter().map(|s| agent::step_commands(s).unwrap()).collect();
+        let c = |cmd: &str, args: Value| vec![(cmd.to_owned(), args)];
+        assert_eq!(cmds[0], c("home", Value::Null));
+        assert_eq!(cmds[3], c("tile", json!({"tile":"time_trial"})));
+        assert_eq!(cmds[4], c("tile", json!({"tile":"f1_world","axis":"down"})));
+        assert_eq!(cmds[5], c("at", json!({"phase":"time_trial_select"})));
+        assert!(t.steps[5].host.is_none(), "a screen wait is the agent's");
+        let bad = one_test(r#"{"id":"tt","env":{"kind":"boot"},"steps":[{"tile":"x","axis":"diagonal"}]}"#);
+        assert!(bad.unwrap_err().contains("unknown axis"));
+        let both =
+            one_test(r#"{"id":"tt","env":{"kind":"boot"},"steps":[{"wait":{"screen":"a","event":"b"}}]}"#);
+        assert!(both.unwrap_err().contains("wait for one of"));
     }
 
     #[test]
