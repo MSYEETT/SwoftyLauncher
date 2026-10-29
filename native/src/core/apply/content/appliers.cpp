@@ -30,7 +30,8 @@
 // the row engine (rows.hpp) over the database the game loaded (the database file in the game folder under the older
 // addons' edits), and every record it writes is staged for gamedb.cpp, which applies them per addon in load order.
 // Before the load, the same expansion without stat ids counts the new keys for the value map's size. Stat ids:
-// explicit ones are pinned in the install's store, "auto" ones are allocated from the pools scan_pools finds. An
+// explicit ones are pinned in the install's store, "auto" ones are allocated from the pools scan_pools finds, and a
+// record whose id a row of the loaded database already holds takes the next free id (settle_ids). An
 // addon whose new keys don't fit the room left is left out whole before anything is staged, so the rows of the
 // addons after it stay contiguous. Era boxes go into the core's era picker at the window stage.
 
@@ -188,22 +189,10 @@ void define_pools(Database &d, std::vector<std::string> &lines, std::map<std::st
     }
 }
 
-void pin_all(Store &st, const std::map<std::string, PoolScan> &scans, std::vector<std::string> &lines)
+void pin_all(Store &st, const std::map<std::string, PoolScan> &scans)
 {
-    std::string day = today();
-    for (auto &p : pins(st)) {
-        ids::Result had = ids::store().get(p.registry, p.id);
-        ids::Result r = ids::store().pin(p.registry, p.id, p.stat_id, day);
-        if (had.id != p.stat_id || r.line.find("also holds") != std::string::npos)
-            swofty::log("%s", r.line.c_str());
-        auto scan = scans.find(p.registry);
-        if (scan == scans.end())
-            continue;
-        auto held = scan->second.used.find(p.stat_id);
-        if (held != scan->second.used.end())
-            lines.push_back(p.registry + " " + p.id + ": stat id " + std::to_string(p.stat_id) + " is also " +
-                            scan->second.table + " row " + held->second + "'s, which the game or an older addon added");
-    }
+    for (auto &line : settle_ids(ids::store(), st, scans, today()))
+        swofty::log("%s", line.c_str());
 }
 
 int64_t stat_id(const std::string &registry, const std::string &id, int64_t pin)
@@ -227,7 +216,7 @@ void run_boot(Store &st)
     read_edits(d);
     std::map<std::string, PoolScan> scans;
     define_pools(d, s.boot_lines, scans);
-    pin_all(st, scans, s.boot_lines);
+    pin_all(st, scans);
     Admission adm = admit(st.order(), plan.addon_fresh, db::staging().room());
     for (auto &[addon, keys] : adm.refused) {
         db::Refusal r{addon, {}, keys};

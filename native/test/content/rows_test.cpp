@@ -350,6 +350,133 @@ static void variant_tests(const std::string &regs)
           "with the first addon left out, the next one's rows start at the table's next index");
 }
 
+static void older_rows(Db &db)
+{
+    auto row = [&](const std::string &prefix, std::initializer_list<std::pair<const char *, std::string>> fields) {
+        for (auto &[f, v] : fields)
+            db.put(prefix + "." + f, std::string_view(f) == "_metadata_" ? 4 : 2, v);
+    };
+    db.put("entrants.vehicles._vehicle_instancecount_", 0, "2");
+    row("entrants.vehicles.vehicle_1", {{"_metadata_", "bdx_s5_car_mclaren_3"}, {"performance_tier", "0"}, {"tyre_wear_scale", "1"}});
+    db.put("entrants.vehicles.vehicle_1.stat_id", 0, "520");
+    db.put("entrants.entrant_lists._entrant_list_instancecount_", 0, "2");
+    row("entrants.entrant_lists.entrant_list_1", {{"_metadata_", "bdx_s5_2012"}, {"display_name", "x"}, {"leaderboard", "f1"}});
+    db.put("entrants.entrant_lists.entrant_list_1.stat_id", 0, "106");
+    db.put("game_setup.scenarios._scenario_instancecount_", 0, "2");
+    row("game_setup.scenarios.scenario_1", {{"_metadata_", "bdx_s5_2012"}, {"entrant_list", "bdx_s5_2012"}, {"game_setup_mode", "f1"}});
+    db.put("game_setup.scenarios.scenario_1.statId", 0, "16");
+}
+
+static void id_clash_tests(const std::string &regs)
+{
+    registry::reset_store();
+    auto &st = registry::store();
+    st.set_order({"swofty.classic-seasons-2017"});
+    st.set_validator(&registry::schema_validator());
+    const SwoftyRegistry *t = registry::table();
+    for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"}) {
+        std::string schema = slurp(regs + "/" + name + "/1.0.json");
+        t->declare(name, SwoftyText{schema.data(), schema.size()});
+    }
+    int r = registry::load_data_file("swofty.classic-seasons-2017", "registry/content.json", R"j({
+      "engine_sound": { "mercedes": { "bundle": "sounds/cs17_mercedes.bdl", "settings_from": "game/mercedes_2025" } },
+      "vehicle": { "mercedes": { "label": "cs17_mercedes", "donor": "game/mercedes_2025", "stat_id": 520,
+                                 "engine_sound": "swofty.classic-seasons-2017/mercedes",
+                                 "audio_switch": "f1_M_mercedes", "audio_from": "f1_m_mercedes" },
+                   "redbull": { "label": "cs17_redbull", "donor": "game/mercedes_2025", "stat_id": 521 } },
+      "content.package": { "f1_2017": {
+        "title": "lng_cs_f1_2017", "entrant_list": "cs_f1_2017", "season": 2017, "stat_id": 106,
+        "teams": [ { "key": "mercedes", "vehicle": null,
+                     "drivers": [ { "driver": "game/lewis_hamilton", "number": 44, "look": null } ] } ],
+        "database": { "entrant_list": "cs_f1_2017", "scenario_stat_id": 16, "entrant_prefix": "cs2017-",
+                      "standings": "cs_f1_teams_2017", "content_sets": ["2025"],
+                      "looks": { "mercedes/lewis_hamilton": "2017-cs_mercedes_lewis_hamilton" } } } } })j");
+    st.end_register();
+    check(r == SWOFTY_ASSET_OK, "the CS-style records register");
+
+    struct Run {
+        std::vector<std::string> lines;
+        std::vector<std::pair<std::string, std::string>> writes;
+    };
+    auto run = [&](Db &db, apply::ids::Store &ids, bool settle) {
+        Run out;
+        auto text = [&](const std::string &path) -> std::optional<std::string> {
+            auto r = db.base()(content::gvdb::fnv64(path));
+            return r ? std::optional<std::string>(r->text) : std::nullopt;
+        };
+        std::map<std::string, content::PoolScan> scans;
+        for (auto &scan : content::scan_all_pools(text)) {
+            ids.define_pool(scan.registry, {{{scan.lo, scan.hi}}});
+            scans[scan.registry] = scan;
+        }
+        if (settle)
+            out.lines = content::settle_ids(ids, st, scans, "test");
+        else
+            for (auto &p : content::pins(st))
+                ids.pin(p.registry, p.id, p.stat_id, "test");
+        content::StatIds stat = [&](const std::string &reg, const std::string &id, int64_t pin) -> int64_t {
+            return pin >= 0 ? ids.pin(reg, id, pin, "test").id : ids.allocate(reg, id, "test").id;
+        };
+        content::Expansion x(db.base());
+        content::expand(st, x, stat);
+        for (auto &w : x.engine.writes())
+            out.writes.push_back({w.path, w.text});
+        return out;
+    };
+    auto stat_of = [](const Run &r, const std::string &table, const std::string &row, const std::string &label,
+                      const char *field) {
+        std::string at;
+        for (auto &[path, text] : r.writes)
+            if (text == label && path.rfind(table + "." + row + "_", 0) == 0 && path.size() > 11 &&
+                path.substr(path.size() - 11) == "._metadata_")
+                at = path.substr(0, path.size() - 10);
+        for (auto &[path, text] : r.writes)
+            if (!at.empty() && path == at + field)
+                return text;
+        return std::string("none");
+    };
+
+    Db stock;
+    stock_package_rows(stock);
+    apply::ids::Store old_ids, new_ids;
+    Run before = run(stock, old_ids, false), after = run(stock, new_ids, true);
+    check(after.lines.size() == 4 && after.lines[0].find("[registry] stat ids:") == 0,
+          "no clash: only the usual pin lines (" + std::to_string(after.lines.size()) + ")");
+    check(before.writes == after.writes && !after.writes.empty(), "no clash: the plan is byte-identical to before");
+    check(old_ids.dump() == new_ids.dump(), "no clash: ids.json is identical");
+
+    Db older;
+    stock_package_rows(older);
+    older_rows(older);
+    apply::ids::Store ids;
+    Run moved = run(older, ids, true);
+    for (auto &l : moved.lines)
+        std::printf("      %s\n", l.c_str());
+    auto has = [&](const std::string &line) {
+        return std::find(moved.lines.begin(), moved.lines.end(), line) != moved.lines.end();
+    };
+    check(has("[registry] ids: swofty.classic-seasons-2017/mercedes pinned vehicle stat id 520 is held by "
+              "bdx_s5_car_mclaren_3 from the database; uses 522"),
+          "a pin on a 1.5 row's vehicle id moves past the other pins, with the log line");
+    check(has("[registry] ids: swofty.classic-seasons-2017/f1_2017 pinned content.package stat id 106 is held by "
+              "bdx_s5_2012 from the database; uses 107") &&
+              has("[registry] ids: swofty.classic-seasons-2017/f1_2017 pinned content.package.scenario stat id 16 is "
+                  "held by bdx_s5_2012 from the database; uses 17"),
+          "so do the entrant list and scenario ids");
+    check(stat_of(moved, "entrants.vehicles", "vehicle", "cs17_mercedes", "stat_id") == "522" &&
+              stat_of(moved, "entrants.vehicles", "vehicle", "cs17_redbull", "stat_id") == "521",
+          "the moved car's row carries its new id; the car with no clash keeps its pin");
+    check(stat_of(moved, "entrants.entrant_lists", "entrant_list", "cs_f1_2017", "stat_id") == "107" &&
+              stat_of(moved, "game_setup.scenarios", "scenario", "cs_f1_2017", "statId") == "17",
+          "and so do the list and scenario rows");
+    bool untouched = true;
+    for (auto &[path, text] : moved.writes)
+        untouched &= path.rfind("entrants.vehicles.vehicle_1.", 0) != 0 && path.rfind("entrants.vehicles.vehicle_0.", 0) != 0;
+    check(untouched, "the stock and 1.5 rows are not written");
+    Run again = run(older, ids, true);
+    check(again.writes == moved.writes, "the next boot moves it to the same id");
+}
+
 static void livery_tests()
 {
     std::map<std::string, std::string> db = {
@@ -902,6 +1029,8 @@ int main(int argc, char **argv)
         variant_tests(argv[1]);
     if (argc > 1)
         team_tests(argv[1]);
+    if (argc > 1)
+        id_clash_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

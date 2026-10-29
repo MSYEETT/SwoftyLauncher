@@ -142,12 +142,14 @@ int main(int argc, char **argv)
     }
     Value clashes = Value::array();
     for (auto &p : content::pins(st)) {
-        ids.pin(p.registry, p.id, p.stat_id, "test");
         auto s = scans.find(p.registry);
         if (s != scans.end() && s->second.used.count(p.stat_id))
             clashes.push_back(Value(p.registry + " " + p.id + " " + std::to_string(p.stat_id) + " " +
                                     s->second.used[p.stat_id]));
     }
+    Value id_lines = Value::array();
+    for (auto &l : content::settle_ids(ids, st, scans, "test"))
+        id_lines.push_back(Value(l));
     uint64_t room = room_text.empty() ? UINT64_MAX : std::strtoull(room_text.c_str(), nullptr, 10);
     content::Admission adm = content::admit(st.order(), plan.addon_fresh, room);
     Value allocated = Value::object();
@@ -213,6 +215,7 @@ int main(int argc, char **argv)
         summary["room_refused"].push_back(Value::object({{"addon", Value(a)}, {"keys", Value(int64_t(k))}}));
     summary["pools"] = pools;
     summary["pin_clashes"] = clashes;
+    summary["id_lines"] = id_lines;
     summary["allocated"] = allocated;
     summary["staged"] = Value(int64_t(staged.size()));
     summary["untyped"] = Value(int64_t(untyped));

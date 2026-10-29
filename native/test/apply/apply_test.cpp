@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -223,6 +224,79 @@ void test_ids()
     check(u.allocate("vehicle", "x/next", "d").id == 517, "an explicit id is not allocated to others");
     ap::ids::Store none;
     check(none.allocate("vehicle", "x/a", "d").id == -1, "no pool, no id");
+}
+
+void test_database_ids()
+{
+    const std::map<int64_t, std::string> db15{{508, "mercedes_2025"}, {509, "bdx_s5_car_mclaren_3"}, {510, "bdx_s5_car_ferrari"}};
+    ap::ids::Store s;
+    s.define_pool("vehicle", {{{509, 1023}}});
+    auto none = s.pin("vehicle", "cs/ferrari", 509, "d", "cs17_ferrari");
+    check(none.id == 509 && none.how == "explicit" && none.line.find("[registry] ids:") == std::string::npos,
+          "no database rows held: the pin is the id, as before");
+    std::string before = s.dump();
+    check(before.find("\"pin\"") == std::string::npos, "ids.json gains no field when nothing moves");
+    s.map_for_career("c509");
+
+    s.define_pool("vehicle", {{{511, 1023}}});
+    s.hold("vehicle", db15);
+    s.pin("vehicle", "cs/mclaren", 511, "d", "cs17_mclaren");
+    auto moved = s.pin("vehicle", "cs/ferrari", 509, "d", "cs17_ferrari");
+    check(moved.id == 512 && moved.how == "moved",
+          "a pin on an id a database row holds takes the next free id, past another record's pin: " +
+              std::to_string(moved.id));
+    check(moved.line == "[registry] ids: cs/ferrari pinned vehicle stat id 509 is held by bdx_s5_car_mclaren_3 from the "
+                        "database; uses 512",
+          "the move line: " + moved.line);
+    check(s.pin("vehicle", "cs/ferrari", 509, "d").id == 512, "a later lookup without the label gets the moved id");
+    check(s.pin("vehicle", "cs/ferrari", 509, "d", "cs17_ferrari").id == 512, "the moved id is stable");
+    ap::ids::Store own;
+    own.define_pool("vehicle", {{{511, 1023}}});
+    own.hold("vehicle", db15);
+    check(own.pin("vehicle", "bdx/mclaren", 509, "d", "bdx_s5_car_mclaren_3").id == 509,
+          "a pin on the row with its own label keeps the id");
+    check(s.allocate("vehicle", "cs/auto", "d").id == 513, "an automatic id skips the moved one");
+
+    ap::ids::Store t;
+    check(t.load(s.dump()) && t.pin("vehicle", "cs/ferrari", 509, "d").id == 512,
+          "ids.json keeps a moved id, so a lookup before the boot's database scan gets it");
+    t.define_pool("vehicle", {{{511, 1023}}});
+    t.hold("vehicle", db15);
+    check(t.pin("vehicle", "cs/ferrari", 509, "d", "cs17_ferrari").id == 512, "and the next boot keeps it");
+
+    auto c = t.adopt("c509", {{"vehicle", {{"cs/ferrari", 509}}}}, "d");
+    check(c.size() == 1 && c[0].holder == "bdx_s5_car_mclaren_3" &&
+              c[0].line.find("this install gives it 512 and bdx_s5_car_mclaren_3 from the database holds 509") !=
+                  std::string::npos,
+          "a career saved with the pinned id names the database row that holds it");
+    t.map_for_career("c512");
+    t.hold("vehicle", {{508, "mercedes_2025"}});
+    t.define_pool("vehicle", {{{509, 1023}}});
+    auto back = t.pin("vehicle", "cs/ferrari", 509, "d", "cs17_ferrari");
+    check(back.id == 509 && back.how == "explicit", "with the older addon gone the record gets its pin back");
+    check(t.adopt("c509", {{"vehicle", {{"cs/ferrari", 509}}}}, "d").empty(),
+          "and the career that saved 509 resolves through its map again");
+    check(t.allocate("vehicle", "cs/other", "d").id == 510 && t.allocate("vehicle", "cs/more", "d").id == 514,
+          "the moved id stays reserved for the career that saved it");
+
+    ap::ids::Store k;
+    k.define_pool("vehicle", {{{509, 1023}}});
+    k.allocate("vehicle", "cs/auto", "d");
+    k.define_pool("vehicle", {{{511, 1023}}});
+    k.hold("vehicle", db15);
+    auto re = k.recheck("vehicle", "cs/auto", "cs17_auto", "d");
+    check(re.id == 511 && re.how == "moved" &&
+              re.line == "[registry] ids: cs/auto kept vehicle stat id 509 is held by bdx_s5_car_mclaren_3 from the "
+                         "database; uses 511",
+          "an automatic id kept on a database row's id moves too: " + re.line);
+    check(k.recheck("vehicle", "cs/auto", "cs17_auto", "d").how == "kept", "once");
+    ap::ids::Store full;
+    full.define_pool("vehicle", {{{511, 511}}});
+    full.hold("vehicle", db15);
+    full.pin("vehicle", "x/a", 511, "d", "a");
+    auto stuck = full.pin("vehicle", "x/b", 509, "d", "b");
+    check(stuck.id == 509 && stuck.line.find("has no free id, so it keeps 509") != std::string::npos,
+          "a full pool keeps the pin and says so: " + stuck.line);
 }
 
 void test_scheduler()
@@ -483,6 +557,11 @@ void test_stat_id_and_reports(const std::string &dir)
           "an explicit stat_id is the record's id");
     check(ap::stat_id(fresh, ids, "vehicle", "mod.a/none", &out, "d", nullptr) != SWOFTY_ASSET_OK && out == -1,
           "a missing record has no stat id");
+    ids.hold("vehicle", {{530, "older_mclaren"}});
+    auto moved = ids.pin("vehicle", "mod.a/mclaren", 530, "d", "mclaren");
+    check(moved.how == "moved" && ap::stat_id(fresh, ids, "vehicle", "mod.a/mclaren", &out, "d", nullptr) == SWOFTY_ASSET_OK &&
+              out == moved.id && out != 530,
+          "an addon asking for a moved record's stat id gets the id its rows carry");
 
     int r = reg::write_reports(dir, [](Value &, Value &conflicts) {
         conflicts["status"] = Value::object({{"mod.a", Value::array({Value("12 vehicle record(s) refused")})}});
@@ -507,6 +586,7 @@ int main(int argc, char **argv)
     test_budget();
     test_room_json();
     test_ids();
+    test_database_ids();
     test_scheduler();
     test_facts();
     test_stat_id_and_reports(dir);
