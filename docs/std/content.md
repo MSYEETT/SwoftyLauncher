@@ -111,7 +111,7 @@ SWOFTY_REGISTER
         .title = "lng_cs_f1_2017",
         .entrant_list = "cs_f1_2017",
         .season = 2017,
-        .calendar = career::calendars["swofty.classic-seasons-2017/f1_2017"],   // the real 2017 calendar (calendar.cpp)
+        .calendar = career::calendars["swofty.classic-seasons-2017/f1_2017"].optional(),   // the real 2017 calendar (calendar.cpp)
         .teams = {
             { .key = "ferrari", .team = teams::identities["swofty.classic-seasons-2017/ferrari"], .vehicle = ferrari,
               .drivers = { { .driver = drivers::identities["game/sebastian_vettel"], .number = 5 },
@@ -146,7 +146,7 @@ SWOFTY_ADDON()
   "content.package": {
     "f1_2017": {
       "title": "lng_cs_f1_2017", "entrant_list": "cs_f1_2017", "season": 2017,
-      "calendar": "swofty.classic-seasons-2017/f1_2017",
+      "calendar": "swofty.classic-seasons-2017/f1_2017?",
       "teams": [
         { "key": "ferrari", "team": "swofty.classic-seasons-2017/ferrari", "vehicle": "swofty.classic-seasons-2017/ferrari",
           "drivers": [ { "driver": "game/sebastian_vettel", "number": 5 }, { "driver": "game/kimi_raikkonen", "number": 7 } ] }
@@ -372,7 +372,9 @@ The box's track list shows the season's real calendar first, in round order: the
 
 A track that doesn't fit is left out of that box. The track select screen's list builder needs reverse engineering. Until it's understood, the screen shows every track in the base in the game's own order, and a guard stops a track that doesn't fit before the session loads.
 
-Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data.
+Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data. In 1.6.3 the core applies a box's `fuel`; its other fields are stored.
+
+Classic Seasons 2016 to 2024 each register the season's real calendar and name it in the package, optionally: a round at a venue no stock track provides, such as Sochi in 2017, is dropped until a track addon provides it (see [A calendar that uses it](/std/systems/tracks#a-calendar-that-uses-it-optionally)).
 
 When the box is picked, or a career season that races in the box starts, the core applies its view to the track data the game reads. It puts the view back when that content ends. See [Tracks](/std/systems/tracks).
 
@@ -386,9 +388,9 @@ SWOFTY_REGISTER
     // the package names its calendar (content.cpp), and that calendar comes first in the box's list
     auto box = content::packages["swofty.classic-seasons-2017/f1_2017"];
 
-    // 2017 data at two tracks; every other track keeps its base data
-    tracks::per_package.add("f1_2017/monaco", { .package = box, .laps = 78 });
-    tracks::per_package.add("f1_2017/sochi",  { .package = box, .laps = 52 });
+    // 2017 fuel at two tracks; every other track keeps its base data
+    tracks::per_package.add("f1_2017/monaco", { .package = box, .fuel = tracks::Fuel{ .burn_per_lap = 1.45f } });
+    tracks::per_package.add("f1_2017/spa_francorchamps", { .package = box, .fuel = tracks::Fuel{ .burn_per_lap = 1.80f } });
 }
 ```
 
@@ -398,8 +400,8 @@ SWOFTY_REGISTER
 ```json
 {
   "track.per_package": {
-    "f1_2017/monaco": { "package": "swofty.classic-seasons-2017/f1_2017", "laps": 78 },
-    "f1_2017/sochi":  { "package": "swofty.classic-seasons-2017/f1_2017", "laps": 52 }
+    "f1_2017/monaco":            { "package": "swofty.classic-seasons-2017/f1_2017", "fuel": { "burn_per_lap": 1.45 } },
+    "f1_2017/spa_francorchamps": { "package": "swofty.classic-seasons-2017/f1_2017", "fuel": { "burn_per_lap": 1.80 } }
   }
 }
 ```
@@ -410,8 +412,8 @@ SWOFTY_REGISTER
 </Split>
 
 ```text
-[tracks] box swofty.classic-seasons-2017/f1_2017 (grand_prix): calendar 20 rounds, more tracks 3 (mod.hockenheim/hockenheim, ...)
-[registry] content swofty.classic-seasons-2017/f1_2017 active: 2 scoped changes applied (track data: monaco laps 78, sochi laps 52)
+[tracks] box swofty.classic-seasons-2017/f1_2017 (grand_prix): calendar 18 of 20 rounds (venue/sochi: no track; venue/sepang: no track), more tracks 10
+[registry] content swofty.classic-seasons-2017/f1_2017 active: 2 scoped changes applied (track data: monaco fuel 1.45, spa_francorchamps fuel 1.80)
 [registry] content mod.esp/f1_2017_v10 active: calendar and track data inherited from swofty.classic-seasons-2017/f1_2017
 [registry] content swofty.classic-seasons-2017/f1_2017 ended: 2 scoped changes put back
 ```
@@ -504,7 +506,7 @@ See [Career snapshots](/std/scopes#career-snapshots) and [Career](/std/systems/c
 - `engine_sound`: [Sounds](/std/systems/sounds).
 - `livery`: [Liveries](/std/systems/liveries).
 - `helmet`, `suit`, `gloves`, `wearable.season_set`: [Helmets, suits and gloves](/std/systems/wearables).
-- `track`, `track.data`, `track.per_package`: [Tracks](/std/systems/tracks).
+- `track`, `track.venue`, `track.data`, `track.per_package`: [Tracks](/std/systems/tracks).
 - `team.identity`: [Teams](/std/systems/teams). `driver.identity`: [Drivers](/std/systems/drivers).
 - `career.content`, `career.season`, `career.driver_ratings`: [Career](/std/systems/career).
 

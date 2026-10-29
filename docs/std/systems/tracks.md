@@ -26,6 +26,9 @@ What 1.6.3 ships:
 - **Tracks made for 1.5** (`track.add` in `ops/`) as records `<addon id>/<code>`. The launcher keeps adding their rows and files, and reports them to the core.
 - **A track record** (`registry/track.json`, or `tracks::tracks.add`): the core adds its rows at boot, and the launcher places its files.
 - **Each box's track list** in the log and in `catalog.json`, and a guard on the track select screen that stops a track the box can't run.
+- **The venues table,** `packages/sdk/std/data/venues.json`: the 39 venues the core seeds, with the names a track made for 1.5 is matched against.
+- **Real calendars in Classic Seasons:** each season from 2016 to 2024 registers its calendar as `career.calendar` `f1_<year>`, and its package names it.
+- **An example addon,** `templates/std/track`: Hockenheim as a track record, in data files and in code, with its tests.
 - **From 1.6.0:** `set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`, `tracks::Fuel` and `session.fuel.load` (`tracks::events::FuelLoad`).
 
 Not in 1.6.3; their sections describe the design:
@@ -164,6 +167,23 @@ The records and their ids:
 
 `track.data` applies at boot in 1.6.3: the core writes each block's registered values into the database before it loads. At session load it writes fuel again into the data set the session reads. A layer added after boot on another field is logged as taking effect at the next start.
 
+## The venues
+
+The core seeds one `track.venue` record per entry of `packages/sdk/std/data/venues.json`: the 32 circuits of the 2016 to 2025 calendars by their Jolpica ids, `madrid`, the dormant stock `hanoi`, and the real circuits of community tracks (`okayama`, `buddh`, `valencia`, `autopolis`, `igora_drive`).
+
+```json
+// packages/sdk/std/data/venues.json
+{ "version": 1, "venues": {
+  "albert_park":    { "name": "Albert Park Circuit", "country": "australia", "aliases": ["Albert Park", "Albert Park Grand Prix Circuit", "Melbourne"], "stock": "melbourne" },
+  "hockenheimring": { "name": "Hockenheimring", "country": "germany", "aliases": ["Hockenheim", "Hockenheimring Baden-Wurttemberg"], "stock": null },
+  "sepang":         { "name": "Sepang International Circuit", "country": "malaysia", "aliases": ["Sepang", "Kuala Lumpur", "Malaysia"], "stock": null }
+} }
+```
+
+- **`stock`** is the stock track with assets that provides the venue: `game/melbourne` provides `venue/albert_park`. Each of the 25 stock tracks with assets provides one venue. Reverse layouts and dormant rows provide none.
+- **`name` and `aliases`** are what a track made for 1.5 is matched against, never its code. Both sides are lower-cased and every run of other characters becomes one space, so `Sepang` matches `venue/sepang` and `Portimao` matches `venue/portimao`. No match, or a match on two venues, leaves the track without a venue.
+- **A venue not in the table** can't be named: `venue/` ids belong to the core. A new real circuit is a new entry in this file.
+
 ## Hockenheim, in code
 
 <Split>
@@ -175,9 +195,10 @@ Hockenheim is a new track, not a stock slot. It clones Austria's rows in every d
 - **The core allocates the stat id,** the number the game's database uses for the row. It comes from the install's stat-id store and stays the same at every later start.
 - **The world** keeps the stock counts: `hockenheim_f1_26` has 22 grid slots and 11 garages, and the My Team world has 24 and 12.
 - **Time Trial is off.** `time_trial` stays `false` for an added track. Time Trial on added tracks crashes or freezes, and the cause needs reverse engineering.
+- **It ships as an example** in `templates/std/track`. The data files are the addon, `native/src/track.cpp` is the same records in code, and `track/standin.sh` copies in an archive of your own, since no track art ships. Its tests run both forms and check that they give the same track, venue and data blocks.
 
 <template #example>
-<Example root="mod.hockenheim" code-file="native/src/track.cpp" data-file="registry/track.json" files="swofty.json, track/hockenheim.erp, mipmaps/hockenheim_d.tif.mipmaps, ui/minimap.json, ui/images.json, lang/track.json">
+<Example root="mod.hockenheim" code-file="native/src/track.cpp" data-file="registry/track.json" files="swofty.json, registry/layers.json, track/manifest.json, track/hockenheim.erp, track/mipmaps/">
 <template #code>
 
 ```cpp
@@ -228,7 +249,11 @@ SWOFTY_ADDON()
       "names": { "title": "lng_hockenheim_title", "gp": "lng_hockenheim_gp", "acronym": "HOC" },
       "files": "track/", "length_metres": 4574, "corners": 17, "latitude": 49.3278, "longitude": 8.5658
     }
-  },
+  }
+}
+
+// registry/layers.json
+{
   "track.data": {
     "$select": [
       { "ids": "mod.hockenheim/hockenheim/*", "patch": { "laps": 67, "fuel": { "burn_per_lap": 1.62 }, "pit": { "speed_limit": 80 } } }
@@ -261,14 +286,18 @@ SWOFTY_ADDON()
 Classic Seasons 2016 races the 2016 calendar. Round 12 is the German Grand Prix at Hockenheim, which only a track addon provides.
 
 - **A round names a venue.** It resolves live to the last enabled track in load order that provides the venue, the same way every other contest between addons is decided (see [Shared ids](/std/providers#shared-ids)).
-- **`.optional()`** drops the round when no enabled track provides the venue.
-- **`.or_else(...)`** names a stand-in: with no Sepang, round 16 runs at Bahrain.
+- **A venue a stock track provides is required.** Albert Park is always there.
+- **`.optional()`** (`?` in a data file) drops the round while no enabled track provides the venue. Sochi, Hockenheim and Sepang are optional in 2016.
+- **`.or_else(...)`** (`a|b`) names a stand-in instead. Classic Seasons names none, so a round with no track is dropped, not raced elsewhere.
+- **The package names its calendar** with `content::Package::calendar`, optionally, so a calendar that doesn't resolve leaves the box as it was.
 
 <template #example>
-<Example root="swofty.classic-seasons-2016" code-file="native/src/calendar.cpp" data-file="registry/calendar.json" files="swofty.json, lang/season.json">
+<Example root="swofty.classic-seasons-2016" code-file="native/src/calendar.cpp" data-file="registry/content.json" files="swofty.json, lang/season.json">
 <template #code>
 
 ```cpp
+#include <chrono>
+
 #include <swofty/registry.hpp>
 #include <swofty/systems/career.hpp>
 #include <swofty/systems/tracks.hpp>
@@ -277,13 +306,20 @@ using namespace swofty;
 
 SWOFTY_REGISTER
 {
+    using namespace std::chrono;
+    auto venue = [](const char *id) { return tracks::venues[id]; };
     career::calendars.add("f1_2016", { .rounds = {
-        { .round = 1,  .race = Text::key("lng_gp_australia"), .venue = tracks::venues["venue/albert_park"] },
-        { .round = 4,  .race = Text::key("lng_gp_russia"),    .venue = tracks::venues["venue/sochi"].optional() },
-        { .round = 12, .race = Text::key("lng_gp_germany"),   .venue = tracks::venues["venue/hockenheimring"].optional() },
-        { .round = 16, .race = Text::key("lng_gp_malaysia"),
-          .venue = tracks::venues["venue/sepang"].or_else(tracks::venues["venue/bahrain"]) },
+        { .round = 1,  .race = Text::literal("Australian Grand Prix"), .venue = venue("venue/albert_park"),
+          .date = year{2016} / 3 / 20 },
+        { .round = 4,  .race = Text::literal("Russian Grand Prix"), .venue = venue("venue/sochi").optional(),
+          .date = year{2016} / 5 / 1 },
+        { .round = 12, .race = Text::literal("German Grand Prix"), .venue = venue("venue/hockenheimring").optional(),
+          .date = year{2016} / 7 / 31 },
+        { .round = 16, .race = Text::literal("Malaysian Grand Prix"), .venue = venue("venue/sepang").optional(),
+          .date = year{2016} / 10 / 2 },
+        // and the other 17 rounds
     }});
+    // the package names it (content.cpp): .calendar = career::calendars["swofty.classic-seasons-2016/f1_2016"].optional()
 }
 ```
 
@@ -291,15 +327,19 @@ SWOFTY_REGISTER
 <template #data>
 
 ```json
-// registry/calendar.json
+// registry/content.json
 {
   "career.calendar": {
     "f1_2016": { "rounds": [
-      { "round": 1,  "race": "lng_gp_australia", "venue": "venue/albert_park" },
-      { "round": 4,  "race": "lng_gp_russia",    "venue": "venue/sochi?" },
-      { "round": 12, "race": "lng_gp_germany",   "venue": "venue/hockenheimring?" },
-      { "round": 16, "race": "lng_gp_malaysia",  "venue": "venue/sepang|venue/bahrain" }
+      { "round": 1,  "race": { "literal": "Australian Grand Prix" }, "venue": "venue/albert_park",      "date": "2016-03-20" },
+      { "round": 4,  "race": { "literal": "Russian Grand Prix" },    "venue": "venue/sochi?",          "date": "2016-05-01" },
+      { "round": 12, "race": { "literal": "German Grand Prix" },     "venue": "venue/hockenheimring?", "date": "2016-07-31" },
+      { "round": 16, "race": { "literal": "Malaysian Grand Prix" },  "venue": "venue/sepang?",         "date": "2016-10-02" }
     ] }
+  },
+  "content.package": {
+    "f1_2016": { "title": "lng_cs_f1_2016", "entrant_list": "cs_f1_2016", "season": 2016,
+                 "calendar": "swofty.classic-seasons-2016/f1_2016?", "teams": [ ... ] }
   }
 }
 ```
@@ -312,6 +352,21 @@ SWOFTY_REGISTER
 ```text
 [registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 12 venue/hockenheimring -> mod.hockenheim/hockenheim
 [registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 4 dropped (venue/sochi: no enabled track provides it; optional)
+[registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 16 dropped (venue/sepang: no enabled track provides it; optional)
+```
+
+Every Classic Seasons season from 2016 to 2024 registers its calendar this way, made by `addons/classicseasons/classic-seasons/tools/calendars.py` from Progressive's `data/rounds.json`: each race of the year in round order, with its name and date. The optional rounds, those at venues no stock track provides:
+
+```text
+2016  venue/sochi, venue/hockenheimring, venue/sepang
+2017  venue/sochi, venue/sepang
+2018  venue/ricard, venue/hockenheimring, venue/sochi
+2019  venue/ricard, venue/hockenheimring, venue/sochi
+2020  venue/mugello, venue/sochi, venue/nurburgring, venue/portimao, venue/istanbul
+2021  venue/portimao, venue/ricard, venue/sochi, venue/istanbul
+2022  venue/ricard
+2023  none
+2024  none
 ```
 
 The same calendar serves boxes and careers:
@@ -400,6 +455,7 @@ A box can also give a track its own data: laps, fuel, tyre class, pit lane, name
 - **`offered = false`** leaves a track out of the box. **`order`** places a track under "More tracks".
 - **A variant package** (F1 2017 V10) inherits its base package's track data.
 - **It applies when the box is picked.** The core writes the box's data into the track data the game reads (`Game_TrackData_GetTrack`), and puts it back when the box is left.
+- **In 1.6.3 the core writes `fuel`.** `laps`, `pit`, `names`, `date` and `tyre_class` are stored, and apply once those fields of the game's track data are mapped (see [Readiness and limits](#readiness-and-limits)).
 
 <template #example>
 <Example root="swofty.classic-seasons-2016" code-file="native/src/tracks.cpp" data-file="registry/tracks.json" files="swofty.json, native/src/calendar.cpp, native/src/content.cpp">
@@ -449,9 +505,9 @@ SWOFTY_REGISTER
 </Split>
 
 ```text
-[registry] content swofty.classic-seasons-2016/f1_2016 active: 2 scoped changes applied
-           (mod.hockenheim/hockenheim via venue/hockenheimring: laps 67, fuel 1.71; game/monaco: laps 78)
-[registry] content swofty.classic-seasons-2016/f1_2016 ended: 2 scoped changes put back
+[registry] content swofty.classic-seasons-2016/f1_2016 active: 1 scoped change applied
+           (mod.hockenheim/hockenheim via venue/hockenheimring: fuel 1.71)
+[registry] content swofty.classic-seasons-2016/f1_2016 ended: 1 scoped change put back
 [registry] content game/f1_2026 active: base track data (mod.hockenheim/hockenheim included)
 ```
 
@@ -590,12 +646,18 @@ tracks::set_data(tracks::tracks["game/monaco"], [](tracks::TrackData &d) { d.lap
 
 ## Readiness and limits
 
-- **Records: ready.** About a dozen community tracks ship as addons.
-- **A box's own track data: ready for numbers.** `Game_TrackData_GetTrack` is L2, and `CareerEntity+0xf58` (the TrackDataSystem) is L1 with an independent agree. Progressive 1.2.2 proves the object layout for fuel and laps (0x290 bytes, fuel at +0xf0/+0x100/+0x1a0/+0x1b4). Names, date and tyre class are string or pointer fields in the same objects, and their layout needs reverse engineering.
-- **The box's track list: partial.** `content_sets` `available_tracks` and `sorted_track_order` are known in data. The runtime list builder behind `ui.track_select.build` isn't in the KB yet. A guard covers tracks that don't fit.
+- **The four registries are experimental** in 1.6.3. Their shapes can change before they are stable.
+- **Records:** stock rows, venues, record tracks and tracks made for 1.5 are records at boot. A record track's rows, names and stat id come from the core; the launcher places its files.
+- **Calendars:** Classic Seasons 2016 to 2024 name their real calendars. Careers keep their own calendars in 1.6.3.
+- **Track data at boot:** `track.data` values are written into the database before it loads, so they hold from the first session. At session load the core writes fuel again into the data set the session reads.
+- **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
+- **The box's track list: logged, not shown.** The core works out each box's list and writes it to the log and `catalog.json`. The track select screen still shows its own list, built from view-model nodes (`track_data.track_list`, `track_info.gm_track_list`). The list builder behind `ui.track_select.build` isn't found yet.
+- **The guard:** the Grand Prix confirm (`advance_pressed`) and the Time Trial confirm (`select_pressed`) are L2. Refusing the press before the game's handler runs leaves no state behind.
+- **Time Trial:** added tracks have `time_trial` false. Tracks made for 1.5 stay on the Time Trial list, and the guard stops them.
+- **Stat ids:** the game stores each track record at its stat id and tolerates holes, so a record track's id from 254 down is safe there. Weekends and track data records hold stat ids as one byte, with 0xff for none.
 - **Stock slots without assets:** `paul_ricard`, `portimao`, `sochi`, `hanoi`, `texas_nat`, `suzuka_east`, `bahrain_pad`, `silverstone_int`. `bahrain24` is empty.
 - **Stack-built keys:** a new track must carry `CareerHubFirstVisit_N`, `CareerHubLastVisit_N`, `TrackHighlights_N` and `TrackVideo_N` (`tools/track_keys.py`).
-- **Track data is found by mode mask,** and sub-tables inherit from the parent set one table at a time.
+- **Track data is found by mode mask,** and sub-tables inherit from the parent set one table at a time. A session's query names the setup mode and the box's season; with no season, the first set listing the mode wins.
 - **AI packs** are per car folder (`ai_package_folder/asset_filename`). A car package with its own AI data, such as F1 1990's `f1_1990`, has an `ai_track_difficulties.<package folder>` key only on the tracks it was made for. A missing key reads the miss sentinel, not null.
 - **Worlds:** `_f1_26` worlds have 22 grid slots and 11 garages, `_myteam` 24 and 12, and `_f1` 10 garages. An 11-team box crashed on `_f1` worlds in `Sess_Assign_GarageSlotsByPreference`. Classic Seasons fixed it with a layer copy of `f1_26` for `swofty_f1`.
 - **Grid slots per track** differ. Custom Grid Size's table gives Imola, Singapore and Abu Dhabi 26, and Monaco 28.
