@@ -203,6 +203,11 @@ pub struct FEHomeViewModel {
 }
 
 #[repr(C)]
+pub struct GameSetupMode {
+    _opaque: [u8; 0],
+}
+
+#[repr(C)]
 pub struct GdbTableCursor {
     _opaque: [u8; 0],
 }

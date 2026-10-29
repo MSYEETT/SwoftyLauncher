@@ -178,4 +178,4 @@ Systems move into the core in this order. It follows readiness, how many addons 
 4. **Tyres:** the custom tyre systems.
 5. **Session rules:** grid size, weekend formats, points.
 6. **UI and strings.**
-7. **Later:** AI, power unit and DRS at run time, weather, graphics, telemetry, replays. The reverse engineering they need is scheduled now: the AI difficulty application, the DRS decision, the engine component selector, the attribute map, a single team-logo resolver and the per-box track list builder.
+7. **Later:** AI, power unit and the per-car DRS decision at run time, weather, graphics, telemetry, replays (a box's DRS rule, `rules.drs`, applies from 1.6.4). The reverse engineering they need is scheduled now: the AI difficulty application, the per-car DRS decision, the engine component selector, the attribute map, a single team-logo resolver and the per-box track list builder.

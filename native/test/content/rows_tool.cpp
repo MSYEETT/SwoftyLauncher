@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     const SwoftyRegistry *t = registry::table();
     for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box", "team.identity", "team.constructor", "team.pit_times", "team.logo", "helmet", "suit",
                              "gloves", "driver.head", "driver.look", "driver.person", "driver.identity", "driver.stats",
-                             "wearable.season_set"}) {
+                             "wearable.season_set", "rules.drs"}) {
         std::string schema = slurp(regs + "/" + name + "/1.0.json");
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }

@@ -513,6 +513,13 @@ weekend_formats
 _metadata_
 evolution
 info
+@drs.drs_allowed_lap.drs_allowed_lap_group_N
++drs_allowed_lap
+_drs_allowed_lap_instancecount_
+_metadata_
+@drs.drs_allowed_lap.drs_allowed_lap_group_N.drs_allowed_lap_N
+_metadata_
+lap_number
 @engine_management.driver_wear_rates.driver_wear_rate_N
 _metadata_
 component_percentage
@@ -685,7 +692,8 @@ _entrant_instancecount_
 _metadata_
 _vehicle_package_override_instancecount_
 available
-display_name
+dis)keys",
+    R"keys(play_name
 entrant_list_references
 fixed_garage_assignments
 leaderboard
@@ -695,8 +703,7 @@ restrict_custom_driver_numbers
 season
 stat_id
 ui_path
-@)keys",
-    R"keys(entrants.entrant_lists.entrant_list_N.entrant_N
+@entrants.entrant_lists.entrant_list_N.entrant_N
 _metadata_
 badge_customisation
 car_number
@@ -882,10 +889,10 @@ ai_vehicle_config.exit_fallibility.max_throttle_error_by_mass
 ai_vehicle_config.exit_fallibility.max_yaw_angle_deg
 ai_vehicle_config.formation_lap.parking_speed_limit
 ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_dry_tyres
-ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_wet_tyres
+ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_s)keys",
+    R"keys(lip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_dry_tyres
-ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_we)keys",
-    R"keys(t_tyres
+ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.use_physics_auto_gearbox_downshift_speed
 ai_vehicle_config.lost_control.angle
 ai_vehicle_config.lost_control.over_rotation_to_spin_time
@@ -1037,10 +1044,10 @@ _metadata_
 ai_package_folder
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_high_characteristic_mapping
-ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_low_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps)keys",
+    R"keys(.alongside_awareness.high_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_high_characteristic_mapping
-ai_vehicle_pack)keys",
-    R"keys(age_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_low_characteristic_mapping

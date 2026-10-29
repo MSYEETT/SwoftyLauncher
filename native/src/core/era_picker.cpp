@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "apply/content/appliers.hpp"
 #include "apply/moments.hpp"
 #include "era_logic.hpp"
 
@@ -63,6 +64,11 @@ std::string settings_addon(const void *from, std::string &dll);
 // to the last addon box pressed while nothing is selected: a session can start from a rebuilt picker
 // without a new press, and a Time Trial that loads all nine Classic Seasons lists overflows the fixed
 // 43 MiB AUDIO_BUNDLE heap with their engine sound bundles.
+//
+// DRS per box: a narrowing also points every swofty_f1 game setup mode's DRS group (+0x1e0, a label holder) at the
+// group the core added at boot for the box's rules.drs (content.package rules.drs). A box without a rule, a stock
+// box press and a build that narrows to no addon list put the game's group back. The DRS system reads the current
+// mode's group at session load, at a full safety car end and at a red flag restart; every other mode keeps its own.
 //
 // The three hooks are one core mixin set, offered at the first mixin commit after a box was registered,
 // so a game without registered boxes runs none of them.
@@ -164,6 +170,8 @@ Game_F1WorldActivityContainer_SelectEntrantList_t *select_orig;
 uint32_t logged_builds, logged_narrow, logged_refused, logged_detached;
 constexpr size_t BOX_TIME_TRIAL = offsetof(SwoftyEraBox, time_trial_entrant_list);
 static_assert(BOX_TIME_TRIAL == 0x28);
+logic::DrsSwaps drs;
+std::string last_drs_line;
 
 template <class T> T at(const void *base, size_t off)
 {
@@ -207,7 +215,61 @@ template <class F> void for_each_host_setup(void *mode, F f)
     }
 }
 
-void restore()
+template <class F> void for_each_host_mode(void *mode, F f)
+{
+    auto *modes = setup_owner(mode);
+    if (!modes)
+        return;
+    auto get = reinterpret_cast<uint8_t *(*)(void *)>((*reinterpret_cast<void ***>(modes))[SETUP_MODES_VFUNC / 8]);
+    uint8_t *vec = get(modes);
+    if (!vec)
+        return;
+    for (auto **p = at<uint8_t **>(vec, 8), **e = at<uint8_t **>(vec, 0x10); p != e; ++p) {
+        const char *name = name_of(*p, SETUP_MODE_NAME);
+        if (name && !strcmp(name, logic::HOST))
+            f(*p);
+    }
+}
+
+void log_drs(const std::string &line)
+{
+    if (line == last_drs_line)
+        return;
+    last_drs_line = line;
+    swofty::log("[drs] %s", line.c_str());
+}
+
+void apply_drs(void *mode, const char *list)
+{
+    auto box = swofty_core::apply::content::drs_for_box(list);
+    if (box.label.empty()) {
+        drs.put_back();
+        std::string own;
+        for_each_host_mode(mode, [&](uint8_t *m) {
+            auto *holder = at<uint8_t *>(m, logic::MODE_DRS_GROUP);
+            const char *text = holder && mem::readable(holder + logic::HOLDER_TEXT, 8) ? logic::holder_text(holder) : nullptr;
+            if (own.empty() && text && mem::readable(text, 1))
+                own = std::string(text, strnlen(text, logic::DRS_LABEL_MAX));
+        });
+        log_drs(box.line + (own.empty() ? std::string() : " (" + own + ")"));
+        return;
+    }
+    logic::DrsHolder *holder = drs.holder(box.label);
+    size_t modes = 0;
+    for_each_host_mode(mode, [&](uint8_t *m) {
+        drs.swap(m, holder);
+        modes++;
+    });
+    log_drs(holder && modes ? box.line : box.line + "; not applied (no " + std::string(logic::HOST) + " mode found)");
+}
+
+void put_back_drs()
+{
+    if (size_t n = drs.put_back())
+        log_drs(std::string(logic::HOST) + "'s DRS group put back on " + std::to_string(n) + " mode(s)");
+}
+
+void restore_lists()
 {
     for (size_t i = 0; i < narrowed_count; ++i) {
         Narrowed &n = narrowed[i];
@@ -220,9 +282,15 @@ void restore()
     narrowed_count = 0;
 }
 
+void restore()
+{
+    restore_lists();
+    put_back_drs();
+}
+
 void narrow(void *mode, const char *list)
 {
-    restore();
+    restore_lists();
     for_each_host_setup(mode, [&](uint8_t *setup) {
         int64_t count = at<int64_t>(setup, LIST_COUNT);
         if (count <= 1 || count > int64_t(LIST_SLOTS) || narrowed_count == std::size(narrowed))
@@ -247,6 +315,7 @@ void narrow(void *mode, const char *list)
         if (logged_narrow++ < LOG_FIRST)
             swofty::log("[era] %s offers only %s (of %lld lists)", logic::HOST, list, (long long)count);
     });
+    apply_drs(mode, list);
 }
 
 bool time_trial(void *mode)
@@ -486,7 +555,7 @@ void site_entry(SwoftyContext *c)
     auto *vm = reinterpret_cast<uint8_t *>(c->rsi);
     if (!vm || !live || off)
         return;
-    restore();
+    restore_lists();
     void *mode = at<void *>(vm, VM_MODE);
     void *alloc = at<void *>(vm, VM_ALLOCATOR);
     auto *begin = at<uint8_t *>(vm, VM_TILE_BEGIN);
@@ -494,6 +563,7 @@ void site_entry(SwoftyContext *c)
     size_t stock = end > begin ? size_t(end - begin) / TILE_ENTRY : 0;
     uint8_t *list = addon_list(vm);
     if (!list || !reset_set(vm, list)) {
+        put_back_drs();
         built = {};
         swofty::log("[era] the view model's addon_tiles or selected_addon_tile node could not be made; no addon row");
         return;
@@ -549,8 +619,11 @@ void site_entry(SwoftyContext *c)
         built.boxes++;
     }
     ref<uint8_t *>(vm, VM_TILES_NODE) = tiles_node;
-    if (!renarrow(mode) && tt)
-        keep_time_trial_lists(mode);
+    if (!renarrow(mode)) {
+        put_back_drs();
+        if (tt)
+            keep_time_trial_lists(mode);
+    }
     if (auto *root = at<uint8_t *>(vm, VM_ROOT)) {
         uint8_t visible = built.boxes > 0;
         reinterpret_cast<Vm_Set_Bool_t *>(b.set_bool)(registry(), root + 8, logic::ADDON_TILES_VISIBLE, &visible, 1);
