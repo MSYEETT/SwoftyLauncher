@@ -244,7 +244,13 @@ A copy into such a table gets the next free id above the table's highest, and th
 f1-1990: add-row entrants.entrant_lists.entrant_list_68 (from entrants.entrant_lists.entrant_list[_metadata_=f1_2026]): stat_id 105 (the source's is 67)
 ```
 
-A `stat_id` in `set` wins. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
+A `stat_id` in `set` wins, unless a row an addon added earlier in the build holds that id. The copy then gets the next free id, references to it by label follow, a `[stat_id=<id>]` selector later in the same file finds the copy, and the build warns with both addons and both ids:
+
+```text
+my-addon: stat_id 500 of my_team is taken by their_team from other-addon; the build gave it stat_id 512. The addon's author should leave stat_id out of add-row
+```
+
+The conflicts report counts each of these as a database conflict between the two addons. An id that a stock row holds stays as set. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
 
 An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table, by `add-row` or by `put-record`, unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
 
