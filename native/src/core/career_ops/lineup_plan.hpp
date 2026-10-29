@@ -170,4 +170,42 @@ inline Plan plan(const Input &in, const std::vector<Row> &rows)
     return p;
 }
 
+struct Given {
+    uint32_t driver = 0; // stat id
+    int team = -1;
+    int seat = 0;
+};
+
+// apply_teams with a line-up in the request: the line-up's seats stand and the record's seats join them. A record
+// move the line-up makes too is left to it; a record move whose driver the line-up seats elsewhere, or into a seat
+// the line-up gives another driver, is refused; a release of a driver the line-up seats is dropped.
+inline void defer_to(Plan &p, const std::vector<Given> &lineup)
+{
+    auto seat_text = [](int team, int seat) { return "team " + std::to_string(team) + " seat " + std::to_string(seat + 1); };
+    std::vector<Move> kept;
+    for (auto &m : p.moves) {
+        auto same = std::find_if(lineup.begin(), lineup.end(), [&](const Given &g) { return g.driver == m.driver; });
+        if (same != lineup.end()) {
+            if (same->team != m.team || same->seat != m.seat)
+                p.refusals.push_back("driver " + std::to_string(m.driver) + ": the request's line-up seats him at " +
+                                     seat_text(same->team, same->seat) + ", not the season record's " +
+                                     seat_text(m.team, m.seat));
+            continue;
+        }
+        auto other = std::find_if(lineup.begin(), lineup.end(), [&](const Given &g) { return g.team == m.team && g.seat == m.seat; });
+        if (other != lineup.end()) {
+            p.refusals.push_back(seat_text(m.team, m.seat) + ": the request's line-up gives it to driver " +
+                                 std::to_string(other->driver) + ", not the season record's driver " + std::to_string(m.driver));
+            continue;
+        }
+        kept.push_back(m);
+    }
+    p.moves = std::move(kept);
+    p.releases.erase(std::remove_if(p.releases.begin(), p.releases.end(),
+                                    [&](uint32_t d) {
+                                        return std::any_of(lineup.begin(), lineup.end(), [&](const Given &g) { return g.driver == d; });
+                                    }),
+                     p.releases.end());
+}
+
 } // namespace career_ops::plan
