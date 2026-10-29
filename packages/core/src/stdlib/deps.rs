@@ -136,6 +136,16 @@ impl Std {
             || !self.unreadable.is_empty()
     }
 
+    /// Whether the core has registry records of the addon to read at the early stage: data files
+    /// in `registry/`, or what its lock file says its `SWOFTY_REGISTER` registers.
+    pub fn registers(&self) -> bool {
+        !self.data_files.is_empty()
+            || self
+                .lock
+                .as_ref()
+                .is_some_and(|l| l.provides.values().any(|p| !p.is_empty()) || !l.providers.is_empty())
+    }
+
     pub fn aliases(&self) -> &[String] {
         self.registry.as_ref().map_or(&[], |r| r.aliases.as_slice())
     }
