@@ -705,7 +705,7 @@ const STEPS: &[(&str, &[&str])] = &[
     ("capture", &["name"]),
     ("save", &[]),
     ("home", &[]),
-    ("tile", &["axis"]),
+    ("tile", &[]),
 ];
 
 fn step(at: &At, v: &Value) -> Result<Step, Error> {
@@ -790,13 +790,6 @@ fn step(at: &At, v: &Value) -> Result<Step, Error> {
         if let Some(v) = o.get(*key) {
             at.at(key).str(v)?;
         }
-    }
-    if let Some(axis) = o.get("axis").and_then(Value::as_str)
-        && !matches!(axis, "across" | "down")
-    {
-        return Err(at
-            .at("axis")
-            .err(format!("unknown axis \"{axis}\" (expected across or down)")));
     }
     Ok(Step {
         action: action.to_owned(),

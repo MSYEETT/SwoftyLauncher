@@ -245,11 +245,6 @@ inline bool parse_car_path(const std::string &p, CarPath &out, std::string &why)
     return true;
 }
 
-// A tile on the current tile screen: its index, the selected one and how many there are.
-struct TileAt {
-    int index = -1, selected = -1, count = 0;
-};
-
 // What the agent asks of the game. Each returns unavailable, with the reason, when its bindings
 // didn't resolve; pending from a *_poll means "not yet".
 struct Game {
@@ -290,8 +285,14 @@ struct Game {
     virtual Outcome session_start() = 0;
     // The home screen's view model is live (the main menu has been built).
     virtual bool home_ready() = 0;
-    // Find the tile with this id on the current tile screen and the selected tile.
-    virtual Outcome tile_find(const std::string &id, TileAt &at) = 0;
+    // How many tile screens have been built since arming: a route's screen is up once it moves.
+    virtual uint64_t tile_screens() = 0;
+    // On the current tile screen: run the tile's action as the screen's select does (a route
+    // action fires its route). unavailable while there is no tile screen yet.
+    virtual Outcome tile_select(const std::string &id) = 0;
+    // On a career content select screen (the season pick a career tile opens): fire the content tile
+    // whose action continues a saved career.
+    virtual Outcome career_content() = 0;
     // The save sandbox armed for this run (sandbox.json says armed).
     virtual bool sandboxed() = 0;
     virtual void note(const std::string &line) = 0;
@@ -369,7 +370,7 @@ inline std::string parse_career(const json::Value &a, CareerPlan &p)
 }
 
 // The steps of a career load, each waiting on a flow or screen state with its own time limit.
-enum class CareerStep { title, route, tile, card, team_hq, advance, hub, session, done };
+enum class CareerStep { title, route, tile, content, card, team_hq, advance, hub, session, done };
 
 inline const char *career_step_name(CareerStep s)
 {
@@ -377,6 +378,7 @@ inline const char *career_step_name(CareerStep s)
     case CareerStep::title: return "the title screen's press";
     case CareerStep::route: return "route career from the main menu";
     case CareerStep::tile: return "the career tile's continue action";
+    case CareerStep::content: return "the content select's continue action";
     case CareerStep::card: return "the resume card's press";
     case CareerStep::team_hq: return "the career loading into Team HQ (StateTeamHQ)";
     case CareerStep::advance: return "Team HQ's advance to the next event";
@@ -389,7 +391,7 @@ inline const char *career_step_name(CareerStep s)
 struct CareerTimes {
     uint64_t title = 90000, route = 60000, tile = 30000, card = 30000, team_hq = 180000, advance = 60000,
              hub = 300000, session = 120000, retry = 500, title_pad_after = 3000, pad_hold = 250, pad_gap = 1750,
-             notice_after = 4000, nav_hold = 150, nav_settle = 600;
+             notice_after = 4000, route_settle = 5000;
 };
 
 constexpr const char *SCREEN_FRONTEND_TRANSITION = "frontend_transition";
@@ -399,7 +401,8 @@ inline uint64_t career_limit(const CareerTimes &t, CareerStep s)
     switch (s) {
     case CareerStep::title: return t.title;
     case CareerStep::route: return t.route;
-    case CareerStep::tile: return t.tile;
+    case CareerStep::tile:
+    case CareerStep::content: return t.tile;
     case CareerStep::card: return t.card;
     case CareerStep::team_hq: return t.team_hq;
     case CareerStep::advance: return t.advance;
@@ -483,11 +486,11 @@ class Runner {
     int title_presses_ = 0, notice_presses_ = 0;
     uint64_t transition_at_ = 0;
     std::string cwhy_, card_, route_;
-    // `tile <id>`: the pad moves the selection to the tile, then presses a.
-    TileAt tile_at_;
     std::string tile_id_;
-    int tile_stage_ = 0, tile_moves_ = 0, tile_axis_ = 0, tile_stuck_ = 0;
-    uint64_t tile_at_ms_ = 0;
+    // A fired route's answer waits until a tile screen is built after it (or route_settle), so the
+    // next route fires from the screen it opened.
+    uint64_t fired_at_ = 0, screens_at_ = 0;
+    std::string fired_value_;
 
     static constexpr const char *SANDBOX_ONLY =
         " runs only in the save sandbox (a career environment, or swofty test shell --fixture): the game would save "
@@ -645,6 +648,20 @@ class Runner {
                     break;
                 o = g_.career_tile(plan_.mode);
                 if (o.status == Status::ok) {
+                    step_to(o.value.find("career_dlc_select") != std::string::npos ? CareerStep::content
+                                                                                    : CareerStep::card,
+                            now);
+                    continue;
+                }
+                if (o.status == Status::error)
+                    return Outcome::fail(std::string("career load: ") + career_step_name(cstep_) + ": " + o.error);
+                cwhy_ = o.error;
+                break;
+            case CareerStep::content:
+                if (!due(now))
+                    break;
+                o = g_.career_content();
+                if (o.status == Status::ok) {
                     step_to(CareerStep::card, now);
                     continue;
                 }
@@ -723,54 +740,23 @@ class Runner {
         return Outcome::pending();
     }
 
-    // tile: stage 0 reads the selection and presses toward the tile (right/down, or left/up when the
-    // tile is before it) and waits nav_settle; a press that doesn't move the selection switches the
-    // axis once; stage 1 holds a, stage 2 lets go and answers.
+    Outcome route_fired(const Outcome &o, uint64_t now)
+    {
+        pad_release();
+        fired_at_ = now;
+        fired_value_ = o.value;
+        return Outcome::pending();
+    }
+
     Outcome tile_poll(uint64_t now)
     {
-        auto press = [&](uint16_t b) {
-            g_.pad(pad_of(b));
-            pad_down_ = true;
-            pad_up_ = now + ctimes_.nav_hold;
-        };
-        if (pad_down_) {
-            if (now >= pad_up_)
-                pad_release();
-            return Outcome::pending();
-        }
+        Outcome o = g_.tile_select(tile_id_);
+        if (o.status != Status::unavailable)
+            return o;
+        cwhy_ = o.error;
         if (now >= deadline_)
             return {Status::timeout, "null", "tile " + tile_id_ + ": not within " +
-                                                 std::to_string((deadline_ - started_) / 1000) + " s" +
-                                                 (cwhy_.empty() ? "" : " (" + cwhy_ + ")")};
-        if (now < tile_at_ms_)
-            return Outcome::pending();
-        if (tile_stage_ == 2)
-            return Outcome::ok("{\"tile\":" + esc(tile_id_) + ",\"index\":" + std::to_string(tile_at_.index) +
-                               ",\"moves\":" + std::to_string(tile_moves_) + "}");
-        TileAt at;
-        Outcome o = g_.tile_find(tile_id_, at);
-        if (o.status == Status::error)
-            return o;
-        if (o.status == Status::ok) {
-            if (tile_moves_ && at.selected == tile_at_.selected && at.index != at.selected) {
-                if (++tile_stuck_ > 1)
-                    return Outcome::fail("tile " + tile_id_ + ": the selection does not move with the pad (at " +
-                                         std::to_string(at.selected) + ", the tile is " + std::to_string(at.index) + ")");
-                tile_axis_ = !tile_axis_;
-            }
-            tile_at_ = at;
-            if (at.index == at.selected) {
-                press(0x1000);
-                tile_stage_ = 2;
-            } else {
-                bool fwd = at.index > at.selected;
-                press(tile_axis_ ? (fwd ? 0x0002 : 0x0001) : (fwd ? 0x0008 : 0x0004));
-                ++tile_moves_;
-            }
-            tile_at_ms_ = now + ctimes_.nav_hold + ctimes_.nav_settle;
-            return Outcome::pending();
-        }
-        cwhy_ = o.error;
+                                                 std::to_string((deadline_ - started_) / 1000) + " s (" + cwhy_ + ")"};
         return Outcome::pending();
     }
 
@@ -795,8 +781,12 @@ class Runner {
             title_begin(now);
             notice_presses_ = 0;
             transition_at_ = 0;
+            fired_at_ = 0;
             if (!route_.empty()) {
+                screens_at_ = g_.tile_screens();
                 Outcome o = g_.route(route_);
+                if (o.status == Status::ok)
+                    return route_fired(o, now);
                 if (o.status != Status::unavailable || o.error.find("no home view model") == std::string::npos)
                     return o;
             } else if (g_.home_ready())
@@ -808,11 +798,6 @@ class Runner {
             tile_id_ = a["tile"].str();
             if (tile_id_.empty())
                 return Outcome::fail("tile needs {\"tile\": <tile id>}");
-            tile_stage_ = 0, tile_moves_ = 0, tile_stuck_ = 0, tile_at_ms_ = 0;
-            std::string axis = a["axis"].str("across");
-            if (axis != "across" && axis != "down")
-                return Outcome::fail("a tile axis is across or down, not '" + axis + "'");
-            tile_axis_ = axis == "down";
             deadline_ = now + limit(DEFAULT_WAIT_MS);
             return poll(now);
         }
@@ -988,6 +973,11 @@ class Runner {
             }
             return Outcome::pending();
         }
+        if (c == "route" && fired_at_) {
+            if (g_.tile_screens() != screens_at_ || now - fired_at_ >= ctimes_.route_settle)
+                return Outcome::ok(fired_value_);
+            return Outcome::pending();
+        }
         if (c == "route" || c == "home") {
             if (!title_passed()) {
                 title_tick(now);
@@ -995,7 +985,10 @@ class Runner {
             } else if (home_tick(now)) {
                 if (route_.empty())
                     return Outcome::ok("{\"home\":true,\"notice_presses\":" + std::to_string(notice_presses_) + "}");
+                screens_at_ = g_.tile_screens();
                 Outcome o = g_.route(route_);
+                if (o.status == Status::ok)
+                    return route_fired(o, now);
                 if (o.status != Status::unavailable || o.error.find("no home view model") == std::string::npos)
                     return o;
                 cwhy_ = o.error;

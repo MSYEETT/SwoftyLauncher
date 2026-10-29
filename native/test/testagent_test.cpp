@@ -35,6 +35,7 @@ struct FakeGame : ta::Game {
         if (!home)
             return ta::Outcome::unavailable("no home view model");
         routes.push_back(n);
+        ++built;
         return ta::Outcome::ok();
     }
     ta::Outcome skip(int d, int s) override { return ta::Outcome::ok("{\"d\":" + std::to_string(d) + ",\"s\":" + std::to_string(s) + "}"); }
@@ -73,29 +74,35 @@ struct FakeGame : ta::Game {
     ta::Outcome pad(const ta::PadState &p) override
     {
         pads.push_back(p);
-        int step = (p.buttons == 0x0008 && !down_axis) || (p.buttons == 0x0002 && down_axis)   ? 1
-                   : (p.buttons == 0x0004 && !down_axis) || (p.buttons == 0x0001 && down_axis) ? -1
-                                                                                               : 0;
-        if (step && !frozen && sel + step >= 0 && sel + step < int(tile_ids.size()))
-            sel += step;
         a_presses += p.buttons == 0x1000;
         return ta::Outcome::ok();
     }
-    std::vector<std::string> tile_ids;
-    int sel = 0, a_presses = 0;
-    bool down_axis = false, frozen = false;
+    std::vector<std::string> tile_ids, selected;
+    int a_presses = 0, content_calls = 0;
+    bool content_ready = false, dlc = false;
+    std::string content_error;
     bool home_ready() override { return home; }
-    ta::Outcome tile_find(const std::string &id, ta::TileAt &at) override
+    uint64_t built = 0;
+    uint64_t tile_screens() override { return built; }
+    ta::Outcome tile_select(const std::string &id) override
     {
         if (tile_ids.empty())
             return ta::Outcome::unavailable("no tile screen");
-        at = {};
-        at.count = int(tile_ids.size());
-        at.selected = sel;
-        for (size_t i = 0; i < tile_ids.size(); i++)
-            if (tile_ids[i] == id)
-                at.index = int(i);
-        return at.index < 0 ? ta::Outcome::fail("the current tile screen has no tile " + id) : ta::Outcome::ok();
+        for (auto &t : tile_ids)
+            if (t == id) {
+                selected.push_back(id);
+                return ta::Outcome::ok("{\"tile\":\"" + id + "\",\"route\":\"" + id + "\"}");
+            }
+        return ta::Outcome::fail("the current tile screen has no tile " + id);
+    }
+    ta::Outcome career_content() override
+    {
+        ++content_calls;
+        if (!content_ready)
+            return ta::Outcome::unavailable("the career content select screen has not built its tiles yet");
+        if (!content_error.empty())
+            return ta::Outcome::fail(content_error);
+        return ta::Outcome::ok("{\"content\":\"career_dlc_content\",\"route\":\"solo_career_continue_driver\"}");
     }
     std::string phase() override { return screen; }
     ta::Outcome test_start(const std::string &fn) override
@@ -132,7 +139,8 @@ struct FakeGame : ta::Game {
         ++tiles;
         if (!tile_error.empty())
             return ta::Outcome::fail(tile_error);
-        return ta::Outcome::ok("{\"route\":\"solo_career_continue_" + std::string(mode == "driver_career" ? "driver" : "my_team") + "\"}");
+        std::string m = mode == "driver_career" ? "driver" : "my_team";
+        return ta::Outcome::ok("{\"route\":\"" + (dlc ? "career_dlc_select_" + m : "solo_career_continue_" + m) + "\"}");
     }
     ta::Outcome resume_press(const std::string &slot) override
     {
@@ -209,9 +217,9 @@ static void runner()
     g.home = true;
     submit(r, "{\"seq\":2,\"cmd\":\"route\",\"args\":{\"route\":\"career\"}}");
     submit(r, "{\"seq\":3,\"cmd\":\"read\",\"args\":{\"path\":\"car[0].chassis.mass\"}}");
-    out = run(r, now, 1);
+    out = run(r, now, 2);
     expect(answered(out) == 1 && has(out[0], "\"seq\":2,\"status\":\"ok\"") && g.routes.size() == 1,
-           "one command per tick: the route ran");
+           "one command at a time: the route ran and answered once its screen was built");
     out = run(r, now, 1);
     expect(answered(out) == 1 && has(out[0], "\"value\":{\"value\":798.5"), "then the read answered with its value");
     submit(r, "{\"seq\":4,\"cmd\":\"skip\",\"args\":{\"to\":\"session\"}}");
@@ -296,8 +304,7 @@ static ta::Runner &fast(ta::Runner &r)
 {
     auto &t = r.career_times();
     t.title = 400, t.route = 300, t.tile = 300, t.card = 300, t.team_hq = 600, t.advance = 300, t.hub = 600, t.session = 300;
-    t.retry = 50, t.title_pad_after = 100, t.pad_hold = 20, t.pad_gap = 30, t.notice_after = 100, t.nav_hold = 20,
-    t.nav_settle = 30;
+    t.retry = 50, t.title_pad_after = 100, t.pad_hold = 20, t.pad_gap = 30, t.notice_after = 100, t.route_settle = 200;
     return r;
 }
 
@@ -480,6 +487,58 @@ static void career()
     }
 }
 
+static void career_content_step()
+{
+    FakeGame g;
+    g.sandbox = g.engaged = g.home = g.fe_career = g.dlc = true;
+    ta::Runner r(g);
+    fast(r);
+    uint64_t now = 1000;
+    submit(r, "{\"seq\":1,\"cmd\":\"career\",\"args\":{\"mode\":\"driver_career\"}}");
+    auto out = run(r, now, 6);
+    expect(g.tiles == 1 && g.content_calls >= 1 && g.cards == 0 && !answered(out),
+           "a tile that opens the content select waits for its content tiles");
+    g.content_ready = g.resume = true;
+    out = run(r, now, 6);
+    expect(g.cards == 1, "the content tile that continues a career runs, then the resume card is pressed");
+    flow(r, "StateTeamHQ");
+    out = run(r, now, 2);
+    expect(has(out[0], "\"status\":\"ok\"") && has(out[0], "\"at\":\"team_hq\""), "and the load answers at Team HQ");
+
+    FakeGame h;
+    h.sandbox = h.engaged = h.home = h.fe_career = h.dlc = h.content_ready = true;
+    h.content_error = "no content tile continues a saved career (career_default_content routes to 'career_setup')";
+    ta::Runner r2(h);
+    fast(r2);
+    submit(r2, "{\"seq\":1,\"cmd\":\"career\",\"args\":{}}");
+    out = run(r2, now, 10);
+    expect(has(out[0], "\"status\":\"error\"") &&
+               has(out[0], "the content select's continue action: no content tile continues a saved career"),
+           "content without a saved career fails naming the step");
+}
+
+static void route_settles()
+{
+    FakeGame g;
+    g.engaged = g.home = true;
+    ta::Runner r(g);
+    fast(r);
+    uint64_t now = 1000;
+    submit(r, "{\"seq\":1,\"cmd\":\"route\",\"args\":{\"route\":\"f1_world\"}}");
+    auto out = run(r, now, 1);
+    g.built = 0;
+    out = run(r, now, 5);
+    expect(!answered(out), "a fired route waits for the screen it opens");
+    g.built = 1;
+    out = run(r, now, 1);
+    expect(has(out[0], "\"seq\":1,\"status\":\"ok\""), "and answers once a tile screen is built");
+    submit(r, "{\"seq\":2,\"cmd\":\"route\",\"args\":{\"route\":\"play\"}}");
+    out = run(r, now, 1);
+    g.built = 1;
+    out = run(r, now, 30);
+    expect(has(out[0], "\"seq\":2,\"status\":\"ok\""), "a route to a screen that is no tile list answers after route_settle");
+}
+
 static void home_and_tiles()
 {
     {
@@ -521,49 +580,23 @@ static void home_and_tiles()
     }
     {
         FakeGame g;
-        g.tile_ids = {"grand_prix", "time_trial", "retry_connection"};
         ta::Runner r(g);
         fast(r);
         uint64_t now = 1000;
-        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"time_trial\"}}");
-        auto out = run(r, now, 200);
-        expect(answered(out) == 1 && has(out[0], "\"status\":\"ok\"") && has(out[0], "\"index\":1,\"moves\":1") &&
-                   g.sel == 1 && g.a_presses == 1 && g.pads.back().buttons == 0,
-               "tile moves the selection right to the tile and presses a");
-        submit(r, "{\"seq\":2,\"cmd\":\"tile\",\"args\":{\"tile\":\"grand_prix\"}}");
-        out = run(r, now, 200);
-        expect(has(out[0], "\"status\":\"ok\"") && g.sel == 0 && g.a_presses == 2, "a tile before the selection moves left");
-        submit(r, "{\"seq\":3,\"cmd\":\"tile\",\"args\":{\"tile\":\"braking_point\"}}");
-        out = run(r, now, 5);
-        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "no tile braking_point"), "an unknown tile is an error");
-        submit(r, "{\"seq\":4,\"cmd\":\"tile\",\"args\":{\"tile\":\"x\",\"axis\":\"diagonal\"}}");
+        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"career\"},\"timeout_ms\":5000}");
+        auto out = run(r, now, 5);
+        expect(!answered(out) && g.selected.empty(), "tile waits while there is no tile screen");
+        g.tile_ids = {"story", "career", "mod_menu", "f1_world"};
         out = run(r, now, 1);
-        expect(has(out[0], "across or down"), "a bad axis is an error");
-    }
-    {
-        FakeGame g;
-        g.tile_ids = {"braking_point", "career", "mod_menu", "f1_world"};
-        g.down_axis = true;
-        ta::Runner r(g);
-        fast(r);
-        uint64_t now = 1000;
-        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"f1_world\"}}");
-        auto out = run(r, now, 400);
-        expect(has(out[0], "\"status\":\"ok\"") && g.sel == 3 && g.a_presses == 1,
-               "a selection that doesn't move across switches to down");
-    }
-    {
-        FakeGame g;
-        g.tile_ids = {"a", "b"};
-        g.frozen = true;
-        ta::Runner r(g);
-        fast(r);
-        uint64_t now = 1000;
-        submit(r, "{\"seq\":1,\"cmd\":\"tile\",\"args\":{\"tile\":\"b\"}}");
-        auto out = run(r, now, 400);
-        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "the selection does not move with the pad") &&
-                   g.a_presses == 0,
-               "a selection that moves on neither axis fails without pressing a");
+        expect(has(out[0], "\"status\":\"ok\"") && has(out[0], "\"route\":\"career\"") && g.selected.size() == 1 &&
+                   g.pads.empty(),
+               "then runs the tile's action without the pad");
+        submit(r, "{\"seq\":2,\"cmd\":\"tile\",\"args\":{\"tile\":\"braking_point\"}}");
+        out = run(r, now, 1);
+        expect(has(out[0], "\"status\":\"error\"") && has(out[0], "no tile braking_point"), "an unknown tile is an error");
+        submit(r, "{\"seq\":3,\"cmd\":\"tile\",\"args\":{}}");
+        out = run(r, now, 1);
+        expect(has(out[0], "tile needs"), "tile needs an id");
     }
     {
         FakeGame g;
@@ -690,6 +723,8 @@ int main()
     setvbuf(stdout, nullptr, _IONBF, 0);
     career();
     home_and_tiles();
+    route_settles();
+    career_content_step();
     sandboxed_ops();
     parsing();
     runner();

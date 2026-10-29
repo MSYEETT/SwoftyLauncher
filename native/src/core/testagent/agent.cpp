@@ -194,10 +194,13 @@ TileScreen tile_screen;
 std::mutex ran_lock;
 std::vector<std::string> ran_routes;
 
+std::atomic<uint64_t> screens_built{0};
+
 void set_screen(void *vm, size_t list_at)
 {
     std::lock_guard<std::mutex> g(screen_lock);
     tile_screen = {vm, *static_cast<void **>(vm), list_at};
+    ++screens_built;
 }
 
 void set_home(void *vm)
@@ -609,6 +612,9 @@ uint8_t *car_at(int index, std::string &why)
     return car;
 }
 
+// The player's car index once ai_drives_player handed it to the AI (its is_ai is set from then on).
+std::atomic<int> ai_player{-1};
+
 int player_index(std::string &why)
 {
     auto *count = reinterpret_cast<uint32_t *>(ga.vehicle_count);
@@ -622,6 +628,9 @@ int player_index(std::string &why)
         if (car && car[CAR_IS_AI] == 0)
             return i;
     }
+    int held = ai_player.load();
+    if (held >= 0 && held < int(*count))
+        return held;
     why = "no car is driven by a human (every CarLive.is_ai is set)";
     return -1;
 }
@@ -865,7 +874,10 @@ struct InGame : ta::Game {
 
     bool home_ready() override { return live_home() != nullptr; }
 
-    ta::Outcome tile_find(const std::string &id, ta::TileAt &at) override;
+    uint64_t tile_screens() override { return screens_built.load(); }
+
+    ta::Outcome tile_select(const std::string &id) override;
+    ta::Outcome career_content() override;
 
     ta::Outcome skip(int destination, int session_type) override
     {
@@ -910,6 +922,7 @@ struct InGame : ta::Game {
             return ta::Outcome::unavailable("the player's car: " + why);
         uint8_t vid = car[CAR_VEHICLE_ID];
         reinterpret_cast<Controller_t *>(a_controller)(sys, vid, on ? 1 : 0, 6);
+        ai_player = on ? idx : -1;
         swofty::log("[test] ai_drives_player %s: vehicle %u, controller system %p, reason 6 (dev)", on ? "on" : "off",
                     unsigned(vid), sys);
         return ta::Outcome::ok("{\"vehicle\":" + std::to_string(vid) + "}");
@@ -1127,9 +1140,11 @@ struct InGame : ta::Game {
     }
 };
 
-// Career tiles on fe_career: TileList vm+0x2c8, entries {node, item} 0x10 bytes from +0x78 to +0x80;
-// the career item's vtable is 0x145703eb0 with get_action (FeTile_Route_CareerItem 0x141725620, L2) at
-// slot 5; its kind is the NeStr at item+0x178 (djb2 0x73b00842 driver_career, 0x353c4a02 my_team_career).
+// Career tiles on fe_career: TileList vm+0x2c8, entries {node, Tile *} 0x10 bytes from +0x78 to +0x80,
+// the item at Tile+0xd0 with its id at item+0x10 (driver_career, my_team_career; seen in game
+// 2026-10-30). The item's vtable may be the core's subclass of the career item's (0x145703eb0), so the
+// agent goes by the id and calls get_action (FeTile_Route_CareerItem 0x141725620, L2) through the
+// item's own vtable slot 5, as the tile screen does.
 // get_action(item, &action) writes {u32 type, NeStr *route}: type 1 and solo_career_continue_* while the
 // mode has a visible slot, else a route into the new-career wizard. The tile screen fires that route
 // as Vm_Fire_Route(vm->router, vm, &route, 0) on select_pressed, and so does the agent. get_action is
@@ -1166,12 +1181,10 @@ ta::Outcome InGame::career_tile(const std::string &mode)
         return ta::Outcome::unavailable("fe_career has no tile list yet");
     std::vector<std::pair<uint32_t, uint8_t *>> careers;
     for (uint8_t *item : list_items(list)) {
-        if (!item || !runtime::readable(item, 0x180) || *reinterpret_cast<uintptr_t *>(item) != ga.career_item_vt)
-            continue;
-        auto *kind = *reinterpret_cast<uint8_t **>(item + 0x178);
-        if (!kind || !runtime::readable(kind, 4))
-            continue;
-        careers.emplace_back(*reinterpret_cast<uint32_t *>(kind), item);
+        std::string id = item_id(item);
+        uint32_t kind = id == "driver_career" ? KIND_DRIVER : id == "my_team_career" ? KIND_MY_TEAM : 0;
+        if (kind && runtime::readable(*reinterpret_cast<void **>(item), 6 * 8))
+            careers.emplace_back(kind, item);
     }
     if (careers.empty())
         return ta::Outcome::unavailable("fe_career shows no Driver Career or My Team tile yet");
@@ -1196,7 +1209,7 @@ ta::Outcome InGame::career_tile(const std::string &mode)
             reinterpret_cast<void *(*)(void *, Action *)>(vt[5])(item, &a);
             std::string route = nestr_text(a.route);
             const char *name = want == KIND_DRIVER ? "driver_career" : "my_team_career";
-            if (a.type != 1 || route.rfind("solo_career_continue_", 0) != 0) {
+            if (a.type != 1 || (route.rfind("solo_career_continue_", 0) != 0 && route.rfind("career_dlc_select_", 0) != 0)) {
                 tried += std::string(tried.empty() ? "" : "; ") + "the " + name + " tile's action is type " +
                          std::to_string(a.type) + " route '" + route + "' (no saved career to continue)";
                 if (a.route)
@@ -1478,57 +1491,115 @@ ta::Outcome InGame::save_poll()
     return ta::Outcome::ok("{\"writes\":" + std::to_string(n - save_writes_before) + "}");
 }
 
-// The selected tile: TileList+0x58 is the selected_button node, an int index into the items
-// (FeTile_List_GetSelectedItem reads it, L2); its value is read through the node's holder (node+0x58,
-// holder vtable slot 7 returns the value's address), as the bool nodes above.
-int selected_index(const uint8_t *list)
+struct alignas(8) TileAction {
+    uint32_t type, pad;
+    swofty::game::NeStr *route;
+    uint64_t rest[2];
+};
+
+// An item's action through its own vtable slot 5 (get_action), as the tile screen's select runs it.
+std::string tile_action(uint8_t *item, uint32_t &type, TileAction &a)
 {
-    void *node = *reinterpret_cast<void *const *>(list + 0x58);
-    void *empty = ga.empty_node ? *reinterpret_cast<void **>(ga.empty_node) : nullptr;
-    if (!node || node == empty || !runtime::readable(node, 0x60))
-        return -1;
-    void *holder = static_cast<void **>(node)[0xb];
-    if (!holder || !runtime::readable(holder, 8))
-        return -1;
-    auto **hvt = *static_cast<void ***>(holder);
-    if (!runtime::readable(hvt, 8 * 8))
-        return -1;
-    auto *v = reinterpret_cast<const int32_t *(*)(void *)>(hvt[7])(holder);
-    return v && runtime::readable(v, 4) ? *v : -1;
+    a = {};
+    auto **vt = *reinterpret_cast<void ***>(item);
+    reinterpret_cast<void *(*)(void *, TileAction *)>(vt[5])(item, &a);
+    type = a.type;
+    return nestr_text(a.route);
 }
 
-ta::Outcome InGame::tile_find(const std::string &id, ta::TileAt &at)
+bool fire_ran(void *vm, swofty::game::NeStr **route, const std::string &name)
+{
+    void *router = *reinterpret_cast<void **>(static_cast<uint8_t *>(vm) + VM_ROUTER);
+    if (!router)
+        return false;
+    {
+        std::lock_guard<std::mutex> g(ran_lock);
+        ran_routes.clear();
+    }
+    reinterpret_cast<Fire_t *>(a_fire)(router, vm, route, 0);
+    if (!runtime::career_start_live())
+        return true;
+    std::lock_guard<std::mutex> g(ran_lock);
+    for (auto &r : ran_routes)
+        if (r == name)
+            return true;
+    return false;
+}
+
+uint8_t *screen_list(void *&vm)
+{
+    vm = live_screen();
+    if (!vm)
+        return nullptr;
+    std::lock_guard<std::mutex> g(screen_lock);
+    return *reinterpret_cast<uint8_t **>(static_cast<uint8_t *>(vm) + tile_screen.list_at);
+}
+
+ta::Outcome InGame::tile_select(const std::string &id)
 {
     if (!runtime::same_build())
         return ta::Outcome::unavailable("the tile list layout is the KB build's and this is not that build");
     if (!route_why.empty())
         return ta::Outcome::unavailable(route_why);
-    void *vm = live_screen();
+    void *vm = nullptr;
+    uint8_t *list = screen_list(vm);
     if (!vm)
         return ta::Outcome::unavailable("no tile screen: no tile list has been built since the agent armed");
-    size_t list_at;
-    {
-        std::lock_guard<std::mutex> g(screen_lock);
-        list_at = tile_screen.list_at;
-    }
-    auto *list = *reinterpret_cast<uint8_t **>(static_cast<uint8_t *>(vm) + list_at);
-    auto items = list_items(list);
-    at = {};
-    at.count = int(items.size());
     std::string ids;
-    for (size_t i = 0; i < items.size(); i++) {
-        std::string t = item_id(items[i]);
+    for (uint8_t *item : list_items(list)) {
+        std::string t = item_id(item);
         ids += (ids.empty() ? "" : ", ") + t;
-        if (t == id && at.index < 0)
-            at.index = int(i);
+        if (t != id)
+            continue;
+        uint32_t type;
+        TileAction a;
+        std::string route = tile_action(item, type, a);
+        if (type != 1 || route.empty()) {
+            if (a.route)
+                make_str(&a.route, nullptr);
+            return ta::Outcome::fail("tile " + id + "'s action is type " + std::to_string(type) +
+                                     ", not a route; press it with the pad");
+        }
+        bool ran = fire_ran(vm, &a.route, route);
+        make_str(&a.route, nullptr);
+        if (!ran)
+            return ta::Outcome::fail("tile " + id + "'s route " + route + " did not run");
+        swofty::log("[test] tile %s: its action fired route %s from the screen view model %p", id.c_str(), route.c_str(), vm);
+        return ta::Outcome::ok("{\"tile\":" + ta::esc(id) + ",\"route\":" + ta::esc(route) + "}");
     }
-    if (at.index < 0)
-        return ta::Outcome::fail("the current tile screen has no tile " + id + " (its tiles: " + ids + ")");
-    at.selected = selected_index(list);
-    if (at.selected < 0 || at.selected >= at.count)
-        return ta::Outcome::unavailable("the current tile screen's selected tile is not readable (read " +
-                                        std::to_string(at.selected) + " of " + std::to_string(at.count) + ")");
-    return ta::Outcome::ok();
+    return ta::Outcome::fail("the current tile screen has no tile " + id + " (its tiles: " + ids + ")");
+}
+
+ta::Outcome InGame::career_content()
+{
+    void *vm = nullptr;
+    uint8_t *list = screen_list(vm);
+    if (!vm || vm == career_vm.load())
+        return ta::Outcome::unavailable("the career content select screen has not built its tiles yet");
+    auto items = list_items(list);
+    if (items.empty())
+        return ta::Outcome::unavailable("the career content select screen has no tiles yet");
+    std::string tried;
+    for (uint8_t *item : items) {
+        if (!item)
+            continue;
+        std::string id = item_id(item);
+        uint32_t type;
+        TileAction a;
+        std::string route = tile_action(item, type, a);
+        if (type == 1 && route.rfind("solo_career_continue_", 0) == 0) {
+            bool ran = fire_ran(vm, &a.route, route);
+            make_str(&a.route, nullptr);
+            if (!ran)
+                return ta::Outcome::fail("the " + id + " tile's route " + route + " did not run");
+            swofty::log("[test] career: the %s content tile's action fired route %s", id.c_str(), route.c_str());
+            return ta::Outcome::ok("{\"content\":" + ta::esc(id) + ",\"route\":" + ta::esc(route) + "}");
+        }
+        if (a.route)
+            make_str(&a.route, nullptr);
+        tried += (tried.empty() ? "" : "; ") + id + " routes to '" + route + "'";
+    }
+    return ta::Outcome::fail("no content tile continues a saved career (" + tried + ")");
 }
 
 ta::Outcome InGame::session_start()

@@ -914,10 +914,10 @@ mod mailbox {
             ("tile".into(), json!({"tile":"time_trial"}), None)
         );
         assert_eq!(
-            p("tile f1_world down").unwrap().1,
-            json!({"tile":"f1_world","axis":"down"})
+            p("tile career_dlc_content 20").unwrap(),
+            ("tile".into(), json!({"tile":"career_dlc_content"}), Some(20_000))
         );
-        assert!(p("tile x sideways").unwrap_err().contains("across or down"));
+        assert_eq!(p("tile").unwrap_err(), "usage: tile <tile id> [seconds]");
         assert_eq!(
             p("wait screen=time_trial_select 20").unwrap(),
             ("at".into(), json!({"phase":"time_trial_select"}), Some(20_000))
@@ -930,7 +930,7 @@ mod mailbox {
         let t = one_test(
             r#"{"id":"tt","env":{"kind":"boot"},"steps":[
                 {"home":true},{"route":"f1_world"},{"route":"play"},{"tile":"time_trial"},
-                {"tile":"f1_world","axis":"down"},{"wait":{"screen":"time_trial_select"},"timeout_s":20}]}"#,
+                {"tile":"career_dlc_content"},{"wait":{"screen":"time_trial_select"},"timeout_s":20}]}"#,
         )
         .unwrap();
         assert!(t.needs_agent());
@@ -939,11 +939,11 @@ mod mailbox {
         let c = |cmd: &str, args: Value| vec![(cmd.to_owned(), args)];
         assert_eq!(cmds[0], c("home", Value::Null));
         assert_eq!(cmds[3], c("tile", json!({"tile":"time_trial"})));
-        assert_eq!(cmds[4], c("tile", json!({"tile":"f1_world","axis":"down"})));
+        assert_eq!(cmds[4], c("tile", json!({"tile":"career_dlc_content"})));
         assert_eq!(cmds[5], c("at", json!({"phase":"time_trial_select"})));
         assert!(t.steps[5].host.is_none(), "a screen wait is the agent's");
-        let bad = one_test(r#"{"id":"tt","env":{"kind":"boot"},"steps":[{"tile":"x","axis":"diagonal"}]}"#);
-        assert!(bad.unwrap_err().contains("unknown axis"));
+        let bad = one_test(r#"{"id":"tt","env":{"kind":"boot"},"steps":[{"tile":"x","axis":"down"}]}"#);
+        assert!(bad.is_err(), "tile takes no other keys");
         let both =
             one_test(r#"{"id":"tt","env":{"kind":"boot"},"steps":[{"wait":{"screen":"a","event":"b"}}]}"#);
         assert!(both.unwrap_err().contains("wait for one of"));

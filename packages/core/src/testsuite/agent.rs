@@ -188,13 +188,7 @@ pub fn step_commands(step: &Step) -> Result<Vec<(String, Value)>, Error> {
             _ => Ok(Vec::new()),
         },
         "home" => one("home", Value::Null),
-        "tile" => {
-            let mut a = json!({ "tile": arg });
-            if let Some(axis) = v.get("axis") {
-                a["axis"] = axis.clone();
-            }
-            one("tile", a)
-        }
+        "tile" => one("tile", json!({ "tile": arg })),
         "set" => {
             let o = arg
                 .as_object()
@@ -298,15 +292,9 @@ pub fn parse_shell(line: &str) -> Result<(String, Value, Option<u64>), String> {
             (cmd, Value::Null, t)
         }
         "tile" => {
-            need(1, "tile <tile id> [across|down]")?;
-            let mut a = json!({ "tile": rest[0] });
-            if let Some(axis) = rest.get(1) {
-                if !matches!(*axis, "across" | "down") {
-                    return Err(format!("{axis}: a tile axis is across or down"));
-                }
-                a["axis"] = json!(axis);
-            }
-            (cmd, a, None)
+            need(1, "tile <tile id> [seconds]")?;
+            let t = secs(rest.get(1))?;
+            (cmd, json!({ "tile": rest[0] }), t)
         }
         "at" => {
             need(1, "at <screen or flow state> [seconds]")?;

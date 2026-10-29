@@ -2206,7 +2206,7 @@ fn shell_loop(h: Harness, b: &Batch, out: &Path, fixture: Option<Fixture>) -> Re
         eprintln!("swofty: {e}");
     } else {
         eprintln!(
-            "type a command (title, home, route <name>, tile <id> [across|down], read <path>, wait <event> [s], wait screen=<name> [s], pad <button>, capture [name], career load <slot|newest> [at <place>], advance <days>, save now, quit); end with Ctrl-D"
+            "type a command (title, home, route <name>, tile <id>, read <path>, wait <event> [s], wait screen=<name> [s], pad <button>, capture [name], career load <slot|newest> [at <place>], advance <days>, save now, quit); end with Ctrl-D"
         );
     }
     let stdin = std::io::stdin();
