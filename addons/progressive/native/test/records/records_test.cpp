@@ -15,7 +15,8 @@
 //                layer): the apply_teams request carries those seat ids, the plan keeps Haryanto in the record's
 //                second seat, and ig_driver takes the first once the career has a row for him; the start
 //                season view seats ig_driver (from the driver pool list) and Haryanto on the slot-11 row with
-//                its 2016 car, and the slot's logo paths name ig_racing's own key;
+//                its 2016 car, and the slot's logo paths name ig_racing's own key; Choose Driver's season list
+//                (the cards' driver keys) has ig_driver in Wehrlein's place with his own look and number;
 //   no registry: no record means years.json as it is.
 
 #include <cstdio>
@@ -383,6 +384,11 @@ void the_start_view_shows_the_added_team(const sj::Value &file)
     EXPECT(old.added == 0 && old.removed == 1);
 
     std::vector<ListRow> rows = season_list(base, 2016);
+    size_t wehrlein_at = rows.size();
+    for (size_t i = 0; i < rows.size(); ++i)
+        if (rows[i].id_hi == wehrlein)
+            wehrlein_at = i;
+    const size_t listed = rows.size();
     auto ig_stat = [](const std::string &label) { return label == "ig_driver" ? 208 : -1; };
     progressive::choose::Stats st = progressive::choose::reseat(rows, base, eff, 2016, ig_stat);
     EXPECT(st.added == 1 && st.removed == 1 && st.moved == 0);
@@ -391,12 +397,26 @@ void the_start_view_shows_the_added_team(const sj::Value &file)
         if (r.id_hi == 208)
             ida = &r;
     EXPECT(ida && ida->team_stat_id == row486 && ida->vehicle_ref == car11 && ida->team_position == 0x100);
+    EXPECT(rows.size() == listed && wehrlein_at < rows.size() && rows[wehrlein_at].id_hi == 208);
+    for (const ListRow &r : rows)
+        EXPECT(r.id_hi != wehrlein);
+    EXPECT(ida && progressive::cards::none(ida->driver_customisation) && ida->car_number == progressive::cards::kNoNumber);
 
     std::vector<ListRow> career = season_list(base, 2016);
     ListRow pool_row;
     pool_row.id_hi = 208;
     pool_row.driver_customisation = 721u << 16;
     pool_row.car_number = 77;
+    std::vector<ListRow> keys = rows;
+    progressive::choose::Filled filled =
+        progressive::choose::fill(keys, {progressive::cards::Rows<ListRow>{career.data(), career.size()},
+                                         progressive::cards::Rows<ListRow>{&pool_row, 1}});
+    EXPECT(filled.looks == 1 && filled.numbers == 1);
+    EXPECT(keys[wehrlein_at].id_hi == 208 && keys[wehrlein_at].driver_customisation == (721u << 16) &&
+           keys[wehrlein_at].car_number == 77 && keys[wehrlein_at].team_stat_id == row486);
+    for (size_t i = 0; i < keys.size(); ++i)
+        if (i != wehrlein_at)
+            EXPECT(std::memcmp(&keys[i], &rows[i], sizeof(ListRow)) == 0);
     std::vector<ListRow> out(career.size() + 64);
     progressive::cards::Rows<ListRow> c{career.data(), career.size()}, s{rows.data(), rows.size()}, f{}, pool{&pool_row, 1};
     progressive::cards::Stats cs{};

@@ -354,6 +354,30 @@ inline bool has_file(const Value &logo, const char *context)
     return logo["images"][context].is_string();
 }
 
+inline bool has_any_file(const Value *logo)
+{
+    if (!logo)
+        return false;
+    for (const char *context : LOGO_CONTEXTS)
+        if (has_file(*logo, context))
+            return true;
+    return false;
+}
+
+// A context the record gives no image takes the team's own image of another context, scaled to each array by the
+// build: the timing tower arrays look at the other tower context first, every other array at the menu logos first.
+inline const char *own_image_for(const Value *logo, const std::string &context, bool tower)
+{
+    static constexpr const char *MENU_FIRST[] = {"driver_select", "hub", "team_select", "broadcast", "hud"};
+    static constexpr const char *TOWER_FIRST[] = {"hud", "broadcast", "driver_select", "hub", "team_select"};
+    if (!logo)
+        return nullptr;
+    for (const char *from : tower ? TOWER_FIRST : MENU_FIRST)
+        if (context != from && has_file(*logo, from))
+            return from;
+    return nullptr;
+}
+
 inline std::string stock_key(const Value &logo, const char *context)
 {
     const Value &v = logo["images"][context];
@@ -366,14 +390,19 @@ inline void lower_logo_images(const std::string &team, const std::string &donor,
     std::string addon = addon_of(logo_id);
     std::set<std::string> taken;
     std::set<std::string> fell_back;
+    std::set<std::string> borrowed;
     for (const char *context : LOGO_CONTEXTS) {
         const Value *v = logo ? &(*logo)["images"][context] : nullptr;
         bool own = v && (v->is_string() || (v->is_object() && (*v)["stock"].is_string()));
         for (auto &a : logo_arrays(context)) {
-            if (a.tower && !(own && v->is_string()))
+            bool own_file = own && v->is_string();
+            const char *from = nullptr;
+            if (a.tower) {
+                if (tower_key != team || !(own_file || (from = own_image_for(logo, context, true))))
+                    continue;
+            } else if (!own && !(from = own_image_for(logo, context, false)) && donor.empty()) {
                 continue;
-            if (!own && (a.tower || donor.empty()))
-                continue;
+            }
             std::string key = a.tower ? tower_key : team;
             if (!taken.insert(std::string(a.array) + "|" + key).second)
                 continue;
@@ -384,7 +413,11 @@ inline void lower_logo_images(const std::string &team, const std::string &donor,
             img.addon = addon;
             img.id = logo_id;
             img.team = team;
-            if (!own) {
+            if (from) {
+                img.file = std::string((*logo)["images"][from].as_string());
+                if (borrowed.insert(std::string(from) + "|" + context).second)
+                    plan.lines.push_back("team.logo: " + team + " uses its " + from + " image for " + context);
+            } else if (!own) {
                 img.stock = donor;
                 img.fallback = true;
                 if (fell_back.insert(context).second)
@@ -460,6 +493,7 @@ inline void lower_team(const std::string &id, const Value &rec, const Lookup &lo
     std::string tower_stock;
     if (logo && !tower_image)
         tower_stock = !stock_key(*logo, "hud").empty() ? stock_key(*logo, "hud") : stock_key(*logo, "broadcast");
+    tower_image = tower_image || (tower_stock.empty() && has_any_file(logo));
     std::string tower_key = tower_image ? label : tower_stock;
     put("timing_tower_texture_path", tower_key);
     push_row(plan, TEAMS, team_at(donor), std::move(set));

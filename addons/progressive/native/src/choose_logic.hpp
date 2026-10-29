@@ -8,9 +8,12 @@
 //   a driver whose seat differs from years.json takes the team, car and livery of that slot's rows
 //   and the record's seat; his own row keeps his look and number, and a driver the list has no row
 //   for gets one made from the slot's rows with the pool's number and no look;
-//   a driver years.json seats and the effective seats no longer hold has no row.
+//   a driver years.json seats and the effective seats no longer hold has no row; a driver the list gains takes
+//   the place of a row the slot loses (same seat first), so the cards keep the list's team order.
 // A seat driver the pool has no entry for (an added team's new driver) takes his stat id from driver_stat (the game's
 // drivers table row of his label) and gets a row like a pool driver with none; without driver_stat he is left out.
+// fill() gives a row with no look or number those of the same driver's row in another list (the career list, the
+// driver pool), where the core's entrant for an added team's new driver carries his look and number.
 // With the same years.json on both sides nothing changes. R is any record with the EntrantRecord
 // field names this file reads. Pure logic, no game access, so native/test builds it on the host.
 
@@ -19,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <map>
 #include <optional>
 #include <set>
@@ -82,7 +86,7 @@ Stats reseat(std::vector<R> &rows, const season::Data &base, const season::Data 
             slot_row[static_cast<size_t>(at.first)] = rows[i];
     }
 
-    std::vector<R> added;
+    std::vector<std::pair<Seat, R>> added;
     std::set<size_t> moved_rows;
     for (const auto &[label, at] : now) {
         auto w = was.find(label);
@@ -118,26 +122,69 @@ Stats reseat(std::vector<R> &rows, const season::Data &base, const season::Data 
             rows[i] = r;
             ++st.moved;
         } else {
-            added.push_back(r);
+            added.push_back({at, r});
             ++st.added;
         }
     }
 
-    std::set<size_t> gone;
+    std::map<size_t, Seat> gone;
     for (const auto &[label, at] : was) {
         if (now.contains(label))
             continue;
         const season::PoolDriver *p = base.driver(label);
         size_t i = p && p->stat >= 0 ? row_of(rows, p->stat) : rows.size();
         if (i != rows.size() && !moved_rows.contains(i))
-            gone.insert(i);
+            gone[i] = at;
     }
-    for (auto it = gone.rbegin(); it != gone.rend(); ++it) {
-        rows.erase(rows.begin() + static_cast<std::ptrdiff_t>(*it));
+    std::vector<R> appended;
+    for (const auto &[at, r] : added) {
+        auto place = gone.end();
+        for (auto g = gone.begin(); g != gone.end(); ++g)
+            if (g->second.first == at.first && (place == gone.end() || g->second.second == at.second))
+                place = g;
+        if (place == gone.end()) {
+            appended.push_back(r);
+            continue;
+        }
+        rows[place->first] = r;
+        gone.erase(place);
         ++st.removed;
     }
-    rows.insert(rows.end(), added.begin(), added.end());
+    for (auto it = gone.rbegin(); it != gone.rend(); ++it) {
+        rows.erase(rows.begin() + static_cast<std::ptrdiff_t>(it->first));
+        ++st.removed;
+    }
+    rows.insert(rows.end(), appended.begin(), appended.end());
     return st;
+}
+
+struct Filled {
+    size_t looks = 0, numbers = 0;
+};
+
+template <class R> Filled fill(std::vector<R> &rows, std::initializer_list<cards::Rows<R>> sources)
+{
+    Filled f;
+    for (R &r : rows) {
+        bool look = cards::none(r.driver_customisation), number = r.car_number == cards::kNoNumber;
+        for (const cards::Rows<R> &src : sources)
+            for (size_t k = 0; k < src.count && (look || number); ++k) {
+                const R &s = src.begin[k];
+                if (!cards::same_driver(s, r))
+                    continue;
+                if (look && !cards::none(s.driver_customisation)) {
+                    r.driver_customisation = s.driver_customisation;
+                    look = false;
+                    ++f.looks;
+                }
+                if (number && s.car_number != cards::kNoNumber) {
+                    r.car_number = s.car_number;
+                    number = false;
+                    ++f.numbers;
+                }
+            }
+    }
+    return f;
 }
 
 }
