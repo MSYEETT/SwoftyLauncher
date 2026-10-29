@@ -404,6 +404,77 @@ SWOFTY_ADDON()
 
 The data version has no season-start handler. It lists the seasons, and applying a line-up needs code.
 
+## Career contents
+
+A **career content** is a tile in the Addons row of the career menu, under the stock 2025 and 2026 tiles, with its own data group and save slots. A `career.content` record makes one: from a data file with no DLL, from `SWOFTY_REGISTER`, or from the 1.5 call `career::content::add`, which provides the record under the calling addon's id. All three make the same tile.
+
+### From a data file
+
+```json
+// registry/career.json in community.f1-2012
+{
+  "career.mode": {
+    "f1_2012": { "data_group": "f1_career_2012", "save_container": "driver_career_2012", "title": "lng_f1_2012_title" }
+  },
+  "career.content": {
+    "f1_2012": { "mode": "community.f1-2012/f1_2012", "suffix": "12", "description": "lng_f1_2012_desc",
+                 "careers": "both" }
+  }
+}
+```
+
+- **From the mode.** A field the content leaves out comes from the `career.mode` record its `mode` names: `data_group`, `save_container` and `title`. The 1.6 core has no stock `career.mode` records: the mode is a record of its own, not a variant of `game/f1_career_2026`.
+- **Defaults.** `description` defaults to the title, `model` to `game/f1_career_2026` and `careers` to `driver`. `model` is `game/f1_career_2026` or `game/f1_career_2025`.
+- **Required.** `suffix`, and a data group, save container and title from the content or its mode.
+- **Not read for the tile:** `tile`, `calendar` and `after_last`.
+- **Layers.** The tile shows the effective record, so another addon's layer on its title, description, badge or careers shows on the tile.
+- **With a call.** When the addon's DLL also calls `career::content::add` with the record's key, the call's content replaces the record's before its first tile. Calls and records share the core's 8 contents.
+
+The tile needs the same game data as a call's tile. The 1.6 core makes none of it from records. The addon's database operations add it:
+
+- a `game_modes.ModeChampionship` row whose `save_data.name` is the save container;
+- an `entrants.entrant_lists` row named by the data group, with a `stat_id` below 256;
+- the official entrant list `F1CAREER_<suffix>` in a content set. `F2CAREER_<suffix>` and `ICONS_<suffix>` fill the F2 and Icons tabs of Choose Driver.
+
+```text
+[career] content 'f1_2012' from community.f1-2012 (career.content record community.f1-2012/f1_2012, no call) registered
+         (tile 1 after the stock ones, 2026 model, data group f1_career_2012, suffix 12, mode driver_career_2012): queued
+         for the next mixin commit
+[career] content 'f1_2012' ready: mode driver_career_2012 statId 83, data group f1_career_2012 (entrant list stat_id 41),
+         suffix 12 (F1CAREER_12, F2CAREER, ICONS)
+```
+
+A record that is missing a field makes no tile, and the log names the field:
+
+```text
+[career] career.content record community.f1-2012/f1_2012 makes no tile: it names no suffix (Choose Driver lists F1CAREER_<suffix>)
+```
+
+### From the 1.5 call
+
+```cpp
+#include <swofty/career_content.hpp>
+
+namespace content = swofty::career::content;
+
+bool register_tile()
+{
+    content::add({.id = "f1_2012",
+                  .title = "lng_f1_2012_title",
+                  .description = "lng_f1_2012_desc",
+                  .data_group = "f1_career_2012",
+                  .suffix = "12",
+                  .mode = "driver_career_2012",          // the save container
+                  .model = content::Model::f1_2026,
+                  .careers = content::Career::both});
+    return true;
+}
+
+SWOFTY_ADDON(register_tile)
+```
+
+The call provides a `career.content` record with these fields under `community.f1-2012/f1_2012`, and other addons layer it like a data-file record.
+
 ## A season's box
 
 A season's box supplies its cars, liveries, sounds and session rules. The box each season uses is chosen when the career is created.
@@ -477,7 +548,7 @@ career::contents.layer(career::contents["swofty.progressive/f1_career_progressiv
 
 ## Calendars
 
-The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group and applies nothing else.
+The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group, and the save container and title a career tile takes from it (see [Career contents](#career-contents)), and applies nothing else.
 
 ```cpp
 auto calendar = career::calendars.add("f1_1990", {
