@@ -76,3 +76,67 @@ fn the_stock_tracks_worlds_and_ai_data_scan_from_the_game_folder() {
     eprintln!("from the cache in {:?}", started.elapsed());
     assert_eq!(again, f);
 }
+
+#[test]
+fn an_installed_tracks_placed_archive_scans_with_its_stand_ins() {
+    use swofty_core::activation::facts::Added;
+    let Some(game) = std::env::var_os("F1_25_DIR").map(PathBuf::from) else {
+        eprintln!("F1_25_DIR is not set; skipping");
+        return;
+    };
+    let Some(data) = std::env::var_os("SWOFTY_DATA_DIR")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share/swofty")))
+    else {
+        return;
+    };
+    let shipped = data.join("addons/mod.okayama/track/okayama.erp");
+    let placed = std::fs::read_dir(data.join("cache/maps/okayama"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| {
+            e.path()
+                .join("2025_asset_groups/environment_package/tracks/okayama/okayama.erp")
+        })
+        .find(|p| p.is_file());
+    let (true, Some(placed)) = (shipped.is_file(), placed) else {
+        eprintln!("mod.okayama is not installed and built; skipping");
+        return;
+    };
+    let file = |rel: &str| game.join(rel);
+    let scan = Scan {
+        profile: "real",
+        db: game.join(GVDB),
+        game: &game,
+        file: &file,
+        placed: Vec::new(),
+        added: vec![Added {
+            code: "okayama".into(),
+            shipped,
+            placed,
+            base: Some("melbourne".into()),
+        }],
+    };
+    let f = facts(&scan, None, &mut WorldsCache::default()).unwrap().unwrap();
+    let t = &f.tracks["okayama"];
+    for (w, r) in &t.worlds {
+        eprintln!(
+            "okayama {w}: {}/{}/{} stand-in {:?}",
+            r.grid, r.garages, r.pit_boxes, r.stand_in
+        );
+    }
+    eprintln!("okayama: {} AI folder(s): {:?}", t.ai.len(), t.ai);
+    assert!(!t.worlds.is_empty() && t.time_trial);
+    assert!(
+        t.worlds.values().all(|r| r.grid >= 20 && r.garages >= 10),
+        "{:?}",
+        t.worlds
+    );
+    assert!(
+        t.ai.iter().any(|a| a.starts_with("f1_2025_vehicle_package/")),
+        "{:?}",
+        t.ai
+    );
+    assert!(!t.ai_difficulties.is_empty());
+}
