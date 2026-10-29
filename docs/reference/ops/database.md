@@ -244,13 +244,42 @@ A copy into such a table gets the next free id above the table's highest, and th
 f1-1990: add-row entrants.entrant_lists.entrant_list_68 (from entrants.entrant_lists.entrant_list[_metadata_=f1_2026]): stat_id 105 (the source's is 67)
 ```
 
-A `stat_id` in `set` wins, unless a row an addon added earlier in the build holds that id. The copy then gets the next free id, references to it by label follow, a `[stat_id=<id>]` selector later in the same file finds the copy, and the build warns with both addons and both ids:
+The game keeps the id of some tables in one byte. A copy into one of them never gets an id above the table's highest:
+
+| Table | Highest `stat_id` |
+| --- | --- |
+| `entrants.vehicles.vehicle_packages.vehicle_package_N` | 254 |
+| `entrants.drivers.driver_N` | 254 |
+| `entrants.engines.Engine_N` | 254 |
+| `entrants.characters.character_N` | 254 |
+| `entrants.animation.driver_animation_sets.driver_animation_set_N` | 254 |
+| `entrants.entrant_lists.entrant_list_N` | 255 |
+| `entrants.nationality.nationality_N` | 255 |
+| `game_setup.scenarios.scenario_N` (`statId`) | 254 |
+
+When the next id above the table's highest would pass it, the copy gets the lowest id above the stock rows' highest that no row holds. A driver gets the lowest free id from 208. The build prints it:
+
+```text
+swofty.classic-seasons-2021: add-row entrants.vehicles.vehicle_packages.vehicle_package_122 (from entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025]): stat_id 83 (the source's is 24; 255 is above 254, the highest the game reads)
+```
+
+When no id is free, the `add-row` fails like any op that can't apply. The core allocates registry vehicle packages and entrant lists above the highest id the database ops leave in the table, and registry drivers from the free ids in 208 to 253 ([Stat ids](/std/registry#stat-ids)). An explicit `stat_id` near the ceiling leaves the registry fewer ids.
+
+A `stat_id` in `set` wins, unless a row an addon added earlier in the build holds that id. The copy then gets the next free id that no addon later in the load order sets on a row it adds, references to it by label follow, a `[stat_id=<id>]` selector later in the same file finds the copy, and the build warns with both addons and both ids:
 
 ```text
 my-addon: stat_id 500 of my_team is taken by their_team from other-addon; the build gave it stat_id 512. The addon's author should leave stat_id out of add-row
 ```
 
-The conflicts report counts each of these as a database conflict between the two addons. The id a copy moves to depends on the addons before it in the load order, so a career made with one load order expects that order's ids. An id that a stock row holds stays as set. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
+A `stat_id` in `set` above the table's highest moves the same way, and the build warns:
+
+```text
+my-addon: stat_id 300 of my_car is above 254, the highest the game reads in entrants.vehicles.vehicle_packages.vehicle_package; the build gave it stat_id 59. The addon's author should leave stat_id out of add-row
+```
+
+A `statId` in `set` on a `game_setup.scenarios` row moves the same way when a row added earlier holds it or it is above 254, and `[statId=<id>]` selectors follow. A scenario copy without a `statId` in `set` keeps its source's.
+
+The conflicts report counts each clash as a database conflict between the two addons. The id a copy moves to depends on the addons before it in the load order, so a career made with one load order expects that order's ids. An id that a stock row holds stays as set. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
 
 An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table, by `add-row` or by `put-record`, unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
 
