@@ -1352,14 +1352,14 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
     };
     let ceiling = stat_id_ceiling(&path, row).filter(|_| top_level);
     // The next id above the table's highest, or the lowest free one when that passes the ceiling.
-    // A moved id also passes over the ids later addons set on their rows.
+    // A moved id, and any id under the ceiling, passes over the ids later addons set on their rows.
     let next = |moving: bool| -> Result<(i64, Option<String>)> {
-        let later = |id: i64| moving && names.reserved(&path, row, id);
+        let later = |id: i64| names.reserved(&path, row, id);
         let mut top = stat_ids(db, &path, row, n, &HashSet::new())
             .into_iter()
             .max()
             .map_or(0, |m| m + 1);
-        while later(top) {
+        while moving && later(top) {
             top += 1;
         }
         match ceiling {
