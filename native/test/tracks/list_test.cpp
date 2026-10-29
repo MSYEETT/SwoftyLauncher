@@ -32,6 +32,17 @@ int main()
                l.missing == std::vector<std::string>{"venue/sochi"},
            "a | venue takes the first that resolves; a ? venue with no track is dropped");
 
+    l = trk::build_list(base, &facts, box, trk::Mode::grand_prix,
+                        {{1, "venue/bahrain"}, {2, "venue/albert_park"}, {3, "venue/bahrain"}, {4, "venue/sochi"},
+                         {5, "venue/sochi?"}, {6, "venue/albert_park"}},
+                        none);
+    expect((l.calendar == std::vector<std::string>{"game/bahrain", "game/melbourne"}) && l.rounds == 3 &&
+               l.missing == std::vector<std::string>{"venue/sochi"},
+           "a venue a calendar repeats (2020's two races at one track) is listed and counted once");
+    expect(trk::list_line(box.package, trk::Mode::grand_prix, l).find("calendar 2 of 3 rounds (venue/sochi: no track)") !=
+               std::string::npos,
+           "the [tracks] box line counts a repeated venue once");
+
     trk::List tt = trk::build_list(base, &facts, box, trk::Mode::time_trial, {}, none);
     int no_tt = 0;
     for (auto &o : tt.left_out)

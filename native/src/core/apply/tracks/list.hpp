@@ -11,7 +11,8 @@
 #include <vector>
 
 // A box's track list in one mode (tracks::TrackList): the season's real calendar in round order (each round's
-// venue resolved through the base, a round with no providing track dropped), then "More tracks": every other base
+// venue resolved through the base, a round with no providing track dropped, a track or missing venue a later round
+// repeats listed and counted once), then "More tracks": every other base
 // track in base order, with a per_package order N placing its track at place N. offered = false and a failed fit
 // leave a track out with the reason. Pure: the core builds it at each box press for catalog.json and the
 // [tracks] box line; host tests build it from hand-made bases.
@@ -44,7 +45,6 @@ inline List build_list(const Base &base, const Facts *facts, const BoxInfo &box,
 {
     List out;
     std::stable_sort(rounds.begin(), rounds.end(), [](const Round &a, const Round &b) { return a.round < b.round; });
-    out.rounds = int(rounds.size());
     std::map<std::string, bool> judged;
     auto judge = [&](const BaseTrack &t) {
         auto it = judged.find(t.id);
@@ -68,12 +68,18 @@ inline List build_list(const Base &base, const Facts *facts, const BoxInfo &box,
         judged[t.id] = ok;
         return ok;
     };
+    std::vector<std::string> seen;
     for (auto &r : rounds) {
         const BaseTrack *t = r.venue.empty() ? nullptr : base.resolve(r.venue);
+        std::string v = r.venue.empty() ? "round " + std::to_string(r.round) : r.venue;
+        if (!v.empty() && v.back() == '?')
+            v.pop_back();
+        std::string key = t ? t->id : v;
+        if (listed(seen, key))
+            continue;
+        seen.push_back(key);
+        out.rounds++;
         if (!t) {
-            std::string v = r.venue.empty() ? "round " + std::to_string(r.round) : r.venue;
-            if (!v.empty() && v.back() == '?')
-                v.pop_back();
             out.missing.push_back(v);
             continue;
         }
