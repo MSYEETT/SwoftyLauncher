@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "../../src/core/career_ops/start_teams.hpp"
 #include "../../src/core/career_ops/teams_plan.hpp"
 
 using namespace career_ops::teams;
@@ -172,9 +173,53 @@ int main()
         CHECK(p.actions[10].kind == Kind::dressed && p.actions[10].row == "gm_cadillac_26" && p.actions[10].team == "ig.teampack/ig_racing");
         CHECK(plan_season(t, year(2017, "game/gm_cadillac_26")).count(Kind::open) == 11);
         CHECK(identity_id("gm_cadillac_26") == "game/gm_cadillac_26" && identity_id("ig.teampack/ig_racing") == "ig.teampack/ig_racing");
+
+        SeasonIn added = year(2016, "ig.teampack/ig_racing");
+        added.slots[10].seats = {"ig.teampack/ig_driver", "swofty.classic-seasons/rio_haryanto"};
+        SeasonIn chain = year(2017, "game/cs17_manor|game/gm_cadillac_26|constructor/manor|game/gm_cadillac_26?");
+        SeasonIn stock26 = year(2026, "game/gm_cadillac_26");
+        SeasonIn constructor = year(2018, "constructor/williams");
+        StartPlan sp = start_plan("f1_career_progressive", {stock26, chain, added, constructor}, physical);
+        CHECK(sp.years.size() == 1 && sp.years[0].year == 2016 && sp.dresses() == 1);
+        CHECK(sp.find(2016) && sp.find(2016)->dresses[0].slot == 11 && sp.find(2016)->dresses[0].row == "gm_cadillac_26" &&
+              sp.find(2016)->dresses[0].team == "ig.teampack/ig_racing" &&
+              sp.find(2016)->dresses[0].seats[0] == "ig.teampack/ig_driver" &&
+              sp.find(2016)->dresses[0].seats[1] == "swofty.classic-seasons/rio_haryanto");
+        CHECK(!sp.find(2017) && !sp.find(2026) && !sp.find(2018));
+        CHECK(plan_json(sp) == "{\"data_group\":\"f1_career_progressive\",\"years\":[{\"year\":2016,\"slots\":[{\"slot\":11,"
+                               "\"row\":\"gm_cadillac_26\",\"team\":\"ig.teampack/ig_racing\",\"seats\":[\"ig.teampack/ig_driver\","
+                               "\"swofty.classic-seasons/rio_haryanto\"]}]}]}");
+        CHECK(mentions(describe(sp), "2016 slot 11: gm_cadillac_26 as ig.teampack/ig_racing (seats ig.teampack/ig_driver, "
+                                     "swofty.classic-seasons/rio_haryanto)"));
+        StartPlan none = start_plan("f1_career_progressive", {stock26, chain, year(2016, "gm_cadillac_26"), constructor}, physical);
+        CHECK(none.years.empty() && plan_json(none) == "{\"data_group\":\"f1_career_progressive\",\"years\":[]}");
+        CHECK(plan_json(none) == plan_json(start_plan("f1_career_progressive", {}, physical)));
+
+        SeasonIn twelfth = year(2016, "game/gm_cadillac_26");
+        SlotIn x12;
+        x12.slot = 12;
+        x12.team = "ig.teampack/ig_racing";
+        twelfth.slots.push_back(x12);
+        StartPlan sp12 = start_plan("f1_career_progressive", {twelfth}, physical);
+        CHECK(sp12.dresses() == 0 && sp12.years.size() == 1 && mentions(sp12.years[0].notes, "slot 12: ig.teampack/ig_racing has no slot row"));
+        CHECK(plan_json(sp12) == plan_json(none));
+
+        CHECK(added_team_id("ig.teampack/ig_racing"));
+        CHECK(!added_team_id("") && !added_team_id("constructor/manor") && !added_team_id("game/a|game/b") && !added_team_id("game/a?") &&
+              !added_team_id("game/williams") && !added_team_id("game/cs16_manor") && !added_team_id("gm_cadillac_26"));
+        SeasonIn cs = year(2016, "game/cs16_manor");
+        cs.slots[0].team = "game/cs16_mercedes";
+        CHECK(start_plan("f1_career_progressive", {cs}, physical).years.empty());
+
+        Table both = build_table({added, chain, stock26}, false);
+        anchor_rows(both, physical);
+        Plan season16 = plan_season(both, added);
+        const StartDress &d = sp.find(2016)->dresses[0];
+        CHECK(season16.ok() && season16.actions[10].kind == Kind::dressed && season16.actions[10].row == d.row &&
+              season16.actions[10].team == d.team && both.count() == 11);
     }
     if (failures)
         return 1;
-    std::printf("teams_plan_test: slot table (12 slots, first filling season, My Team and 13 refused, shared rows), open, dressed and closed slots, closing releases and the player's seat: ok\n");
+    std::printf("teams_plan_test: slot table (12 slots, first filling season, My Team and 13 refused, shared rows), open, dressed and closed slots, closing releases and the player's seat, the start-season dress plan (an added team on its slot row, no row for a twelfth, the same row and team as the season dress): ok\n");
     return 0;
 }

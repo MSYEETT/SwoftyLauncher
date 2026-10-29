@@ -683,6 +683,8 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
         say(where + ": " + team + " is not a team.identity record");
         return false;
     }
+    auto worn = l.wears.find(uint16_t(stat));
+    bool again = !own && worn != l.wears.end() && worn->second == team;
     if (own)
         l.wears.erase(uint16_t(stat));
     else
@@ -694,7 +696,9 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
         return false;
     }
     write_dress(record, dress_of(*rec));
-    say(where + ": names and colours written to the loaded record of stat id " + std::to_string(stat));
+    say(where + (again ? ": already worn; names and colours written again to the loaded record of stat id "
+                       : ": names and colours written to the loaded record of stat id ") +
+        std::to_string(stat));
     return true;
 }
 

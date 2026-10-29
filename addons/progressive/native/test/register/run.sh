@@ -41,6 +41,15 @@ CORE=$REPO/native/src/core/registry
     -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine -o "$OUT/records_test" "$REPO/native/test/registry/progressive_records_test.cpp" \
     "$CORE"/store.cpp "$CORE"/table.cpp "$CORE"/validate.cpp "$CORE"/schema.cpp "$CORE"/engine.cpp "$CORE"/older.cpp
 "$OUT/records_test" "$OUT/captured.json"
+"${PIN[@]}" "${ZIG[@]}" c++ -target x86_64-linux-musl -std=c++23 -O1 -w -I"$REPO/packages/sdk/include" \
+    -DSWOFTY_FAKE_CORE_ENGINE=swofty_registry_engine -o "$OUT/start_teams_test" "$REPO/native/test/registry/progressive_start_teams_test.cpp" \
+    "$CORE"/store.cpp "$CORE"/table.cpp "$CORE"/validate.cpp "$CORE"/schema.cpp "$CORE"/engine.cpp "$CORE"/older.cpp
+"$OUT/start_teams_test" "$OUT/captured.json" "$ADDON/data/years.json" none >"$OUT/start-none.txt" || { cat "$OUT/start-none.txt"; exit 1; }
+"$OUT/start_teams_test" "$OUT/captured.json" "$ADDON/data/years.json" none >"$OUT/start-none-again.txt"
+cmp -s "$OUT/start-none.txt" "$OUT/start-none-again.txt" || { echo "the no-layer start plan differs between two runs"; exit 1; }
+"$OUT/start_teams_test" "$OUT/captured.json" "$ADDON/data/years.json" layer >"$OUT/start-layer.txt" || { cat "$OUT/start-layer.txt"; exit 1; }
+tail -n 1 "$OUT/start-none.txt"
+tail -n 1 "$OUT/start-layer.txt"
 echo "validate: $(grep -c '^ok' "$OUT/validate-season.txt") career.season and $(grep -c '^ok' "$OUT/validate-ratings.txt") career.driver_ratings records valid"
 
 "$OUT/fake_core" "$ADDON" "$OUT/api8.json" 8 2>/dev/null
