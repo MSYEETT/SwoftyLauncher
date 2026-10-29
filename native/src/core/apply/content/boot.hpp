@@ -8,6 +8,7 @@
 #include "wear.hpp"
 #include "teams.hpp"
 
+#include "../ids.hpp"
 #include "../../career_ops/start_teams.hpp"
 #include "../../registry/store.hpp"
 
@@ -184,11 +185,26 @@ inline std::vector<PoolScan> scan_all_pools(const std::function<std::optional<st
 struct Pin {
     std::string registry, id;
     int64_t stat_id;
+    std::string label;
 };
 
-// Every explicit stat id the content records ship: vehicles, vehicle packages, entrant lists and the scenario ids
-// of packages whose database block is their own.
-inline std::vector<Pin> pins(registry::Store &st)
+// The label of the row a record's stat id goes on, as its lowering names it.
+inline std::string row_label(const Lookup &lookup, std::string_view reg, const std::string &id, const Value &rec)
+{
+    if (reg == "content.package")
+        return rec["entrant_list"].is_string() ? std::string(rec["entrant_list"].as_string()) : std::string();
+    if (reg == "wearable.season_set")
+        return rec["team"].is_string() ? std::to_string(rec["season"].as_int()) + "-" +
+                                             label_of(lookup, "team.identity", rec["team"].as_string())
+                                       : std::string();
+    if (reg == "team.identity" || reg == "vehicle.package")
+        return key_of(id);
+    return record_label(lookup, std::string(reg).c_str(), id);
+}
+
+// Every content record that takes a stat id, with its row's label: its explicit stat id, or -1 for "auto", and the
+// scenario ids of packages whose database block is their own.
+inline std::vector<Pin> stat_records(registry::Store &st)
 {
     std::vector<Pin> out;
     std::map<std::string, Value> keep;
@@ -199,16 +215,59 @@ inline std::vector<Pin> pins(registry::Store &st)
             const Value *rec = lookup(reg, id);
             if (!rec)
                 continue;
-            if (int64_t p = pin_of(*rec); p >= 0)
-                out.push_back({reg, id, p});
+            std::string label = row_label(lookup, reg, id, *rec);
+            out.push_back({reg, id, pin_of(*rec), label});
             if (std::string_view(reg) != "content.package")
                 continue;
             const Value &db = (*rec)["database"];
             bool mine = !db["entrant_list"].is_string() || db["entrant_list"].as_string() == (*rec)["entrant_list"].as_string();
             if (mine && db["scenario_stat_id"].is_int())
-                out.push_back({SCENARIO_IDS, id, db["scenario_stat_id"].as_int()});
+                out.push_back({SCENARIO_IDS, id, db["scenario_stat_id"].as_int(), label});
+            else if (!label.empty())
+                out.push_back({SCENARIO_IDS, id, -1, label});
         }
     return out;
+}
+
+// Every explicit stat id the content records ship: vehicles, vehicle packages, entrant lists and the scenario ids
+// of packages whose database block is their own.
+inline std::vector<Pin> pins(registry::Store &st)
+{
+    std::vector<Pin> out;
+    for (auto &p : stat_records(st))
+        if (p.stat_id >= 0)
+            out.push_back(std::move(p));
+    return out;
+}
+
+// The stat ids the rows of the database the game loads hold (the game's own and the older addons' database
+// operations') are held in the store. A record pinned on one of them, or kept on one in ids.json, for a row with
+// another label takes the next free id of its pool. The pins that land on nothing are placed first, so a moved
+// record never takes another record's pin. Returns the lines to log.
+inline std::vector<std::string> settle_ids(ids::Store &ids, registry::Store &st,
+                                           const std::map<std::string, PoolScan> &scans, const std::string &day)
+{
+    for (auto &[reg, scan] : scans)
+        ids.hold(reg, scan.used);
+    std::vector<std::string> lines;
+    std::vector<Pin> later;
+    for (auto &p : stat_records(st)) {
+        if (p.stat_id < 0 || ids.database_holds(p.registry, p.stat_id, p.label)) {
+            later.push_back(std::move(p));
+            continue;
+        }
+        ids::Result had = ids.get(p.registry, p.id);
+        ids::Result r = ids.pin(p.registry, p.id, p.stat_id, day, p.label);
+        if (had.id != p.stat_id || r.line.find("also holds") != std::string::npos)
+            lines.push_back(r.line);
+    }
+    for (auto &p : later) {
+        ids::Result r = p.stat_id >= 0 ? ids.pin(p.registry, p.id, p.stat_id, day, p.label)
+                                       : ids.recheck(p.registry, p.id, p.label, day);
+        if (!r.line.empty())
+            lines.push_back(r.line);
+    }
+    return lines;
 }
 
 struct Expansion {

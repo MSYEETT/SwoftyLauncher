@@ -136,7 +136,7 @@ SWOFTY_REGISTER
 - **A `venue/…` reference** resolves to the last enabled track in load order that provides it, like every other contest. An exact id (`mod.sochi/sochi`) pins one addon. When two enabled tracks provide one venue, the conflicts view lists both.
 - **A track's venue comes from its record,** never from its code. `mod.bahrain24` uses the `bahrain24` slot and is Sepang.
 - **Stat ids are kept.** The core keeps one stat-id store per install, in the launcher's data folder, at `$DATA/registry/ids.json`. The first id a track, driver, team or vehicle gets stays with it. An id is given to another record only when no career uses it.
-- **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, the guard stops the load and names both records.
+- **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, or a row in the database the game loads does, the guard stops the load and names both.
 
 ```text
 [tracks] hockenheim: stat id 43 (kept since 2026-10-27)
