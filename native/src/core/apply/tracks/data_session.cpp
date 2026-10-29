@@ -12,14 +12,20 @@
 #include <mutex>
 
 // track.data (Applies::session) and the active box's per_package fuel, through the fuel writer's pattern
-// (career_ops/track_fuel.cpp): at each session load the core reads the track data sets (TrackDataSystem from the
-// championship entity's +0xf58) and the session's query (entity +0x2b0 setup mode stat id byte +0x80, entity
-// +0xe18 the selected entrant list's u16 season at +0xb0; Trk_ChampionshipEntity_TrackDataQuery_Body, V1631), then
-// writes the box's burn per lap on the session's track in the sets that query reads. Without a box entry, a
-// track.data record <track>/<data set> whose fuel differs from the set's is written into that named set. Box writes
-// are put back on the next box press, on leaving the box and on career unload; track.data writes when the session
-// ends. Each write keeps the bytes it found and puts back only what still holds the bytes the core wrote. Only
-// fuel is written: the other track.data fields take effect at the next start (D4).
+// (career_ops/track_fuel.cpp). The game reads fuel_burn_per_lap (TrackDataTrack +0xf0) right after a
+// Game_TrackData_GetTrack call in three places: the garage refuel (0x1436ae7b0, from returnVehicleToGarage), the
+// virtual session's per-lap fuel (0x142f71790) and a fuel-for-laps set in the start sequence (0x142d1d650); a
+// race's starting fuel is the race fuel rows' (Game_CarSetup_SessionFuelLoad 0x140b78000), which a burn per lap
+// leaves as they are. At the box press (Grand Prix) the box's burn per lap goes on every track it names in every
+// track data set (TrackDataSystem from the championship entity's +0xf58) whose mode mask holds the box's setup
+// mode, since the session's query is only known once the session loads. At each session load the core reads the session's query
+// (entity +0x2b0 setup mode stat id byte +0x80, entity +0xe18 the selected entrant list's u16 season at +0xb0;
+// Trk_ChampionshipEntity_TrackDataQuery_Body, V1631) and writes the session's track again in those sets and the
+// ones the query picks; at the session's end it logs when the query changed during the session. Without a box
+// entry, a track.data record <track>/<data set> whose fuel differs from the set's is written into that named set.
+// Box writes are put back on the next box press, on leaving the box and on career unload; track.data writes when
+// the session ends. Each write keeps the bytes it found and puts back only what still holds the bytes the core
+// wrote. Only fuel is written: the other track.data fields take effect at the next start (D4).
 
 namespace swofty_core::apply::tracks {
 
@@ -79,6 +85,8 @@ bool write_fuel(uintptr_t obj, const pf::Fuel &f)
 std::mutex mu;
 std::vector<FuelWrite> box_writes, session_writes;
 std::string waiting_logged;
+bool session_query_read = false;
+Query session_query;
 
 uintptr_t entity()
 {
@@ -204,12 +212,17 @@ public:
             if (!read_query(e, q, why)) {
                 swofty::log("[tracks] box %s: fuel for %s not written: %s", a.package.c_str(), code.c_str(), why.c_str());
             } else {
-                std::vector<FuelWrite> plan = plan_box_fuel(base(), a.entries, query_sets(sets, q), code);
+                session_query = q;
+                session_query_read = true;
+                std::vector<const pf::Set *> into = box_sets(sets, q.mode, &q);
+                std::vector<FuelWrite> plan = plan_box_fuel(base(), a.entries, into, code);
                 int n = apply_writes(plan, box_writes);
                 report.applied += n;
-                swofty::log("[tracks] box %s: %s fuel written in %d set(s) (query mode %u, season %u%s); put back when the "
-                            "box is left",
-                            a.package.c_str(), code.c_str(), n, q.mode, q.season, q.season_used ? "" : " unused");
+                std::vector<const pf::Set *> read = query_sets(sets, q);
+                swofty::log("[tracks] box %s: %s fuel written in %d of %zu set(s) (query mode %u, season %u%s; it reads "
+                            "%s); put back when the box is left",
+                            a.package.c_str(), code.c_str(), n, into.size(), q.mode, q.season, q.season_used ? "" : " unused",
+                            read.empty() ? "no set" : set_masks({read.front()}).c_str());
             }
             return;
         }
@@ -229,6 +242,19 @@ public:
     void session_end(Store &, Report &report) override
     {
         std::lock_guard g(mu);
+        if (session_query_read) {
+            session_query_read = false;
+            Query now;
+            std::string why;
+            uintptr_t e = entity();
+            if (e && read_query(e, now, why) &&
+                (now.mode != session_query.mode || now.season != session_query.season ||
+                 now.season_used != session_query.season_used))
+                swofty::log("[tracks] box fuel: the session's track data query changed during the session (mode %u, "
+                            "season %u%s at the load; mode %u, season %u%s at the end)",
+                            session_query.mode, session_query.season, session_query.season_used ? "" : " unused", now.mode,
+                            now.season, now.season_used ? "" : " unused");
+        }
         int changed = 0;
         report.put_back += put_back(session_writes, &changed);
         if (changed)
@@ -251,6 +277,31 @@ private:
     }
 };
 
+}
+
+int write_box_fuel_now(const Active &a, int mode_stat)
+{
+    if (!a.set || a.mode != Mode::grand_prix || mode_stat < 0 || mode_stat >= 32)
+        return 0;
+    bool any = false;
+    for (auto &[id, en] : a.entries.by_track)
+        any = any || (en.burn && base().by_id(id));
+    if (!any)
+        return 0;
+    std::vector<pf::Set> sets;
+    std::string why;
+    if (!read_sets(entity(), sets, why)) {
+        swofty::log("[tracks] box %s: fuel waits for the session load: %s", a.package.c_str(), why.c_str());
+        return 0;
+    }
+    std::lock_guard g(mu);
+    std::vector<const pf::Set *> into = box_sets(sets, uint32_t(mode_stat), nullptr);
+    std::vector<FuelWrite> plan = plan_box_fuel(base(), a.entries, into, "");
+    int n = apply_writes(plan, box_writes);
+    swofty::log("[tracks] box %s: fuel written at the box press: %d write(s) in %zu set(s) for setup mode %d; put back "
+                "when the box is left",
+                a.package.c_str(), n, into.size(), mode_stat);
+    return n;
 }
 
 int put_back_box_fuel(const char *why)

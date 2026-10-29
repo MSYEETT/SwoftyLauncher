@@ -5,13 +5,14 @@
 #include "../../career_ops/fuel_logic.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
 
 // The fuel writes of a box's track.per_package entries and of track.data records, planned over the track data sets
-// the fuel writer reads (career_ops/fuel_logic.hpp): the box's burn per lap on its track in the sets the session's
-// query picks, a track.data record's burn per lap in its named set. A track is written only when its fuel reads as
+// the fuel writer reads (career_ops/fuel_logic.hpp): the box's burn per lap on its tracks in every set its setup
+// mode can read and the sets the session's query picks, a track.data record's burn per lap in its named set. A track is written only when its fuel reads as
 // fuel (one to three race rows) and differs from the planned value; each write keeps the bytes it found, so the core
 // puts them back in reverse order. Pure.
 
@@ -46,6 +47,39 @@ inline std::vector<const fuel::Set *> query_sets(const std::vector<fuel::Set> &s
                     out.push_back(&s);
                 break;
             }
+    return out;
+}
+
+// The sets a box's fuel goes into: every set whose mode mask holds the box's setup mode stat id, whatever season
+// and weekend format it carries (a session in that mode reads one of them, and the season the query carries can
+// change between the box press and the race), then the sets the session's own query picks when it is known.
+inline std::vector<const fuel::Set *> box_sets(const std::vector<fuel::Set> &sets, uint32_t mode, const Query *q)
+{
+    std::vector<const fuel::Set *> out;
+    auto add = [&out](const fuel::Set *s) {
+        for (auto *o : out)
+            if (o == s)
+                return;
+        out.push_back(s);
+    };
+    for (auto &s : sets)
+        if (mode < 32 && ((s.modes >> mode) & 1u))
+            add(&s);
+    if (q)
+        for (auto *s : query_sets(sets, *q))
+            add(s);
+    return out;
+}
+
+inline std::string set_masks(const std::vector<const fuel::Set *> &sets)
+{
+    std::string out;
+    char b[64];
+    for (auto *s : sets) {
+        std::snprintf(b, sizeof b, "%smodes %#x seasons %#x formats %#x", out.empty() ? "" : "; ", s->modes, s->seasons,
+                      s->formats);
+        out += b;
+    }
     return out;
 }
 

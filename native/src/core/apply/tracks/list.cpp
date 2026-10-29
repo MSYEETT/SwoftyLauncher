@@ -7,6 +7,7 @@
 
 #include <swofty/mixin.hpp>
 
+#include <cstdlib>
 #include <map>
 #include <mutex>
 
@@ -72,6 +73,14 @@ const Facts &facts()
                     f.grid_size);
     });
     return f;
+}
+
+int setup_mode_stat(const std::string &setup_mode)
+{
+    std::string text = db_text(db_read(), "game_setup.game_setup_modes.game_setup_mode[_metadata_=" + setup_mode + "].stat_id");
+    char *end = nullptr;
+    long v = std::strtol(text.c_str(), &end, 10);
+    return text.empty() || !end || *end ? -1 : int(v);
 }
 
 BoxInfo box_info(registry::Store &store, const std::string &package, const std::string &entrant_list)

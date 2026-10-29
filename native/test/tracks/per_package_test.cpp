@@ -74,6 +74,32 @@ int main()
     plan = trk::plan_box_fuel(base, e, {&set}, "");
     expect(plan.empty(), "a track whose fuel rows don't read as fuel is not written");
 
+    std::vector<trk::fuel::Set> stock(5);
+    auto masks = [](trk::fuel::Set &x, uint32_t modes, uint32_t seasons, uint32_t formats) {
+        x.modes = modes, x.seasons = seasons, x.formats = formats;
+    };
+    masks(stock[0], 1u << 0 | 1u << 20, 1u << 5, 1u << 0);
+    masks(stock[1], 1u << 0 | 1u << 20, 1u << 5, 1u << 1);
+    masks(stock[2], 1u << 0 | 1u << 20, 1u << 7, 1u << 0);
+    masks(stock[3], 1u << 0 | 1u << 20, 1u << 7, 1u << 1);
+    masks(stock[4], 1u << 13, 1u << 8, 1u << 0);
+    trk::Query q{20, 7, true};
+    std::vector<const trk::fuel::Set *> read = trk::query_sets(stock, q);
+    expect(read.size() == 2 && read[0] == &stock[2] && read[1] == &stock[3],
+           "the session's query (swofty_f1, season_2025) reads f1_2025 and its sprint set");
+    std::vector<const trk::fuel::Set *> into = trk::box_sets(stock, 20, &q);
+    expect(into.size() == 4 && into[0] == &stock[0] && into[3] == &stock[3],
+           "a box's fuel goes into every set its setup mode can read, whatever the season");
+    trk::Query unused{20, 0, false};
+    expect(trk::query_sets(stock, unused).front() == &stock[0] && trk::box_sets(stock, 20, &unused).size() == 4,
+           "a query whose season is unused reads the first swofty_f1 set, which the box's writes cover");
+    trk::Query stock26{13, 8, true};
+    into = trk::box_sets(stock, 20, &stock26);
+    expect(into.size() == 5 && into.back() == &stock[4], "a session query in another setup mode adds the sets it reads");
+    expect(trk::box_sets(stock, 20, nullptr).size() == 4 && trk::box_sets(stock, 40, nullptr).empty(),
+           "at the box press, without a query: the setup mode's sets; an out-of-range mode: none");
+    expect(trk::set_masks({&stock[2]}) == "modes 0x100001 seasons 0x80 formats 0x1", "the log names a set by its masks");
+
     std::vector<trk::FuelWrite> done = {{0x1000, "melbourne", "a", {}, {}}, {0x2000, "monaco", "b", {}, {}}};
     std::vector<uintptr_t> order;
     for (auto it = done.rbegin(); it != done.rend(); ++it)
