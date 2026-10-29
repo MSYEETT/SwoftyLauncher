@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drs.hpp"
 #include "liveries.hpp"
 #include "lower.hpp"
 #include "rows.hpp"
@@ -25,7 +26,7 @@ inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound",   "vehicle.pack
                                                  "team.identity",  "team.pit_times",
                                                  "helmet",         "suit",                "gloves",          "driver.head",
                                                  "driver.look",    "driver.person",       "driver.identity", "driver.stats",
-                                                 "wearable.season_set", "content.package"};
+                                                 "wearable.season_set", "rules.drs",   "content.package"};
 
 inline Lookup store_lookup(registry::Store &st, std::map<std::string, Value> &keep)
 {
@@ -215,6 +216,7 @@ struct Expansion {
     std::map<std::string, std::size_t> fresh, addon_fresh;
     std::map<std::string, std::vector<std::string>> lines;
     std::map<std::string, int> records, refused;
+    std::map<std::string, std::vector<std::string>> applied;
     std::vector<Redirect> redirects;
     std::vector<Group> groups;
     std::vector<Folder> folders;
@@ -441,6 +443,8 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_team(id, *rec, lookup, read, refs, plan, stat);
             else if (r == "team.pit_times")
                 lower_pit_times(id, *rec, lookup, read, refs, plan);
+            else if (r == "rules.drs")
+                lower_drs_rule(id, *rec, plan);
             else
                 lower_package(id, *rec, lookup, plan, stat, &wear.person_driver);
             x.engine.add_fields(plan.fields);
@@ -461,6 +465,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             }
             x.engine.commit();
             x.records[reg]++;
+            x.applied[reg].push_back(id);
             x.owners.insert(owner);
             for (auto &l : plan.lines)
                 lines.push_back(l);

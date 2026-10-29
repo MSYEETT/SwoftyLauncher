@@ -40,6 +40,23 @@ namespace {
 
 std::recursive_mutex mu;
 
+std::mutex drs_mu;
+std::map<std::string, DrsGroup> drs_groups;
+
+void publish_drs(Store &st, Expansion &x)
+{
+    std::map<std::string, DrsGroup> groups;
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    for (auto &id : x.applied["rules.drs"]) {
+        const Value *rec = lookup("rules.drs", id);
+        if (auto laps = rec ? drs_laps(*rec, nullptr) : std::nullopt)
+            groups[id] = {drs_label(id), *laps};
+    }
+    std::lock_guard g(drs_mu);
+    drs_groups = std::move(groups);
+}
+
 struct Database {
     gvdb::File file;
     std::unordered_map<uint64_t, rows::Rec> edits;
@@ -538,6 +555,8 @@ public:
         apply_texts(x, registry_, report);
         if (std::string_view(registry_) == "team.identity")
             apply_logos(x, report);
+        if (std::string_view(registry_) == "rules.drs")
+            publish_drs(st, x);
         if (staged) {
             std::string records = std::to_string(staged) + " database record" + (staged == 1 ? "" : "s");
             report.summary = report.summary.empty() ? records : report.summary + "; " + records;
@@ -639,6 +658,22 @@ public:
     }
 };
 
+}
+
+DrsBox drs_for_box(const std::string &entrant_list)
+{
+    Store &st = registry::store();
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    std::vector<std::pair<std::string, const Value *>> packages;
+    for (auto &id : in_load_order(st, "content.package"))
+        packages.push_back({id, lookup("content.package", id)});
+    DrsPick pick;
+    {
+        std::lock_guard g(drs_mu);
+        pick = drs_pick(entrant_list, packages, drs_groups);
+    }
+    return {pick.group ? pick.group->label : std::string(), pick.line};
 }
 
 void register_appliers()

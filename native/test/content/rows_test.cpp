@@ -892,6 +892,95 @@ static void seat_entrant_tests()
     check(y.engine.writes().empty(), "an addon left out of the boot apply adds no entrant");
 }
 
+static void drs_tests(const std::string &regs)
+{
+    registry::reset_store();
+    auto &st = registry::store();
+    st.set_order({"mod.a", "mod.b"});
+    st.set_validator(&registry::schema_validator());
+    std::string schema = slurp(regs + "/rules.drs/1.0.json");
+    registry::table()->declare("rules.drs", SwoftyText{schema.data(), schema.size()});
+    int ra = registry::load_data_file("mod.a", "registry/drs.json", R"j({
+      "rules.drs": { "never": { "race_start": 200, "red_flag_restart": 200, "safety_car_end": 200 },
+                     "stock": {},
+                     "late": { "extends": "mod.a/stock", "race_start": 3 } } })j");
+    registry::load_data_file("mod.b", "registry/drs.json", R"j({ "rules.drs": { "bad": { "race_start": -1 } } })j");
+    st.end_register();
+    check(ra == SWOFTY_ASSET_OK && st.get("rules.drs", "mod.a/late").status == registry::Status::ok &&
+              st.get("rules.drs", "mod.b/bad").status != registry::Status::ok,
+          "rules.drs records register; a negative lap is refused by the schema");
+
+    Db db;
+    auto group = [&](int i, const char *label, const char *start) {
+        std::string g = std::string(content::DRS_GROUPS) + "_" + std::to_string(i);
+        db.put(g + "._metadata_", 2, label);
+        db.put(g + "._drs_allowed_lap_instancecount_", 0, "3");
+        const char *laps[] = {"RaceStart", "RedFlagRestart", "FullSafetyCarEnd"};
+        for (int j = 0; j < 3; j++) {
+            db.put(g + ".drs_allowed_lap_" + std::to_string(j) + "._metadata_", 2, laps[j]);
+            db.put(g + ".drs_allowed_lap_" + std::to_string(j) + ".lap_number", 0, j ? "1" : start);
+        }
+    };
+    db.put("drs.drs_allowed_lap._drs_allowed_lap_group_instancecount_", 0, "3");
+    group(0, "f1_2024", "1");
+    group(1, "f2_2023", "1");
+    group(2, "f1_elimination", "0");
+    content::StatIds stat = [](const std::string &, const std::string &, int64_t pin) -> int64_t { return pin >= 0 ? pin : 10; };
+    content::Expansion x(db.base());
+    content::expand(st, x, stat);
+    for (auto &l : x.lines["rules.drs"])
+        std::printf("      %s\n", l.c_str());
+    check(x.records["rules.drs"] == 3 && x.refused["rules.drs"] == 0 && x.applied["rules.drs"].size() == 3,
+          "three rules.drs records apply");
+    check(written(x.engine, "drs.drs_allowed_lap._drs_allowed_lap_group_instancecount_") == "6", "the group count grows by three");
+    std::map<std::string, std::string> rows;
+    for (int i = 3; i < 6; i++)
+        if (auto l = written(x.engine, std::string(content::DRS_GROUPS) + "_" + std::to_string(i) + "._metadata_"))
+            rows[*l] = std::string(content::DRS_GROUPS) + "_" + std::to_string(i);
+    std::string never = content::drs_label("mod.a/never"), late = content::drs_label("mod.a/late");
+    check(rows.count(never) && rows.count(late) && rows.count(content::drs_label("mod.a/stock")),
+          "each record is a group row labelled " + never);
+    auto lap = [&](const std::string &label, int j) {
+        return written(x.engine, rows[label] + ".drs_allowed_lap_" + std::to_string(j) + ".lap_number").value_or("-");
+    };
+    auto label_of = [&](const std::string &label, int j) {
+        return written(x.engine, rows[label] + ".drs_allowed_lap_" + std::to_string(j) + "._metadata_").value_or("-");
+    };
+    check(lap(never, 0) == "200" && lap(never, 1) == "200" && lap(never, 2) == "200" && label_of(never, 0) == "RaceStart" &&
+              label_of(never, 2) == "FullSafetyCarEnd",
+          "the never group's RaceStart, RedFlagRestart and FullSafetyCarEnd rows hold 200");
+    check(lap(late, 0) == "3" && lap(late, 1) == "1" && lap(late, 2) == "1", "a variant sets its race start and keeps the base's 1s");
+    check(written(x.engine, std::string(content::DRS_GROUPS) + "_0.drs_allowed_lap_0.lap_number") == std::nullopt,
+          "the stock f1_2024 group is not written");
+
+    check(never.rfind("swofty_drs_never_", 0) == 0 && never.size() == 25 && never != content::drs_label("mod.b/never"),
+          "a group label is swofty_drs_<key>_<8 hex of the id>, unique per id");
+    std::string long_label = content::drs_label("mod.a/" + std::string(80, 'k') + "-x");
+    check(long_label.size() <= content::DRS_LABEL_MAX && long_label.find('-') == std::string::npos,
+          "a long or unplain key is cut and made plain within 63 characters");
+    std::string why;
+    check(!content::drs_laps(swofty::json::parse(R"({"race_start": 10000})"), &why) && !why.empty() &&
+              content::drs_laps(swofty::json::parse("{}"), nullptr)->race_start == 1,
+          "a lap past 9999 is refused; a missing lap is the stock 1");
+
+    std::map<std::string, content::DrsGroup> groups = {{"mod.a/never", {never, {200, 200, 200}}}};
+    Value p2010 = swofty::json::parse(R"({"entrant_list":"cs_2010","rules":{"drs":"mod.a/never"}})");
+    Value p2011 = swofty::json::parse(R"({"entrant_list":"cs_2011","rules":{"drs":null}})");
+    Value p2012 = swofty::json::parse(R"({"entrant_list":"cs_2012","rules":{"drs":"mod.b/bad"}})");
+    std::vector<std::pair<std::string, const Value *>> packages = {
+        {"mod.a/f1_2010", &p2010}, {"mod.a/f1_2011", &p2011}, {"mod.a/f1_2012", &p2012}};
+    auto pick = content::drs_pick("cs_2010", packages, groups);
+    std::printf("      %s\n", pick.line.c_str());
+    check(pick.group && pick.group->label == never && pick.package == "mod.a/f1_2010" && pick.rule == "mod.a/never",
+          "a box whose package names an applied rule runs its group");
+    check(!content::drs_pick("cs_2011", packages, groups).group && !content::drs_pick("cs_2012", packages, groups).group &&
+              !content::drs_pick("f1_2025", packages, groups).group,
+          "no rule, a rule not added at boot, or a stock box: no group");
+    Value p2010b = swofty::json::parse(R"({"entrant_list":"cs_2010"})");
+    packages.push_back({"mod.b/f1_2010", &p2010b});
+    check(!content::drs_pick("cs_2010", packages, groups).group, "the last package with the box's entrant list decides");
+}
+
 int main(int argc, char **argv)
 {
     seat_entrant_tests();
@@ -902,6 +991,8 @@ int main(int argc, char **argv)
         variant_tests(argv[1]);
     if (argc > 1)
         team_tests(argv[1]);
+    if (argc > 1)
+        drs_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }
