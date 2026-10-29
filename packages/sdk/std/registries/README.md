@@ -14,6 +14,8 @@ registries/
 
 The 1.6.0 registries: `career.season`, `career.driver_ratings`, `content.package`, `era.box`, `vehicle`, `vehicle.package`, `engine_sound`, `team.constructor`, `team.identity`, `team.logo`, `team.pit_times`, `driver.person`, `driver.identity`, `driver.head`, `driver.look`, `driver.stats`, `helmet`, `suit`, `gloves`, `wearable.season_set`.
 
+Launcher 1.6.2 adds `team.identity` 1.1: `team_boss` (the team principal, an `entrants.characters` label) and `team_base` (a `Text`).
+
 `career.calendar`, `career.mode` and `vehicle.handling` have schemas; the 1.6.0 core stores their records and applies nothing from them.
 
 The 1.5 libraries store what addons give them in six more: `career.content` (career contents), `hub.tab` (Team HQ tabs), `career.wizard` (the career wizard), `career.character` (characters), `lang.string` (strings) and `addon.option` (addon options). The core declares them and adds a record under the calling addon's id for each 1.5 call; `lang.string` records are `game/<lng key>`, and a 1.5 `lang::set` writes the calling addon's global layer of one.

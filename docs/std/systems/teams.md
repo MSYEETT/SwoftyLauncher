@@ -61,7 +61,7 @@ struct Logo {
 SWOFTY_RECORD(Logo, images)
 
 struct Identity {                                  // one entrants.teams row
-    static constexpr Version version{1, 0};
+    static constexpr Version version{1, 1};
     Ref<Identity> donor;                           // the row it copies, all 30 keys with story_info (new teams)
     Ref<Constructor> constructor;                  // the real team it is; empty: a fictional team
     std::vector<Ref<Constructor>> provides;        // the constructor/ ids this team provides (shared ids)
@@ -74,10 +74,12 @@ struct Identity {                                  // one entrants.teams row
     int prestige = 0;                              // prestige
     std::string nationality;                       // nationality
     StatId stat_id = StatId::automatic;            // team ids run to 514
+    std::string team_boss;                         // team_boss: the principal, an entrants.characters label ("toto_wollf")
+    Text team_base;                                // team_base: the base, a lang key or a literal (1.1)
     json::Value extra;
 };
 SWOFTY_RECORD(Identity, donor, constructor, provides, names, colours, wear, livery_name, logo, audio_id, prestige,
-              nationality, stat_id)
+              nationality, stat_id, team_boss, team_base)
 
 struct PitTimes {                                  // one pit_lane.pit_times row, found by team label
     static constexpr Version version{1, 0};
@@ -242,6 +244,73 @@ auto toro_rosso = teams::identities.add("toro_rosso", {
 teams::pit_times.add("toro_rosso", { .team = toro_rosso, .from = teams::pit_times["game/tororosso"] });
 ```
 
+A team's principal and base are `team_boss` and `team_base` (`team.identity` 1.1, launcher 1.6.2). `team_boss` names a row of `entrants.characters` by its label, and the game's loaded team record keeps that character's stat id. `team_base` is the base text, a lang key or a literal. A field the record leaves out keeps the donor's value. A 1.6.0 or 1.6.1 core keeps both in the record's `extra` and writes the donor's values.
+
+```json
+// registry/teams.json
+{
+  "team.identity": {
+    "caterham": {
+      "donor": "game/williams",
+      "constructor": "constructor/caterham",
+      "provides": ["constructor/caterham"],
+      "names": { "title": { "literal": "Caterham F1 Team" }, "short_name": { "literal": "Caterham" }, "code": "CAT" },
+      "colours": { "menu": "#00573F", "primary": "#00573F", "secondary": "#F2C230", "tertiary": "#FFFFFF" },
+      "livery_name": "career2012_caterham",
+      "logo": "creator.career-2012/caterham",
+      "nationality": "malaysia",
+      "team_boss": "toto_wollf",
+      "team_base": { "literal": "Leafield, United Kingdom" }
+    }
+  }
+}
+```
+
+```cpp
+auto caterham = teams::identities.add("caterham", {
+    .donor = teams::identities["game/williams"],
+    .names = { .title = Text::literal("Caterham F1 Team"), .code = "CAT" },
+    .livery_name = "career2012_caterham",
+    .team_boss = "toto_wollf",
+    .team_base = Text::literal("Leafield, United Kingdom"),
+});
+```
+
+```text
+[teams] dress f1_career_2012 slot 10: game/williams_26 as creator.career-2012/caterham: names and colours written to the loaded record of stat id 486
+```
+
+## A season's teams
+
+`career::apply_teams` gives each of a season's slots (1 to 12) its team. A slot whose row is the team's own row races as it is. A slot whose row is another team's row is dressed: the loaded team record of the slot row takes the season team's names, code, colours, base (`team_base`) and principal (`team_boss`, through the character row's stat id). Twelve slots work in Driver Career; twelve slots with My Team (13 teams) are refused.
+
+- **Scoped to the data group.** `apply_teams` reads only the `career.season` records of the season's `data_group`, and dresses only the rows of that group's slot table (`career::set_slots`).
+- **Put back on unload.** When a career unloads, the core puts every dressed record back in its own names, colours, base and principal. A loaded team record is shared by every career of the game session. The next `apply_teams` (Progressive's, at each idle Team HQ) dresses them again.
+- **Logos follow the row.** The logo arrays are keyed by the team row's label. A dressed slot shows its slot row's logo; a team shows its own logo on a slot whose row is its own row.
+- **A principal the game can't find** (no `entrants.characters` row with that label) leaves the record's principal and logs it.
+
+```json
+// registry/seasons.json: 2012 with 12 teams, each with its own record
+{
+  "career.season": {
+    "2012": {
+      "data_group": "f1_career_2012",
+      "year": 2012,
+      "teams": [
+        { "slot": 1, "team": "creator.career-2012/red_bull", "seats": ["person/sebastian_vettel", "person/mark_webber"] },
+        { "slot": 10, "team": "creator.career-2012/caterham", "seats": ["person/heikki_kovalainen", "person/vitaly_petrov"] },
+        { "slot": 12, "team": "creator.career-2012/hrt", "seats": ["person/pedro_de_la_rosa", "person/narain_karthikeyan"] }
+      ]
+    }
+  }
+}
+```
+
+```text
+[career-ops] apply_teams slot 10: team row williams_26 (stat id 486) is dressed as creator.career-2012/caterham
+[teams] 12 dressed team record(s) back in their own names, colours, base and principal (the career unloaded)
+```
+
 ## Real teams
 
 A `constructor/` id works as a team reference: `teams::identities["constructor/toro_rosso"]` resolves to the last enabled team in load order that is that constructor. Career addons and line-ups name constructors, not one pack's keys, and they work with whichever pack provides the team. Each pack's team is still its own row with its own stat id.
@@ -321,6 +390,6 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 
 - **Applied in game:** a `team.identity` record built its row from a donor with side rows, and five logo slices were built into 33 archives and routed. A team shows in team select through a content package that lists it; a team in no package has no tile. Career with a new team (`career::apply_teams`) has not been run in game.
 - **Logo timing:** the redirect has to be installed before the game first opens a changed archive. The file route logs `the game opened this path before` when it was not; that case is not yet handled with a fallback to the donor's badge. The `eaid://` texture route (`TeamRecord.show_custom_badge_in_UI` with an added `ui_package/art/textures/<name>` resource) fits the HUD and broadcast pills only and is not run in game.
-- **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names and colours are written into the loaded team record once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting.
+- **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names, code, colours, base and principal are written into the loaded team record (`TeamRecord.team_base` +0x3a8, `team_boss` +0x581, L2) once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting. A career unload puts every dressed record back (see [A season's teams](#a-season-s-teams)).
 - **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
 - **Colours** are signed ARGB in the database, and the core converts them.

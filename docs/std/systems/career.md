@@ -404,6 +404,77 @@ SWOFTY_ADDON()
 
 The data version has no season-start handler. It lists the seasons, and applying a line-up needs code.
 
+## Career contents
+
+A **career content** is a tile in the Addons row of the career menu, under the stock 2025 and 2026 tiles, with its own data group and save slots. A `career.content` record makes one: from a data file with no DLL, from `SWOFTY_REGISTER`, or from the 1.5 call `career::content::add`, which provides the record under the calling addon's id. All three make the same tile.
+
+### From a data file
+
+```json
+// registry/career.json in community.f1-2012
+{
+  "career.mode": {
+    "f1_2012": { "data_group": "f1_career_2012", "save_container": "driver_career_2012", "title": "lng_f1_2012_title" }
+  },
+  "career.content": {
+    "f1_2012": { "mode": "community.f1-2012/f1_2012", "suffix": "12", "description": "lng_f1_2012_desc",
+                 "careers": "both" }
+  }
+}
+```
+
+- **From the mode.** A field the content leaves out comes from the `career.mode` record its `mode` names: `data_group`, `save_container` and `title`. The 1.6 core has no stock `career.mode` records: the mode is a record of its own, not a variant of `game/f1_career_2026`.
+- **Defaults.** `description` defaults to the title, `model` to `game/f1_career_2026` and `careers` to `driver`. `model` is `game/f1_career_2026` or `game/f1_career_2025`.
+- **Required.** `suffix`, and a data group, save container and title from the content or its mode.
+- **Not read for the tile:** `tile`, `calendar` and `after_last`.
+- **Layers.** The tile shows the effective record, so another addon's layer on its title, description, badge or careers shows on the tile.
+- **With a call.** When the addon's DLL also calls `career::content::add` with the record's key, the call's content replaces the record's before its first tile. Calls and records share the core's 8 contents.
+
+The tile needs the same game data as a call's tile. The 1.6 core makes none of it from records. The addon's database operations add it:
+
+- a `game_modes.ModeChampionship` row whose `save_data.name` is the save container;
+- an `entrants.entrant_lists` row named by the data group, with a `stat_id` below 256;
+- the official entrant list `F1CAREER_<suffix>` in a content set. `F2CAREER_<suffix>` and `ICONS_<suffix>` fill the F2 and Icons tabs of Choose Driver.
+
+```text
+[career] content 'f1_2012' from community.f1-2012 (career.content record community.f1-2012/f1_2012, no call) registered
+         (tile 1 after the stock ones, 2026 model, data group f1_career_2012, suffix 12, mode driver_career_2012): queued
+         for the next mixin commit
+[career] content 'f1_2012' ready: mode driver_career_2012 statId 83, data group f1_career_2012 (entrant list stat_id 41),
+         suffix 12 (F1CAREER_12, F2CAREER, ICONS)
+```
+
+A record that is missing a field makes no tile, and the log names the field:
+
+```text
+[career] career.content record community.f1-2012/f1_2012 makes no tile: it names no suffix (Choose Driver lists F1CAREER_<suffix>)
+```
+
+### From the 1.5 call
+
+```cpp
+#include <swofty/career_content.hpp>
+
+namespace content = swofty::career::content;
+
+bool register_tile()
+{
+    content::add({.id = "f1_2012",
+                  .title = "lng_f1_2012_title",
+                  .description = "lng_f1_2012_desc",
+                  .data_group = "f1_career_2012",
+                  .suffix = "12",
+                  .mode = "driver_career_2012",          // the save container
+                  .model = content::Model::f1_2026,
+                  .careers = content::Career::both});
+    return true;
+}
+
+SWOFTY_ADDON(register_tile)
+```
+
+The call provides a `career.content` record with these fields under `community.f1-2012/f1_2012`, and other addons layer it like a data-file record.
+
 ## A season's box
 
 A season's box supplies its cars, liveries, sounds and session rules. The box each season uses is chosen when the career is created.
@@ -413,6 +484,67 @@ A season's box supplies its cars, liveries, sounds and session rules. The box ea
 
 ```text
 [registry] career season 2019: box swofty.classic-seasons-2019/f1_2019 is off (cars and looks only); using game/f1_2025
+```
+
+## Standings
+
+A season starts with every team on 0 points, listed in a start order. Progressive's start order is the real previous year's final constructors' order, then the slots that year doesn't list in slot order. A slot closed that year is left out.
+
+### A twelfth team in Progressive
+
+A layer that names a team in slot 12 of a Progressive season gives that season 12 teams. Progressive passes slot 12 to `career::apply_teams` with its seats, and lists it in the season-start order after the eleven career slots:
+
+```cpp
+career::seasons.layer(career::seasons["swofty.progressive/2016"], [](career::Season &s) {
+    career::SeasonTeam twelfth;
+    twelfth.slot = 12;
+    twelfth.team = teams::identities["mod.f1-2012/marussia"];
+    twelfth.seats = { drivers::identities["mod.f1-2012/timo_glock"], drivers::identities["mod.f1-2012/charles_pic"] };
+    s.teams.push_back(twelfth);
+}, Scope::profile);
+```
+
+```text
+[progressive]   2016 slot 12 is mod.f1-2012/marussia (a record names the team)
+[progressive] standings: season 2016 starts in the real 2015 order: 24 driver(s) (lewis_hamilton first), 12 team(s): mercedes_26, ferrari_26, williams_26, redbull_26, forceindia_26, renault_26, tororosso_26, sauber_26, mclaren_26, gm_cadillac_26, haas_26, marussia
+```
+
+Slot 12 is listed by the team row the core made for the record (its key, `marussia`), and only while a row of the career races for that team:
+
+```text
+[progressive] standings: season 2016 slot 12 (marussia) is left out of the order: no row of the career races for it
+```
+
+### A box with 12 teams
+
+A `content.package` gets its own standings row, `<entrant_list>_teams`, which its entrant list names as the previous season's team standings. The core copies `f1_teams_2026` (11 teams) for a package of more than 20 cars and `f1_teams_2024` (10 teams) otherwise, and writes the package's teams into it in package order. When the package has more teams than the copied row, the core adds the rest. The entrant list grows the same way past the 22 entrants of `f1_2026`:
+
+```json
+{
+  "content.package": {
+    "f1_2012": {
+      "title": "lng_f1_2012", "entrant_list": "f1_2012", "season": 2012,
+      "teams": [
+        { "key": "redbull",  "team": "mod.f1-2012/redbull",  "vehicle": "mod.f1-2012/redbull_2012",
+          "drivers": [ { "driver": "game/sebastian_vettel", "number": 1 }, { "driver": "game/mark_webber", "number": 2 } ] },
+        { "key": "marussia", "team": "mod.f1-2012/marussia", "vehicle": "mod.f1-2012/marussia_2012",
+          "drivers": [ { "driver": "mod.f1-2012/timo_glock", "number": 24 }, { "driver": "mod.f1-2012/charles_pic", "number": 25 } ] }
+      ]
+    }
+  }
+}
+```
+
+```text
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: standings f1_2012_teams has 12 teams; f1_teams_2026 holds 11, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012 has 24 entrants; f1_2026 holds 22, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012, 24 entrants in swofty_f1
+```
+
+The package's `database` block names other rows to copy: `standings_from` a standings row, `entrant_list_from` an entrant list. A row it names that already holds every team is copied as it is, and nothing is added.
+
+```json
+"database": { "standings_from": "mod_f1_2012_teams", "entrant_list_from": "f1_2026" }
 ```
 
 ## What a career freezes
@@ -477,7 +609,7 @@ career::contents.layer(career::contents["swofty.progressive/f1_career_progressiv
 
 ## Calendars
 
-The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group and applies nothing else.
+The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group, and the save container and title a career tile takes from it (see [Career contents](#career-contents)), and applies nothing else.
 
 ```cpp
 auto calendar = career::calendars.add("f1_1990", {
@@ -625,7 +757,7 @@ The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `Swo
 `set_seat` takes a 1-based `slot` of the loaded career's data group, `set_seat_of_team` a team stat id; `set_car_number` takes `swap`, which gives the driver who held the number the caller's old one. `set_driver_ratings` writes experience, racecraft, awareness and pace by game stat id 0, 1, 3 and 4.
 
 - **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
-- **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`.
+- **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`. It reads only the records of the season's `data_group` and dresses only the rows of that group's slot table. A dressed slot row's loaded team record takes the season team's names, code, colours, base and principal (`team.identity` 1.1); its logo stays the slot row's. When the career unloads, every dressed record goes back to its own. Twelve slots work in Driver Career; twelve with My Team are refused (see [A season's teams](/std/systems/teams#a-season-s-teams)).
 - **Added teams in the new-career wizard:** a season whose slot names a team an addon made (its own `team.identity`, not a `game/` row) is an added team. The career's team rows are the ones its career list holds for every start season, so the added team wears its slot's row: the request `{"start": {"data_group": "<group>", "year": <start season>}}` dresses those rows (names, colours) while the wizard shows that start season, and `"year": 0` takes the dress off. The season start dresses the same row the same way, so the career never gets a second row for the team. At boot, each new driver (a `driver.identity` with a donor) of an added team gets a teamless entrant in the first teamless list the career list references, so the career has a row to seat him in.
 - **`set_seat`:** the driver takes race seat 0 or 1 of a slot in Driver Career. A race driver exchanges seats with the seat's driver; a free agent takes the seat and the seat's driver leaves the grid.
 - **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied.

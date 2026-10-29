@@ -1,5 +1,5 @@
 // Host unit test for the era picker logic (era_logic.hpp): the box check, the default title and image,
-// the box order, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
+// the box order, the Time Trial list and car limit, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
 #include "../src/core/era_logic.hpp"
 
 #include <cstdio>
@@ -18,7 +18,7 @@ static void expect(bool ok, const std::string &what)
 
 static era::Box box(const char *list, const char *title = "", const char *image = "", int32_t order = 0)
 {
-    return era::Box{list, title, image, order, "test", 0};
+    return era::Box{list, title, image, order, "test", 0, {}};
 }
 
 // A VM node as the game constructs a reference node (0x14083c570): its own handle at +0x8 heads its holder list.
@@ -215,6 +215,94 @@ int main()
         game_teardown(old_a);
         expect(old_b.refs() < ob && !old_b.self().node,
                "1.5.4's reset left A's holder list running into B's, so tearing A down released B's node");
+    }
+
+    {
+        std::vector<era::Box> none;
+        era::Box tt = box("bdx_2012", "lng_bdx_2012", "", 2012);
+        tt.time_trial = "bdx_2012_tt";
+        expect(era::check(tt, none).empty() && tt.time_trial == "bdx_2012_tt", "a box with a Time Trial list is accepted");
+        expect(era::list_for(tt, true) == "bdx_2012_tt" && era::list_for(tt, false) == "bdx_2012",
+               "the Time Trial picker uses the box's Time Trial list, the Grand Prix picker its own");
+        era::Box plain = box("cs_f1_2016");
+        expect(era::check(plain, none).empty() && era::list_for(plain, true) == "cs_f1_2016",
+               "a box without a Time Trial list uses its own list in Time Trial");
+        era::Box same = box("cs_f1_2017");
+        same.time_trial = "cs_f1_2017";
+        expect(era::check(same, none).empty() && same.time_trial.empty(), "a Time Trial list equal to the box's list is dropped");
+        era::Box bad = box("cs_f1_2018");
+        bad.time_trial = "has space";
+        expect(!era::check(bad, none).empty(), "a Time Trial list that is not a plain name is refused");
+        std::vector<era::Box> shared = {tt};
+        era::Box other = box("bdx_2012_alt");
+        other.time_trial = "bdx_2012_tt";
+        expect(era::check(other, shared).empty(), "two boxes may share a Time Trial list");
+
+        expect(era::TT_MAX_CARS == 23, "Time Trial holds 23 cars of a list (26 slots, 3 the game adds)");
+        expect(era::time_trial_refusal(plain, 22).empty() && era::time_trial_refusal(plain, 23).empty(),
+               "a list of 22 or 23 cars is offered in Time Trial");
+        std::string why = era::time_trial_refusal(plain, 24);
+        expect(why.find("cs_f1_2016 holds 24 cars") != std::string::npos && why.find("at most 23") != std::string::npos &&
+                   why.find("Give the box a Time Trial entrant list") != std::string::npos,
+               "a 24-car list without a Time Trial list is refused, naming the fix (" + why + ")");
+        why = era::time_trial_refusal(tt, 24);
+        expect(why.find("bdx_2012_tt holds 24 cars") != std::string::npos && why.find("Give the box") == std::string::npos,
+               "an oversized Time Trial list is refused by its own name (" + why + ")");
+        expect(era::time_trial_refusal(plain, -1).empty(), "an unread car count refuses nothing");
+
+        expect(era::entrant_count(0x1000, 0x1000 + 24 * 0x88) == 24, "24 entrant records of 0x88 bytes count 24");
+        expect(era::entrant_count(0x1000, 0x1000) == 0, "an empty list counts 0");
+        expect(era::entrant_count(0, 0x88) < 0 && era::entrant_count(0x2000, 0x1000) < 0 &&
+                   era::entrant_count(0x1000, 0x1000 + 0x89) < 0 && era::entrant_count(0x1000, 0x1000 + 65 * 0x88) < 0,
+               "a null, reversed, misaligned or over-long entrant vector is unread");
+
+        std::vector<era::ListCars> host = {{"cs_f1_2016", 22}, {"cs_f1_2017", 20}, {"bdx_s5_2012", 24}, {"unread", -1}};
+        expect(!era::oversized(23) && era::oversized(24) && !era::oversized(-1), "past 23 cars is oversized, an unread count is not");
+        auto keep = era::time_trial_keep(host);
+        expect(keep == std::vector<size_t>{0, 1, 3},
+               "a stock press in Time Trial keeps swofty_f1's lists of at most 23 cars and the unread ones, and drops the 24-car list");
+        std::vector<era::ListCars> fine = {{"cs_f1_2016", 22}, {"cs_f1_2017", 20}};
+        expect(era::time_trial_keep(fine).size() == fine.size(), "lists that all fit are all kept");
+        std::vector<era::ListCars> big = {{"a", 24}, {"b", 30}};
+        expect(era::time_trial_keep(big).empty(), "lists that all overflow keep nothing (the core then leaves them offered)");
+
+        std::vector<era::ListCars> esm = {{"bdx_s5_2012", 24}, {"cs_f1_2016", 22}, {"f1_2025", 20}, {"tt_list", 12}};
+        expect(era::time_trial_fallback(esm, {"f1_2025"}) == 2, "an oversized session list falls back to the box pressed");
+        expect(era::time_trial_fallback(esm, {"bdx_s5_2012", "tt_list"}) == 3,
+               "an oversized box pressed falls back to its Time Trial list");
+        expect(era::time_trial_fallback(esm, {"missing"}) == 1, "with no preferred list, the first list that fits");
+        expect(era::time_trial_fallback(esm, {}) == 1, "with no box pressed, the first list that fits");
+        std::vector<era::ListCars> none_fit = {{"bdx_s5_2012", 24}, {"unread", -1}};
+        expect(era::time_trial_fallback(none_fit, {"unread"}) == -1, "an unread list is never a fallback, nor is an oversized one");
+
+        std::string swap = era::time_trial_swap("bdx_s5_2012", 24, "swofty_f1", "cs_f1_2016", 0);
+        expect(swap.find("bdx_s5_2012 (setup mode swofty_f1) holds 24 cars") != std::string::npos &&
+                   swap.find("at most 23") != std::string::npos && swap.find("loading cs_f1_2016 instead") != std::string::npos &&
+                   swap.find("max_entrants") == std::string::npos,
+               "the swap line names the list, its setup mode, its count and the list loaded instead (" + swap + ")");
+        swap = era::time_trial_swap("bdx_s5_2012", 24, "bdx_2012_mode", "", 24);
+        expect(swap.find("offers no list of at most 23 cars") != std::string::npos &&
+                   swap.find("max_entrants 24 -> 23 until the session ends") != std::string::npos,
+               "with nothing to load instead, the line says the session draws at most 23 cars (" + swap + ")");
+
+        expect(era::time_trial_limit(24) == 23 && era::time_trial_limit(-1) == 23 && era::time_trial_limit(0) == 23,
+               "an entrant setup mode allowing more than 23 cars, or any number, is held to 23 for a Time Trial session");
+        expect(era::time_trial_limit(23) == 23 && era::time_trial_limit(20) == 20 && era::time_trial_limit(5) == 5,
+               "a limit of at most 23 is left as it is");
+
+        uintptr_t b = 0x10000;
+        expect(era::session_vehicles(b, b + 27 * 8) == 27 && era::session_vehicles(b, b + 25 * 8) == 25 &&
+                   era::session_vehicles(b, b) == 0 && era::session_vehicles(b + 8, b) == 0,
+               "the session's vehicle count is its pointer vector's length, 0 when empty or reversed");
+        expect(era::vehicles_end_within_table(b, b + 27 * 8) == b + 26 * 8,
+               "27 vehicles (a 24-car list plus the game's 3) are handed over as the first 26, the table's size");
+        expect(era::vehicles_end_within_table(b, b + 26 * 8) == b + 26 * 8 && era::vehicles_end_within_table(b, b + 25 * 8) == b + 25 * 8,
+               "26 vehicles or fewer are handed over as they are");
+
+        for (const char *m : {"time_trial", "solo_testing"})
+            expect(era::time_trial_mode(m), std::string(m) + " is a Time Trial picker");
+        for (const char *m : {"grand_prix_23", "grand_prix_splitscreen", "", "my_team_career_25"})
+            expect(!era::time_trial_mode(m), std::string("'") + m + "' is not a Time Trial picker");
     }
 
     expect(era::ADDON_PRESS == 0x8fb68dffu && era::SELECT_PRESS == 0x2b0357au && era::ADDON_TILES == 0xf2614e2bu,
