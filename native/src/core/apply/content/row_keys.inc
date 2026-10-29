@@ -492,6 +492,23 @@ material_override
 name_loc_tag
 nb_colours
 outfit
+@driver_market.driver_market.DataGroup_N.driver_firings.DriverFiredSchedule_N.DriverFired_N
+_metadata_
+driver
+season_index
+@driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N
+_metadata_
+driver
++date_time
+@driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N.date_time_N
+_metadata_
+day
+daylight_saving
+hour
+minute
+month
+second
+year
 @driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements.TeamDriverRatingRangeRequirement_N
 _metadata_
 rating_range
@@ -676,7 +693,8 @@ date_of_birth.month
 date_of_birth.second
 date_of_birth.year
 rev_lights_configuration.green_rev_lights_configuration
-rev_lights_configuration.purple_rev_lights_configuration
+rev_lights_configuration.pu)keys",
+    R"keys(rple_rev_lights_configuration
 rev_lights_configuration.red_rev_lights_configuration
 @entrants.entrant_lists.entrant_list_N
 +entrant
@@ -695,8 +713,7 @@ restrict_custom_driver_numbers
 season
 stat_id
 ui_path
-@)keys",
-    R"keys(entrants.entrant_lists.entrant_list_N.entrant_N
+@entrants.entrant_lists.entrant_list_N.entrant_N
 _metadata_
 badge_customisation
 car_number
@@ -879,13 +896,13 @@ ai_vehicle_config.ers_use.xmode_passive.switch_from_none_to_medium_in_race_batte
 ai_vehicle_config.exit_fallibility.max_throttle_error_by_grip_dry
 ai_vehicle_config.exit_fallibility.max_throttle_error_by_grip_wet
 ai_vehicle_config.exit_fallibility.max_throttle_error_by_mass
-ai_vehicle_config.exit_fallibility.max_yaw_angle_deg
+ai_vehicle_confi)keys",
+    R"keys(g.exit_fallibility.max_yaw_angle_deg
 ai_vehicle_config.formation_lap.parking_speed_limit
 ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_dry_tyres
 ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_dry_tyres
-ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_we)keys",
-    R"keys(t_tyres
+ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.use_physics_auto_gearbox_downshift_speed
 ai_vehicle_config.lost_control.angle
 ai_vehicle_config.lost_control.over_rotation_to_spin_time
@@ -1034,13 +1051,13 @@ vehicle_lock
 vehicle_package
 @entrants.vehicles.vehicle_packages.vehicle_package_N
 _metadata_
-ai_package_folder
+ai_package_fo)keys",
+    R"keys(lder
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_high_characteristic_mapping
-ai_vehicle_pack)keys",
-    R"keys(age_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_low_characteristic_mapping

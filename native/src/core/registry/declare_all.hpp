@@ -47,6 +47,8 @@ template <class Declare> std::size_t declare_system_registries(Declare &&declare
     one(career::seasons);
     one(career::calendars);
     one(career::ratings);
+    one(career::rnd_trees);
+    one(career::markets);
     return count;
 }
 
