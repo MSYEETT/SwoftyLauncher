@@ -82,6 +82,9 @@ pub struct Std {
     pub files: super::paths::Named,
     /// Why its `registry.json` or lock file couldn't be read.
     pub unreadable: Vec<String>,
+    /// The tracks its `track.add` operations add when it has no track record, as the core lists
+    /// them (`<addon>/<code>`), with the venue their name matches.
+    pub older_tracks: Vec<(String, Option<String>)>,
 }
 
 impl Std {
@@ -117,6 +120,7 @@ impl Std {
             records,
             files,
             unreadable,
+            older_tracks: Vec::new(),
         }
     }
 
@@ -131,6 +135,7 @@ impl Std {
             records: Vec::new(),
             files: Default::default(),
             unreadable: Vec::new(),
+            older_tracks: Vec::new(),
         }
     }
 
@@ -161,6 +166,15 @@ impl Std {
         self.id == id || self.aliases().iter().any(|a| a == id)
     }
 
+    /// Whether it adds a record to `registry`, in a data file or through its lock.
+    pub fn has_records(&self, registry: &str) -> bool {
+        self.records.iter().any(|r| r.registry == registry)
+            || self
+                .lock
+                .as_ref()
+                .is_some_and(|l| l.provides.get(registry).is_some_and(|p| !p.is_empty()))
+    }
+
     fn provides_record(&self, registry: &str, id: &str) -> bool {
         self.lock
             .as_ref()
@@ -169,6 +183,11 @@ impl Std {
                 .records
                 .iter()
                 .any(|r| r.registry == registry && (r.id == id || r.provides.iter().any(|p| p == id)))
+            || (registry == crate::tracks::TRACK_REGISTRY
+                && self
+                    .older_tracks
+                    .iter()
+                    .any(|(t, venue)| t == id || venue.as_deref() == Some(id)))
     }
 
     fn defines_registry(&self, name: &str) -> Option<Option<Version>> {
@@ -334,7 +353,7 @@ pub fn check(scene: &Scene) -> Report {
                 };
                 let met = n.alternatives().any(|alt| match Target::record(alt) {
                     Some(Target::Record { registry, id }) => {
-                        id.starts_with("game/") || record_met(scene, &registry, &id).is_some()
+                        stock_met(&registry, &id) || record_met(scene, &registry, &id).is_some()
                     }
                     _ => false,
                 });
@@ -487,7 +506,7 @@ fn need(scene: &Scene, a: &Std, n: &Need, level: Level) -> Option<Finding> {
             )
         }
         Target::Record { registry, id } => {
-            if id.starts_with("game/") {
+            if stock_met(registry, id) {
                 return None;
             }
             if let Some(p) = record_met(scene, registry, id) {
@@ -524,6 +543,12 @@ fn need(scene: &Scene, a: &Std, n: &Need, level: Level) -> Option<Finding> {
             })
         }
     }
+}
+
+/// Whether the game provides the record: a `game/` id, or a venue a stock track provides.
+fn stock_met(registry: &str, id: &str) -> bool {
+    id.starts_with("game/")
+        || (registry == crate::tracks::TRACK_REGISTRY && crate::tracks::Venues::shipped().stock_provides(id))
 }
 
 /// The last addon on in load order that provides the record, as a venue resolves.
@@ -612,10 +637,13 @@ pub fn read_all(
     installed
         .iter()
         .map(|(id, m)| {
-            let s = match store.is_builtin(id) {
+            let mut s = match store.is_builtin(id) {
                 true => Std::bare(m),
                 false => Std::read(&store.addons_dir().join(id), m),
             };
+            if !s.has_records(crate::tracks::TRACK_REGISTRY) {
+                s.older_tracks = crate::tracks::older_ids(store, id, m);
+            }
             (id.clone(), s)
         })
         .collect()
@@ -846,13 +874,13 @@ mod tests {
             "a.x",
             "X",
             "1.0.0",
-            Some(r#"{ "requires": [ { "record": "track:venue/imola" } ] }"#),
+            Some(r#"{ "requires": [ { "record": "track:venue/hockenheimring" } ] }"#),
             None,
         );
         assert_eq!(
             lines(&w.check(&["a.x"]), Level::Stop),
             [
-                "X needs track venue/imola, which no addon on in profile main provides. Install an addon that provides \
+                "X needs track venue/hockenheimring, which no addon on in profile main provides. Install an addon that provides \
               it in the Addon Browser, or turn X off."
             ]
         );
@@ -874,6 +902,51 @@ mod tests {
             r#"{ "track": { "sochi": { "slot": "game/sochi", "provides": ["venue/sochi"] } } }"#,
         );
         assert!(w.check(&["a.x", "mod.sochi"]).is_empty());
+    }
+
+    #[test]
+    fn a_track_venue_is_met_by_a_stock_track_or_an_older_track_of_that_name() {
+        let needs = r#"{ "requires": [ { "record": "track:venue/albert_park" }, { "record": "track:venue/sepang" },
+                                       { "record": "track:mod.okayama/okayama" } ] }"#;
+        let mut w = World::new()
+            .add("a.x", "X", "1.0.0", Some(needs), None)
+            .add("mod.bahrain24", "Sepang", "1.0.0", None, None)
+            .add("mod.okayama", "Okayama", "1.0.0", None, None);
+        w.std.get_mut("mod.bahrain24").unwrap().older_tracks =
+            vec![("mod.bahrain24/bahrain24".into(), Some("venue/sepang".into()))];
+        w.std.get_mut("mod.okayama").unwrap().older_tracks = vec![("mod.okayama/okayama".into(), None)];
+        assert!(w.check(&["a.x", "mod.bahrain24", "mod.okayama"]).is_empty());
+        assert_eq!(
+            lines(&w.check(&["a.x"]), Level::Stop),
+            [
+                "X needs track venue/sepang, which no addon on in profile main provides. Turn Sepang on on the \
+                 Addons page, or turn X off.",
+                "X needs track mod.okayama/okayama, which no addon on in profile main provides. Turn Okayama on on \
+                 the Addons page, or turn X off."
+            ]
+        );
+        let lock = r#"{ "needs": [ { "record": "track:venue/suzuka", "policy": "required" },
+                                   { "record": "track:venue/sepang", "policy": "required" } ] }"#;
+        let w = w.add("a.esp", "ESP", "1.0.0", None, Some(lock));
+        assert_eq!(
+            lines(&w.check(&["a.esp"]), Level::Warn),
+            [
+                "ESP uses track venue/sepang, which no addon on in profile main provides. The game stops what needs \
+              it with a message naming the fix."
+            ]
+        );
+    }
+
+    #[test]
+    fn has_records_reads_data_files_and_the_lock() {
+        let m = manifest("mod.t", "T", "1.0.0");
+        let mut s = Std::bare(&m);
+        assert!(!s.has_records("track"));
+        s.lock = Some(Lock::parse(r#"{ "provides": { "track": [ "mod.t/t" ] } }"#).unwrap());
+        assert!(s.has_records("track") && !s.has_records("vehicle"));
+        let mut s = Std::bare(&m);
+        s.records = data::records("mod.t", r#"{ "track": { "t": { "code": "t" } } }"#);
+        assert!(s.has_records("track"));
     }
 
     #[test]
