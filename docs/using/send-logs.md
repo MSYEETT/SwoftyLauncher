@@ -27,7 +27,7 @@ When a game session ends in a crash, the launcher opens a full-window **F1 25 cr
 |---|---|
 | F1 25 needs more free space | F1 25's own **Insufficient Storage** dialog before it closed. The screen names the drive, the space F1 25 needs there and how much to free |
 | Windows blocked Swofty's files from loading | Exit code `0xc0e90002`, from Smart App Control or an app control policy |
-| F1 25's game memory filled up | `Ne heap error 0xc` in the `GAME_DEFAULT` heap. The screen names the imported tracks on in the profile, Sepang first, and the number of Classic Seasons years |
+| F1 25's game memory filled up | `Ne heap error 0xc` in the `GAME_DEFAULT` heap. The screen names the imported tracks on in the profile, Sepang first, and the number of Classic Seasons years. The step to turn a track off says that a career whose next round is at that track needs the round changed with the Career Mode Editor first |
 | Windows ran out of memory | `Ne heap error 0x58` or `0x5`, or an `allocateAligned` / `useAddressSpace` failure: RAM and the page file are used up |
 | F1 25 froze and closed itself | F1 25's own 30-second hang watchdog closed the game. The screen names an addon that kept the game busy while it froze, a graphics driver error just before it, and graphics mods in the game folder |
 | Manual Pit Lane crashed F1 25 in the pit lane | A crash in F1 25's code just as Manual Pit Lane (`kizi.pitlane`) kept control of the car or read a garbage control mode for it, as happens on Return to Garage or a flashback in the pit lane |

@@ -1034,13 +1034,15 @@ fn game_heap(e: &Evidence) -> Diagnosis {
     }
     let mut steps = Vec::new();
     if let Some(first) = tracks.first() {
-        let which = if e.tracks.iter().any(|t| t == SEPANG) {
-            first.clone()
-        } else {
-            list(&tracks)
+        let one = tracks.len() == 1 || e.tracks.iter().any(|t| t == SEPANG);
+        let (which, at) = match one {
+            true => (first.clone(), first.clone()),
+            false => (list(&tracks), "one of them".to_owned()),
         };
         steps.push(format!(
-            "Turn off {which} in your profile, or make a lighter profile without it for the sessions it crashes in."
+            "Turn off {which} in your profile, or make a lighter profile without it for the sessions it crashes in. \
+             If your career's next round is at {at}, change that round with the Career Mode Editor first: the career \
+             won't load while that track is off."
         ));
     }
     steps.push(if years_on > 0 {
@@ -2206,6 +2208,7 @@ mod tests {
             ev(GAME_HEAP, &[]),
             &[
                 ("mod.hockenheim", "Hockenheim"),
+                ("mod.portimao", "Portimao"),
                 ("mod.bahrain24", "Sepang"),
                 ("swofty.classic-seasons", "Classic Seasons"),
                 ("swofty.classic-seasons-2016", "Classic Seasons 2016"),
@@ -2223,6 +2226,22 @@ mod tests {
         );
         assert!(
             d.steps[0].starts_with("Turn off Sepang in your profile"),
+            "{}",
+            d.steps[0]
+        );
+        assert!(
+            d.steps[0].ends_with(
+                "If your career's next round is at Sepang, change that round with the Career Mode Editor first: \
+                 the career won't load while that track is off."
+            ),
+            "{}",
+            d.steps[0]
+        );
+        e.tracks = vec!["mod.hockenheim".into(), "mod.portimao".into()];
+        let d = diagnose(&e).unwrap();
+        assert!(
+            d.steps[0].contains("Turn off Hockenheim and Portimao in your profile")
+                && d.steps[0].contains("next round is at one of them,"),
             "{}",
             d.steps[0]
         );
