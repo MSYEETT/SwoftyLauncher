@@ -818,7 +818,10 @@ typedef struct SwoftyServices {
    (1-12) races as its team (the data group's slot table, the Championship's participants), and a team
    with no career rows gets them, built from its donor's (contracts, R&D, standings, initial cash, renown
    and the side data found by team label); an empty team leaves the slot out of the Championship. The
-   report has apply_lineup's shape, counted per slot. A core that has not implemented it leaves it NULL.
+   report has apply_lineup's shape, counted per slot. A core that has not implemented it leaves it NULL. The
+   request {"start": {"data_group": "<group>", "year": <start season>}} dresses the slot rows of that season's
+   added teams (a slot naming a team.identity an addon made) for the new-career wizard, and year 0 takes the dress
+   off; the season start then dresses the same rows the same way. The report counts "dressed" and "undressed".
    Table version 4 adds set_seat, set_car_number and set_track_fuel. set_seat takes {"driver": <stat>,
    "team": <stat> or "slot": <1-based slot of the loaded career's data group>, "seat": 0 or 1, "car": <stat,
    optional>}: the driver takes that race seat in Driver Career; the seat's driver takes his old seat, or
