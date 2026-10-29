@@ -52,7 +52,7 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("livery", "1.0"),
     ("suit", "1.0"),
     ("team.constructor", "1.0"),
-    ("team.identity", "1.0"),
+    ("team.identity", "1.1"),
     ("team.logo", "1.0"),
     ("team.pit_times", "1.0"),
     ("vehicle", "1.0"),
@@ -134,6 +134,16 @@ impl Std {
             || self.lock.is_some()
             || !self.data_files.is_empty()
             || !self.unreadable.is_empty()
+    }
+
+    /// Whether the core has registry records of the addon to read at the early stage: data files
+    /// in `registry/`, or what its lock file says its `SWOFTY_REGISTER` registers.
+    pub fn registers(&self) -> bool {
+        !self.data_files.is_empty()
+            || self
+                .lock
+                .as_ref()
+                .is_some_and(|l| l.provides.values().any(|p| !p.is_empty()) || !l.providers.is_empty())
     }
 
     pub fn aliases(&self) -> &[String] {

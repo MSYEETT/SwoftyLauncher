@@ -500,6 +500,45 @@ void test_stat_id_and_reports(const std::string &dir)
 
 }
 
+void test_file_route_boot()
+{
+    reg::reset_store();
+    reg::Store &st = reg::store();
+    st.set_order({"bydanix.f1-2012-season"});
+    declare(st, "t.teams", reg::Applies::boot);
+    declare(st, "t.none", reg::Applies::boot);
+    std::string id;
+    st.add("bydanix.f1-2012-season", "t.teams", "bdx_s5_team_hrt", Value::object({{"n", Value(1)}}), &id);
+    st.end_register();
+    ap::clear_appliers();
+    ap::make<TestApplier>("t.teams", reg::Applies::boot, 0);
+    ap::make<TestApplier>("t.none", reg::Applies::boot, 0);
+    ap::Scheduler s(st);
+    s.set_log([](const std::string &l) { logs.push_back(l); });
+    check(s.plan_boot() == 0 && s.boot_work(),
+          "an addon's boot record with no new database key still makes boot work: with no runtime database edits (the "
+          "file route) the core hooks the database load for it");
+    ap::db::staging().open([](const std::string &) { return true; });
+    calls.clear();
+    s.run_boot();
+    auto rows = ap::db::staging().close();
+    bool teams_row = false;
+    for (auto &r : rows)
+        teams_row |= r.registry == "t.teams";
+    check(teams_row, "and its boot applier stages its rows on that load");
+
+    reg::reset_store();
+    reg::Store &bare = reg::store();
+    declare(bare, "t.none", reg::Applies::boot);
+    bare.end_register();
+    ap::clear_appliers();
+    ap::make<TestApplier>("t.none", reg::Applies::boot, 0);
+    ap::Scheduler idle(bare);
+    idle.plan_boot();
+    check(!idle.boot_work(), "a profile without boot records has no boot work, so the core leaves the database load alone");
+    ap::clear_appliers();
+}
+
 int main(int argc, char **argv)
 {
     std::string dir = argc > 1 ? argv[1] : ".";
@@ -510,6 +549,7 @@ int main(int argc, char **argv)
     test_scheduler();
     test_facts();
     test_stat_id_and_reports(dir);
+    test_file_route_boot();
     std::printf("apply: %d check(s), %d failure(s)\n", checks, failures);
     return failures ? 1 : 0;
 }
