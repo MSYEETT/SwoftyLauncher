@@ -112,6 +112,7 @@ drivers::identities.variant("alain_prost", drivers::identities["game/jarno_opmee
 - **One store per install.** The core keeps the ids it allocates in the launcher's data folder, at `$DATA/registry/ids.json`, keyed by record id. A record gets the same id at every later start.
 - **Ids are reused only when no career uses them.** An id stays taken while any career's save refers to it.
 - **Each career carries its own id map** in its save entry (`swofty_registry`): every record it uses, with the stat id it was saved with. A save synced to another PC can't swap a track or a driver.
+- **Rows already in the database keep their ids.** When a stock row, or a row an older addon's database operations add, holds a record's id under another label, the record takes the next free id of its pool (see [Stat ids](/std/registry#stat-ids)).
 
 The pools are small and differ per table:
 

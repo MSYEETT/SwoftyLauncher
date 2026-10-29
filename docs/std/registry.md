@@ -368,6 +368,17 @@ An explicit `stat_id` you ship stays your record's id from then on. Other addons
 [registry] stat ids: track mod.sochi/sochi -> 18 (kept from ids.json)
 ```
 
+A row already in the database the game loads keeps its id. That is a stock row, or a row an older addon's database operations add with an explicit `stat_id`. This covers the records the core writes rows for at boot: cars, vehicle packages, packages' entrant lists and scenarios, teams, drivers, heads, looks, helmets, suits, gloves and team kits:
+
+- **The record moves.** When such a row holds your record's `stat_id`, or the id `ids.json` kept for it, under another label, your record takes the next free id of its pool. The core logs it once per game start.
+- **The new id is kept.** The record keeps it at every start while the row is there, and gets its own `stat_id` back when the row is gone.
+- **A career saved before the move** still holds the old id in its map. At `career.load`, the guard names the row that holds it (see [Dependencies and guards](/std/dependencies)).
+- **Stock rows and the older addon's rows are never changed.**
+
+```text
+[registry] ids: swofty.classic-seasons-2017/ferrari pinned vehicle stat id 509 is held by bdx_s5_car_mclaren_3 from the database; uses 600
+```
+
 ## Tags
 
 A **tag** is a shared, named set of records in one registry. The core defines the shared tags, such as `c/f1_cars` on `vehicle` (and on `vehicle.handling`, for the same cars' handling) and `c/street_circuits` on `track`. Any addon can add its records to one. Selectors, event scopes and a box's track list can target a tag, and they reach records that addons add later.
