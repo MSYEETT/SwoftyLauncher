@@ -475,7 +475,7 @@ swofty::era::add_box({
   - When a Time Trial session loads, the core logs the list the game resolved. When that list, or the first list of its entrant setup mode, holds more than 23 cars, the core loads a list of at most 23 cars from the same entrant setup mode instead. It tries the box pressed first, then that box's Time Trial list, then the first list that fits.
   - The session's entrant setup mode draws at most 23 cars (`max_entrants` above 23, or unset, is held at 23) until the session ends. With no list that fits, this keeps the session at 23 cars of the list.
   - Everything the guard changed is put back when the session ends or a box is pressed.
-- A core before launcher 1.6.3 ignores `time_trial` and has no guard.
+- A core before launcher 1.6.2 ignores `time_trial` and has no guard.
 
 ```text
 [era]      box ex_f1_2012 from mod.example registered (title lng_ex_f1_2012, image #overrides.home_screen.tiles_solo_6x6[ex_f1_2012], order 2012, Time Trial list ex_f1_2012_tt): live from the next build of the picker
