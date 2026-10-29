@@ -256,6 +256,49 @@ int main()
                    era::entrant_count(0x1000, 0x1000 + 0x89) < 0 && era::entrant_count(0x1000, 0x1000 + 65 * 0x88) < 0,
                "a null, reversed, misaligned or over-long entrant vector is unread");
 
+        std::vector<era::ListCars> host = {{"cs_f1_2016", 22}, {"cs_f1_2017", 20}, {"bdx_s5_2012", 24}, {"unread", -1}};
+        expect(!era::oversized(23) && era::oversized(24) && !era::oversized(-1), "past 23 cars is oversized, an unread count is not");
+        auto keep = era::time_trial_keep(host);
+        expect(keep == std::vector<size_t>{0, 1, 3},
+               "a stock press in Time Trial keeps swofty_f1's lists of at most 23 cars and the unread ones, and drops the 24-car list");
+        std::vector<era::ListCars> fine = {{"cs_f1_2016", 22}, {"cs_f1_2017", 20}};
+        expect(era::time_trial_keep(fine).size() == fine.size(), "lists that all fit are all kept");
+        std::vector<era::ListCars> big = {{"a", 24}, {"b", 30}};
+        expect(era::time_trial_keep(big).empty(), "lists that all overflow keep nothing (the core then leaves them offered)");
+
+        std::vector<era::ListCars> esm = {{"bdx_s5_2012", 24}, {"cs_f1_2016", 22}, {"f1_2025", 20}, {"tt_list", 12}};
+        expect(era::time_trial_fallback(esm, {"f1_2025"}) == 2, "an oversized session list falls back to the box pressed");
+        expect(era::time_trial_fallback(esm, {"bdx_s5_2012", "tt_list"}) == 3,
+               "an oversized box pressed falls back to its Time Trial list");
+        expect(era::time_trial_fallback(esm, {"missing"}) == 1, "with no preferred list, the first list that fits");
+        expect(era::time_trial_fallback(esm, {}) == 1, "with no box pressed, the first list that fits");
+        std::vector<era::ListCars> none_fit = {{"bdx_s5_2012", 24}, {"unread", -1}};
+        expect(era::time_trial_fallback(none_fit, {"unread"}) == -1, "an unread list is never a fallback, nor is an oversized one");
+
+        std::string swap = era::time_trial_swap("bdx_s5_2012", 24, "swofty_f1", "cs_f1_2016", 0);
+        expect(swap.find("bdx_s5_2012 (setup mode swofty_f1) holds 24 cars") != std::string::npos &&
+                   swap.find("at most 23") != std::string::npos && swap.find("loading cs_f1_2016 instead") != std::string::npos &&
+                   swap.find("max_entrants") == std::string::npos,
+               "the swap line names the list, its setup mode, its count and the list loaded instead (" + swap + ")");
+        swap = era::time_trial_swap("bdx_s5_2012", 24, "bdx_2012_mode", "", 24);
+        expect(swap.find("offers no list of at most 23 cars") != std::string::npos &&
+                   swap.find("max_entrants 24 -> 23 until the session ends") != std::string::npos,
+               "with nothing to load instead, the line says the session draws at most 23 cars (" + swap + ")");
+
+        expect(era::time_trial_limit(24) == 23 && era::time_trial_limit(-1) == 23 && era::time_trial_limit(0) == 23,
+               "an entrant setup mode allowing more than 23 cars, or any number, is held to 23 for a Time Trial session");
+        expect(era::time_trial_limit(23) == 23 && era::time_trial_limit(20) == 20 && era::time_trial_limit(5) == 5,
+               "a limit of at most 23 is left as it is");
+
+        uintptr_t b = 0x10000;
+        expect(era::session_vehicles(b, b + 27 * 8) == 27 && era::session_vehicles(b, b + 25 * 8) == 25 &&
+                   era::session_vehicles(b, b) == 0 && era::session_vehicles(b + 8, b) == 0,
+               "the session's vehicle count is its pointer vector's length, 0 when empty or reversed");
+        expect(era::vehicles_end_within_table(b, b + 27 * 8) == b + 26 * 8,
+               "27 vehicles (a 24-car list plus the game's 3) are handed over as the first 26, the table's size");
+        expect(era::vehicles_end_within_table(b, b + 26 * 8) == b + 26 * 8 && era::vehicles_end_within_table(b, b + 25 * 8) == b + 25 * 8,
+               "26 vehicles or fewer are handed over as they are");
+
         for (const char *m : {"time_trial", "solo_testing"})
             expect(era::time_trial_mode(m), std::string(m) + " is a Time Trial picker");
         for (const char *m : {"grand_prix_23", "grand_prix_splitscreen", "", "my_team_career_25"})

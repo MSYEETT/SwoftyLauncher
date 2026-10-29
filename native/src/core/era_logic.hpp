@@ -17,6 +17,17 @@
 // them in a table of 26 at +0xb0 with its count right behind it at +0x180. A 22-car list gives 25; a
 // 24-car list gives 27 and overwrites the count. A list object (Sess_Load_AvailableEntrantLists, copied
 // by 0x1424df240) holds its entrants as 0x88-byte records from +0x10 to +0x18.
+//
+// The guard holds for any list, whichever box or addon made the setup select it. On a Time Trial picker,
+// a press on a stock box leaves swofty_f1 offering only the lists of at most 23 cars, and when a Time Trial
+// session loads (StateLoadSession) the core reads the setup's resolved list (setup +0xe18, the setup being
+// *(*(mode context+0x88)+0x260), its entrant setup mode +0xe10, its game setup mode +0x2b0) and, when that
+// list or the entrant setup mode's first list holds more than 23 cars, selects a list of at most 23 cars
+// from the same entrant setup mode instead (the box pressed, then its Time Trial list, then the first that
+// fits) and holds the entrant setup mode's max_entrants (+0x268, the selector's limit, research grid24-cap
+// §2 step 6) at 23 until the session ends or a box is pressed. As the last net, a wrap of 0x142f45960
+// (Sess_Setup_VehicleComponents) that sees more vehicles than the table's 26 hands the game a vector of the
+// first 26 for that call and logs the list, so the table is never written past its end.
 
 namespace runtime::era {
 
@@ -123,6 +134,74 @@ inline std::string time_trial_refusal(const Box &box, int64_t cars)
     if (box.time_trial.empty())
         why += ". Give the box a Time Trial entrant list of at most " + std::to_string(TT_MAX_CARS) + " cars";
     return why;
+}
+
+// The Time Trial guard. A list whose car count was read and is past TT_MAX_CARS is oversized; a count that
+// could not be read (-1) is kept, so the guard never drops what it cannot see.
+struct ListCars {
+    std::string name;
+    int64_t cars = -1;
+};
+
+inline bool oversized(int64_t cars)
+{
+    return cars >= 0 && size_t(cars) > TT_MAX_CARS;
+}
+
+inline std::vector<size_t> time_trial_keep(const std::vector<ListCars> &lists)
+{
+    std::vector<size_t> keep;
+    for (size_t i = 0; i < lists.size(); ++i)
+        if (!oversized(lists[i].cars))
+            keep.push_back(i);
+    return keep;
+}
+
+inline int64_t time_trial_fallback(const std::vector<ListCars> &lists, const std::vector<std::string> &prefer)
+{
+    auto fits = [&](size_t i) { return lists[i].cars >= 0 && !oversized(lists[i].cars); };
+    for (const auto &want : prefer)
+        for (size_t i = 0; i < lists.size(); ++i)
+            if (!want.empty() && lists[i].name == want && fits(i))
+                return int64_t(i);
+    for (size_t i = 0; i < lists.size(); ++i)
+        if (fits(i))
+            return int64_t(i);
+    return -1;
+}
+
+inline int32_t time_trial_limit(int32_t max_entrants)
+{
+    return max_entrants < 1 || size_t(max_entrants) > TT_MAX_CARS ? int32_t(TT_MAX_CARS) : max_entrants;
+}
+
+inline std::string time_trial_swap(const std::string &list, int64_t cars, const std::string &setup_mode,
+                                   const std::string &instead, int32_t limit_was)
+{
+    std::string why = "the Time Trial session's list " + list + " (setup mode " + setup_mode + ") holds " +
+                      std::to_string(cars) + " cars; Time Trial holds at most " + std::to_string(TT_MAX_CARS) +
+                      " (the game adds " + std::to_string(TT_EXTRA_CARS) + " cars of its own to a table of " +
+                      std::to_string(TT_TABLE) + ")";
+    if (!instead.empty())
+        why += "; loading " + instead + " instead";
+    else
+        why += "; its entrant setup mode offers no list of at most " + std::to_string(TT_MAX_CARS) + " cars";
+    if (limit_was)
+        why += "; the session draws at most " + std::to_string(TT_MAX_CARS) + " cars (max_entrants " +
+               std::to_string(limit_was) + " -> " + std::to_string(TT_MAX_CARS) + " until the session ends)";
+    return why;
+}
+
+constexpr size_t VEHICLE_SLOT = 8;
+
+inline size_t session_vehicles(uintptr_t begin, uintptr_t end)
+{
+    return end > begin ? size_t(((end - begin) / VEHICLE_SLOT) & 0xff) : 0;
+}
+
+inline uintptr_t vehicles_end_within_table(uintptr_t begin, uintptr_t end)
+{
+    return session_vehicles(begin, end) > TT_TABLE ? begin + TT_TABLE * VEHICLE_SLOT : end;
 }
 
 inline std::vector<Box> ordered(std::vector<Box> boxes)
