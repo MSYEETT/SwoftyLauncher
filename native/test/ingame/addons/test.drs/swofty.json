@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "test.drs",
+  "name": "DRS rule test",
+  "description": "For swofty test: a rules.drs rule that never opens DRS on the Classic Seasons F1 2016 box, and a late rule.",
+  "version": "1.0.0",
+  "author": "swofty",
+  "license": "MIT",
+  "kind": ["files"],
+  "category": "seasons",
+  "compat": { "game": "f1_25", "launcher": ">=1.6.0" },
+  "requires": [ { "id": "swofty.classic-seasons-2016" } ]
+}

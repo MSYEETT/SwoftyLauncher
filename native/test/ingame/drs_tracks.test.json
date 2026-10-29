@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "suite": "swofty.testsuite-drs-tracks",
+  "defaults": {
+    "addons": [
+      "swofty.classic-seasons",
+      "swofty.classic-seasons-2016",
+      "swofty.classic-seasons-2017",
+      "test.drs"
+    ]
+  },
+  "tests": [
+    {
+      "id": "no_track_content_skips_the_database_read",
+      "tags": [
+        "tracks"
+      ],
+      "env": {
+        "kind": "boot",
+        "fixture": "swofty-profile-20261028"
+      },
+      "addons": [
+        "swofty.classic-seasons",
+        "swofty.classic-seasons-2016"
+      ],
+      "steps": [
+        {
+          "home": true,
+          "timeout_s": 120
+        }
+      ],
+      "assert": [
+        {
+          "log": "\\[tracks\\] no track records and no tracks made for 1\\.5, so the game database is not read",
+          "min": 1
+        },
+        {
+          "no_crash": true
+        }
+      ]
+    },
+    {
+      "id": "a_box_with_a_drs_rule_swaps_its_group",
+      "tags": [
+        "drs",
+        "tracks"
+      ],
+      "env": {
+        "kind": "route",
+        "routes": [
+          "f1_world",
+          "play"
+        ],
+        "fixture": "swofty-profile-20261028"
+      },
+      "steps": [
+        {
+          "pad": {
+            "press": "a",
+            "ms": 250
+          }
+        },
+        {
+          "wait": {
+            "log": "\\[era\\] era select: \\d+ stock box"
+          },
+          "timeout_s": 30
+        },
+        {
+          "pad": {
+            "press": "down"
+          }
+        },
+        {
+          "pad": {
+            "press": "a",
+            "ms": 250
+          }
+        },
+        {
+          "wait": {
+            "log": "\\[drs\\] box cs_f1_2016 "
+          },
+          "timeout_s": 30
+        }
+      ],
+      "assert": [
+        {
+          "log": "\\[apply\\] rules\\.drs boot:   rules\\.drs test\\.drs/never: group swofty_drs_never_[0-9a-f]{8} from f1_2024, race start lap 200",
+          "min": 1
+        },
+        {
+          "log": "\\[drs\\] box cs_f1_2016 \\(swofty\\.classic-seasons-2016/f1_2016\\): swofty_f1 DRS group swofty_drs_never_[0-9a-f]{8}",
+          "min": 1
+        },
+        {
+          "log": "\\[tracks\\] box swofty\\.classic-seasons-2016/f1_2016 \\(grand_prix\\): calendar 18 of 18 rounds",
+          "min": 1
+        },
+        {
+          "no_crash": true
+        }
+      ]
+    },
+    {
+      "id": "a_box_without_a_rule_keeps_f1_2024",
+      "tags": [
+        "drs"
+      ],
+      "fresh": true,
+      "env": {
+        "kind": "route",
+        "routes": [
+          "f1_world",
+          "play"
+        ],
+        "fixture": "swofty-profile-20261028"
+      },
+      "steps": [
+        {
+          "pad": {
+            "press": "a",
+            "ms": 250
+          }
+        },
+        {
+          "wait": {
+            "log": "\\[era\\] era select: \\d+ stock box"
+          },
+          "timeout_s": 30
+        },
+        {
+          "pad": {
+            "press": "down"
+          }
+        },
+        {
+          "pad": {
+            "press": "right"
+          }
+        },
+        {
+          "pad": {
+            "press": "a",
+            "ms": 250
+          }
+        },
+        {
+          "wait": {
+            "log": "\\[drs\\] box cs_f1_2017 "
+          },
+          "timeout_s": 30
+        }
+      ],
+      "assert": [
+        {
+          "log": "\\[drs\\] box cs_f1_2017 \\(swofty\\.classic-seasons-2017/f1_2017\\): no DRS rule; swofty_f1 keeps its own DRS group \\(f1_2024\\)",
+          "min": 1
+        },
+        {
+          "no_crash": true
+        }
+      ]
+    }
+  ]
+}

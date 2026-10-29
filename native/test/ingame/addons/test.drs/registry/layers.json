@@ -1,0 +1,5 @@
+{
+  "content.package": {
+    "swofty.classic-seasons-2016/f1_2016": { "rules": { "drs": "test.drs/never" } }
+  }
+}
