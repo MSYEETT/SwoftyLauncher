@@ -18,7 +18,7 @@ Launcher 1.6.2 adds `team.identity` 1.1: `team_boss` (the team principal, an `en
 
 Launcher 1.6.4 adds `rules.drs` (DRS rules a Grand Prix or Time Trial box names in `content.package` `rules.drs`).
 
-Launcher 1.6.4 also adds `career.rnd.tree` and `career.market`, which write R&D tree rows and driver market rows at boot.
+Launcher 1.6.4 also adds `career.rnd.tree` and `career.market` (both experimental), which write R&D tree rows and driver market rows at boot, in every game mode's group unless a record names one.
 
 `career.calendar`, `career.mode` and `vehicle.handling` have schemas; the 1.6.0 core stores their records and applies nothing from them.
 
