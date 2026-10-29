@@ -90,7 +90,13 @@ struct Team {
     double gap_pct = -1;
     std::vector<SeatDriver> drivers;
     std::vector<DevPoint> development;
+    std::array<std::string, 2> seat_ids{};
 };
+
+inline bool record_seats(const Team &t)
+{
+    return !t.seat_ids[0].empty() || !t.seat_ids[1].empty();
+}
 
 // A real line-up change of the year (tools/gen.py from the Jolpica race entries): from real round
 // `round` driver `in` races seat `seat` (team position) of career slot `slot` (0-based) in place
@@ -227,6 +233,9 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
             o.lang = t["lang"].str();
             o.vehicle = t["vehicle"]["label"].str();
             o.vehicle_stat = num(t["vehicle"]["stat_id"]);
+            const json::Value &seat_ids = t["seats"];
+            for (size_t k = 0; k < o.seat_ids.size() && k < seat_ids.a.size(); ++k)
+                o.seat_ids[k] = seat_ids.a[k].str();
             const json::Value &pace = t["pace"];
             o.gap_pct = pace.type == json::Value::Obj && pace["gap_pct"].type == json::Value::Num ? pace["gap_pct"].n : -1;
             const json::Value &dev = t["development"];
@@ -461,9 +470,15 @@ struct TeamSlot {
 inline std::vector<TeamSlot> team_slots(const Data &d, const Plan &p)
 {
     std::vector<TeamSlot> out;
-    for (int i = 0; i < kSlots; ++i)
-        out.push_back({i + 1, season_team(d, p, i), {}});
-    if (const Year *y = d.year(clamp_year(p.year)))
+    const Year *y = d.year(clamp_year(p.year));
+    for (int i = 0; i < kSlots; ++i) {
+        TeamSlot t{i + 1, season_team(d, p, i), {}};
+        if (y && !p.closed[i] && added_team(d, *y, i) && record_seats(y->teams[i]))
+            for (size_t k = 0; k < (y->teams[i].seat_ids[1].empty() ? 1u : 2u); ++k)
+                t.seats.push_back(y->teams[i].seat_ids[k]);
+        out.push_back(std::move(t));
+    }
+    if (y)
         for (const ExtraTeam &x : y->extra_teams) {
             TeamSlot t{x.slot, x.team_id, {}};
             for (const std::string &id : x.seats)
@@ -507,10 +522,16 @@ inline lineup::Grid grid_of(const Year &y, const Resolve &r, const std::function
     for (int i = 0; i < kSlots; ++i) {
         std::vector<SeatDriver> ds = y.teams[i].drivers;
         std::stable_sort(ds.begin(), ds.end(), [](const SeatDriver &a, const SeatDriver &b) { return a.position < b.position; });
+        bool fixed = record_seats(y.teams[i]);
         int k = 0;
         for (auto &sd : ds) {
-            if (k >= lineup::kSeats)
+            if (fixed)
+                k = sd.position;
+            if (k < 0 || k >= lineup::kSeats || g[i][k] != lineup::kNone) {
+                if (fixed)
+                    continue;
                 break;
+            }
             int s = r.driver_stat(sd.driver);
             if (s < 0) {
                 if (notes)

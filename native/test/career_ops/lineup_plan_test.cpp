@@ -153,11 +153,39 @@ int main()
         Plan p = plan(in, rows);
         CHECK(refused_with(p, "has more than one career row"));
     }
+    {
+        Input in = input();
+        in.teams = {team(1, 40, 30, "ig.teampack/ig_driver", "swofty.classic-seasons/rio_haryanto")};
+        Plan p = plan(in, grid());
+        CHECK(refused_with(p, "ig.teampack/ig_driver has no career row"));
+        CHECK(p.moves.size() == 1 && p.moves[0].driver == 30 && p.moves[0].team == 476 && p.moves[0].seat == 1);
+        CHECK(p.releases.size() == 1 && p.releases[0] == 11);
+        defer_to(p, {{31, 476, 0}, {30, 476, 1}, {11, 478, 0}});
+        CHECK(p.moves.empty() && p.releases.empty() && p.refusals.size() == 1);
+    }
+    {
+        Input in = input();
+        in.teams = {team(1, 30, 31)};
+        Plan p = plan(in, grid());
+        CHECK(p.moves.size() == 2 && p.releases.size() == 2);
+        defer_to(p, {{30, 476, 1}, {21, 476, 0}});
+        CHECK(p.moves.empty() && p.releases.size() == 2);
+        CHECK(refused_with(p, "driver 30: the request's line-up seats him at team 476 seat 2, not the season record's team 476 seat 1"));
+        CHECK(refused_with(p, "team 476 seat 2: the request's line-up gives it to driver 30, not the season record's driver 31"));
+    }
+    {
+        Input in = input();
+        in.teams = {team(1, 30, 11)};
+        Plan p = plan(in, grid());
+        defer_to(p, {{21, 477, 0}});
+        CHECK(p.moves.size() == 1 && p.moves[0].driver == 30 && p.releases.size() == 1 && p.releases[0] == 10 &&
+              p.refusals.empty());
+    }
     if (failures) {
         std::printf("lineup_plan_test: %d failure(s)\n", failures);
         return 1;
     }
     std::printf("lineup_plan_test: unchanged seats, moves, releases, the player's row and seat, unknown and duplicate "
-                "drivers, no slot table: ok\n");
+                "drivers, no slot table, a record's seats next to the request's line-up: ok\n");
     return 0;
 }

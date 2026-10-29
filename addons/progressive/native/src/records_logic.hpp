@@ -13,8 +13,9 @@
 //             seats in another seat of the same year leaves the seat years.json gives him, which the
 //             planner fills from the free agents. An empty record seat empties the seat.
 //   teams     a record team that names a team of its own (not the constructor chain register.cpp
-//             registers) is written as the slot's `team`; a slot 12 (a twelfth team) is added to the
-//             year with that team and its seats. season.cpp hands them to the core's apply_teams.
+//             registers) is written as the slot's `team` with the record's seat ids as its `seats`; a slot 12
+//             (a twelfth team) is added to the year with that team and its seats. season.cpp hands them to the
+//             core's apply_teams, and the planner keeps each of that slot's drivers in the record's seat.
 //   changes   matched by (round, slot, seat): out, in, kind and until_round from the record, the rest
 //             (circuit, track, number, look) kept; a change only years.json has is dropped; a change
 //             only the record has is added with no track, so it is placed by its round.
@@ -147,6 +148,18 @@ inline std::string team_name(std::string_view id)
     return std::string(id.rfind("game/", 0) == 0 ? id.substr(5) : id);
 }
 
+inline json::Value seat_ids(const career::SeasonTeam &rt)
+{
+    size_t last = 0;
+    for (size_t k = 0; k < rt.seats.size(); ++k)
+        if (!rt.seats[k].empty())
+            last = k + 1;
+    json::Value ids = json::Value::array();
+    for (size_t k = 0; k < last; ++k)
+        ids.push_back(rt.seats[k].empty() ? std::string() : std::string(rt.seats[k].id()));
+    return ids;
+}
+
 inline void overlay_teams(const json::Value &doc, json::Value &season, const career::Season &s, Summary &n, const std::string &year)
 {
     for (const career::SeasonTeam &rt : s.teams) {
@@ -175,9 +188,15 @@ inline void overlay_teams(const json::Value &doc, json::Value &season, const car
         }
         if (!t)
             continue;
-        if (std::as_const(*t)["team"].is_string() && std::as_const(*t)["team"].as_string() == team)
+        json::Value ids = seat_ids(rt);
+        bool same_team = std::as_const(*t)["team"].is_string() && std::as_const(*t)["team"].as_string() == team;
+        if (same_team && (ids.size() == 0 || std::as_const(*t)["seats"] == ids))
             continue;
         (*t)["team"] = team;
+        if (ids.size())
+            (*t)["seats"] = std::move(ids);
+        if (same_team)
+            continue;
         ++n.teams;
         n.notes.push_back(year + " slot " + std::to_string(rt.slot) + " is " + team + " (a record names the team)");
     }
