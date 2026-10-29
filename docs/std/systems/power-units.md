@@ -293,6 +293,7 @@ power::DrsRule never{ .race_start = 200, .red_flag_restart = 200, .safety_car_en
 
 - **Boot.** Each `rules.drs` record becomes one `drs.drs_allowed_lap.drs_allowed_lap_group` row, a copy of `f1_2024` labelled `swofty_drs_<key>_<8 hex digits of the record id's hash>`, with its three laps set. On a boot where the game database is not reachable, the records are refused with `the game database is not reachable at this boot; no rows applied` and every box runs `f1_2024`.
 - **Box press.** When an addon box is pressed, the era picker narrows `swofty_f1` to the box's entrant list and points `swofty_f1`'s DRS group at the box's rule. A stock box, a box without a rule, or a rebuilt picker with no addon box selected puts the game's group back.
+- **Setup mode rebuild.** `Sess_Apply_ContentAvailability` rebuilds the game setup modes and frees the old ones. At its entry the core drops the swaps it holds without writing them back, along with the era picker's narrowing and the Time Trial hold, and logs `[era] the game rebuilds its setup modes (Sess_Apply_ContentAvailability): dropped ...` once. The next box press or picker build applies the box's rule to the new modes.
 - **Session.** The game reads the mode's group at session load, when a full safety car ends and at a red-flag restart.
 - **Unchanged:** careers (they run their own modes), a box with its own setup mode (its mode row names its group; set it with a [database operation](/reference/ops/database)), and every addon without `rules.drs` records.
 

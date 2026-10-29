@@ -314,6 +314,14 @@ public:
         return n;
     }
 
+    // Drops the swaps without reading or writing the modes, which the game may have freed.
+    size_t forget()
+    {
+        size_t n = swaps_.size();
+        swaps_.clear();
+        return n;
+    }
+
     size_t active() const { return swaps_.size(); }
 
     bool owns(const void *holder) const
@@ -340,6 +348,31 @@ private:
 inline const char *holder_text(const void *holder)
 {
     return holder ? *reinterpret_cast<const char *const *>(static_cast<const uint8_t *>(holder) + HOLDER_TEXT) : nullptr;
+}
+
+// Sess_Apply_ContentAvailability calls Sess_Load_GameSetupModes (through the thunk 0x142a223f0), which frees every
+// GameSetupMode object before it parses the rows again. The pointers the picker keeps into the old objects (its
+// narrowed entrant setups, its DRS group swaps, the Time Trial hold) are dropped at that function's entry and never
+// written back; the next press or picker build applies the box to the new objects.
+struct SetupPointers {
+    size_t narrowed = 0, drs = 0;
+    bool held = false;
+};
+
+inline std::string availability_drop_line(const SetupPointers &p)
+{
+    std::string what;
+    auto add = [&](const std::string &part) { what += (what.empty() ? "" : ", ") + part; };
+    if (p.narrowed)
+        add(std::to_string(p.narrowed) + " narrowed entrant setup mode(s)");
+    if (p.drs)
+        add(std::to_string(p.drs) + " DRS group swap(s)");
+    if (p.held)
+        add("the Time Trial hold");
+    if (what.empty())
+        return {};
+    return "the game rebuilds its setup modes (Sess_Apply_ContentAvailability): dropped " + what +
+           " without writing them back; the next box press or picker build applies the box again";
 }
 
 }

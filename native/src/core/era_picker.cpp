@@ -78,6 +78,9 @@ std::string settings_addon(const void *from, std::string &dll);
 // and, in Time Trial, logs the setup's resolved list and keeps a list past 23 cars out of the session;
 // era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
 // separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered.
+//
+// Setup mode guard: Sess_Apply_ContentAvailability rebuilds the game setup modes (it frees the old objects), so a
+// set wrapping its entry drops the narrowing, DRS swaps and Time Trial hold the core keeps without writing them back.
 
 namespace {
 
@@ -848,6 +851,36 @@ void era_session_load()
                                     .c_str());
 }
 
+constexpr const char *AVAILABILITY_MIXIN = "swofty_core.dll (setup mode guard)";
+constexpr const char *AVAILABILITY_FN = "Sess_Apply_ContentAvailability";
+using ContentAvailability_t = void(void *self, void *availability);
+ContentAvailability_t *availability_orig;
+std::atomic<bool> availability_bound, logged_dropped;
+
+void drop_setup_pointers()
+{
+    logic::SetupPointers p;
+    {
+        std::lock_guard<std::mutex> g(held_lock);
+        p.held = holding;
+        holding = false;
+        held = {};
+    }
+    p.narrowed = narrowed_count;
+    narrowed_count = 0;
+    p.drs = drs.forget();
+    last_drs_line.clear();
+    std::string line = logic::availability_drop_line(p);
+    if (!line.empty() && !logged_dropped.exchange(true))
+        swofty::log("[era] %s", line.c_str());
+}
+
+void availability_entry(void *self, void *availability)
+{
+    drop_setup_pointers();
+    availability_orig(self, availability);
+}
+
 std::vector<CoreMixins> tt_guard_mixins()
 {
     std::vector<CoreMixins> out;
@@ -856,22 +889,36 @@ std::vector<CoreMixins> tt_guard_mixins()
     vehicles_offered = true;
     if (!swofty::api->resolve(VEHICLE_FN)) {
         swofty::log("[era] session vehicle guard off: needs %s, which this build does not resolve", VEHICLE_FN);
-        return out;
+    } else {
+        vehicles_bound = true;
+        out.push_back(
+            {VEHICLE_MIXIN, {{VEHICLE_FN, SWOFTY_MIXIN_WRAP, 100, (void *)&vehicles_entry, (void **)&vehicles_orig}}});
     }
-    vehicles_bound = true;
-    out.push_back({VEHICLE_MIXIN, {{VEHICLE_FN, SWOFTY_MIXIN_WRAP, 100, (void *)&vehicles_entry, (void **)&vehicles_orig}}});
+    if (!swofty::api->resolve(AVAILABILITY_FN)) {
+        swofty::log("[era] setup mode guard off: needs %s, which this build does not resolve", AVAILABILITY_FN);
+    } else {
+        availability_bound = true;
+        out.push_back({AVAILABILITY_MIXIN,
+                       {{AVAILABILITY_FN, SWOFTY_MIXIN_WRAP, 100, (void *)&availability_entry, (void **)&availability_orig}}});
+    }
     return out;
 }
 
 void tt_guard_commit()
 {
-    if (!vehicles_offered || vehicles_settled || !vehicles_bound)
+    if (!vehicles_offered || vehicles_settled)
         return;
     vehicles_settled = true;
-    swofty::log("[era] session vehicle guard %s",
-                core_mixins_active(VEHICLE_MIXIN)
-                    ? "armed: a session with more vehicles than its table of 26 sets up the first 26 instead of writing past it"
-                    : "did not install (see the [core] lines)");
+    if (vehicles_bound)
+        swofty::log("[era] session vehicle guard %s",
+                    core_mixins_active(VEHICLE_MIXIN)
+                        ? "armed: a session with more vehicles than its table of 26 sets up the first 26 instead of writing past it"
+                        : "did not install (see the [core] lines)");
+    if (availability_bound)
+        swofty::log("[era] setup mode guard %s",
+                    core_mixins_active(AVAILABILITY_MIXIN)
+                        ? "armed: when the game rebuilds its setup modes the core drops the pointers it keeps into them"
+                        : "did not install (see the [core] lines)");
 }
 
 void era_session_end()

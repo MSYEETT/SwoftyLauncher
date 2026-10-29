@@ -70,6 +70,34 @@ static void drs_swap_tests()
            "GameSetupMode +0x1e0 DRS group and +0xd8 name holders, text at holder +0x10 (re/db structs/GameSetupMode.h)");
 }
 
+static void setup_guard_tests()
+{
+    era::DrsSwaps swaps;
+    Mode a("f1_2024"), b("f1_2024");
+    era::DrsHolder *never = swaps.holder("swofty_drs_never_1a2b3c4d");
+    swaps.swap(a.mem, never);
+    swaps.swap(b.mem, never);
+    void *reused = reinterpret_cast<void *>(uintptr_t(0x5eed5eed5eed));
+    *reinterpret_cast<void **>(a.mem + era::MODE_DRS_GROUP) = reused;
+    *reinterpret_cast<void **>(b.mem + era::MODE_DRS_GROUP) = never;
+    expect(swaps.forget() == 2 && swaps.active() == 0 && a.field() == reused && b.field() == never,
+           "forget drops every swap and writes nothing into the modes, even one that still holds the rule's holder");
+    expect(swaps.put_back() == 0 && b.field() == never, "a put back after forget has nothing to write back");
+    expect(swaps.holder("swofty_drs_never_1a2b3c4d") == never, "forget keeps the holders at their addresses");
+    swaps.swap(a.mem, never);
+    expect(swaps.active() == 1 && a.field() == never, "a press after a rebuild swaps the new mode again");
+
+    expect(era::availability_drop_line({}).empty(), "a rebuild with nothing kept logs nothing");
+    std::string line = era::availability_drop_line({2, 3, true});
+    expect(line.find("2 narrowed entrant setup mode(s)") != std::string::npos &&
+               line.find("3 DRS group swap(s)") != std::string::npos && line.find("the Time Trial hold") != std::string::npos &&
+               line.find("without writing them back") != std::string::npos,
+           "the drop line names the narrowing, the DRS swaps and the Time Trial hold: " + line);
+    std::string drs_only = era::availability_drop_line({0, 1, false});
+    expect(drs_only.find("1 DRS group swap(s) without") != std::string::npos && drs_only.find("narrowed") == std::string::npos,
+           "the drop line names only what was kept: " + drs_only);
+}
+
 // A VM node as the game constructs a reference node (0x14083c570): its own handle at +0x8 heads its holder list.
 struct Node {
     alignas(8) uint8_t mem[0x30] = {};
@@ -358,6 +386,7 @@ int main()
            "djb2 of addon_select_pressed, select_pressed and addon_tiles");
 
     drs_swap_tests();
+    setup_guard_tests();
 
     printf("%s\n", fails ? "era_logic_test: FAILED" : "era_logic_test: all passed");
     return fails ? 1 : 0;
