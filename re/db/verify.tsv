@@ -1601,3 +1601,16 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	w21c	global	site_Team_LoadInserted	L2	partial	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1600 V1596-V1598 say both set loads reach this site; they do not. Sess_Load_Teams (bpl = set, mov ebp,edx at 0x1424694b3) builds the empty slot vector for every set, then at 0x1424695af tests bpl and jumps (0x1424695b2 jne 0x14246ca8c) straight to the message post for any set other than 0, so the entrants.teams walk and Team_Insert_RecordByStatId run for set 0 alone. Set 1's vector stays empty. The key (stat_id<<16, no set byte) therefore needs no set filter; the site fires for the database set only. Disassembly 0x142469440..0x14246cb41.
 2026-10-29	w21c	global	site_Team_LoadInsertCall	L2	agree	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1601 Site and register roles stand (see the partial row above for the set correction): the walk that reaches this site runs for set 0 only, so the site fires for the database set alone.
 2026-10-29	w21c	global	site_Team_LoadInserted	L2	agree	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1602 Site and register roles stand (see the partial row above for the set correction): the walk that reaches this site runs for set 0 only, so the site fires for the database set alone.
+2026-10-28	fuel-verify	func	Game_AssistManager_BuildAssistSettings	L1	agree	xref:0x142422d64,0x142422d6a	V1113 fuel-verify: call [rax+0x268], then {min,max,valid} clamp of ebp
+2026-10-28	tr-verify	func	Car_Update	L1	partial	xref:0x144740b28,0x144740b3c,0x144740b66,0x144740b96,0x144740bb9	V1145 recorded by engine-re from tr-verify (blind capstone): vt+0x10 and vt+0x18 loops are mutually exclusive (chosen by global byte or car+0x128 == 1), vt+0x08 first, vt+0x20 after
+2026-10-28	aaa-verify	func	Game_Set_VehicleController_Thunk	L2	agree	xref:0x14389cc90	V1157 recorded by engine-re from aaa-verify: jmp 0x1519eb350; reason table index 14 ROBODRIVER
+2026-10-28	dcso-verify	func	Game_SimFlags_RecordSetBit	L2	agree	decomp:re/decomp/142f39070.c;xref:0x142f3907d	V1168 claim 10 jump table
+2026-10-29	cf-verify	func	Game_SimFlags_SetBit	L2	agree	decomp:re/decomp/142f38f80.c;xref:0x142f39070	V1220 claim 1
+2026-10-29	cf-verify	func	Game_SimFlags_CarSetBit	L2	agree	decomp:re/decomp/142f38e60.c;xref:0x142f38f80	V1221 claim 1
+2026-10-29	cf-verify	func	Game_SimFlags_RecordSetBit	L2	agree	decomp:re/decomp/142f39070.c;xref:0x142f38e60	V1222 claim 1 index->bit table
+2026-10-29	cf-verify	func	Game_AssistManager_BuildAssistSettings	L2	agree	xref:0x14242254c	V1223 claims 2/3; option names unverified
+2026-10-29	cf-verify	func	Car_Update	L2	partial	xref:0x144740170	V1224 claim 4; b0/b1 addresses swapped
+2026-10-29	cf-verify	func	Game_Set_VehicleController_Thunk	L2	agree	decomp:re/decomp/14389cc90.c;xref:0x1519eb350	V1225 claim 6
+2026-10-29	cf-verify	func	Game_Assists_SetTyreTempFreeze	L1	partial	decomp:re/decomp/1424238a0.c	V1226 claim 7; value from local, names H
+2026-10-29	cf-verify	func	Game_Season_ApplyDamageModeFlags	L1	partial	decomp:re/decomp/143099190.c	V1227 claim 8; writes rules record not car
+2026-10-29	bt-verify	func	Car_Update	L2	partial	decomp:re/decomp/14473fd80.c;xref:0x144740efc	V1233 claim 6; 6 legal types when 9f28 == 0
