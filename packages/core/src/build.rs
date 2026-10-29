@@ -1780,9 +1780,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         .then(|| crate::dbedit::Catalog::open(store, game).ok())
         .flatten();
     let record = |key: u64| {
-        catalog
-            .as_deref()
-            .and_then(|c| crate::conflicts::record_name(c, key))
+        planned.record_names.get(&key).cloned().or_else(|| {
+            catalog
+                .as_deref()
+                .and_then(|c| crate::conflicts::record_name(c, key))
+        })
     };
     let (report, within) = crate::conflicts::summarise(profile, &planned.conflicts, &record);
     built.warnings.extend(report.pairs.iter().map(|p| p.line(&name)));
