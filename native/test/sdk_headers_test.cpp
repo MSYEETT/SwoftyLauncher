@@ -464,6 +464,20 @@ static void schemas()
     CHECK(teams::identities.schema().find("\"x-ref\":\"team.logo\"") != std::string::npos);
     CHECK(teams::logos.schema().find("\"x-applies\":\"read\"") != std::string::npos);
     CHECK(teams::pit_times.schema().find("\"x-ref\":\"team.pit_times\"") != std::string::npos);
+    std::string tree = career::rnd_trees.schema();
+    CHECK(tree.find("\"x-applies\":\"boot\"") != std::string::npos && tree.find("\"x-key\":[\"label\"]") != std::string::npos);
+    CHECK(tree.find("\"enum\":[\"aerodynamics\",\"chassis\",\"durability\",\"engine\"]") != std::string::npos);
+    std::string market = career::markets.schema();
+    CHECK(market.find("\"x-applies\":\"boot\"") != std::string::npos && market.find("\"x-key\":[\"team\"]") != std::string::npos);
+    CHECK(market.find("\"x-ref\":\"team.identity\"") != std::string::npos && market.find("\"x-ref\":\"driver.identity\"") != std::string::npos);
+    career::Market m{.retirements = std::vector<career::Retirement>{{.driver = drivers::identities["game/fernando_alonso"],
+                                                                     .retire = std::chrono::year{2027} / 12 / 14,
+                                                                     .announce = std::chrono::year{2027} / 9 / 16}}};
+    m.team_ratings.items().push_back({.team = teams::identities["game/mclaren_26"], .rating = 97});
+    CHECK(to_json(m).find("\"retire\":\"2027-12-14\"") != std::string::npos);
+    career::RndTree rt{.token = "mercedes"};
+    rt.nodes.items().push_back({.label = "sw_wing_1", .type = "Drag", .size = career::UpgradeSize::major, .cost = 650, .after = {"default"}});
+    CHECK(to_json(rt).find("\"size\":\"major\"") != std::string::npos && to_json(rt).find("\"data_group\":\"2026\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.look\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.person\"") != std::string::npos);
     CHECK(drivers::looks.schema().find("\"x-ref\":\"helmet\"") != std::string::npos);

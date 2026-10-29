@@ -197,6 +197,74 @@ SWOFTY_RECORD(HubTab, name, title, data_group, options)
 SWOFTY_RECORD_REGISTRY(HubTab, "hub.tab")
 inline Registry<HubTab> hub_tabs{"hub.tab", {.applies = Applies::read}};
 
+// R&D trees and the driver market are database rows a career reads when it is created and loaded, so both
+// registries apply at boot. A tree is upgrades.<data_group>.trees.<token>.<department>.upgrade_N; a market group is
+// driver_market.driver_market.DataGroup[<data_group>].
+enum class UpgradeDepartment { aerodynamics, chassis, durability, engine };
+SWOFTY_ENUM(UpgradeDepartment, aerodynamics, chassis, durability, engine)
+enum class UpgradeSize { minor, major, ultimate };
+SWOFTY_ENUM(UpgradeSize, minor, major, ultimate)
+
+struct RndNode {
+    std::string label;                         // a stock node's label edits that node; a new label adds a node
+    UpgradeDepartment department = UpgradeDepartment::aerodynamics;
+    std::string from;                          // a new node copies this node's row; empty: the department's first node
+    std::string name;                          // upgrade_name, the card's lang key stem; empty keeps the row's
+    std::string type;                          // upgrade_type, one the stock trees use ("Drag", "Engine Power"); empty keeps
+    std::optional<UpgradeSize> size;
+    std::optional<int> cost;                   // resource points to research it
+    std::optional<int> cost_to_develop;
+    std::optional<float> weighting;            // how often the AI picks it
+    std::optional<int> research_days, develop_days;
+    std::optional<int> unlock_at_facility_level;
+    std::optional<float> x, y;                 // grid_coordinates: its cell in the tree
+    std::vector<std::string> links;            // the nodes it unlocks; empty keeps a stock node's, a new node gets none
+    std::vector<std::string> after;            // nodes of the tree (the hub is "default") whose links gain this node
+};
+SWOFTY_RECORD(RndNode, label, department, from, name, type, size, cost, cost_to_develop, weighting, research_days,
+              develop_days, unlock_at_facility_level, x, y, links, after)
+
+struct RndTree {
+    static constexpr Version version{1, 0};
+    std::string data_group = "2026";           // the upgrades group
+    std::string token;                         // mercedes ferrari redbull williams tororosso renault haas mclaren sauber
+                                               // force_india gm_cadillac user_defined
+    Keyed<RndNode, &RndNode::label> nodes;
+    json::Value extra;
+};
+SWOFTY_RECORD(RndTree, data_group, token, nodes)
+inline Registry<RndTree> rnd_trees{"career.rnd.tree", {.applies = Applies::boot}};
+
+struct Retirement {
+    Ref<drivers::Identity> driver;
+    std::chrono::year_month_day retire;        // the day he retires
+    std::chrono::year_month_day announce;      // the day the news says so
+};
+SWOFTY_RECORD(Retirement, driver, retire, announce)
+
+struct Firing {
+    Ref<drivers::Identity> driver;
+    int season_index = 0;                      // the career season he loses his seat in, 0 the first
+};
+SWOFTY_RECORD(Firing, driver, season_index)
+
+struct TeamRating {
+    Ref<teams::Identity> team;
+    int rating = 0;                            // the driver rating the team asks for in the market
+};
+SWOFTY_RECORD(TeamRating, team, rating)
+
+struct Market {
+    static constexpr Version version{1, 0};
+    std::string data_group = "2026";           // the market group
+    std::optional<std::vector<Retirement>> retirements;   // every retirement schedule's drivers
+    std::optional<std::vector<Firing>> firings;           // every firing schedule's drivers
+    Keyed<TeamRating, &TeamRating::team> team_ratings;
+    json::Value extra;
+};
+SWOFTY_RECORD(Market, data_group, retirements, firings, team_ratings)
+inline Registry<Market> markets{"career.market", {.applies = Applies::boot}};
+
 namespace events {
 
 struct SeasonStart {

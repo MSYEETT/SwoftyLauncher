@@ -26,6 +26,8 @@ CATALOG = HERE.parents[4] / "tools" / "gamedb" / "catalog" / "keys.tsv.gz"
 CATALOGUED = ["facilities.facilities.Facilities_N.team_developments.TeamDevelopment_N",
               "driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements."
               "TeamDriverRatingRangeRequirement_N",
+              "driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N",
+              "driver_market.driver_market.DataGroup_N.driver_firings.DriverFiredSchedule_N.DriverFired_N",
               "recognition.RecognitionDataGroup_N.team_modifiers.TeamModifier_N",
               "career.my_team_renown_and_form.MyTeamRenownAndFormDataGroup_N.initial_renown_and_form."
               "InitialTeamRenownAndForm_N",

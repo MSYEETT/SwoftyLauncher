@@ -1,5 +1,6 @@
 #pragma once
 
+#include "career_rows.hpp"
 #include "drs.hpp"
 #include "liveries.hpp"
 #include "lower.hpp"
@@ -26,7 +27,8 @@ inline constexpr const char *ROW_REGISTRIES[] = {"engine_sound",   "vehicle.pack
                                                  "team.identity",  "team.pit_times",
                                                  "helmet",         "suit",                "gloves",          "driver.head",
                                                  "driver.look",    "driver.person",       "driver.identity", "driver.stats",
-                                                 "wearable.season_set", "rules.drs",   "content.package"};
+                                                 "wearable.season_set", "rules.drs",   "content.package",
+                                                 "career.rnd.tree", "career.market"};
 
 inline Lookup store_lookup(registry::Store &st, std::map<std::string, Value> &keep)
 {
@@ -445,6 +447,10 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_pit_times(id, *rec, lookup, read, refs, plan);
             else if (r == "rules.drs")
                 lower_drs_rule(id, *rec, plan);
+            else if (r == "career.rnd.tree")
+                lower_rnd_tree(id, *rec, read, plan);
+            else if (r == "career.market")
+                lower_market(id, *rec, lookup, read, refs, plan);
             else
                 lower_package(id, *rec, lookup, plan, stat, &wear.person_driver, read);
             x.engine.add_fields(plan.fields);
