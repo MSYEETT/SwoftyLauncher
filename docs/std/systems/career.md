@@ -415,6 +415,67 @@ A season's box supplies its cars, liveries, sounds and session rules. The box ea
 [registry] career season 2019: box swofty.classic-seasons-2019/f1_2019 is off (cars and looks only); using game/f1_2025
 ```
 
+## Standings
+
+A season starts with every team on 0 points, listed in a start order. Progressive's start order is the real previous year's final constructors' order, then the slots that year doesn't list in slot order. A slot closed that year is left out.
+
+### A twelfth team in Progressive
+
+A layer that names a team in slot 12 of a Progressive season gives that season 12 teams. Progressive passes slot 12 to `career::apply_teams` with its seats, and lists it in the season-start order after the eleven career slots:
+
+```cpp
+career::seasons.layer(career::seasons["swofty.progressive/2016"], [](career::Season &s) {
+    career::SeasonTeam twelfth;
+    twelfth.slot = 12;
+    twelfth.team = teams::identities["mod.f1-2012/marussia"];
+    twelfth.seats = { drivers::identities["mod.f1-2012/timo_glock"], drivers::identities["mod.f1-2012/charles_pic"] };
+    s.teams.push_back(twelfth);
+}, Scope::profile);
+```
+
+```text
+[progressive]   2016 slot 12 is mod.f1-2012/marussia (a record names the team)
+[progressive] standings: season 2016 starts in the real 2015 order: 24 driver(s) (lewis_hamilton first), 12 team(s): mercedes_26, ferrari_26, williams_26, redbull_26, forceindia_26, renault_26, tororosso_26, sauber_26, mclaren_26, gm_cadillac_26, haas_26, marussia
+```
+
+Slot 12 is listed by the team row the core made for the record (its key, `marussia`), and only while a row of the career races for that team:
+
+```text
+[progressive] standings: season 2016 slot 12 (marussia) is left out of the order: no row of the career races for it
+```
+
+### A box with 12 teams
+
+A `content.package` gets its own standings row, `<entrant_list>_teams`, which its entrant list names as the previous season's team standings. The core copies `f1_teams_2026` (11 teams) for a package of more than 20 cars and `f1_teams_2024` (10 teams) otherwise, and writes the package's teams into it in package order. When the package has more teams than the copied row, the core adds the rest. The entrant list grows the same way past the 22 entrants of `f1_2026`:
+
+```json
+{
+  "content.package": {
+    "f1_2012": {
+      "title": "lng_f1_2012", "entrant_list": "f1_2012", "season": 2012,
+      "teams": [
+        { "key": "redbull",  "team": "mod.f1-2012/redbull",  "vehicle": "mod.f1-2012/redbull_2012",
+          "drivers": [ { "driver": "game/sebastian_vettel", "number": 1 }, { "driver": "game/mark_webber", "number": 2 } ] },
+        { "key": "marussia", "team": "mod.f1-2012/marussia", "vehicle": "mod.f1-2012/marussia_2012",
+          "drivers": [ { "driver": "mod.f1-2012/timo_glock", "number": 24 }, { "driver": "mod.f1-2012/charles_pic", "number": 25 } ] }
+      ]
+    }
+  }
+}
+```
+
+```text
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: standings f1_2012_teams has 12 teams; f1_teams_2026 holds 11, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012 has 24 entrants; f1_2026 holds 22, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012, 24 entrants in swofty_f1
+```
+
+The package's `database` block names other rows to copy: `standings_from` a standings row, `entrant_list_from` an entrant list. A row it names that already holds every team is copied as it is, and nothing is added.
+
+```json
+"database": { "standings_from": "mod_f1_2012_teams", "entrant_list_from": "f1_2026" }
+```
+
 ## What a career freezes
 
 A career freezes each season's line-ups, ratings and rules when that season starts. Drivers and tracks installed mid-career join at the next season. A fix to Progressive's 2019 line-up reaches a 2016 career when it gets to 2019.
