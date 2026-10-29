@@ -66,6 +66,12 @@ std::string settings_addon(const void *from, std::string &dll);
 //
 // The three hooks are one core mixin set, offered at the first mixin commit after a box was registered,
 // so a game without registered boxes runs none of them.
+//
+// Time Trial guard (era_logic.hpp): a stock box pressed on a Time Trial picker leaves swofty_f1 offering
+// only its lists of at most 23 cars; era_session_load (StateLoadSession, any mode) puts back what it held
+// and, in Time Trial, logs the setup's resolved list and keeps a list past 23 cars out of the session;
+// era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
+// separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered.
 
 namespace {
 
@@ -99,6 +105,9 @@ constexpr size_t MODE_SETUP = 0x88;
 constexpr size_t SETUP_MODES = 0x260;
 constexpr size_t SETUP_MODES_VFUNC = 0x1d0;
 constexpr size_t SELECTED_LIST = 0xe18;
+constexpr size_t SETUP_ENTRANT_SETUP = 0xe10;
+constexpr size_t SETUP_GAME_SETUP_MODE = 0x2b0;
+constexpr size_t ENTRANT_SETUP_MAX_ENTRANTS = 0x268;
 constexpr size_t SETUP_MODE_NAME = 0xd8;
 constexpr size_t ENTRANT_SETUPS = 0x10;
 constexpr size_t ENTRANT_SETUP_COUNT = 0x70;
@@ -134,9 +143,9 @@ struct Built {
 
 struct Narrowed {
     uint8_t *setup;
-    void *hit;
-    int64_t count;
+    int64_t count, kept;
     void *lists[LIST_SLOTS];
+    void *kept_lists[LIST_SLOTS];
 };
 
 std::mutex lock;
@@ -148,7 +157,7 @@ Set set;
 Built built;
 Narrowed narrowed[4];
 size_t narrowed_count;
-std::string last_pick;
+std::string last_pick, last_press;
 uint32_t logged_renarrow;
 FeTile_Press_EraTile_t *press_orig;
 Game_F1WorldActivityContainer_SelectEntrantList_t *select_orig;
@@ -202,8 +211,8 @@ void restore()
 {
     for (size_t i = 0; i < narrowed_count; ++i) {
         Narrowed &n = narrowed[i];
-        auto **lists = reinterpret_cast<void **>(n.setup + LISTS);
-        if (at<int64_t>(n.setup, LIST_COUNT) != 1 || lists[0] != n.hit)
+        if (at<int64_t>(n.setup, LIST_COUNT) != n.kept ||
+            memcmp(n.setup + LISTS, n.kept_lists, size_t(n.kept) * sizeof(void *)))
             continue;
         memcpy(n.setup + LISTS, n.lists, size_t(n.count) * sizeof(void *));
         ref<int64_t>(n.setup, LIST_COUNT) = n.count;
@@ -229,8 +238,9 @@ void narrow(void *mode, const char *list)
             return;
         Narrowed &n = narrowed[narrowed_count++];
         n.setup = setup;
-        n.hit = hit;
         n.count = count;
+        n.kept = 1;
+        n.kept_lists[0] = hit;
         memcpy(n.lists, lists, size_t(count) * sizeof(void *));
         lists[0] = hit;
         ref<int64_t>(setup, LIST_COUNT) = 1;
@@ -268,6 +278,141 @@ int64_t cars_of(void *mode, const std::string &list)
     return cars;
 }
 
+logic::ListCars list_cars(const void *list)
+{
+    logic::ListCars out;
+    uintptr_t holder = 0, name = 0, begin = 0, end = 0;
+    auto at_list = reinterpret_cast<uintptr_t>(list);
+    if (!list || !mem::read(at_list + LIST_NAME, holder) || !holder || !mem::read(holder + 0x10, name) ||
+        !mem::c_string(name, out.name, 64))
+        out.name.clear();
+    if (list && mem::read(at_list + logic::LIST_ENTRANTS_BEGIN, begin) && mem::read(at_list + logic::LIST_ENTRANTS_END, end))
+        out.cars = logic::entrant_count(begin, end);
+    return out;
+}
+
+std::vector<logic::ListCars> lists_of(const uint8_t *entrant_setup, std::vector<void *> &ptrs)
+{
+    std::vector<logic::ListCars> out;
+    int64_t count = 0;
+    if (!entrant_setup || !mem::read(reinterpret_cast<uintptr_t>(entrant_setup) + LIST_COUNT, count) || count <= 0 ||
+        count > int64_t(LIST_SLOTS))
+        return out;
+    for (int64_t i = 0; i < count; ++i) {
+        uintptr_t list = 0;
+        if (!mem::read(reinterpret_cast<uintptr_t>(entrant_setup) + LISTS + size_t(i) * 8, list))
+            list = 0;
+        ptrs.push_back(reinterpret_cast<void *>(list));
+        out.push_back(list_cars(reinterpret_cast<void *>(list)));
+    }
+    return out;
+}
+
+struct Held {
+    uint8_t *esm;
+    int32_t limit_was;
+    size_t slot;
+    void *first;
+    void *fit;
+};
+std::mutex held_lock;
+Held held;
+bool holding;
+
+void put_back()
+{
+    if (!holding)
+        return;
+    holding = false;
+    if (held.limit_was && at<int32_t>(held.esm, ENTRANT_SETUP_MAX_ENTRANTS) == logic::time_trial_limit(held.limit_was))
+        ref<int32_t>(held.esm, ENTRANT_SETUP_MAX_ENTRANTS) = held.limit_was;
+    if (held.first && held.slot < LIST_SLOTS && at<void *>(held.esm, LISTS) == held.fit &&
+        at<void *>(held.esm, LISTS + held.slot * 8) == held.first) {
+        ref<void *>(held.esm, LISTS + held.slot * 8) = at<void *>(held.esm, LISTS);
+        ref<void *>(held.esm, LISTS) = held.first;
+    }
+}
+
+constexpr const char *VEHICLE_MIXIN = "swofty_core.dll (session vehicle guard)";
+constexpr const char *VEHICLE_FN = "Sess_Setup_VehicleComponents";
+constexpr size_t MODULE_VEHICLES_BEGIN = 0x28;
+constexpr size_t MODULE_VEHICLES_END = 0x30;
+constexpr size_t MODULE_MODE_CONTEXT = 0x80;
+using SetupVehicles_t = void(void *module);
+SetupVehicles_t *vehicles_orig;
+std::atomic<bool> vehicles_offered, vehicles_settled, vehicles_bound;
+uint32_t logged_vehicles;
+
+std::string session_list(uintptr_t ctx)
+{
+    uintptr_t holder = 0, setup = 0, list = 0, gsm = 0, gsm_holder = 0, gsm_name = 0;
+    std::string mode = "?";
+    if (!ctx || !mem::read(ctx + MODE_SETUP, holder) || !holder || !mem::read(holder + SETUP_MODES, setup) || !setup)
+        return "an unread list";
+    if (mem::read(setup + SETUP_GAME_SETUP_MODE, gsm) && gsm && mem::read(gsm + SETUP_MODE_NAME, gsm_holder) && gsm_holder &&
+        mem::read(gsm_holder + 0x10, gsm_name))
+        mem::c_string(gsm_name, mode, 64);
+    logic::ListCars cars = mem::read(setup + SELECTED_LIST, list) && list ? list_cars(reinterpret_cast<void *>(list))
+                                                                         : logic::ListCars{};
+    return "list " + (cars.name.empty() ? std::string("?") : cars.name) + " (" + std::to_string(cars.cars) +
+           " cars) of setup mode " + mode;
+}
+
+void vehicles_entry(void *module)
+{
+    auto *m = static_cast<uint8_t *>(module);
+    uintptr_t begin = at<uintptr_t>(m, MODULE_VEHICLES_BEGIN), end = at<uintptr_t>(m, MODULE_VEHICLES_END);
+    uintptr_t within = logic::vehicles_end_within_table(begin, end);
+    if (within == end)
+        return vehicles_orig(module);
+    if (logged_vehicles++ < LOG_FIRST)
+        swofty::log("[era] the session holds %zu vehicles and its vehicle table %zu; setting up the first %zu (the "
+                    "session's %s)",
+                    logic::session_vehicles(begin, end), logic::TT_TABLE, logic::TT_TABLE,
+                    session_list(at<uintptr_t>(m, MODULE_MODE_CONTEXT)).c_str());
+    ref<uintptr_t>(m, MODULE_VEHICLES_END) = within;
+    vehicles_orig(module);
+    if (at<uintptr_t>(m, MODULE_VEHICLES_END) == within)
+        ref<uintptr_t>(m, MODULE_VEHICLES_END) = end;
+}
+
+std::vector<std::string> kept_out;
+uint32_t logged_kept;
+
+bool keep_time_trial_lists(void *mode)
+{
+    bool any = false;
+    for_each_host_setup(mode, [&](uint8_t *setup) {
+        std::vector<void *> ptrs;
+        auto info = lists_of(setup, ptrs);
+        auto keep = logic::time_trial_keep(info);
+        if (info.empty() || keep.size() == info.size() || keep.empty() || narrowed_count == std::size(narrowed))
+            return;
+        Narrowed &n = narrowed[narrowed_count++];
+        n.setup = setup;
+        n.count = int64_t(info.size());
+        n.kept = int64_t(keep.size());
+        memcpy(n.lists, ptrs.data(), info.size() * sizeof(void *));
+        for (size_t i = 0; i < keep.size(); ++i)
+            n.kept_lists[i] = ptrs[keep[i]];
+        memcpy(setup + LISTS, n.kept_lists, keep.size() * sizeof(void *));
+        ref<int64_t>(setup, LIST_COUNT) = n.kept;
+        any = true;
+        for (size_t i = 0; i < info.size(); ++i) {
+            if (!logic::oversized(info[i].cars) ||
+                std::find(kept_out.begin(), kept_out.end(), info[i].name) != kept_out.end())
+                continue;
+            kept_out.push_back(info[i].name);
+            if (logged_kept++ < LOG_FIRST * 4)
+                swofty::log("[era] %s keeps %s out of Time Trial while a stock box is picked: it holds %lld cars; Time "
+                            "Trial holds at most %zu (the game adds %zu cars of its own to a table of %zu)",
+                            logic::HOST, info[i].name.c_str(), (long long)info[i].cars, logic::TT_MAX_CARS,
+                            logic::TT_EXTRA_CARS, logic::TT_TABLE);
+        }
+    });
+    return any;
+}
+
 bool skip_once(const std::string &key)
 {
     std::lock_guard<std::mutex> g(lock);
@@ -282,19 +427,20 @@ bool is_ours(const char *list)
     return list && std::find(built.lists.begin(), built.lists.end(), list) != built.lists.end();
 }
 
-void renarrow(void *mode)
+bool renarrow(void *mode)
 {
     auto *modes = setup_owner(mode);
     if (!modes)
-        return;
+        return false;
     const char *selected = name_of(at<void *>(modes, SELECTED_LIST), LIST_NAME);
     std::string list = is_ours(selected) ? selected : selected ? std::string() : last_pick;
     if (list.empty() || !is_ours(list.c_str()))
-        return;
+        return false;
     narrow(mode, list.c_str());
     if (logged_renarrow++ < LOG_FIRST)
         swofty::log("[era] picker built with %s still selected (%s): %s narrowed to it again", list.c_str(),
                     selected ? "the setup's selected list" : "the last addon box pressed", logic::HOST);
+    return true;
 }
 
 void *registry()
@@ -403,7 +549,8 @@ void site_entry(SwoftyContext *c)
         built.boxes++;
     }
     ref<uint8_t *>(vm, VM_TILES_NODE) = tiles_node;
-    renarrow(mode);
+    if (!renarrow(mode) && tt)
+        keep_time_trial_lists(mode);
     if (auto *root = at<uint8_t *>(vm, VM_ROOT)) {
         uint8_t visible = built.boxes > 0;
         reinterpret_cast<Vm_Set_Bool_t *>(b.set_bool)(registry(), root + 8, logic::ADDON_TILES_VISIBLE, &visible, 1);
@@ -444,12 +591,19 @@ char *press_entry(void *vm, void *command)
 
 void select_entry(void *container, const char *entrant_list)
 {
+    {
+        std::lock_guard<std::mutex> g(held_lock);
+        put_back();
+    }
     void *mode = container ? at<void *>(container, CONTAINER_MODE) : nullptr;
     bool ours = entrant_list && std::find(built.lists.begin(), built.lists.end(), entrant_list) != built.lists.end();
     if (mode && ours)
         narrow(mode, entrant_list);
     else
         restore();
+    if (mode && !ours && time_trial(mode))
+        keep_time_trial_lists(mode);
+    last_press = entrant_list ? entrant_list : "";
     if (ours && !mode && logged_narrow++ < LOG_FIRST)
         swofty::log("[era] %s pressed but the container has no mode; %s is not narrowed", entrant_list, logic::HOST);
     last_pick = ours ? entrant_list : "";
@@ -554,6 +708,103 @@ std::vector<era::Box> era_boxes()
 {
     std::lock_guard<std::mutex> g(lock);
     return logic::ordered(boxes);
+}
+
+void era_session_load()
+{
+    static uint32_t logged, swapped;
+    static std::string last_seen;
+    std::lock_guard<std::mutex> g(held_lock);
+    put_back();
+    uintptr_t slot = swofty::api ? swofty::api->resolve("g_Game_Manager") : 0, mgr = 0, ctx = 0, setup = 0;
+    if (!slot || !mem::read(slot, mgr) || !mgr || !mem::read(mgr + offsetof(swofty::game::GameManager, mode_context), ctx) ||
+        !ctx || !time_trial(reinterpret_cast<void *>(ctx)))
+        return;
+    uintptr_t holder = 0, gsm = 0, gsm_holder = 0, gsm_name = 0, entrant_setup = 0, list = 0;
+    if (!mem::read(ctx + MODE_SETUP, holder) || !holder || !mem::read(holder + SETUP_MODES, setup) || !setup)
+        return;
+    std::string setup_mode = "?";
+    if (mem::read(setup + SETUP_GAME_SETUP_MODE, gsm) && gsm && mem::read(gsm + SETUP_MODE_NAME, gsm_holder) && gsm_holder &&
+        mem::read(gsm_holder + 0x10, gsm_name))
+        mem::c_string(gsm_name, setup_mode, 64);
+    if (!mem::read(setup + SETUP_ENTRANT_SETUP, entrant_setup) || !entrant_setup || !mem::read(setup + SELECTED_LIST, list))
+        return;
+    std::vector<void *> ptrs;
+    auto lists = lists_of(reinterpret_cast<const uint8_t *>(entrant_setup), ptrs);
+    logic::ListCars selected = list ? list_cars(reinterpret_cast<void *>(list)) : logic::ListCars{};
+    logic::ListCars first = lists.empty() ? logic::ListCars{} : lists[0];
+    std::string seen = setup_mode + "/" + selected.name + "/" + std::to_string(selected.cars);
+    if (seen != last_seen && logged++ < LOG_FIRST * 2)
+        swofty::log("[era] Time Trial session loads list %s (%lld cars) of setup mode %s (box pressed: %s)",
+                    selected.name.empty() ? "?" : selected.name.c_str(), (long long)selected.cars, setup_mode.c_str(),
+                    last_press.empty() ? "none" : last_press.c_str());
+    last_seen = seen;
+    if (!logic::oversized(selected.cars) && !logic::oversized(first.cars))
+        return;
+    logic::ListCars bad = logic::oversized(selected.cars) ? selected : first;
+    std::vector<std::string> prefer{last_press};
+    {
+        std::lock_guard<std::mutex> b(lock);
+        for (const auto &box : boxes)
+            if (box.entrant_list == last_press)
+                prefer.push_back(logic::list_for(box, true));
+    }
+    int64_t i = logic::time_trial_fallback(lists, prefer);
+    auto *esm = reinterpret_cast<uint8_t *>(entrant_setup);
+    held = {esm, 0, 0, nullptr, nullptr};
+    if (i >= 0) {
+        void *fit = ptrs[size_t(i)];
+        ref<void *>(reinterpret_cast<void *>(setup), SELECTED_LIST) = fit;
+        if (logic::oversized(first.cars) && i > 0) {
+            held.first = ptrs[0];
+            held.fit = fit;
+            held.slot = size_t(i);
+            ref<void *>(esm, LISTS + size_t(i) * 8) = ptrs[0];
+            ref<void *>(esm, LISTS) = fit;
+        }
+    }
+    int32_t limit = 0;
+    if (mem::read(entrant_setup + ENTRANT_SETUP_MAX_ENTRANTS, limit) && logic::time_trial_limit(limit) != limit) {
+        held.limit_was = limit;
+        ref<int32_t>(esm, ENTRANT_SETUP_MAX_ENTRANTS) = logic::time_trial_limit(limit);
+    }
+    holding = held.first || held.limit_was;
+    if (swapped++ < LOG_FIRST * 2)
+        swofty::log("[era] %s", logic::time_trial_swap(bad.name, bad.cars, setup_mode, i >= 0 ? lists[size_t(i)].name : "",
+                                                       held.limit_was)
+                                    .c_str());
+}
+
+std::vector<CoreMixins> tt_guard_mixins()
+{
+    std::vector<CoreMixins> out;
+    if (vehicles_offered || !code_ready())
+        return out;
+    vehicles_offered = true;
+    if (!swofty::api->resolve(VEHICLE_FN)) {
+        swofty::log("[era] session vehicle guard off: needs %s, which this build does not resolve", VEHICLE_FN);
+        return out;
+    }
+    vehicles_bound = true;
+    out.push_back({VEHICLE_MIXIN, {{VEHICLE_FN, SWOFTY_MIXIN_WRAP, 100, (void *)&vehicles_entry, (void **)&vehicles_orig}}});
+    return out;
+}
+
+void tt_guard_commit()
+{
+    if (!vehicles_offered || vehicles_settled || !vehicles_bound)
+        return;
+    vehicles_settled = true;
+    swofty::log("[era] session vehicle guard %s",
+                core_mixins_active(VEHICLE_MIXIN)
+                    ? "armed: a session with more vehicles than its table of 26 sets up the first 26 instead of writing past it"
+                    : "did not install (see the [core] lines)");
+}
+
+void era_session_end()
+{
+    std::lock_guard<std::mutex> g(held_lock);
+    put_back();
 }
 
 std::vector<CoreMixins> era_mixins()
