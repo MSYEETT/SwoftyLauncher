@@ -2560,6 +2560,7 @@ pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry
 pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
 pub type Sess_Set_SafetyCarDeploymentType_t =
     unsafe extern "C" fn(sc_state: *mut c_void, sc_deployment_msg: *const c_void);
+pub type Sess_Setup_VehicleComponents_t = unsafe extern "C" fn(module: *mut c_void);
 pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     tod_owner: *mut c_void,
     types: *const u8,
@@ -3515,6 +3516,11 @@ pub mod bindings {
     };
     pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
         id: "Sess_Set_SafetyCarDeploymentType",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Setup_VehicleComponents: Binding = Binding {
+        id: "Sess_Setup_VehicleComponents",
         kind: "func",
         status: Status::Experimental,
     };

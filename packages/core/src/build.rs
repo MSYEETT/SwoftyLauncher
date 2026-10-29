@@ -567,6 +567,28 @@ pub fn named(store: &Store, game: &Path, e: Error) -> Error {
     e
 }
 
+/// The names of the addons in `order` the core has registry records of to apply at boot (data
+/// files or `SWOFTY_REGISTER` registrations), whatever route the database takes.
+fn registering_addons<'a>(
+    order: &[String],
+    std16: &'a BTreeMap<String, crate::stdlib::deps::Std>,
+) -> Vec<&'a str> {
+    order
+        .iter()
+        .filter_map(|id| std16.get(id))
+        .filter(|s| s.registers())
+        .map(|s| s.name.as_str())
+        .collect()
+}
+
+/// The build line for the addons whose registry records turn the early stage on.
+fn early_stage_line(names: &[&str]) -> String {
+    format!(
+        "registry: the core loads at the early stage for the registry records of {}",
+        names.join(", ")
+    )
+}
+
 /// The `registry.json` of each addon whose `replaced_operations` the core in
 /// `loader` applies instead: the core lists the rows feature and the addon has
 /// data files, which reach the core through the registry index.
@@ -925,8 +947,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         outputs.insert(id.clone(), out.finish());
     }
-    // The core applies registry records at boot only when it loads at the early stage.
-    runtime.assets.early_stage |= left_to_core;
+    // The core applies registry records at boot only when it loads at the early stage, on the runtime and the
+    // file database route alike.
+    let registering = match loader_dir().is_some() {
+        true => registering_addons(&resolved.order, &std16),
+        false => Vec::new(),
+    };
+    if !registering.is_empty() {
+        built.lines.push(early_stage_line(&registering));
+    }
+    runtime.assets.early_stage |= left_to_core || !registering.is_empty();
     if head_puts.pending() {
         let path = original(&store.root, game, GVDB);
         let stock = crate::heads::labels(&Gvdb::parse(&std::fs::read(&path).map_err(io_err(&path))?)?);
@@ -2324,6 +2354,44 @@ mod tests {
         assert_eq!(r.keys().copied().collect::<Vec<_>>(), ["a.season"]);
         assert!(r["a.season"].replaces("db/records.json") && !r["a.season"].replaces("db/season.json"));
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn registry_records_turn_the_early_stage_on_whatever_the_database_route() {
+        let std = |id: &str, data: bool, lock: Option<&str>, registry: bool| crate::stdlib::deps::Std {
+            id: id.into(),
+            name: format!("{id} name"),
+            version: semver::Version::new(1, 0, 0),
+            registry: registry.then(|| crate::stdlib::manifest::RegistryManifest::parse("{}").unwrap()),
+            lock: lock.map(|l| crate::stdlib::lock::Lock::parse(l).unwrap()),
+            data_files: match data {
+                true => vec!["registry/teams.json".into()],
+                false => Vec::new(),
+            },
+            records: Vec::new(),
+            files: Default::default(),
+            unreadable: Vec::new(),
+        };
+        let registers = r#"{ "provides": { "team.identity": [ { "id": "dll.teams/hrt" } ] } }"#;
+        let std16 = BTreeMap::from([
+            ("a.data".to_owned(), std("a.data", true, None, true)),
+            ("b.code".to_owned(), std("b.code", false, Some(registers), false)),
+            ("c.needs".to_owned(), std("c.needs", false, Some("{}"), true)),
+            ("d.off".to_owned(), std("d.off", true, None, false)),
+        ]);
+        let order: Vec<String> = ["swofty.core", "c.needs", "b.code", "a.data", "e.old"]
+            .map(str::to_owned)
+            .to_vec();
+        let on = registering_addons(&order, &std16);
+        assert_eq!(on, ["b.code name", "a.data name"]);
+        assert_eq!(
+            early_stage_line(&on),
+            "registry: the core loads at the early stage for the registry records of b.code name, a.data name"
+        );
+        assert!(
+            registering_addons(&order[..2], &std16).is_empty(),
+            "a registry.json or a lock without registrations leaves it off"
+        );
     }
 
     #[test]

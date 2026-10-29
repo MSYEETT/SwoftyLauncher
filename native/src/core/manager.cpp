@@ -50,6 +50,8 @@ const SwoftyEra *era_table();
 const SwoftyRegistry *registry_table();
 std::vector<CoreMixins> era_mixins();
 void era_commit();
+std::vector<CoreMixins> tt_guard_mixins();
+void tt_guard_commit();
 std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
@@ -1745,7 +1747,7 @@ size_t offer_core_sets()
 {
     size_t before = addons.size();
     for (auto *sets : {runtime::save_sandbox_mixins, runtime::career_content_mixins, runtime::characters_mixins, runtime::wizard_mixins,
-                       runtime::tile_route_mixins, runtime::era_mixins, runtime::car_category_mixins,
+                       runtime::tile_route_mixins, runtime::era_mixins, runtime::tt_guard_mixins, runtime::car_category_mixins,
                        runtime::save_splice_mixins, runtime::ers_newlap_mixins, runtime::track_acclim_mixins,
                        runtime::team_slots_mixins})
         add_core_sets(sets());
@@ -1760,6 +1762,7 @@ void settle_core_sets()
     runtime::characters_commit();
     runtime::wizard_commit();
     runtime::era_commit();
+    runtime::tt_guard_commit();
     runtime::car_category_commit();
     runtime::save_splice_commit();
     runtime::ers_newlap_commit();
