@@ -1,0 +1,82 @@
+// Host test for list.hpp: the calendar first by venue (with ? and | venues and dropped rounds), "More tracks" in base
+// order with per_package order and offered, left-out reasons, the [tracks] box line and the catalog JSON.
+// run_track_lists_test.sh builds and runs it.
+#include "fixture.hpp"
+
+int main()
+{
+    trk::Facts facts = trk::parse_facts(FACTS);
+    trk::Base base = cs_base();
+    trk::BoxInfo box = cs2016();
+    trk::Entries none;
+
+    std::vector<trk::Round> rounds = {{3, "venue/shanghai"}, {1, "venue/albert_park"}, {2, "venue/bahrain"},
+                                      {4, "venue/sochi"},    {5, "venue/sepang"},      {6, "venue/monaco"}};
+    trk::List l = trk::build_list(base, &facts, box, trk::Mode::grand_prix, rounds, none);
+    expect((l.calendar == std::vector<std::string>{"game/melbourne", "game/bahrain", "game/shanghai", "test.bahrain24/sepang"}),
+           "the calendar in round order, the record track at Sepang's round");
+    expect(l.rounds == 6 && l.missing == std::vector<std::string>{"venue/sochi"}, "a round with no providing track is dropped");
+    expect((l.more == std::vector<std::string>{"game/melbourne_reverse", "mod.okayama/okayama"}),
+           "More tracks: every other fitting base track in base order");
+    expect(l.left_out.size() == 2 && l.left_out[0].track == "game/monaco" && l.left_out[1].track == "mod.miami24/igora_drive",
+           "Monaco (grid) and Igora Drive (garages) are left out");
+    expect(trk::list_line(box.package, trk::Mode::grand_prix, l) ==
+               "[tracks] box swofty.classic-seasons-2016/f1_2016 (grand_prix): calendar 4 of 6 rounds (venue/sochi: no "
+               "track), more tracks 2; left out game/monaco (its swofty_f1 world has 20 grid slots; the box runs 22 cars), "
+               "mod.miami24/igora_drive (its swofty_f1 world has 10 garages; the box has 11 teams)",
+           "the [tracks] box line");
+
+    l = trk::build_list(base, &facts, box, trk::Mode::grand_prix,
+                        {{1, "venue/sochi|venue/albert_park"}, {2, "venue/sochi?"}, {3, "venue/okayama?"}}, none);
+    expect((l.calendar == std::vector<std::string>{"game/melbourne", "mod.okayama/okayama"}) &&
+               l.missing == std::vector<std::string>{"venue/sochi"},
+           "a | venue takes the first that resolves; a ? venue with no track is dropped");
+
+    trk::List tt = trk::build_list(base, &facts, box, trk::Mode::time_trial, {}, none);
+    int no_tt = 0;
+    for (auto &o : tt.left_out)
+        no_tt += o.reason == "no Time Trial support";
+    expect(tt.calendar.empty() && no_tt == 3 && tt.more.size() == 4, "a Time Trial box leaves out every added track");
+    expect(trk::list_line("game/f1_2026", trk::Mode::time_trial, tt) ==
+               "[tracks] box game/f1_2026 (time_trial): 4 tracks; left out game/monaco (its swofty_f1 world has 20 grid "
+               "slots; the box runs 22 cars), 3 tracks (no Time Trial support)",
+           "the Time Trial line groups left-out tracks by reason");
+
+    trk::Entries e;
+    e.by_track["game/bahrain"] = {"cs/f1_2016/bahrain", "game/bahrain", false, 0, {}};
+    e.by_track["mod.okayama/okayama"] = {"cs/f1_2016/okayama", "mod.okayama/okayama", true, 1, {}};
+    l = trk::build_list(base, &facts, box, trk::Mode::grand_prix, {{1, "venue/bahrain"}, {2, "venue/albert_park"}}, e);
+    expect(l.calendar == std::vector<std::string>{"game/melbourne"} && l.left_out.front().track == "game/bahrain" &&
+               l.left_out.front().reason == "not offered in this box",
+           "offered = false leaves a calendar track out");
+    expect((l.more == std::vector<std::string>{"mod.okayama/okayama", "game/shanghai", "game/melbourne_reverse",
+                                               "test.bahrain24/sepang"}),
+           "order 1 puts a track first under More tracks; order 0 keeps the base order");
+    e.by_track["mod.okayama/okayama"].order = 99;
+    l = trk::build_list(base, &facts, box, trk::Mode::grand_prix, {}, e);
+    expect(l.more.back() == "mod.okayama/okayama", "an order past the end puts the track last");
+
+    trk::List f1990 = trk::build_list(base, &facts, [] {
+        trk::BoxInfo b = cs2016(10);
+        for (auto &c : b.ai)
+            c.folder = "f1_1990", c.asset = "f1_1990_car";
+        return b;
+    }(), trk::Mode::grand_prix, {}, none);
+    expect((f1990.more == std::vector<std::string>{"game/melbourne", "game/shanghai", "game/melbourne_reverse"}),
+           "F1 1990 keeps Melbourne (its AI data) and the tracks with no facts; the rest are left out");
+    expect(f1990.left_out.size() == 5, "F1 1990 leaves out the five tracks without its AI folder");
+
+    Value js = trk::list_json(l);
+    expect(js["calendar"].size() == 0 && js["more"].size() == l.more.size() && js["left_out"][0]["reason"].is_string(),
+           "list_json writes calendar, more and left_out as the header's TrackList");
+    Value cal = Value::object({{"rounds", Value::array({Value::object({{"round", Value(2)}, {"venue", Value("venue/monaco")}}),
+                                                        Value::object({{"round", Value(1)}})})}});
+    auto r = trk::rounds_of(cal);
+    expect(r.size() == 2 && r[0].round == 2 && r[0].venue == "venue/monaco" && r[1].venue.empty(),
+           "rounds_of reads a career.calendar record");
+    l = trk::build_list(base, &facts, box, trk::Mode::grand_prix, r, none);
+    expect(l.missing == std::vector<std::string>{"round 1"}, "a round with no venue is dropped and named by its number");
+
+    printf("%s\n", fails ? "list_test: FAILED" : "list_test: all passed");
+    return fails ? 1 : 0;
+}
