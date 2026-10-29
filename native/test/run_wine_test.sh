@@ -329,6 +329,9 @@ EOF
         once "acclim: the track acclimatisation guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(track acclimatisation guard\)': 1 mixin"
         once "acclim: the track acclimatisation guard is armed" '\[acclim\] track acclimatisation guard armed'
         once "acclim: the programme without targets is skipped and logged" '\[acclim\] Track Acclimatisation programme 0x[0-9a-f]+ has no targets at this track \(targets 0x0\); refresh skipped'
+        once "acclim: the track acclimatisation penalty guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(track acclimatisation penalty guard\)': 1 mixin"
+        once "acclim: the track acclimatisation penalty guard is armed" '\[acclim\] track acclimatisation penalty guard armed'
+        once "acclim: the penalty flag of a programme without targets is skipped and logged" '\[acclim\] Track Acclimatisation programme 0x[0-9a-f]+ has no targets at this track \(targets 0x0\); penalty flag skipped'
         check "events: flow-tick hook installed" '\[events\] Vm_Update_FlowStateMachine hooked at base\+0x[0-9a-f]+'
         check "events: setup reports the onFrame tick live" '\[events\] setup: live; onFrame armed'
         once "events: first flow tick fires with dt 0" '\[events\] flow tick 1 observed, dt 0\.0'
@@ -613,6 +616,27 @@ for guard in on off; do
         check "acclim off: faulting access" '\[crash\]   reading 0x4'
         parse_report "Game_PracticeTrackAcclimatisation_RefreshState+0x1fb" "reading 0x4" || status=1
         [[ $code != 0 ]] && echo "ok  : acclim off: process ended with $code" || { echo "FAIL: acclim off: process exited 0"; status=1; }
+    fi
+done
+for guard in on off; do
+    echo "==== acclim_penalty ($guard)"
+    code=0
+    rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
+    SWOFTY_ACCLIM_GUARD=$([[ $guard == off ]] && echo 0) timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" acclim_penalty >"$OUT/acclim_penalty.out" 2>&1 || code=$?
+    grep -E '\[acclim\]|\[crash\] (unhandled |crash report [^:]*crash-[0-9])' "$LOG" || true
+    if [[ $guard == on ]]; then
+        once "acclim_penalty on: the penalty flag of a programme without targets is skipped" '\[acclim\] Track Acclimatisation programme 0x[0-9a-f]+ has no targets at this track \(targets 0x0\); penalty flag skipped'
+        grep -q 'acclim: the penalty flag returned' "$OUT/acclim_penalty.out" && echo "ok  : acclim_penalty on: the penalty flag returned" ||
+            { echo "FAIL: acclim_penalty on: the penalty flag did not return"; status=1; }
+        count "acclim_penalty on: no unhandled fault" 0 '\[crash\] unhandled '
+        compgen -G "$SW/crash-*.txt" >/dev/null && { echo "FAIL: acclim_penalty on: a crash report was written"; status=1; } ||
+            echo "ok  : acclim_penalty on: no crash report"
+    else
+        once "acclim_penalty off: the guard is off" '\[acclim\] track acclimatisation guard off \(SWOFTY_ACCLIM_GUARD=0\)'
+        check "acclim_penalty off: the penalty flag faults where the game does" '\[crash\] unhandled ACCESS_VIOLATION .*Game_PracticeTrackAcclimatisation_FlagCurrentTarget\+0x14'
+        check "acclim_penalty off: faulting access" '\[crash\]   reading 0xc4'
+        parse_report "Game_PracticeTrackAcclimatisation_FlagCurrentTarget+0x14" "reading 0xc4" || status=1
+        [[ $code != 0 ]] && echo "ok  : acclim_penalty off: process ended with $code" || { echo "FAIL: acclim_penalty off: process exited 0"; status=1; }
     fi
 done
 echo "==== ntpage"
