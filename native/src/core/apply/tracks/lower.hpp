@@ -446,6 +446,7 @@ struct Request {
     std::string id, code, from, slot;
     int64_t stat_id = -1;
     bool route = true;
+    std::vector<std::string> ui_lists;
 };
 
 struct Lowered {
@@ -491,6 +492,51 @@ inline std::string route_resource(Db &db, const Tables &t, const Key &track_row,
     lines.push_back("track resource " + label + " (from " + *current + ") loads " + code + " from " +
                     natural_group(code, ""));
     return {};
+}
+
+// The launcher builds an added track's menu pictures into its UI lists as overrides.<list>.<code>; a TrackTextures
+// value naming overrides.<list>.<other> in one of those lists is pointed at the track's own (activation::db).
+inline std::size_t point_textures(Db &db, const std::vector<Key> &keys, const std::string &code,
+                                  const std::vector<std::string> &lists)
+{
+    std::size_t n = 0;
+    for (auto &k : keys) {
+        auto v = db.text(k.h);
+        if (!v || v->rfind("overrides.", 0) != 0)
+            continue;
+        std::string rest = v->substr(10);
+        auto dot = rest.rfind('.');
+        if (dot == std::string::npos)
+            continue;
+        std::string list = rest.substr(0, dot);
+        if (std::find(lists.begin(), lists.end(), list) == lists.end())
+            continue;
+        std::string to = "overrides." + list + "." + code;
+        if (to != *v && db.set_text(k, to))
+            n++;
+    }
+    return n;
+}
+
+inline std::vector<Key> texture_keys(const Db &db, const Tables &t, const Key &track_row, const std::vector<Key> &data_rows)
+{
+    std::vector<Key> keys;
+    auto tex = t.track_data.schema.tables.find("TrackTextures");
+    if (tex != t.track_data.schema.tables.end())
+        for (auto &r : data_rows) {
+            std::size_t m = db.count(sub_count(r, "TrackTextures").h).value_or(0);
+            for (std::size_t i = 0; i < m; i++)
+                for (auto &f : tex->second.fields)
+                    keys.push_back(field(row(sub_table(r, "TrackTextures"), i), f));
+        }
+    std::size_t m = db.count(sub_count(track_row, "TrackTextures").h).value_or(0);
+    for (std::size_t i = 0; i < m; i++) {
+        Key tr = row(sub_table(track_row, "TrackTextures"), i);
+        std::size_t k = db.count(sub_count(tr, "TrackTexture").h).value_or(0);
+        for (std::size_t j = 0; j < k; j++)
+            keys.push_back(field(row(sub_table(tr, "TrackTexture"), j), "value"));
+    }
+    return keys;
 }
 
 inline std::vector<std::string> split_items(const std::string &v)
@@ -573,6 +619,7 @@ inline Lowered lower_track(Db &db, const Tables &t, const Request &req)
         out.lines.push_back(spec.id + ": added " + code);
     }
     Table sets = Table::of(t.datasets);
+    std::vector<Key> data_rows;
     std::size_t n = sets.ok ? sets.len(db) : 0;
     if (!n) {
         out.error = "the dataset table is missing or empty";
@@ -594,6 +641,7 @@ inline Lowered lower_track(Db &db, const Tables &t, const Request &req)
         }
         clone_row(db, t.track_data.schema, *src, *dst);
         relabel(db, *dst, t.track_data.labels, code);
+        data_rows.push_back(*dst);
         out.sets.push_back(set_label);
     }
     std::string joined;
@@ -638,6 +686,10 @@ inline Lowered lower_track(Db &db, const Tables &t, const Request &req)
                 out.lines.push_back(list.sub_table + " " + db.text(field(set, "_metadata_").h).value_or("") + ": added " + code);
             }
         }
+    }
+    if (!req.ui_lists.empty()) {
+        std::size_t pointed = point_textures(db, texture_keys(db, t, *track_row, data_rows), code, req.ui_lists);
+        out.lines.push_back(code + ": " + std::to_string(pointed) + " texture path(s) point at its own pictures");
     }
     return out;
 }

@@ -1047,6 +1047,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     if !ui_maps.is_empty() {
         hasher.update(ui_stamp(&ui_maps, &resolve)?);
     }
+    let record_ui = record_ui_lists(&ui_maps, &tracks, &recorded, &resolve, &mut built.warnings);
     let mut caches = Vec::new();
     let mut session = store.session_settings(profile)?;
     session.set_maps(maps.iter().map(|(_, pkg)| pkg));
@@ -1105,7 +1106,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
         if !checking {
             fingerprint::record_outputs(store, profile, outputs).ok();
-            track_files(store, game, &mut built, &tracks, &slots, &recorded);
+            track_files(store, game, &mut built, &tracks, &slots, &recorded, &record_ui);
         }
         return Ok(built);
     }
@@ -1888,9 +1889,46 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
     if !checking {
         fingerprint::record_outputs(store, profile, outputs).ok();
-        track_files(store, game, &mut built, &tracks, &slots, &recorded);
+        track_files(store, game, &mut built, &tracks, &slots, &recorded, &record_ui);
     }
     Ok(built)
+}
+
+/// The menu UI lists the build makes a track record's pictures for: its rows come from the core
+/// at boot, so the core points their `TrackTextures` at those pictures from the facts file.
+fn record_ui_lists(
+    ui_maps: &[MapUi],
+    tracks: &[(PathBuf, TrackPackage, Origin)],
+    recorded: &BTreeSet<String>,
+    resolve: &dyn Fn(&str) -> PathBuf,
+    warnings: &mut Vec<String>,
+) -> crate::activation::ui::Lists {
+    let codes: BTreeSet<&str> = tracks
+        .iter()
+        .filter(|(_, _, o)| recorded.contains(&o.addon))
+        .map(|(_, p, _)| p.track_code.as_str())
+        .collect();
+    let maps: Vec<MapUi> = ui_maps
+        .iter()
+        .filter(|m| codes.contains(m.pkg.track_code.as_str()))
+        .map(|m| MapUi {
+            pkg: m.pkg,
+            dir: m.dir,
+            asset_group: m.asset_group.clone(),
+        })
+        .collect();
+    if maps.is_empty() {
+        return Default::default();
+    }
+    match plan_lists(&maps, resolve) {
+        Ok((lists, _)) => lists,
+        Err(e) => {
+            warnings.push(format!(
+                "tracks: the record tracks' menu pictures can't be planned: {e}"
+            ));
+            Default::default()
+        }
+    }
 }
 
 /// Writes `$DATA/registry/track-facts.json` and `older-tracks.json` for a build of a profile with
@@ -1902,6 +1940,7 @@ fn track_files(
     tracks: &[(PathBuf, TrackPackage, Origin)],
     slots: &[Option<&str>],
     recorded: &BTreeSet<String>,
+    record_ui: &crate::activation::ui::Lists,
 ) {
     if built.plan.is_vanilla() {
         return;
@@ -1930,6 +1969,13 @@ fn track_files(
                 .contains(&origin.addon)
                 .then(|| pkg.activation.base_track().map(str::to_owned))
                 .flatten(),
+            ui_lists: match recorded.contains(&origin.addon) {
+                true => record_ui
+                    .get(&pkg.track_code)
+                    .map(|l| l.iter().cloned().collect())
+                    .unwrap_or_default(),
+                false => Vec::new(),
+            },
         })
         .collect();
     let scan = crate::activation::facts::Scan {

@@ -23,7 +23,7 @@ struct World {
 
 struct TrackFacts {
     std::map<std::string, World> worlds;
-    std::vector<std::string> ai, ai_difficulties;
+    std::vector<std::string> ai, ai_difficulties, ui_lists;
     bool has_ai = false, has_difficulties = false;
 };
 
@@ -113,6 +113,7 @@ inline Facts parse_facts(std::string_view text, std::string *why = nullptr)
             tf.has_difficulties = t["ai_difficulties"].is_array();
             tf.ai = facts_strings(t["ai"]);
             tf.ai_difficulties = facts_strings(t["ai_difficulties"]);
+            tf.ui_lists = facts_strings(t["ui_lists"]);
             f.tracks[std::string(code)] = std::move(tf);
         }
     f.loaded = true;

@@ -97,8 +97,10 @@ inline std::vector<std::string> strings_of(const Value &v)
     return out;
 }
 
+using UiLists = std::function<std::vector<std::string>(const std::string &code)>;
+
 inline Plan lower_records(registry::Store &st, Db &db, const Tables &t, const Scan &scan, const std::vector<Older> &older,
-                          const StatIds &stat)
+                          const StatIds &stat, const UiLists &ui_lists = {})
 {
     Plan p;
     std::map<std::string, std::string> code_of;
@@ -157,7 +159,7 @@ inline Plan lower_records(registry::Store &st, Db &db, const Tables &t, const Sc
             refuse("code " + code + " is already " + (holder.empty() ? std::string("a track row") : holder + "'s"));
             continue;
         }
-        Request req{id, code, from->second, slot_code, -1, true};
+        Request req{id, code, from->second, slot_code, -1, true, ui_lists ? ui_lists(code) : std::vector<std::string>{}};
         StatId sid;
         if (!fills && stat) {
             int64_t pin = rec["stat_id"].is_int() ? rec["stat_id"].as_int() : -1;

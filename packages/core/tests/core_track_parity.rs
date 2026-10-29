@@ -6,10 +6,16 @@ use swofty_core::activation::db::{Registry, TrackHost, activate};
 use swofty_core::map::TrackPackage;
 use swofty_formats::gvdb::{Gvdb, Record};
 
-const CASES: &[(&str, &str, Option<&str>)] = &[
-    ("okayama", "melbourne", Some("melbourne")),
-    ("bahrain24", "bahrain", None),
-    ("delhi", "zandvoort", None),
+const CASES: &[(&str, &str, Option<&str>, &[&str])] = &[
+    ("okayama", "melbourne", Some("melbourne"), &[]),
+    ("bahrain24", "bahrain", None, &[]),
+    ("delhi", "zandvoort", None, &[]),
+    (
+        "pictures",
+        "bahrain",
+        None,
+        &["fe_world.tracks_spline", "tracks.flags_circle"],
+    ),
 ];
 
 fn fixture_dir() -> PathBuf {
@@ -64,7 +70,7 @@ fn track_lowering_parity() {
         .map(|r| (r.key, (r.tag, r.value.clone())))
         .collect();
     let reg = Registry::builtin();
-    for (code, from, slot) in CASES {
+    for (code, from, slot, lists) in CASES {
         let mut db = base.clone();
         let pkg: TrackPackage = serde_json::from_value(json!({
             "track_code": code,
@@ -72,7 +78,8 @@ fn track_lowering_parity() {
             "activation": { "copy_from_track": from, "copy_slot": slot }
         }))
         .unwrap();
-        activate(&mut db, &pkg, &reg, Some(&TrackHost::Natural), &BTreeSet::new()).unwrap();
+        let lists: BTreeSet<String> = lists.iter().map(|l| l.to_string()).collect();
+        activate(&mut db, &pkg, &reg, Some(&TrackHost::Natural), &lists).unwrap();
         let mut records: Vec<&Record> = db
             .records
             .iter()

@@ -59,6 +59,10 @@ pub struct TrackFacts {
     pub time_trial: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_trial_why: Option<String>,
+    /// For a track record: the menu UI lists the build made its own pictures for
+    /// (`overrides.<list>.<code>`), which the core points the track's `TrackTextures` at.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ui_lists: Vec<String>,
 }
 
 fn supported() -> bool {
@@ -87,6 +91,8 @@ pub struct Added {
     /// For a track record, whose rows the core adds at boot: the stock track its rows are
     /// cloned from, for its `ai_track_difficulties`.
     pub base: Option<String>,
+    /// For a track record: the menu UI lists the build made its pictures for.
+    pub ui_lists: Vec<String>,
 }
 
 /// What a build hands the scan.
@@ -490,6 +496,7 @@ pub fn facts(scan: &Scan, previous: Option<&Facts>, cache: &mut WorldsCache) -> 
     for a in &scan.added {
         stamp(&mut hasher, &a.shipped);
         stamp(&mut hasher, &a.placed);
+        hasher.update(format!("{} ui {:?};", a.code, a.ui_lists));
         let row = codes
             .iter()
             .find(|(_, c)| *c == a.code)
@@ -532,6 +539,12 @@ pub fn facts(scan: &Scan, previous: Option<&Facts>, cache: &mut WorldsCache) -> 
                     .unwrap_or_default(),
                 time_trial: !no_world,
                 time_trial_why: no_world.then(|| NO_WORLD.to_owned()),
+                ui_lists: scan
+                    .added
+                    .iter()
+                    .find(|a| a.code == code)
+                    .map(|a| a.ui_lists.clone())
+                    .unwrap_or_default(),
             };
             (code, t)
         })
@@ -764,12 +777,14 @@ mod tests {
                     shipped: shipped.clone(),
                     placed: placed.clone(),
                     base: None,
+                    ui_lists: Vec::new(),
                 },
                 Added {
                     code: "record".into(),
                     shipped: shipped.clone(),
                     placed: placed.clone(),
                     base: Some("melbourne".into()),
+                    ui_lists: vec!["track_select".into()],
                 },
             ],
         };
@@ -803,6 +818,8 @@ mod tests {
             ["added", "melbourne", "record"]
         );
         assert_eq!(f.tracks["record"].ai_difficulties, ["f1_2025_vehicle_package"]);
+        assert_eq!(f.tracks["record"].ui_lists, ["track_select"]);
+        assert!(f.tracks["added"].ui_lists.is_empty());
         assert!(
             f.tracks["added"].time_trial,
             "a track made for 1.5 runs Time Trial"

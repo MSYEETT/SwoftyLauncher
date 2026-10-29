@@ -81,11 +81,13 @@ static tk::Read fixture_read(const Fixture &f)
 
 struct Case {
     const char *name, *code, *from, *slot;
+    std::vector<std::string> ui_lists;
 };
 
-static constexpr Case CASES[] = {{"okayama", "okayama", "melbourne", "melbourne"},
-                                 {"bahrain24", "bahrain24", "bahrain", ""},
-                                 {"delhi", "delhi", "zandvoort", ""}};
+static const Case CASES[] = {{"okayama", "okayama", "melbourne", "melbourne", {}},
+                             {"bahrain24", "bahrain24", "bahrain", "", {}},
+                             {"delhi", "delhi", "zandvoort", "", {}},
+                             {"pictures", "pictures", "bahrain", "", {"fe_world.tracks_spline", "tracks.flags_circle"}}};
 
 static int make_fixture(const std::string &gamedb, const std::string &out)
 {
@@ -143,7 +145,7 @@ static void parity_tests(const Fixture &f, const std::string &dir)
 {
     for (auto &c : CASES) {
         tk::Db db(fixture_read(f));
-        tk::Lowered l = tk::lower_track(db, tk::builtin_tables(), {c.code, c.code, c.from, c.slot, -1, true});
+        tk::Lowered l = tk::lower_track(db, tk::builtin_tables(), {c.code, c.code, c.from, c.slot, -1, true, c.ui_lists});
         check(l.error.empty(), std::string(c.name) + ": lowers over the fixture (" + l.error + ")");
         bool found = false;
         auto want = expected_of(dir + "/fixture/expected/" + c.name + ".json", found);

@@ -116,6 +116,7 @@ fn an_installed_tracks_placed_archive_scans_with_its_stand_ins() {
             shipped,
             placed,
             base: Some("melbourne".into()),
+            ui_lists: Vec::new(),
         }],
     };
     let f = facts(&scan, None, &mut WorldsCache::default()).unwrap().unwrap();
