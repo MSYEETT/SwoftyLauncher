@@ -68,7 +68,10 @@
 #include <swofty/mem.hpp>
 #include <swofty/mixin.hpp>
 
+#include <swofty/lang.hpp>
+#include <swofty/registry.hpp>
 #include <swofty/storage.hpp>
+#include <swofty/systems/teams.hpp>
 
 #include "../cards_logic.hpp"
 #include "../choose_logic.hpp"
@@ -240,8 +243,15 @@ void restore_cars(const char *why, bool apply = true)
     g_team_swaps.clear();
 }
 
+void wizard_teams(int year);
+void keep_teams();
+
 void take_back(const char *why, bool restore_rows)
 {
+    if (std::string_view(why) == pc::kEventHub)
+        keep_teams();
+    else
+        wizard_teams(0);
     restore_cars(why, restore_rows);
     pg::wizard_ratings::restore(why, std::string_view(why) != pc::kEventHub);
     g_live = false;
@@ -522,6 +532,86 @@ void gate_team(uintptr_t vm)
                 g_year, driver, what, w.was, want);
 }
 
+// An added team of the start season (season_logic.hpp added_team, a career.season record naming a team an addon
+// made) in the wizard: the core dresses its slot row (career::apply_teams' start request: names and colours of the
+// loaded team record, which Choose Driver and Team Select read) and the slot's name keys get the team's own names, so
+// the new-career flow lists it in its slot. Both come off when the wizard is left; at the new career's Team HQ they
+// stay, and the season start dresses the same row (season.cpp names it the same). Applied on the next frame (the
+// core's operations run on the flow thread).
+std::atomic<int> g_teams_want{0};
+int g_teams_year = 0, g_teams_tries = 0, g_teams_wait = 0;
+std::vector<std::string> g_team_keys;
+
+std::optional<std::array<std::string, 3>> identity_names(const std::string &team)
+{
+    if (!swofty::detail::registry_table())
+        return std::nullopt;
+    std::optional<swofty::teams::Identity> rec = swofty::teams::identities.get(swofty::Ref<swofty::teams::Identity>(team));
+    if (!rec)
+        return std::nullopt;
+    auto literal = [](const swofty::Text &t) { return t.is_literal() ? t.str() : std::string(); };
+    return std::array<std::string, 3>{literal(rec->names.title), literal(rec->names.short_name),
+                                      literal(rec->names.super_short)};
+}
+
+void teams_frame(double, void *)
+{
+    int want = g_teams_want.load();
+    if (want == g_teams_year || (g_teams_wait && --g_teams_wait))
+        return;
+    const SwoftyCareerOps *ops = pg::records::core_ops();
+    std::string result = "no core career operations";
+    if (ops && ops->version >= 3 && ops->apply_teams) {
+        std::string req = "{\"start\":{\"data_group\":\"" + std::string(kGroup) + "\",\"year\":" + std::to_string(want) + "}}";
+        char out[2048];
+        size_t len = 0;
+        int r = ops->apply_teams(SwoftyText{req.data(), req.size()}, out, sizeof out, &len);
+        if (r == SWOFTY_ASSET_LATE && ++g_teams_tries < 10) {
+            g_teams_wait = 60;
+            return;
+        }
+        result = r == SWOFTY_ASSET_OK ? "the core dressed the slot rows" : "the core's start request returned " + std::to_string(r);
+    }
+    g_teams_tries = 0;
+    g_teams_wait = 0;
+    bool lang = swofty::lang::available();
+    for (const std::string &k : g_team_keys)
+        if (lang)
+            swofty::lang::clear(k);
+    size_t cleared = g_team_keys.size(), set = 0;
+    g_team_keys.clear();
+    if (want && lang) {
+        Effective &e = effective_years();
+        for (auto &w : progressive::season::added_team_name_writes(e.effective, want, identity_names))
+            if (swofty::lang::set(w.key, w.text) == swofty::lang::Result::ok) {
+                g_team_keys.push_back(w.key);
+                ++set;
+            }
+    }
+    if (lang && (set || cleared))
+        swofty::lang::refresh();
+    g_teams_year = want;
+    if (set || cleared || want)
+        swofty::log("[progressive] cards: added teams %d: %s; %zu name key(s) set, %zu cleared", want, result.c_str(), set, cleared);
+}
+
+void wizard_teams(int year)
+{
+    g_teams_want = year;
+}
+
+void keep_teams()
+{
+    if (!g_teams_year && !g_teams_want.load())
+        return;
+    swofty::log("[progressive] cards: added teams %d: kept for the new career's Team HQ (%zu name key(s)); the season start "
+                "dresses the same rows",
+                g_teams_year, g_team_keys.size());
+    g_team_keys.clear();
+    g_teams_year = 0;
+    g_teams_want = 0;
+}
+
 void on_event(const SwoftyEvent *ev, void *)
 {
     if (pc::takes_back(ev->name, ev->a)) {
@@ -577,6 +667,7 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
                     static_cast<unsigned long long>(setup), static_cast<unsigned long long>(career_list));
     if (ours && year >= pc::kFirstYear && year <= pc::kLastListYear)
         dress(at, mode, entrants, career_list, year);
+    wizard_teams(g_mode ? g_year : 0);
     if (g_mode)
         pg::wizard_ratings::show(g_year, "Choose Driver populate");
     else
@@ -645,9 +736,25 @@ extern "C" __declspec(dllexport) int ProgressiveCardsNumber(uint32_t driver)
     return v && v->car_number != pc::kNoNumber ? v->car_number : -1;
 }
 
+// progressive_logos.dll: the logo key of the start season's added team in the slot whose career team row is label,
+// null when the view is not active or the slot holds no added team.
+extern "C" __declspec(dllexport) const char *ProgressiveCardsAddedTeamLogo(const char *label)
+{
+    static thread_local std::string key;
+    int year = ProgressiveCardsStartYear();
+    if (!year || !label)
+        return nullptr;
+    key = progressive::season::added_team_logo(effective_years().effective, year, label);
+    return key.empty() ? nullptr : key.c_str();
+}
+
 SWOFTY_ON_LOAD
 {
     uint32_t token = 0;
+    swofty::events::Result f = swofty::events::on_frame(teams_frame, nullptr, &token);
+    if (f != swofty::events::Result::ok)
+        swofty::log("[progressive] cards: on_frame: %s; a start season's added teams are not shown in the wizard",
+                    swofty::events::name(f));
     for (std::string_view ev : pc::kEvents) {
         swofty::events::Result r = swofty::events::subscribe(ev, on_event, nullptr, &token);
         if (r != swofty::events::Result::ok)

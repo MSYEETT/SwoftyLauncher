@@ -616,6 +616,18 @@ void added_team_names_leave_the_dressed_slot_alone()
     for (auto &w : none)
         if (w.key == key11[0])
             EXPECT(w.clear);
+
+    auto wizard = season::added_team_name_writes(layered, 2016, ig);
+    EXPECT(wizard.size() == 3);
+    for (size_t k = 0; k < wizard.size() && k < 3; ++k)
+        EXPECT(wizard[k].key == key11[k] && !wizard[k].clear && wizard[k].text == (k == 0 ? "IG Racing" : k == 1 ? "IG" : "IGR"));
+    EXPECT(season::added_team_name_writes(g_data, 2016, ig).empty());
+    EXPECT(season::added_team_name_writes(layered, 2017, ig).empty());
+    EXPECT(season::added_team_name_writes(layered, 2016, nullptr).empty());
+    EXPECT(season::added_team_logo(layered, 2016, g_data.slots[10].team) == "ig_racing");
+    EXPECT(season::added_team_logo(layered, 2016, g_data.slots[0].team).empty());
+    EXPECT(season::added_team_logo(g_data, 2016, g_data.slots[10].team).empty());
+    EXPECT(season::added_team_logo(layered, 2017, g_data.slots[10].team).empty());
 }
 
 } // namespace
