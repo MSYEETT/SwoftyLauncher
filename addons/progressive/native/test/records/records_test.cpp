@@ -11,6 +11,9 @@
 //   a change:    a layer that drops a 2017 mid-season change drops it from what the planner reads;
 //   choose:      the same layer puts Alonso at the Mercedes in Choose Driver's season list (choose_logic.hpp)
 //                and takes Hamilton off it; no layer leaves the list as it is;
+//   a team:      ig.teampack names its ig_racing for 2016 slot 11 with seats ig_driver + rio_haryanto (the IG6d
+//                layer): the apply_teams request carries those seat ids, the plan keeps Haryanto in the record's
+//                second seat, and ig_driver takes the first once the career has a row for him;
 //   no registry: no record means years.json as it is.
 
 #include <cstdio>
@@ -324,6 +327,36 @@ void a_layer_adds_teams(const sj::Value &file)
            req[11].team == "ig.teampack/ig_twelve" && req[11].seats.size() == 2 && req[0].team == "mercedes_26");
     std::vector<season::TeamSlot> plain = season::team_slots(base, season::plan(base, 2016, career_rows("max_verstappen"), resolver()));
     EXPECT(plain.size() == 11 && plain[10].team == base.slots[10].team);
+    for (const season::TeamSlot &t : plain)
+        EXPECT(t.seats.empty());
+    for (size_t i = 0; i < 10; ++i)
+        EXPECT(req[i].seats.empty());
+    EXPECT(y && y->teams[10].seat_ids[0] == "ig.teampack/ig_driver" &&
+           y->teams[10].seat_ids[1] == "swofty.classic-seasons/rio_haryanto");
+    EXPECT(y && !season::record_seats(y->teams[0]) && !season::record_seats(base.year(2016)->teams[10]));
+    EXPECT(req[10].seats.size() == 2 && req[10].seats[0] == "ig.teampack/ig_driver" &&
+           req[10].seats[1] == "swofty.classic-seasons/rio_haryanto");
+    EXPECT(p.target[10][1] == static_cast<uint32_t>(stat("rio_haryanto")));
+    EXPECT(p.target[10][0] != static_cast<uint32_t>(stat("rio_haryanto")) && p.target[10][0] != lineup::kNone);
+    season::Resolve known = resolver();
+    known.driver_stat = [](const std::string &label) { return label == "ig_driver" ? 208 : stat(label); };
+    std::vector<season::CareerRow> rows = career_rows("max_verstappen");
+    season::Plan none = season::plan(eff, 2016, rows, known);
+    EXPECT(none.target[10][0] != 208 && none.target[10][1] == static_cast<uint32_t>(stat("rio_haryanto")));
+    season::CareerRow ida;
+    ida.driver = 208;
+    rows.push_back(ida);
+    season::Plan seated = season::plan(eff, 2016, rows, known);
+    EXPECT(seated.error.empty());
+    EXPECT(seated.target[10][0] == 208 && seated.target[10][1] == static_cast<uint32_t>(stat("rio_haryanto")));
+    bool moved = false;
+    for (const season::Move &m : seated.moves)
+        moved |= m.driver == 208 && m.to.slot == 10 && m.to.index == 0;
+    EXPECT(moved);
+    season::Plan stock = season::plan(base, 2016, rows, known);
+    for (int i = 0; i < season::kSlots; ++i)
+        for (int k = 0; k < lineup::kSeats; ++k)
+            EXPECT(stock.target[i][k] == season::plan(base, 2016, career_rows("max_verstappen"), resolver()).target[i][k]);
     sj::Value once = doc;
     pr::Summary again = pr::overlay(once, season_of, rating_of);
     EXPECT(again.teams == 0);
@@ -381,8 +414,11 @@ int main(int argc, char **argv)
 
         engine->begin_addon("ig.teampack");
         career::seasons.layer(career::seasons["swofty.progressive/2016"], [](career::Season &s) {
-            if (auto *t = s.teams.find(11))
+            if (auto *t = s.teams.find(11)) {
                 t->team = swofty::Ref<swofty::teams::Identity>("ig.teampack/ig_racing");
+                t->seats = {swofty::Ref<swofty::drivers::Identity>("ig.teampack/ig_driver"),
+                            swofty::Ref<swofty::drivers::Identity>("swofty.classic-seasons/rio_haryanto")};
+            }
             career::SeasonTeam extra;
             extra.slot = 12;
             extra.team = swofty::Ref<swofty::teams::Identity>("ig.teampack/ig_twelve");
@@ -401,6 +437,6 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     std::printf("records_test: ok (no layer: years.json as it is; a 2017 layer moves Alonso into the Mercedes, "
-                "his pace to 96 and drops a change)\n");
+                "his pace to 96 and drops a change; a 2016 layer's own team keeps its drivers in their record seats)\n");
     return EXIT_SUCCESS;
 }
