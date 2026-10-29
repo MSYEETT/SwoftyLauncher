@@ -396,6 +396,8 @@ jobs:
         run: native/test/run_apply_test.sh
       - name: Content registries (row engine, Classic Seasons lowering, variants, stat-id pools)
         run: native/test/run_content_test.sh
+      - name: Track registries (seeds, record lowering, parity with the launcher's track activation)
+        run: native/test/run_tracks_test.sh
       - name: Progressive registration test
         env:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache
