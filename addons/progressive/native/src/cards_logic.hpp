@@ -294,8 +294,9 @@ constexpr std::string_view kLogoArrays[] = {
     "teams.driver_select_team_logos", "teams.badges_broadcast",              "broadcast_ui_generic.grid_team_logos",
     "osd.timing_tower.team_badges_hud", "osd.timing_tower.team_badges_broadcast"};
 
-// The arrays the core's team.logo build gives an added team's own key in, whether from its own image or its
-// donor's slice (native/src/core/apply/content/teams.hpp logo_arrays, all but the timing tower's).
+// The arrays the core's team.logo build gives an added team's own key in, from its own images (another context's
+// where it gives none) or, for a team with no image, its donor's slice (native/src/core/apply/content/teams.hpp
+// logo_arrays, all but the timing tower's, which the team row's badge key names).
 constexpr std::string_view kAddedLogoArrays[] = {"teams.driver_select_team_logos", "team_logos.driver_career_2024_team_select",
                                                  "teams.mp_team_select_logos", "teams.badges_broadcast",
                                                  "broadcast_ui_generic.grid_team_logos"};
