@@ -1778,11 +1778,15 @@ void testagent_fired(const std::string &id, bool hot)
         emit("{\"event\":\"fired\",\"id\":" + testagent::esc(id) + "}");
 }
 
+// Screens as they open, for ui.screen and `at`/`wait screen=`. render_* screens open over others to
+// draw badges and the like (render_badge opens on most menus), so they don't count as the screen.
 void testagent_screen(const char *name)
 {
-    if (!armed.load() || !name)
+    if (!armed.load() || !name || !std::strncmp(name, "render_", 7))
         return;
     std::lock_guard<std::mutex> g(phase_lock);
+    if (screen_name != name)
+        swofty::log("[test] screen %.64s", name);
     screen_name = name;
 }
 

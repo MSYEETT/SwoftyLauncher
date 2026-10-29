@@ -112,7 +112,7 @@ In a `benchmark` race the AI drives every car, including the player's. For a tes
 { "wait": { "screen": "f1_world_activity_container" }, "timeout_s": 30 }
 ```
 
-`home` waits for the main menu, answering the launcher's notice on the way. `tile` runs a tile on the screen the game is on, by its id, as selecting it does: its route fires. Tile screens are the home screen, F1 World, Career and the career season pick; their tile ids are in `loader.log` (`[test] tile screen ...: story, career, mod_menu, f1_world, ...`). Other screens (F1 World's Play cards, Time Trial's season row, team select, track select, the garage, the pause menu) take `pad` steps. `wait` with `screen` waits until that screen is open.
+`home` waits for the main menu, answering the launcher's notice on the way. `tile` runs a tile on the screen the game is on, by its id, as selecting it does: its route fires. Tile screens are the home screen, F1 World, Career and the career season pick; their tile ids are in `loader.log` (`[test] tile screen ...: story, career, mod_menu, f1_world, ...`). Other screens (F1 World's Play cards, Time Trial's season row, team select, track select, the garage, the pause menu) take `pad` steps. `wait` with `screen` waits until that screen is open; each screen that opens is logged as `[test] screen <name>`, so a run's `loader.log` lists the names to wait for.
 
 ```json
 {
