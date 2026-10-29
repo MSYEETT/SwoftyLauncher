@@ -1160,6 +1160,37 @@ fn shell_is_a_test_command() {
     assert_eq!(a.fixture.as_deref(), Some("my-team-r3"));
 }
 
+#[test]
+fn a_boot_or_route_environment_with_a_fixture_runs_in_the_sandbox() {
+    let text = r#"{"schema":1,"suite":"s","tests":[
+        {"id":"gp","env":{"kind":"route","routes":["f1_world","play"],"fixture":"fixtures/r3"},"assert":[{"no_crash":true}]},
+        {"id":"menu","env":{"kind":"boot","fixture":"fixtures/r3"},"assert":[{"no_crash":true}]},
+        {"id":"own","env":{"kind":"route","routes":["f1_world"]},"assert":[{"no_crash":true}]},
+        {"id":"hq","env":{"kind":"career","fixture":"fixtures/r3"},"assert":[{"no_crash":true}]}]}"#;
+    let s = suite::parse(text, Path::new("/addon/tests/s.test.json"), None).unwrap();
+    let plan = plan::plan(&[s], &Selector::default());
+    let batch = |id: &str| {
+        plan.batches
+            .iter()
+            .find(|b| b.tests.iter().any(|t| t.id == id))
+            .unwrap()
+    };
+    assert!(
+        sandboxed(batch("gp")),
+        "a route with a fixture runs in the save sandbox"
+    );
+    assert!(
+        sandboxed(batch("menu")),
+        "a boot with a fixture runs in the save sandbox"
+    );
+    assert!(sandboxed(batch("hq")), "a career always does");
+    assert!(
+        !sandboxed(batch("own")),
+        "a route without one keeps the player's own saves"
+    );
+    assert_eq!(batch("gp").env.str("fixture"), Some("fixtures/r3"));
+}
+
 #[cfg(unix)]
 const CAREER_RUN_SUITE: &str = r#"{
   "schema": 1,

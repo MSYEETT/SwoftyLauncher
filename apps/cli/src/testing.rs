@@ -530,7 +530,7 @@ fn sandbox_preflight(
 }
 
 pub(crate) fn sandboxed(b: &Batch) -> bool {
-    b.env.kind == Kind::Career
+    b.env.kind == Kind::Career || b.env.str("fixture").is_some()
 }
 
 pub(crate) fn check_sandbox(

@@ -79,7 +79,8 @@ impl Kind {
     fn params(self) -> &'static [(&'static str, Ty, bool)] {
         use Ty::*;
         match self {
-            Kind::None | Kind::Boot => &[],
+            Kind::None => &[],
+            Kind::Boot => &[("fixture", Str, false)],
             Kind::Benchmark => &[
                 ("track", Str, true),
                 ("laps", UInt, false),
@@ -90,7 +91,7 @@ impl Kind {
                 ("camera", Str, false),
                 ("driver", Str, false),
             ],
-            Kind::Route => &[("routes", StrList, true)],
+            Kind::Route => &[("routes", StrList, true), ("fixture", Str, false)],
             Kind::Career => &[("fixture", Str, true), ("at", Str, false), ("slot", UInt, false)],
             Kind::GrandPrix | Kind::TimeTrial => &[
                 ("box", Str, false),

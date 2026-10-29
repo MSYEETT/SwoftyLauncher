@@ -142,8 +142,12 @@ fn unknown_keys_are_refused_with_where_they_are() {
             "tests[0] (a): unknown key \"asert\"",
         ),
         (
+            r#"{"schema":1,"suite":"s","tests":[{"id":"a","env":{"kind":"none","track":"x"},"assert":[{"no_crash":true}]}]}"#,
+            "tests[0] (a).env: unknown key \"track\" (a none environment takes only \"kind\")",
+        ),
+        (
             r#"{"schema":1,"suite":"s","tests":[{"id":"a","env":{"kind":"boot","track":"x"},"assert":[{"no_crash":true}]}]}"#,
-            "tests[0] (a).env: unknown key \"track\" (a boot environment takes only \"kind\")",
+            "env: unknown key \"track\" (expected one of: kind, fixture)",
         ),
         (
             r#"{"schema":1,"suite":"s","tests":[{"id":"a","env":{"kind":"benchmark","track":"x","lap":2},"assert":[{"no_crash":true}]}]}"#,

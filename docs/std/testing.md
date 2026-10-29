@@ -187,14 +187,14 @@ The environments take these keys:
 
 ```json
 { "kind": "none" }
-{ "kind": "boot" }
+{ "kind": "boot", "fixture": "fixtures/my-team-r3" }
 { "kind": "benchmark", "track": "bahrain", "laps": 3, "cars": 10, "weather": "dry", "box": "...", "grid_pos": 1, "camera": "...", "driver": "..." }
-{ "kind": "route", "routes": ["career", "team_hq"] }
+{ "kind": "route", "routes": ["career", "team_hq"], "fixture": "fixtures/my-team-r3" }
 { "kind": "career", "fixture": "fixtures/my-team-r3", "at": "team_hq", "slot": 1 }
 { "kind": "grand_prix", "box": "...", "track": "...", "car": "...", "team": "...", "session": "...", "weather": "..." }
 ```
 
-`none` starts the game and is ready at the loader's attached line, before any menu. `boot` and `route` are ready at the main menu. `benchmark` needs `track`, `route` needs `routes`, `career` needs `fixture`.
+`none` starts the game and is ready at the loader's attached line, before any menu. `boot` and `route` are ready at the main menu. `benchmark` needs `track`, `route` needs `routes`, `career` needs `fixture`. A `boot` or `route` environment with a `fixture` runs in the save sandbox on that fixture's saves; without one it runs on the player's own saves, so a test that starts a Grand Prix or a Time Trial names a fixture.
 
 ## Tests in code
 
