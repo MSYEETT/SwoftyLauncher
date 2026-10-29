@@ -9,6 +9,7 @@
 #include "logos.hpp"
 #include "teams.hpp"
 #include "../../career_ops/teams_plan.hpp"
+#include "../../registry/older.hpp"
 #include "../../registry/table.hpp"
 
 #include "../../runtime.hpp"
@@ -383,18 +384,47 @@ void apply_liveries(Expansion &x, Report &report, const std::string &registry)
         report.summary = report.summary.empty() ? summary : report.summary + "; " + summary;
 }
 
-void apply_texts(Expansion &x, Report &report)
+void apply_texts(Expansion &x, const char *registry, Report &report)
 {
-    if (x.texts.empty())
+    auto it = x.texts.find(registry);
+    if (it == x.texts.end() || it->second.empty())
         return;
+    const auto &texts = it->second;
+    const char *what = std::string_view(registry) == "content.package" ? " title text(s)" : " name text(s)";
     const SwoftyLang *lang = runtime::lang_table();
     if (!lang) {
-        report.lines.push_back("content.package: " + std::to_string(x.texts.size()) +
-                               " title text(s) not set: the language table isn't up yet");
+        report.lines.push_back(std::string(registry) + ": " + std::to_string(texts.size()) + what +
+                               " not set: the language table isn't up yet");
         return;
     }
-    for (auto &[tag, text] : x.texts)
-        lang->override_set("*", tag.c_str(), text.c_str());
+    std::size_t set = 0;
+    std::vector<std::string> layered, failed;
+    for (auto &[tag, text] : texts) {
+        if (lang->override_set("*", tag.c_str(), text.c_str()) == SWOFTY_ASSET_OK)
+            set++;
+        else if (registry::older::string_layer(runtime::older_store(), "swofty.core", tag,
+                                               Value::object({{"*", Value(text)}})) == SWOFTY_ASSET_OK)
+            layered.push_back(tag);
+        else
+            failed.push_back(tag);
+    }
+    auto list = [](const std::vector<std::string> &tags) {
+        std::string out;
+        for (std::size_t i = 0; i < tags.size(); i++)
+            out += (i ? ", " : "") + tags[i];
+        return out;
+    };
+    if (set && std::string_view(registry) != "content.package")
+        report.lines.push_back(std::string(registry) + ": " + std::to_string(set) + what +
+                               " set through the core's lang override (first " + texts.front().first + " = \"" +
+                               texts.front().second + "\")");
+    if (!layered.empty())
+        report.lines.push_back(std::string(registry) + ": " + std::to_string(layered.size()) + what +
+                               " registered as lang.string layers from swofty.core; the lang override isn't up yet and "
+                               "reads them when it starts (" + list(layered) + ")");
+    if (!failed.empty())
+        report.lines.push_back(std::string(registry) + ": " + std::to_string(failed.size()) + what + " not set (" +
+                               list(failed) + ")");
 }
 
 void apply_logos(Expansion &x, Report &report)
@@ -505,8 +535,7 @@ public:
             std::string_view(registry_) == "suit" || std::string_view(registry_) == "gloves" ||
             std::string_view(registry_) == "driver.head")
             apply_liveries(x, report, registry_);
-        if (std::string_view(registry_) == "content.package")
-            apply_texts(x, report);
+        apply_texts(x, registry_, report);
         if (std::string_view(registry_) == "team.identity")
             apply_logos(x, report);
         if (staged) {
