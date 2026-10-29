@@ -121,6 +121,22 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/team.pit_times/1.0.json"),
     ),
     (
+        "track",
+        include_str!("../../../sdk/std/registries/track/1.0.json"),
+    ),
+    (
+        "track.data",
+        include_str!("../../../sdk/std/registries/track.data/1.0.json"),
+    ),
+    (
+        "track.per_package",
+        include_str!("../../../sdk/std/registries/track.per_package/1.0.json"),
+    ),
+    (
+        "track.venue",
+        include_str!("../../../sdk/std/registries/track.venue/1.0.json"),
+    ),
+    (
         "vehicle",
         include_str!("../../../sdk/std/registries/vehicle/1.0.json"),
     ),

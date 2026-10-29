@@ -7,6 +7,7 @@
 #include <swofty/systems/liveries.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
+#include <swofty/systems/tracks.hpp>
 #include <swofty/systems/wearables.hpp>
 
 #include <cstddef>
@@ -47,6 +48,10 @@ template <class Declare> std::size_t declare_system_registries(Declare &&declare
     one(career::seasons);
     one(career::calendars);
     one(career::ratings);
+    one(tracks::tracks);
+    one(tracks::venues);
+    one(tracks::data);
+    one(tracks::per_package);
     return count;
 }
 

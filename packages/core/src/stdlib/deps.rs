@@ -55,6 +55,10 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("team.identity", "1.1"),
     ("team.logo", "1.0"),
     ("team.pit_times", "1.0"),
+    ("track", "1.0"),
+    ("track.data", "1.0"),
+    ("track.per_package", "1.0"),
+    ("track.venue", "1.0"),
     ("vehicle", "1.0"),
     ("vehicle.handling", "1.0"),
     ("vehicle.package", "1.0"),
@@ -774,7 +778,7 @@ mod tests {
                 Some(
                     r#"{ "requires": [ { "registry": "career.season", "version": "^1" },
                                          { "registry": "career.season", "version": "^2" },
-                                         { "registry": "track", "version": "^1" },
+                                         { "registry": "track.layer", "version": "^1" },
                                          { "registry": "tails.whatif.presets", "version": "^1" },
                                          { "service": "progressive.history", "version": ">=1" },
                                          { "hook": "career.calendar.add_activity" } ] }"#,
@@ -792,7 +796,7 @@ mod tests {
             lines(&w.check(&["a.x", "tails.whatif"]), Level::Stop),
             [
                 "X needs the career.season registry ^2, and this launcher has 1.0. Update Swofty Launcher, or turn X off.",
-                "X needs the track registry, which no addon on in profile main provides. Install the addon that \
+                "X needs the track.layer registry, which no addon on in profile main provides. Install the addon that \
                  provides it, or update Swofty Launcher, or turn X off."
             ]
         );

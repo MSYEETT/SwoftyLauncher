@@ -16,6 +16,8 @@ The 1.6.0 registries: `career.season`, `career.driver_ratings`, `content.package
 
 Launcher 1.6.2 adds `team.identity` 1.1: `team_boss` (the team principal, an `entrants.characters` label) and `team_base` (a `Text`).
 
+Launcher 1.6.3 adds the four tracks registries, experimental (`"feature": "registry_tracks"`): `track` (tracks; stock rows are `game/<code>`), `track.venue` (core-owned shared ids `venue/<key>`, provided by `track` records), `track.data` (a track's block in one data set, `<track id>/<data set>`) and `track.per_package` (one box's data for one track or venue, `<package id>/<key>`). `PackageTrack::world` names `track.layer`, which has no schema in 1.6.3.
+
 `career.calendar`, `career.mode` and `vehicle.handling` have schemas; the 1.6.0 core stores their records and applies nothing from them.
 
 The 1.5 libraries store what addons give them in six more: `career.content` (career contents), `hub.tab` (Team HQ tabs), `career.wizard` (the career wizard), `career.character` (characters), `lang.string` (strings) and `addon.option` (addon options). The core declares them and adds a record under the calling addon's id for each 1.5 call; `lang.string` records are `game/<lng key>`, and a 1.5 `lang::set` writes the calling addon's global layer of one.
