@@ -30,6 +30,29 @@ int main()
                !trk::entry_of_package("cs/f1_2016", "cs/f1_2016") && !trk::entry_of_package("cs/f1_2016/a/b", "cs/f1_2016"),
            "a package's entries are the ids one level under it");
 
+    std::vector<std::pair<std::string, Value>> all = {
+        {"cs/f1_2016/bahrain", Value::object({{"package", Value("cs/f1_2016")}, {"order", Value(1)}})},
+        {"ig9.checks/monaco", Value::object({{"package", Value("cs/f1_2017")}, {"fuel", Value::object({{"burn_per_lap", Value(2.5)}})}})},
+        {"ig9.checks/melbourne", Value::object({{"package", Value("cs/f1_2016")}, {"offered", Value(false)}})},
+        {"cs/f1_2016_v10/melbourne", Value::object({{"package", Value("cs/f1_2016_v10")}, {"offered", Value(true)}})}};
+    std::vector<std::pair<std::string, Value>> got = trk::chain_records(all, {"cs/f1_2017"});
+    expect(got.size() == 1 && got[0].first == "ig9.checks/monaco",
+           "a record of another addon whose package field names the box is one of its entries");
+    trk::Entries other = trk::resolve_entries(base, got);
+    expect(other.of("game/monaco") && other.of("game/monaco")->burn && *other.of("game/monaco")->burn > 2.49f,
+           "its target is the base track its key names, with its fuel");
+    got = trk::chain_records(all, {"cs/f1_2016_v10", "cs/f1_2016"});
+    expect(got.size() == 3 && got[0].first == "cs/f1_2016/bahrain" && got[1].first == "ig9.checks/melbourne" &&
+               got[2].first == "cs/f1_2016_v10/melbourne",
+           "the base package's entries (its own and others naming it) come before the variant's");
+    trk::Entries chained = trk::resolve_entries(base, got);
+    expect(chained.of("game/melbourne")->offered && chained.of("game/bahrain")->order == 1,
+           "the variant's own entry wins over another addon's entry for its base");
+    expect(trk::entry_for("x/y", Value::object({{"package", Value("cs/f1_2016")}}), "cs/f1_2016") &&
+               !trk::entry_for("x/y", Value::object({{"package", Value("cs/f1_2017")}}), "cs/f1_2016") &&
+               trk::entry_for("cs/f1_2016/a", Value::object({}), "cs/f1_2016"),
+           "an entry is a package's by its id or by its package field");
+
     trk::fuel::Set set;
     set.tracks.push_back({0, 0x1000, 0x10, "melbourne", {}});
     set.tracks.push_back({1, 0x2000, 0x20, "monaco", {}});

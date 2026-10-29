@@ -100,16 +100,13 @@ BoxInfo box_info(registry::Store &store, const std::string &package, const std::
 
 Entries box_entries(registry::Store &store, const std::vector<std::string> &chain)
 {
-    std::vector<std::pair<std::string, Value>> recs;
-    std::vector<std::string> ids = store.list("track.per_package", "");
-    for (auto it = chain.rbegin(); it != chain.rend(); ++it)
-        for (auto &id : ids)
-            if (entry_of_package(id, *it)) {
-                registry::Record r = store.get("track.per_package", id);
-                if (r.status == registry::Status::ok)
-                    recs.push_back({id, std::move(r.value)});
-            }
-    return resolve_entries(base(), recs);
+    std::vector<std::pair<std::string, Value>> all;
+    for (auto &id : store.list("track.per_package", "")) {
+        registry::Record r = store.get("track.per_package", id);
+        if (r.status == registry::Status::ok)
+            all.push_back({id, std::move(r.value)});
+    }
+    return resolve_entries(base(), chain_records(all, chain));
 }
 
 List box_list(registry::Store &store, const BoxInfo &box, Mode mode, const Entries &entries)
