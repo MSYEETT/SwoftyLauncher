@@ -226,13 +226,14 @@ void apply_drs(void *mode, const char *list)
 {
     auto box = swofty_core::apply::content::drs_for_box(list);
     if (box.label.empty()) {
+        drs.put_back();
         std::string own;
         for_each_host_mode(mode, [&](uint8_t *m) {
-            const char *text = logic::holder_text(at<void *>(m, logic::MODE_DRS_GROUP));
+            auto *holder = at<uint8_t *>(m, logic::MODE_DRS_GROUP);
+            const char *text = holder && mem::readable(holder + logic::HOLDER_TEXT, 8) ? logic::holder_text(holder) : nullptr;
             if (own.empty() && text && mem::readable(text, 1))
-                own = text;
+                own = std::string(text, strnlen(text, logic::DRS_LABEL_MAX));
         });
-        drs.put_back();
         log_drs(box.line + (own.empty() ? std::string() : " (" + own + ")"));
         return;
     }
