@@ -579,7 +579,7 @@ static void team_tests(const std::string &regs)
               field(tr, "team_base") == "lng_base" && field(tr, "animation_set") == "f1_2025",
           "every other key, story_info included, is the donor's");
     check(field(tr, "available") == "False", "available stays false until an entrant list names the team");
-    check(field(pl, "timing_tower_texture_path") == "mercedes", "a team with no hud or broadcast image keeps its donor's badge key");
+    check(field(pl, "timing_tower_texture_path") == "plain_team", "a team with an image but none for hud or broadcast gets its own timing tower key");
     check(written(x.engine, "pit_lane.pit_times._team_pit_times_instancecount_") == "5", "three pit time rows are added");
     std::string pit = side_row("pit_lane.pit_times", "team_pit_times", "toro_rosso_2017");
     check(pit != "none" && written(x.engine, pit + ".min_pit_time") == "2.3" && written(x.engine, pit + ".max_pit_time") == "3.5" &&
@@ -620,19 +620,64 @@ static void team_tests(const std::string &regs)
                 return l.stock + "|" + l.key + "|" + l.context;
         return std::string();
     };
-    check(fell("plain_team", "teams.driver_select_team_logos") == "mercedes|plain_team|driver_select" &&
-              fell("plain_team", "teams.badges_broadcast") == "mercedes|plain_team|broadcast" &&
-              fell("plain_team", "team_logos.driver_career_2024_team_select").empty(),
-          "a context with no image falls back to the donor's stock slice; the context with an image does not");
-    check(fell("plain_team", "osd.timing_tower.team_badges_hud").empty() && fell("plain_team", "osd.timing_tower.team_badges_broadcast").empty(),
-          "the timing tower arrays are not given a fallback (the row keeps its donor's badge key)");
-    check(fell("toro_rosso_2017", "team_logos.driver_career_2024_team_select") == "tororosso|toro_rosso_2017|team_select" &&
-              fell("toro_rosso_2017", "teams.driver_select_team_logos").empty(),
-          "a team with some images falls back only for the contexts it lacks");
-    int said = 0;
-    for (auto &l : x.lines["team.identity"])
-        said += l == "team.logo: plain_team uses mercedes's driver_select logo";
-    check(said == 1, "the fallback is logged once per team and context");
+    auto image = [&](const char *team, const char *array) {
+        for (auto &l : x.logos)
+            if (l.team == team && l.array == array && !l.fallback && l.stock.empty())
+                return l.file + "|" + l.key + "|" + l.context;
+        return std::string();
+    };
+    bool any_fell = false;
+    for (auto &l : x.logos)
+        any_fell |= (l.team == "plain_team" || l.team == "toro_rosso_2017") && l.fallback;
+    check(!any_fell, "a team with an image of its own never takes its donor's slice");
+    check(image("plain_team", "teams.driver_select_team_logos") == "logos/ts.png|plain_team|driver_select" &&
+              image("plain_team", "teams.badges_broadcast") == "logos/ts.png|plain_team|broadcast" &&
+              image("plain_team", "team_logos.driver_career_2024_team_select") == "logos/ts.png|plain_team|team_select",
+          "a context with no image takes the team's own image of another context");
+    check(image("plain_team", "osd.timing_tower.team_badges_hud") == "logos/ts.png|plain_team|hud" &&
+              image("plain_team", "osd.timing_tower.team_badges_broadcast") == "logos/ts.png|plain_team|broadcast",
+          "the timing tower arrays take it too, under the team's own badge key");
+    check(image("toro_rosso_2017", "team_logos.driver_career_2024_team_select") == "logos/ds.png|toro_rosso_2017|team_select" &&
+              image("toro_rosso_2017", "teams.badges_broadcast") == "logos/ds.png|toro_rosso_2017|broadcast" &&
+              image("toro_rosso_2017", "osd.timing_tower.team_badges_broadcast") == "logos/hud.png|toro_rosso_2017|broadcast" &&
+              image("toro_rosso_2017", "teams.driver_select_team_logos") == "logos/ds.png|toro_rosso_2017|driver_select",
+          "a menu array borrows the driver select image first, a timing tower array the other tower context's");
+    int said = 0, donor_said = 0;
+    for (auto &l : x.lines["team.identity"]) {
+        said += l == "team.logo: plain_team uses its team_select image for driver_select";
+        said += l == "team.logo: toro_rosso_2017 uses its hud image for broadcast";
+        said += l == "team.logo: toro_rosso_2017 uses its driver_select image for broadcast";
+        donor_said += l.find("mercedes's") != std::string::npos || l.find("tororosso's") != std::string::npos;
+    }
+    check(said == 3 && donor_said == 0, "the borrowed image is logged once per team, image and context; no donor line");
+    {
+        content::Plan bare, ig;
+        content::lower_logo_images("bare", "williams", "mod.c/bare", nullptr, "", bare);
+        bool donor_only = !bare.logos.empty();
+        for (auto &l : bare.logos)
+            donor_only &= l.fallback && l.stock == "williams" && l.file.empty() && l.array.rfind("osd.timing_tower.", 0) != 0;
+        check(donor_only && bare.lines.size() == 3 && bare.lines[0] == "team.logo: bare uses williams's driver_select logo",
+              "only a team with no image at all falls back to the donor's slice, outside the timing tower");
+        Value pack = Value::object({{"images", Value::object({{"driver_select", Value("logos/ig_racing_driver_select.png")},
+                                                               {"team_select", Value("logos/ig_racing_team_select.png")},
+                                                               {"hud", Value("logos/ig_racing_hud.png")}})}});
+        content::lower_logo_images("ig_racing", "williams", "ig.teampack/ig_racing", &pack, "ig_racing", ig);
+        std::map<std::string, std::string> by_array;
+        bool fallback = false;
+        for (auto &l : ig.logos) {
+            by_array[l.array] = l.file;
+            fallback |= l.fallback;
+        }
+        check(!fallback && by_array["teams.badges_broadcast"] == "logos/ig_racing_driver_select.png" &&
+                  by_array["broadcast_ui_generic.grid_team_logos"] == "logos/ig_racing_driver_select.png" &&
+                  by_array["osd.timing_tower.team_badges_broadcast"] == "logos/ig_racing_hud.png" &&
+                  by_array["osd.timing_tower.team_badges_hud"] == "logos/ig_racing_hud.png" &&
+                  by_array["teams.driver_select_team_logos"] == "logos/ig_racing_driver_select.png" && by_array.size() == 7,
+              "ig.teampack's three images: the broadcast badge (Choose Driver's card) is its driver select image, not williams's");
+        std::vector<std::string> want = {"team.logo: ig_racing uses its hud image for broadcast",
+                                         "team.logo: ig_racing uses its driver_select image for broadcast"};
+        check(ig.lines == want, "and the core logs where each borrowed image came from");
+    }
     std::map<std::string, Value> keep;
     auto lookup = content::own_lookup(st, keep);
     auto refs = content::refs_of(st, lookup);
