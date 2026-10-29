@@ -470,11 +470,20 @@ swofty::era::add_box({
 - **The list** is set up like the package's: a second package's list, or a list your database operations add to `swofty_f1`'s entrant lists.
 - **No Time Trial list** means the package's list, under the same limit.
 - **The check.** Each time the Time Trial picker is built, the core leaves a box off it, with one log line, when its list isn't offered under `swofty_f1` or holds more than 23 cars. At boot, the core's `era.box` report also names a box whose package has more than 23 cars and no Time Trial list.
-- A core before launcher 1.6.2 ignores `time_trial`.
+- **The guard.** The core keeps a list of more than 23 cars out of every Time Trial session, whichever box or addon selected it:
+  - A press on a stock box in Time Trial leaves `swofty_f1` offering only its lists of at most 23 cars until the next press. A list whose car count can't be read stays offered.
+  - When a Time Trial session loads, the core logs the list the game resolved. When that list, or the first list of its entrant setup mode, holds more than 23 cars, the core loads a list of at most 23 cars from the same entrant setup mode instead. It tries the box pressed first, then that box's Time Trial list, then the first list that fits.
+  - The session's entrant setup mode draws at most 23 cars (`max_entrants` above 23, or unset, is held at 23) until the session ends. With no list that fits, this keeps the session at 23 cars of the list.
+  - Everything the guard changed is put back when the session ends or a box is pressed.
+- A core before launcher 1.6.2 ignores `time_trial` and has no guard.
 
 ```text
 [era]      box ex_f1_2012 from mod.example registered (title lng_ex_f1_2012, image #overrides.home_screen.tiles_solo_6x6[ex_f1_2012], order 2012, Time Trial list ex_f1_2012_tt): live from the next build of the picker
 [era]      box ex_f1_2016 from mod.other skipped in Time Trial: its Time Trial list ex_f1_2016 holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26). Give the box a Time Trial entrant list of at most 23 cars
+[era]      swofty_f1 keeps ex_f1_2016 out of Time Trial while a stock box is picked: it holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26)
+[era]      Time Trial session loads list f1_2025 (20 cars) of setup mode f1 (box pressed: f1_2025)
+[era]      the Time Trial session's list ex_f1_2016 (setup mode swofty_f1) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); loading ex_f1_2017 instead
+[era]      the Time Trial session's list ex_2012 (setup mode ex_2012_mode) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); its entrant setup mode offers no list of at most 23 cars; the session draws at most 23 cars (max_entrants 24 -> 23 until the session ends)
 ```
 
 ## Career seasons race in boxes
