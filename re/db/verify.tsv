@@ -1601,3 +1601,18 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	w21c	global	site_Team_LoadInserted	L2	partial	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1600 V1596-V1598 say both set loads reach this site; they do not. Sess_Load_Teams (bpl = set, mov ebp,edx at 0x1424694b3) builds the empty slot vector for every set, then at 0x1424695af tests bpl and jumps (0x1424695b2 jne 0x14246ca8c) straight to the message post for any set other than 0, so the entrants.teams walk and Team_Insert_RecordByStatId run for set 0 alone. Set 1's vector stays empty. The key (stat_id<<16, no set byte) therefore needs no set filter; the site fires for the database set only. Disassembly 0x142469440..0x14246cb41.
 2026-10-29	w21c	global	site_Team_LoadInsertCall	L2	agree	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1601 Site and register roles stand (see the partial row above for the set correction): the walk that reaches this site runs for set 0 only, so the site fires for the database set alone.
 2026-10-29	w21c	global	site_Team_LoadInserted	L2	agree	decomp:re/decomp/142469440.c;xref:0x1424695af,0x14246ca8c,0x1424697f4	V1602 Site and register roles stand (see the partial row above for the set correction): the walk that reaches this site runs for set 0 only, so the site fires for the database set alone.
+2026-10-28	dcso-verify	func	Car_Contact_ModifyVehicle	L2	partial	decomp:re/decomp/142f04040.c;xref:0x142f043ae	V1162 claim 4: DRUB r' = 1+(r-1)*s, not r*s; 0.01/100 for state 3
+2026-10-28	gb-verify	func	Car_Contact_InstallBodyFilters	L1	partial	xref:0x142f0689c	V1188 claim 4; entry 0x142f06740; list confirmed, no HDG+/MDG+
+2026-10-28	gb-verify	func	Car_Contact_BodyLiftNormal	L2	partial	decomp:re/decomp/142f057a0.c;xref:0x142f06740	V1189 claim 4; normal = world up, chassis up only vs CARW/CARB
+2026-10-28	gb-verify	func	Game_AutoResetToTrack_StartTimer	L2	partial	decomp:re/decomp/142f01210.c;xref:0x142f03a30	V1190 claim 5; 0x142f03a30 only posts message; reason 15 target in .data1
+2026-10-28	gb-verify	func	Ai_BehaviourRecover_Evaluate	L1	agree	decomp:re/decomp/140653440.c	V1191 claim 6 no stuck/surface logic
+2026-10-28	gb-verify	func	Game_Game_RetireLocalPlayer	L2	agree	decomp:re/decomp/142cea5b0.c;xref:0x142cea230	V1192 claim 7
+2026-10-28	gb-verify	func	Game_Breakable_OnContact	L2	agree	decomp:re/decomp/14458bb90.c;xref:0x145bed8a8	V1194 claim 9
+2026-10-28	gb-verify	func	Game_Breakable_Activate	L2	partial	decomp:re/decomp/14458bc70.c;xref:0x145bed8a8	V1195 claim 10; pool full evicts farthest entry, not silent no-op
+2026-10-28	gb-verify	func	Ne_PhysBody_ApplyImpulse	L1	partial	decomp:re/decomp/1440c12e0.c	V1198 claim 13; +0x400 clamp only in angular branch
+2026-10-29	bt-verify	func	Car_Contact_ReadTunables	L2	partial	decomp:re/decomp/142f04ec0.c;xref:0x142f04040	V1228 claim 1; 12 slots, copies to 0x146081100..
+2026-10-29	bt-verify	func	Car_Contact_ModifyVehicle	L2	agree	decomp:re/decomp/142f04040.c;xref:0x142f0435c	V1229 claims 1/2 gates
+2026-10-29	bt-verify	func	Car_Contact_InstallBodyFilters	L2	agree	decomp:re/decomp/142f06740.c;xref:0x142f0689c	V1230 claim 3
+2026-10-29	bt-verify	func	Game_AutoResetToTrack_Init	L2	agree	decomp:re/decomp/142f00a70.c;xref:0x142f01210	V1231 claim 4
+2026-10-29	bt-verify	func	Game_PauseMenu_ResetToTrackCfg	L2	agree	decomp:re/decomp/142bb7020.c;xref:0x1457cb8c0	V1232 claim 5
+2026-10-29	bt-verify	func	Game_OffTrack_StuckMonitor	L2	agree	decomp:re/decomp/142521230.c;xref:0x144740efc	V1234 claim 7
