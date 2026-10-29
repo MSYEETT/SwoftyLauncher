@@ -203,6 +203,8 @@ static_assert(offsetof(WeatherSessionSettings, session_type) == 0x4);
 static_assert(offsetof(WeatherSessionSettings, mode) == 0xb14);
 static_assert(offsetof(WeatherSessionSettings, exact_timing) == 0xb18);
 
+using Sess_Apply_ContentAvailability_t = void(void *self, void *availability);
+inline constexpr fn<"Sess_Apply_ContentAvailability", Sess_Apply_ContentAvailability_t> Sess_Apply_ContentAvailability{}; // L2 experimental
 using Sess_Build_GroupResult_t = void(void *weekend, uint8_t group, void *result);
 inline constexpr fn<"Sess_Build_GroupResult", Sess_Build_GroupResult_t> Sess_Build_GroupResult{}; // L2 experimental
 inline constexpr address<"Sess_ControllerSystem_ApplyInputs"> Sess_ControllerSystem_ApplyInputs{}; // L2 experimental

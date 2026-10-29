@@ -2531,6 +2531,8 @@ pub type Ne_SaveSystem2Win_Mount_t = unsafe extern "C" fn(
 pub type Ne_SaveSystem2Win_Start_t = unsafe extern "C" fn(device: *mut c_void) -> u64;
 pub type Ne_SaveSystem_InitDevice_t = unsafe extern "C" fn(save_system: *mut c_void) -> c_int;
 pub type Ne_StringTable_Lookup_t = unsafe extern "C" fn(table: *mut c_void, hash: u64) -> *const c_char;
+pub type Sess_Apply_ContentAvailability_t =
+    unsafe extern "C" fn(self_: *mut c_void, availability: *mut c_void);
 pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
 pub type Sess_Find_GroupRowPosition_t =
@@ -3389,6 +3391,11 @@ pub mod bindings {
         id: "Ne_StringTable_Lookup",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Sess_Apply_ContentAvailability: Binding = Binding {
+        id: "Sess_Apply_ContentAvailability",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Sess_Build_GroupResult: Binding = Binding {
         id: "Sess_Build_GroupResult",

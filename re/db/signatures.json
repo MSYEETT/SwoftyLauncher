@@ -76696,6 +76696,32 @@
    "used_by": [
     "native/src/core/era_picker.cpp"
    ]
+  },
+  {
+   "id": "session.apply_content_availability",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 B8 88 13 00 00 E8 ?? ?? ?? ?? 48 29 C4 C5 78 29 84 24 70 13 00 00 C5 F8 29 BC 24 60 13 00 00 C5 F8 29 B4 24 50 13 00 00 48 89 D6 48 89 CD",
+   "match": "0x1413e4cf0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1413e4cf0",
+   "kind": "func_start",
+   "names": [
+    "Sess_Apply_ContentAvailability"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "int164",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/era_picker.cpp"
+   ]
   }
  ]
 }
