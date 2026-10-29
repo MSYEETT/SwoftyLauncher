@@ -197,9 +197,10 @@ SWOFTY_RECORD(HubTab, name, title, data_group, options)
 SWOFTY_RECORD_REGISTRY(HubTab, "hub.tab")
 inline Registry<HubTab> hub_tabs{"hub.tab", {.applies = Applies::read}};
 
-// R&D trees and the driver market are database rows a career reads when it is created and loaded, so both
-// registries apply at boot. A tree is upgrades.<data_group>.trees.<token>.<department>.upgrade_N; a market group is
-// driver_market.driver_market.DataGroup[<data_group>].
+// R&D trees and the driver market are database rows a career reads when it is created and each time it loads, so
+// both registries apply at boot. A tree is upgrades.<data_group>.trees.<token>.<department>.upgrade_N; a market group
+// is driver_market.driver_market.DataGroup[<data_group>]. Each game mode reads its own group; an empty data_group
+// means every group.
 enum class UpgradeDepartment { aerodynamics, chassis, durability, engine };
 SWOFTY_ENUM(UpgradeDepartment, aerodynamics, chassis, durability, engine)
 enum class UpgradeSize { minor, major, ultimate };
@@ -226,7 +227,7 @@ SWOFTY_RECORD(RndNode, label, department, from, name, type, size, cost, cost_to_
 
 struct RndTree {
     static constexpr Version version{1, 0};
-    std::string data_group = "2026";           // the upgrades group
+    std::string data_group;                    // the upgrades group; empty: 2022, myteam_2025, 2026 and myteam_om_xm
     std::string token;                         // mercedes ferrari redbull williams tororosso renault haas mclaren sauber
                                                // force_india gm_cadillac user_defined
     Keyed<RndNode, &RndNode::label> nodes;
@@ -256,7 +257,7 @@ SWOFTY_RECORD(TeamRating, team, rating)
 
 struct Market {
     static constexpr Version version{1, 0};
-    std::string data_group = "2026";           // the market group
+    std::string data_group;                    // the market group; empty: every group (2025 and 2026)
     std::optional<std::vector<Retirement>> retirements;   // every retirement schedule's drivers
     std::optional<std::vector<Firing>> firings;           // every firing schedule's drivers
     Keyed<TeamRating, &TeamRating::team> team_ratings;

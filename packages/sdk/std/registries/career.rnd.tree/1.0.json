@@ -5,14 +5,13 @@
   "x-version": "1.0",
   "x-applies": "boot",
   "x-snapshot": false,
-  "description": "career::RndTree: nodes of one team's R&D tree (upgrades.<data_group>.trees.<token>.<department>.upgrade_N). A node whose label the department holds is edited; a new label adds a node copied from `from`.",
+  "description": "career::RndTree: nodes of one team's R&D tree (upgrades.<data_group>.trees.<token>.<department>.upgrade_N), in one upgrades group or in every group. A node whose label the department holds is edited; a new label adds a node copied from `from`.",
   "type": "object",
   "properties": {
     "data_group": {
-      "description": "The upgrades group.",
+      "description": "The upgrades group (upgrades.<data_group>) the game mode reads; empty or absent: every group that has the tree (2022, myteam_2025, 2026, myteam_om_xm).",
       "type": "string",
-      "minLength": 1,
-      "default": "2026"
+      "default": ""
     },
     "token": {
       "description": "The tree's team token.",

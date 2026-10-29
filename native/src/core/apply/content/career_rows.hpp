@@ -11,14 +11,15 @@
 #include <vector>
 
 // Lowers career.rnd.tree (nodes of one team's R&D tree: upgrades.<group>.trees.<token>.<department>.upgrade_N) and
-// career.market (one driver market group: driver_market.driver_market.DataGroup[<group>]) to row operations. The game
-// reads both when a career is created and loaded, so they apply at boot with the other row registries.
+// career.market (driver market groups: driver_market.driver_market.DataGroup[<group>]) to row operations. The game
+// reads both when a career is created and each time it loads, so they apply at boot with the other row registries.
 
 namespace swofty_core::apply::content {
 
 inline constexpr const char *RND_TOKENS[] = {"mercedes", "ferrari",  "redbull",     "williams",    "tororosso",
                                              "renault",  "haas",     "mclaren",     "sauber",      "force_india",
                                              "gm_cadillac", "user_defined"};
+inline constexpr const char *RND_GROUPS[] = {"2022", "myteam_2025", "2026", "myteam_om_xm"};
 inline constexpr const char *RND_DEPARTMENTS[] = {"aerodynamics", "chassis", "durability", "engine", "fake"};
 inline constexpr const char *RND_NODE_FIELDS[] = {
     "_metadata_", "upgrade_name", "upgrade_type", "upgrade_size", "upgrade_department", "cost", "cost_to_develop",
@@ -99,17 +100,13 @@ inline std::set<std::string> rnd_types(const Read &read, const std::string &grou
     return out;
 }
 
-inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &read, Plan &plan)
+struct RndCounts {
+    int added = 0, edited = 0, refused = 0;
+};
+
+inline RndCounts lower_rnd_group(const std::string &head, const std::string &group, const std::string &token,
+                                 const Value &rec, const Read &read, Plan &plan)
 {
-    plan.owner = addon_of(id);
-    std::string group = rec["data_group"].is_string() ? std::string(rec["data_group"].as_string()) : "2026";
-    std::string token(rec["token"].as_string());
-    std::string head = "career.rnd.tree " + id + ": ";
-    if (token.empty() || !count_of(read, rnd_container(group, token, "fake"), "upgrade")) {
-        plan.lines.push_back(head + "no tree " + token + " in upgrades group " + group + "; nothing applied");
-        plan.refused++;
-        return;
-    }
     std::map<std::string, std::string> where;
     for (const char *d : RND_DEPARTMENTS) {
         std::string c = rnd_container(group, token, d);
@@ -119,7 +116,7 @@ inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &
                 where.emplace(*l, c);
     }
     std::set<std::string> types = rnd_types(read, group);
-    int added = 0, edited = 0, refused = 0;
+    RndCounts out;
     const auto *nodes = rec["nodes"].if_array();
     for (std::size_t k = 0; nodes && k < nodes->size(); k++) {
         const Value &n = (*nodes)[k];
@@ -127,8 +124,8 @@ inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &
         std::string dept = n["department"].is_string() ? std::string(n["department"].as_string()) : "aerodynamics";
         std::string c = rnd_container(group, token, dept);
         auto refuse = [&](const std::string &why) {
-            plan.lines.push_back(head + "node " + label + " refused: " + why);
-            refused++;
+            plan.lines.push_back(head + "node " + label + " refused in upgrades group " + group + ": " + why);
+            out.refused++;
         };
         if (std::string t = n["type"].is_string() ? std::string(n["type"].as_string()) : ""; !t.empty() && !types.count(t)) {
             refuse("type \"" + t + "\" is no type the " + group + " trees use");
@@ -187,13 +184,13 @@ inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &
             set["upgrade_department"] = Value(capitalised(dept));
             push_row(plan, c, c + ".upgrade[_metadata_=" + from + "]", std::move(set));
             where.emplace(label, c);
-            added++;
+            out.added++;
         } else {
             if (!links.empty())
                 set["links"] = Value(links);
             for (auto &[f, v] : *set.if_object())
                 push_op(plan, set_op(row, std::string(f), std::string(v.as_string())));
-            edited++;
+            out.edited++;
         }
         if (auto a = n["after"].if_array())
             for (auto &v : *a) {
@@ -201,10 +198,44 @@ inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &
                 push_op(plan, append_op(where[parent] + ".upgrade[_metadata_=" + parent + "]", "links", label));
             }
     }
-    plan.lines.push_back(head + std::to_string(added) + " node(s) added, " + std::to_string(edited) + " edited, " +
-                         std::to_string(refused) + " refused in the " + token + " tree of upgrades group " + group);
-    plan.refused += refused;
-    if (!added && !edited)
+    plan.lines.push_back(head + std::to_string(out.added) + " node(s) added, " + std::to_string(out.edited) + " edited, " +
+                         std::to_string(out.refused) + " refused in the " + token + " tree of upgrades group " + group);
+    return out;
+}
+
+// Each game mode's ComUpgrades row names the group its careers read (upgrades_path, "upgrades.<group>"), and a career
+// rebuilds its trees from that group's rows each time it loads. A record without a data_group goes to every group.
+inline void lower_rnd_tree(const std::string &id, const Value &rec, const Read &read, Plan &plan)
+{
+    plan.owner = addon_of(id);
+    std::string named = rec["data_group"].is_string() ? std::string(rec["data_group"].as_string()) : "";
+    std::string token(rec["token"].as_string());
+    std::string head = "career.rnd.tree " + id + ": ";
+    std::vector<std::string> groups;
+    if (!named.empty())
+        groups.push_back(named);
+    else
+        groups.assign(std::begin(RND_GROUPS), std::end(RND_GROUPS));
+    RndCounts sum;
+    int trees = 0;
+    for (auto &group : groups) {
+        if (token.empty() || !count_of(read, rnd_container(group, token, "fake"), "upgrade"))
+            continue;
+        RndCounts c = lower_rnd_group(head, group, token, rec, read, plan);
+        sum.added += c.added;
+        sum.edited += c.edited;
+        sum.refused += c.refused;
+        trees++;
+    }
+    if (!trees) {
+        plan.lines.push_back(head + "no tree " + token + " in upgrades group " +
+                             (named.empty() ? std::string("2022, myteam_2025, 2026 or myteam_om_xm") : named) +
+                             "; nothing applied");
+        plan.refused++;
+        return;
+    }
+    plan.refused += std::size_t(sum.refused);
+    if (!sum.added && !sum.edited)
         plan.refused++;
 }
 
@@ -265,19 +296,33 @@ inline int rewrite_schedules(const Read &read, Plan &plan, const std::string &ta
     return done;
 }
 
+// Each game mode's driver market component names the group its careers read (data_group); a record without one goes
+// to every group the table has.
 inline void lower_market(const std::string &id, const Value &rec, const Lookup &lookup, const Read &read,
                          const TeamRefs &refs, Plan &plan)
 {
     plan.owner = addon_of(id);
-    std::string group = rec["data_group"].is_string() ? std::string(rec["data_group"].as_string()) : "2026";
+    std::string named = rec["data_group"].is_string() ? std::string(rec["data_group"].as_string()) : "";
     std::string head = "career.market " + id + ": ";
-    std::string base = row_where(read, MARKET, "DataGroup", "_metadata_", group);
-    if (base.empty()) {
-        plan.lines.push_back(head + "no driver market group " + group + "; nothing applied");
+    std::vector<std::pair<std::string, std::string>> groups;
+    if (!named.empty()) {
+        std::string base = row_where(read, MARKET, "DataGroup", "_metadata_", named);
+        if (!base.empty())
+            groups.push_back({named, base});
+    } else {
+        auto n = count_of(read, MARKET, "DataGroup");
+        for (int64_t i = 0; n && i < *n; i++) {
+            std::string base = std::string(MARKET) + ".DataGroup_" + std::to_string(i);
+            if (auto label = read(base + "._metadata_"))
+                groups.push_back({*label, base});
+        }
+    }
+    if (groups.empty()) {
+        plan.lines.push_back(head + "no driver market group " + (named.empty() ? std::string("in ") + MARKET : named) +
+                             "; nothing applied");
         plan.refused++;
         return;
     }
-    std::vector<std::string> parts;
     int refused = 0;
     auto driver_of = [&](const Value &ref, std::string &label) {
         if (!ref.is_string())
@@ -289,8 +334,9 @@ inline void lower_market(const std::string &id, const Value &rec, const Lookup &
         refused++;
         return false;
     };
+    std::optional<std::vector<MarketEntry>> retirements, firings;
     if (auto list = rec["retirements"].if_array()) {
-        std::vector<MarketEntry> entries;
+        retirements.emplace();
         for (auto &r : *list) {
             std::string label;
             if (!driver_of(r["driver"], label))
@@ -300,31 +346,20 @@ inline void lower_market(const std::string &id, const Value &rec, const Lookup &
                 refused++;
                 continue;
             }
-            entries.push_back({label, r});
+            retirements->push_back({label, r});
         }
-        int n = rewrite_schedules(read, plan, base + ".driver_retirements", "DriverRetirementSchedule",
-                                  "DriverRetirement", entries, [&plan](const std::string &row, const MarketEntry &e) {
-                                      set_date(plan, row, "Retirement", *date_of(e.rec["retire"]));
-                                      set_date(plan, row, "Announcement", *date_of(e.rec["announce"]));
-                                  });
-        parts.push_back(std::to_string(entries.size()) + " retirement(s) in " + std::to_string(n) + " schedule(s)");
     }
     if (auto list = rec["firings"].if_array()) {
-        std::vector<MarketEntry> entries;
+        firings.emplace();
         for (auto &r : *list) {
             std::string label;
             if (driver_of(r["driver"], label))
-                entries.push_back({label, r});
+                firings->push_back({label, r});
         }
-        int n = rewrite_schedules(read, plan, base + ".driver_firings", "DriverFiredSchedule", "DriverFired", entries,
-                                  [&plan](const std::string &row, const MarketEntry &e) {
-                                      push_op(plan, set_op(row, "season_index", number_text(e.rec["season_index"])));
-                                  });
-        parts.push_back(std::to_string(entries.size()) + " firing(s) in " + std::to_string(n) + " schedule(s)");
     }
+    std::optional<std::vector<std::pair<std::string, std::string>>> ratings;
     if (auto list = rec["team_ratings"].if_array()) {
-        std::string table = base + ".team_driver_rating_range_requirements";
-        int set = 0, added = 0;
+        ratings.emplace();
         for (auto &r : *list) {
             std::string team = team_label(r["team"], refs);
             if (team.empty() || !read("entrants.teams.team[_metadata_=" + team + "]._metadata_")) {
@@ -332,26 +367,50 @@ inline void lower_market(const std::string &id, const Value &rec, const Lookup &
                 refused++;
                 continue;
             }
-            std::string rating = number_text(r["rating"]);
-            std::string row = row_where(read, table, "TeamDriverRatingRangeRequirement", "team", team);
-            if (!row.empty()) {
-                push_op(plan, set_op(row, "rating_range", rating));
-                set++;
-                continue;
-            }
-            push_row(plan, table, table + ".TeamDriverRatingRangeRequirement_0",
-                     Value::object({{"_metadata_", team}, {"team", team}, {"rating_range", rating}}));
-            added++;
+            ratings->push_back({team, number_text(r["rating"])});
         }
-        parts.push_back(std::to_string(set) + " team rating(s) set, " + std::to_string(added) + " added");
     }
-    std::string line;
-    for (auto &p : parts)
-        line += (line.empty() ? "" : ", ") + p;
-    plan.lines.push_back(head + (line.empty() ? std::string("nothing to change") : line) + " in market group " + group +
-                         (refused ? ", " + std::to_string(refused) + " left out" : std::string()));
+    for (auto &[group, base] : groups) {
+        std::vector<std::string> parts;
+        if (retirements) {
+            int n = rewrite_schedules(read, plan, base + ".driver_retirements", "DriverRetirementSchedule",
+                                      "DriverRetirement", *retirements, [&plan](const std::string &row, const MarketEntry &e) {
+                                          set_date(plan, row, "Retirement", *date_of(e.rec["retire"]));
+                                          set_date(plan, row, "Announcement", *date_of(e.rec["announce"]));
+                                      });
+            parts.push_back(std::to_string(retirements->size()) + " retirement(s) in " + std::to_string(n) + " schedule(s)");
+        }
+        if (firings) {
+            int n = rewrite_schedules(read, plan, base + ".driver_firings", "DriverFiredSchedule", "DriverFired", *firings,
+                                      [&plan](const std::string &row, const MarketEntry &e) {
+                                          push_op(plan, set_op(row, "season_index", number_text(e.rec["season_index"])));
+                                      });
+            parts.push_back(std::to_string(firings->size()) + " firing(s) in " + std::to_string(n) + " schedule(s)");
+        }
+        if (ratings) {
+            std::string table = base + ".team_driver_rating_range_requirements";
+            int set = 0, added = 0;
+            for (auto &[team, rating] : *ratings) {
+                std::string row = row_where(read, table, "TeamDriverRatingRangeRequirement", "team", team);
+                if (!row.empty()) {
+                    push_op(plan, set_op(row, "rating_range", rating));
+                    set++;
+                    continue;
+                }
+                push_row(plan, table, table + ".TeamDriverRatingRangeRequirement_0",
+                         Value::object({{"_metadata_", team}, {"team", team}, {"rating_range", rating}}));
+                added++;
+            }
+            parts.push_back(std::to_string(set) + " team rating(s) set, " + std::to_string(added) + " added");
+        }
+        std::string line;
+        for (auto &p : parts)
+            line += (line.empty() ? "" : ", ") + p;
+        plan.lines.push_back(head + (line.empty() ? std::string("nothing to change") : line) + " in market group " +
+                             group + (refused ? ", " + std::to_string(refused) + " left out" : std::string()));
+    }
     plan.refused += std::size_t(refused);
-    if (parts.empty())
+    if (!retirements && !firings && !ratings)
         plan.refused++;
 }
 
