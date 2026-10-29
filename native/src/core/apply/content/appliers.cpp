@@ -624,13 +624,14 @@ public:
         for (auto &b : plan.boxes) {
             if (!b.literal.empty() && lang)
                 lang->override_set("*", b.title.c_str(), b.literal.c_str());
-            SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order};
+            SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order, b.time_trial.c_str()};
             int rc = era ? era->add_box(&d) : SWOFTY_ASSET_UNAVAILABLE;
             if (rc == SWOFTY_ASSET_OK)
                 report.applied++;
             else
                 report.refused++;
             report.lines.push_back("era.box " + b.id + ": " + b.entrant_list +
+                                   (b.time_trial.empty() ? std::string() : " (Time Trial " + b.time_trial + ")") +
                                    (rc == SWOFTY_ASSET_OK ? " registered"
                                                           : " not registered (a box for it exists or the picker is off)"));
         }

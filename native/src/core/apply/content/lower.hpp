@@ -58,6 +58,7 @@ struct Owned {
 struct Box {
     std::string id, entrant_list, title, image, literal;
     int order = 0;
+    std::string time_trial;
 };
 
 struct LogoImage {
@@ -527,6 +528,8 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
 
 using BaseImage = std::function<std::string(const std::string &package)>;
 
+inline constexpr std::size_t BOX_TIME_TRIAL_CARS = 23;
+
 inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
                       const BaseImage &base_image = {})
 {
@@ -555,6 +558,16 @@ inline void lower_box(const std::string &id, const Value &rec, const Lookup &loo
     if (box.image.empty() && base_image)
         box.image = base_image(package);
     box.order = int(rec["order"].as_int());
+    const Value &tt = rec["time_trial"]["entrant_list"];
+    if (tt.is_string() && tt.as_string() != box.entrant_list)
+        box.time_trial = std::string(tt.as_string());
+    std::size_t seats = 0;
+    for (std::size_t t = 0; t < (*pkg)["teams"].size(); t++)
+        seats += (*pkg)["teams"][t]["drivers"].size();
+    if (box.time_trial.empty() && seats > BOX_TIME_TRIAL_CARS)
+        plan.lines.push_back("era.box " + id + ": its package's " + std::to_string(seats) +
+                             " cars are more than a Time Trial session holds (" + std::to_string(BOX_TIME_TRIAL_CARS) +
+                             "); the Time Trial picker leaves the box off until it names a time_trial entrant_list");
     plan.boxes.push_back(box);
 }
 

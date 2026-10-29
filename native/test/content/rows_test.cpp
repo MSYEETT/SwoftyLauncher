@@ -892,8 +892,54 @@ static void seat_entrant_tests()
     check(y.engine.writes().empty(), "an addon left out of the boot apply adds no entrant");
 }
 
+static Value package_of(int teams, int seats)
+{
+    Value list = Value::array();
+    for (int t = 0; t < teams; t++) {
+        Value drivers = Value::array();
+        for (int d = 0; d < seats; d++)
+            drivers.push_back(Value::object({{"driver", "game/d" + std::to_string(t * seats + d)}, {"number", t * seats + d + 1}}));
+        list.push_back(Value::object({{"key", "t" + std::to_string(t)}, {"drivers", drivers}}));
+    }
+    return Value::object({{"entrant_list", "ex_f1_2012"}, {"teams", list}});
+}
+
+static void box_time_trial_tests()
+{
+    Value grid = package_of(12, 2), small = package_of(11, 2);
+    content::Lookup lookup = [&](const std::string &reg, const std::string &id) -> const Value * {
+        if (reg != "content.package")
+            return nullptr;
+        return id == "mod.example/f1_2012" ? &grid : id == "mod.example/f1_2025ish" ? &small : nullptr;
+    };
+    auto lower = [&](const char *json) {
+        content::Plan plan;
+        content::lower_box("mod.example/box", swofty::json::parse(json), lookup, plan);
+        return plan;
+    };
+    auto warned = [](const content::Plan &p) {
+        for (auto &l : p.lines)
+            if (l.find("more than a Time Trial session holds (23)") != std::string::npos)
+                return true;
+        return false;
+    };
+    content::Plan p = lower(R"({"package":"mod.example/f1_2012","time_trial":{"entrant_list":"ex_f1_2012_tt"}})");
+    check(p.boxes.size() == 1 && p.boxes[0].entrant_list == "ex_f1_2012" && p.boxes[0].time_trial == "ex_f1_2012_tt" &&
+              !warned(p),
+          "an era.box's time_trial entrant_list reaches the box, and a 24-car package with one is not warned about");
+    p = lower(R"({"package":"mod.example/f1_2012"})");
+    check(p.boxes.size() == 1 && p.boxes[0].time_trial.empty() && warned(p),
+          "a 24-car package's box without a Time Trial list is kept and warned about");
+    p = lower(R"({"package":"mod.example/f1_2012","time_trial":{"entrant_list":"ex_f1_2012"}})");
+    check(p.boxes.size() == 1 && p.boxes[0].time_trial.empty() && warned(p),
+          "a Time Trial list equal to the package's list is the package's list");
+    p = lower(R"({"package":"mod.example/f1_2025ish"})");
+    check(p.boxes.size() == 1 && p.boxes[0].time_trial.empty() && !warned(p), "a 22-car package's box needs no Time Trial list");
+}
+
 int main(int argc, char **argv)
 {
+    box_time_trial_tests();
     seat_entrant_tests();
     slot_tests();
     engine_tests();
