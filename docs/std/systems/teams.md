@@ -285,6 +285,7 @@ auto caterham = teams::identities.add("caterham", {
 `career::apply_teams` gives each of a season's slots (1 to 12) its team. A slot whose row is the team's own row races as it is. A slot whose row is another team's row is dressed: the loaded team record of the slot row takes the season team's names, code, colours, base (`team_base`) and principal (`team_boss`, through the character row's stat id). Twelve slots work in Driver Career; twelve slots with My Team (13 teams) are refused.
 
 - **Scoped to the data group.** `apply_teams` reads only the `career.season` records of the season's `data_group`, and dresses only the rows of that group's slot table (`career::set_slots`).
+- **Put back on unload.** When a career unloads, the core puts every dressed record back in its own names, colours, base and principal. A loaded team record is shared by every career of the game session. The next `apply_teams` (Progressive's, at each idle Team HQ) dresses them again.
 - **Logos follow the row.** The logo arrays are keyed by the team row's label. A dressed slot shows its slot row's logo; a team shows its own logo on a slot whose row is its own row.
 - **A principal the game can't find** (no `entrants.characters` row with that label) leaves the record's principal and logs it.
 
@@ -307,6 +308,7 @@ auto caterham = teams::identities.add("caterham", {
 
 ```text
 [career-ops] apply_teams slot 10: team row williams_26 (stat id 486) is dressed as creator.career-2012/caterham
+[teams] 12 dressed team record(s) back in their own names, colours, base and principal (the career unloaded)
 ```
 
 ## Real teams
@@ -388,6 +390,6 @@ teams::set_logo(teams::identities["game/williams"], teams::logos["swofty.progres
 
 - **Applied in game:** a `team.identity` record built its row from a donor with side rows, and five logo slices were built into 33 archives and routed. A team shows in team select through a content package that lists it; a team in no package has no tile. Career with a new team (`career::apply_teams`) has not been run in game.
 - **Logo timing:** the redirect has to be installed before the game first opens a changed archive. The file route logs `the game opened this path before` when it was not; that case is not yet handled with a fallback to the donor's badge. The `eaid://` texture route (`TeamRecord.show_custom_badge_in_UI` with an added `ui_package/art/textures/<name>` resource) fits the HUD and broadcast pills only and is not run in game.
-- **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names, code, colours, base and principal are written into the loaded team record (`TeamRecord.team_base` +0x3a8, `team_boss` +0x581, L2) once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting.
+- **Dressing:** `career::apply_teams` dresses a slot row as the season's team through the team applier. The names, code, colours, base and principal are written into the loaded team record (`TeamRecord.team_base` +0x3a8, `team_boss` +0x581, L2) once the core reaches the entrants system's team slots; until then the request is queued and the report counts it as waiting. A career unload puts every dressed record back (see [A season's teams](#a-season-s-teams)).
 - **Grid:** `team_position` and garages limit how many teams a session holds. A track whose world has fewer garages than a box has teams is left out of that box (see [Tracks](/std/systems/tracks)).
 - **Colours** are signed ARGB in the database, and the core converts them.

@@ -813,4 +813,31 @@ inline bool redress(uint16_t stat, uint8_t *record)
     return true;
 }
 
+// Every dressed loaded record back in its own identity, base and principal: the dress belongs to the career that
+// made it, and a loaded team record is shared by every career of the game session.
+inline std::size_t undress_all(const std::string &why)
+{
+    std::lock_guard g(live_mutex());
+    Live &l = live();
+    std::size_t n = 0;
+    for (auto &[stat, team] : l.wears) {
+        auto k = l.kept.find(stat);
+        uint8_t *record = l.record ? l.record(stat) : nullptr;
+        if (!record || k == l.kept.end())
+            continue;
+        const Value *own = l.identity && !k->second.row.empty() ? l.identity(k->second.row) : nullptr;
+        if (own)
+            write_dress(record, dress_of(*own));
+        put_back(record, k->second);
+        n++;
+        if (l.log)
+            l.log("undress stat id " + std::to_string(stat) + ": " + team + " taken off" +
+                  (own ? ", " + k->second.row + " back in its own names and colours" : std::string()) + " (" + why + ")");
+    }
+    l.wears.clear();
+    l.kept.clear();
+    l.pending.clear();
+    return n;
+}
+
 }

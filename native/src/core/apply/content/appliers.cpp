@@ -650,6 +650,14 @@ public:
 
 }
 
+void undress_teams(const char *why)
+{
+    std::size_t n = undress_all(why ? why : "");
+    if (n)
+        swofty::log("[teams] %zu dressed team record(s) back in their own names, colours, base and principal (%s)", n,
+                    why ? why : "");
+}
+
 void register_appliers()
 {
     static std::once_flag once;

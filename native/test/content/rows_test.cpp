@@ -785,6 +785,10 @@ static void team_tests(const std::string &regs)
     check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b", -1) && std::string(bufs3[4].c_str()) == "Faenza, Italy" &&
               stock_record[content::team_record::TEAM_BOSS] == 7 && log.back().find("its team_boss franz_tost is not an entrants.characters row") != std::string::npos,
           "a principal whose character row can't be found leaves the record's principal and says so");
+    check(content::undress_all("the career unloaded") == 1 && std::string(bufs3[0].c_str()) == "lng_stock" &&
+              std::string(bufs3[4].c_str()) == "lng_base" && stock_record[content::team_record::TEAM_BOSS] == 7 && live.wears.empty() &&
+              live.kept.empty() && log.back() == "undress stat id 3: mod.b/toro_rosso_b taken off, game/tororosso back in its own names and colours (the career unloaded)",
+          "a career unload puts every dressed record back in its own identity, base and principal");
     ct::dresser() = nullptr;
 }
 
@@ -917,6 +921,9 @@ static void twelve_slot_tests(const std::string &regs)
     for (auto &l : logo_plan.logos)
         own_slices += l.array == std::string("team_logos.driver_career_2024_team_select") && !l.fallback && l.key == l.team;
     check(own_slices == 12, "each team's logo is built as slices under its own label, not the slot row's (" + std::to_string(own_slices) + ")");
+    check(content::undress_all("the career unloaded") == 12 && loaded[700].bytes == loaded[700].before &&
+              loaded[711].bytes == loaded[711].before && std::string(loaded[705].bufs[4].c_str()) == "c12_slot_5",
+          "after the career unloads the 12 slot rows are their own rows again, base and principal included");
     ct::dresser() = nullptr;
 }
 
