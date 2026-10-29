@@ -442,7 +442,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
             else if (r == "team.pit_times")
                 lower_pit_times(id, *rec, lookup, read, refs, plan);
             else
-                lower_package(id, *rec, lookup, plan, stat, &wear.person_driver);
+                lower_package(id, *rec, lookup, plan, stat, &wear.person_driver, read);
             x.engine.add_fields(plan.fields);
             x.engine.attribute(owner, reg, id);
             std::size_t mark = x.engine.mark();

@@ -45,6 +45,7 @@ namespace progressive::season {
 constexpr int kFirstYear = 2016;
 constexpr int kLastYear = 2026;
 constexpr int kSlots = lineup::kSlots;
+constexpr int kMaxSlots = kSlots + 1;
 constexpr uint8_t kNoNumber = 0xff;
 
 inline int clamp_year(int y)
@@ -213,7 +214,7 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
         yr.year = year;
         for (auto &t : y["teams"].a) {
             int i = num(t["slot"]) - 1;
-            if (i >= kSlots && i < kSlots + 1 && t["team"].type == json::Value::Str && !t["team"].str().empty()) {
+            if (i >= kSlots && i < kMaxSlots && t["team"].type == json::Value::Str && !t["team"].str().empty()) {
                 ExtraTeam x;
                 x.slot = i + 1;
                 x.team_id = t["team"].str();
@@ -258,7 +259,7 @@ inline bool parse(const std::string &text, Data &out, std::string &err)
         if (prev.type == json::Value::Obj) {
             yr.previous_year = num(prev["year"], 0);
             for (auto &v : prev["slots"].a)
-                if (int sl = num(v); sl >= 1 && sl <= kSlots)
+                if (int sl = num(v); sl >= 1 && sl <= kMaxSlots)
                     yr.previous_slots.push_back(sl - 1);
             for (auto &v : prev["drivers"].a)
                 if (!v.str().empty())
@@ -1010,18 +1011,40 @@ inline Plan plan(const Data &d, int year, const std::vector<CareerRow> &rows, co
     return p;
 }
 
+inline const ExtraTeam *extra_team(const Year &y, int slot)
+{
+    for (const ExtraTeam &x : y.extra_teams)
+        if (x.slot == slot)
+            return &x;
+    return nullptr;
+}
+
+// The team row label of the season's twelfth slot: the row the core's team applier makes for the added team is
+// labelled with its record key ("bydanix.f1-2012/hrt" -> "hrt"); empty when the year has no twelfth team.
+inline std::string extra_team_label(const Year &y, int slot)
+{
+    const ExtraTeam *x = extra_team(y, slot);
+    if (!x)
+        return std::string();
+    size_t at = x->team_id.rfind('/');
+    return at == std::string::npos ? x->team_id : x->team_id.substr(at + 1);
+}
+
 // The season-start order of the career's standings (all on 0 points): the constructors as the
 // previous year finished (data/years.json previous_standings, Jolpica), slots it does not list after
 // them in slot order, a closed slot (ten_team_years) left out; the drivers as the previous year
 // finished, the season's other drivers after them in the order given (the plan's seat order).
+// A season whose effective career.season record names a twelfth slot (extra_teams) has a 12-team order:
+// slot 12 (index kSlots) is listed where the previous standings put it, else after the career slots.
 inline std::vector<int> start_slot_order(const Year &y, const std::array<bool, kSlots> &closed = {})
 {
+    auto open = [&](int s) { return s >= 0 && (s < kSlots ? !closed[static_cast<size_t>(s)] : extra_team(y, s + 1) != nullptr); };
     std::vector<int> out;
     for (int s : y.previous_slots)
-        if (s >= 0 && s < kSlots && !closed[s] && std::find(out.begin(), out.end(), s) == out.end())
+        if (open(s) && std::find(out.begin(), out.end(), s) == out.end())
             out.push_back(s);
-    for (int s = 0; s < kSlots; ++s)
-        if (!closed[s] && std::find(out.begin(), out.end(), s) == out.end())
+    for (int s = 0; s < kMaxSlots; ++s)
+        if (open(s) && std::find(out.begin(), out.end(), s) == out.end())
             out.push_back(s);
     return out;
 }

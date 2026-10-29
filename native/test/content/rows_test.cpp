@@ -350,6 +350,140 @@ static void variant_tests(const std::string &regs)
           "with the first addon left out, the next one's rows start at the table's next index");
 }
 
+// The stock rows a 24-car package copies: f1_2026 holds 22 entrants and f1_teams_2026 11 teams, as in the game; a
+// creator's own 12-team standings row (made by a database operation) sits next to them.
+static void stock_wide_rows(Db &db)
+{
+    stock_package_rows(db);
+    auto row = [&](const std::string &prefix, std::initializer_list<std::pair<const char *, std::string>> fields) {
+        for (auto &[f, v] : fields)
+            db.put(prefix + "." + f, std::string_view(f) == "_metadata_" ? 4 : 2, v);
+    };
+    db.put("entrants.entrant_lists._entrant_list_instancecount_", 0, "2");
+    row("entrants.entrant_lists.entrant_list_1", {{"_metadata_", "f1_2026"},
+                                                  {"display_name", "x"},
+                                                  {"previous_season_team_standings", "f1_teams_2025"},
+                                                  {"previous_season_driver_standings", "x"},
+                                                  {"leaderboard", "f1"}});
+    db.put("entrants.entrant_lists.entrant_list_1.stat_id", 0, "111");
+    db.put("entrants.entrant_lists.entrant_list_1._entrant_instancecount_", 0, "22");
+    for (int i = 0; i < 22; i++)
+        row("entrants.entrant_lists.entrant_list_1.entrant_" + std::to_string(i),
+            {{"_metadata_", "e" + std::to_string(i)},
+             {"team", "t"},
+             {"vehicle", "v"},
+             {"entrant_reference", "r"},
+             {"team_position", std::to_string(i % 2)},
+             {"car_number", "1"},
+             {"driver", "d"},
+             {"driver_customisation", "c"}});
+    db.put("entrants.standings._standings_instancecount_", 0, "3");
+    row("entrants.standings.standings_1", {{"_metadata_", "f1_teams_2026"}});
+    db.put("entrants.standings.standings_1._team_reference_instancecount_", 0, "11");
+    for (int i = 0; i < 11; i++)
+        row("entrants.standings.standings_1.team_reference_" + std::to_string(i),
+            {{"_metadata_", "s" + std::to_string(i)}, {"team", "stock_26"}});
+    row("entrants.standings.standings_2", {{"_metadata_", "bdx_s5_teams"}});
+    db.put("entrants.standings.standings_2._team_reference_instancecount_", 0, "12");
+    for (int i = 0; i < 12; i++)
+        row("entrants.standings.standings_2.team_reference_" + std::to_string(i),
+            {{"_metadata_", "b" + std::to_string(i)}, {"team", "bdx"}});
+    db.put("entrants.entrant_setup_modes.entrant_setup_mode_0.max_entrants", 0, "20");
+}
+
+static std::string twelve_team_package(const char *extra)
+{
+    static const char *keys[] = {"redbull", "mclaren", "ferrari", "mercedes", "lotus", "forceindia",
+                                 "sauber", "tororosso", "williams", "caterham", "hrt", "marussia"};
+    std::string teams;
+    for (int t = 0; t < 12; t++) {
+        std::string k = keys[t];
+        teams += std::string(t ? "," : "") + R"({ "key": ")" + k + R"(", "vehicle": "game/)" + k + R"(_2012", "drivers": [ )" +
+                 R"({ "driver": "game/)" + k + R"(_a", "number": )" + std::to_string(2 * t + 1) + R"(, "look": null }, )" +
+                 R"({ "driver": "game/)" + k + R"(_b", "number": )" + std::to_string(2 * t + 2) + R"(, "look": null } ] })";
+    }
+    return R"({ "content.package": { "f1_2012": { "title": "lng_f2012", "entrant_list": "f2012", "season": 2012,
+        "teams": [ )" + teams + R"( ], "database": { "entrant_list": "f2012", "entrant_prefix": "f12-", "standings": "f2012_teams",
+        "content_sets": ["2025"] )" + extra + R"( } } } })";
+}
+
+static void twelve_team_tests(const std::string &regs)
+{
+    for (int pass = 0; pass < 2; pass++) {
+        bool own_row = pass == 1;
+        registry::reset_store();
+        auto &st = registry::store();
+        st.set_order({"bydanix.f1-2012-season"});
+        st.set_validator(&registry::schema_validator());
+        const SwoftyRegistry *t = registry::table();
+        for (const char *name : {"engine_sound", "vehicle.package", "vehicle", "livery", "content.package", "era.box"}) {
+            std::string schema = slurp(regs + "/" + name + "/1.0.json");
+            t->declare(name, SwoftyText{schema.data(), schema.size()});
+        }
+        std::string data = twelve_team_package(own_row ? R"(, "standings_from": "bdx_s5_teams")" : "");
+        int r = registry::load_data_file("bydanix.f1-2012-season", "registry/content.json", data);
+        st.end_register();
+        check(r == SWOFTY_ASSET_OK, std::string("a 12-team, 24-car package registers") + (own_row ? " (own standings_from)" : ""));
+        Db db;
+        stock_wide_rows(db);
+        content::Expansion x(db.base());
+        content::expand(st, x, {});
+        int refused = 0;
+        for (auto &[k, n] : x.refused)
+            refused += n;
+        for (auto &l : x.lines["content.package"])
+            std::printf("      %s\n", l.c_str());
+        std::string standings, list;
+        for (int i = 0; i < 8; i++) {
+            std::string sp = "entrants.standings.standings_" + std::to_string(i);
+            std::string lp = "entrants.entrant_lists.entrant_list_" + std::to_string(i);
+            if (written(x.engine, sp + "._metadata_") == "f2012_teams")
+                standings = sp;
+            if (written(x.engine, lp + "._metadata_") == "f2012")
+                list = lp;
+        }
+        auto text = [&](const std::string &path) -> std::optional<std::string> {
+            if (auto w = written(x.engine, path))
+                return w;
+            auto rec = db.base()(content::gvdb::fnv64(path));
+            return rec ? std::optional<std::string>(rec->text) : std::nullopt;
+        };
+        bool added_line = false;
+        for (auto &l : x.lines["content.package"])
+            added_line |= l.find("standings f2012_teams has 12 teams; f1_teams_2026 holds 11, the rest are added") != std::string::npos;
+        if (!own_row) {
+            check(refused == 0 && x.records["content.package"] == 1,
+                  "with no standings_from, a 12-team package applies on the 11-team stock row");
+            check(!standings.empty() && text(standings + "._team_reference_instancecount_") == "12",
+                  "its standings row is grown to 12 teams");
+            check(text(standings + ".team_reference_10.team") == "hrt_2012" &&
+                      text(standings + ".team_reference_11.team") == "marussia_2012" &&
+                      text(standings + ".team_reference_11._metadata_") == "marussia" &&
+                      text(standings + ".team_reference_0.team") == "redbull_2012",
+                  "in package order: the 12th is the package's 12th team");
+            check(text("entrants.standings.standings_1._team_reference_instancecount_") == "11" &&
+                      !text("entrants.standings.standings_1.team_reference_11._metadata_"),
+                  "the stock f1_teams_2026 row keeps its 11 teams");
+            check(added_line, "the boot log says the standings row was grown");
+            check(!list.empty() && text(list + "._entrant_instancecount_") == "24" &&
+                      text(list + ".entrant_23.entrant_reference") == "f12-marussia_b" &&
+                      text(list + ".entrant_22.team_position") == "0" && text(list + ".entrant_23.team") == "marussia_2012",
+                  "its entrant list is grown to 24 entrants");
+            check(text("entrants.entrant_lists.entrant_list_1._entrant_instancecount_") == "22",
+                  "the stock f1_2026 list keeps its 22 entrants");
+            check(text("entrants.entrant_setup_modes.entrant_setup_mode_0.max_entrants") == "24",
+                  "the setup mode takes 24 entrants");
+        } else {
+            check(refused == 0 && x.records["content.package"] == 1, "with standings_from naming a 12-team row it applies");
+            check(!standings.empty() && text(standings + "._team_reference_instancecount_") == "12" &&
+                      text(standings + ".team_reference_11.team") == "marussia_2012" &&
+                      text(standings + ".team_reference_11._metadata_") == "b11",
+                  "the creator's row is copied as it is and filled, nothing added");
+            check(!added_line, "and no grown row is logged");
+        }
+    }
+}
+
 static void livery_tests()
 {
     std::map<std::string, std::string> db = {
@@ -948,6 +1082,8 @@ int main(int argc, char **argv)
         variant_tests(argv[1]);
     if (argc > 1)
         team_tests(argv[1]);
+    if (argc > 1)
+        twelve_team_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }
