@@ -3,6 +3,7 @@
 #include "../../src/core/registry/table.hpp"
 #include "../../src/core/registry/validate.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -344,7 +345,9 @@ static void apply_tests(const std::string &regs)
           "its stat id is the first above the stock looks");
 
     std::string drv = find_row(e, "entrants.drivers", "driver", "mika_salo");
-    check(!drv.empty() && written(e, drv + ".full_name") == "lng_mika_salo" && written(e, drv + ".last_name") == "Salo" &&
+    check(!drv.empty() && written(e, drv + ".full_name") == "lng_mika_salo" &&
+              written(e, drv + ".first_name") == "lng_mika" &&
+              written(e, drv + ".last_name") == "lng_swofty_driver_mika_salo_last" &&
               written(e, drv + ".initials") == "SAL" && written(e, drv + ".nationality") == "finland" &&
               written(e, drv + ".car_number") == "17" && written(e, drv + ".head") == "salo" &&
               written(e, drv + ".audio_name") == "salo" && written(e, drv + ".f1_seasons_completed") == "7" &&
@@ -352,9 +355,19 @@ static void apply_tests(const std::string &regs)
               written(e, drv + ".expression_label") == "jarno_opmeer",
           "a driver row has his names, number, nationality, head and extra keys, and keeps the donor's other keys");
     check(written(e, drv + ".stat_id") == "208", "his stat id is the lowest free one of Driver Manager's 208..253 range");
+    auto texts = x.texts["driver.identity"];
+    auto has_text = [&](const std::string &tag, const std::string &value) {
+        return std::find(texts.begin(), texts.end(), std::pair<std::string, std::string>{tag, value}) != texts.end();
+    };
+    check(has_text("lng_swofty_driver_mika_salo_last", "Salo") && texts.size() == 2,
+          "his literal last name is a core text; his lang-key names are not");
+    check(written(e, drv + ".last_name_standard") == std::nullopt,
+          "a donor with no standard last name gets none");
     check(find_row(e, "entrants.drivers", "driver", "nolook").empty(), "an identity without a look writes no row");
     std::string twin = find_row(e, "entrants.drivers", "driver", "salo_twin");
     check(!twin.empty() && written(e, twin + ".full_name") == "lng_mika_salo" && written(e, twin + ".car_number") == "18" &&
+              written(e, twin + ".last_name") == "lng_swofty_driver_salo_twin_last" &&
+              has_text("lng_swofty_driver_salo_twin_last", "Salo") &&
               written(e, twin + ".stat_id") == "209",
           "a variant copies its base's row with its own number and stat id");
     std::string wear = find_row(e, "engine_management.driver_wear_rates", "driver_wear_rate", "mika_salo");
@@ -396,6 +409,72 @@ static void apply_tests(const std::string &regs)
     check(pins.size() == 2 && pins[0].registry == "content.package", "auto stat ids pin nothing; the package pins its list and scenario");
 }
 
+static const char *NAME_RECORDS = R"j({
+  "helmet": { "ida_helmet": { "archive": "kit/ida_helmet.erp", "from": "game/2025-sauber_driver" } },
+  "suit": { "ida_suit": { "archive": "kit/ida_suit.erp", "from": "game/2025-sauber" } },
+  "gloves": { "ida_gloves": { "archive": "kit/ida_gloves.erp", "from": "game/2025-sauber" } },
+  "driver.look": { "ida_look": { "helmet": "mod.f2012/ida_helmet", "suit": "mod.f2012/ida_suit", "gloves": "mod.f2012/ida_gloves" } },
+  "driver.identity": {
+    "ida_gamer": { "donor": "game/jarno_opmeer",
+                   "names": { "first": { "literal": "Ida" }, "last": { "literal": "Gamer" }, "full": { "literal": "Ida Gamer" }, "code": "IGA" },
+                   "nationality": "great_britain", "number": 77, "look": "mod.f2012/ida_look", "seasons_completed": 0 },
+    "keyed": { "donor": "game/lance_stroll",
+               "names": { "first": "lng_k_first", "last": "lng_k_last", "full": "lng_k_full", "code": "KEY" },
+               "look": "mod.f2012/ida_look" },
+    "standard": { "donor": "game/lance_stroll",
+                  "names": { "first": { "literal": "Sam" }, "last": { "literal": "Öhl" }, "full": { "literal": "Sam Öhl" }, "code": "OHL" },
+                  "look": "mod.f2012/ida_look" }
+  }
+})j";
+
+static void literal_name_tests(const std::string &regs)
+{
+    register_records(regs, NAME_RECORDS);
+    auto &st = registry::store();
+    Db db;
+    stock_rows(db);
+    db.put("entrants.drivers._driver_instancecount_", 0, "3");
+    db.row("entrants.drivers.driver_2",
+           {{"_metadata_", "lance_stroll"}, {"first_name", "lng_lance"}, {"last_name", "lng_stroll"},
+            {"last_name_standard", "lng_stroll_standard"}, {"full_name", "lng_lance_stroll"}, {"initials", "STR"},
+            {"nationality", "canada"}, {"car_number", "18"}, {"head", "jarno_opmeer"}, {"audio_name", "DefaultName"},
+            {"available", "True"}, {"f1_seasons_completed", "0"}, {"garage_slot_preference", "0"}, {"stat_id", "40"},
+            {"expression_label", "lance_stroll"}, {"date_of_birth.year", "1998"}});
+    int64_t next = 230;
+    content::StatIds stat = [&](const std::string &, const std::string &, int64_t pin) -> int64_t { return pin >= 0 ? pin : next++; };
+    content::Expansion x(db.base());
+    content::expand(st, x, stat);
+    for (auto &l : x.lines["driver.identity"])
+        std::printf("      %s\n", l.c_str());
+    check(x.records["driver.identity"] == 3 && x.refused["driver.identity"] == 0, "the three name records apply");
+    auto &e = x.engine;
+    auto texts = x.texts["driver.identity"];
+    auto has_text = [&](const std::string &tag, const std::string &value) {
+        return std::find(texts.begin(), texts.end(), std::pair<std::string, std::string>{tag, value}) != texts.end();
+    };
+    std::string ida = find_row(e, "entrants.drivers", "driver", "ida_gamer");
+    check(!ida.empty() && written(e, ida + ".first_name") == "lng_swofty_driver_ida_gamer_first" &&
+              written(e, ida + ".last_name") == "lng_swofty_driver_ida_gamer_last" &&
+              written(e, ida + ".full_name") == "lng_swofty_driver_ida_gamer_full" && written(e, ida + ".initials") == "IGA" &&
+              written(e, ida + ".car_number") == "77" && written(e, ida + ".nationality") == "great_britain",
+          "a literal-name driver's row holds core tags for his names, his code as initials and his number");
+    check(has_text("lng_swofty_driver_ida_gamer_first", "Ida") && has_text("lng_swofty_driver_ida_gamer_last", "Gamer") &&
+              has_text("lng_swofty_driver_ida_gamer_full", "Ida Gamer"),
+          "the core registers the text of each literal name under its tag");
+    check(written(e, ida + ".last_name_standard") == std::nullopt, "a donor with no standard last name leaves the field alone");
+    std::string keyed = find_row(e, "entrants.drivers", "driver", "keyed");
+    check(!keyed.empty() && written(e, keyed + ".first_name") == "lng_k_first" && written(e, keyed + ".last_name") == "lng_k_last" &&
+              written(e, keyed + ".full_name") == "lng_k_full" && written(e, keyed + ".initials") == "KEY" &&
+              written(e, keyed + ".last_name_standard") == "lng_stroll_standard",
+          "lang-key names are written as they are and keep the donor's standard last name");
+    std::string standard = find_row(e, "entrants.drivers", "driver", "standard");
+    check(!standard.empty() && written(e, standard + ".last_name") == "lng_swofty_driver_standard_last" &&
+              written(e, standard + ".last_name_standard") == "lng_swofty_driver_standard_last" &&
+              has_text("lng_swofty_driver_standard_last", "Öhl"),
+          "a literal last name also replaces the donor's standard last name");
+    check(texts.size() == 6, "only the literal names become texts");
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2) {
@@ -403,6 +482,7 @@ int main(int argc, char **argv)
         return 2;
     }
     apply_tests(argv[1]);
+    literal_name_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

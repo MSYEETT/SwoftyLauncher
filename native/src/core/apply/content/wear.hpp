@@ -92,6 +92,11 @@ inline std::string text_of(const Value &t)
     return title_text(t);
 }
 
+inline std::string driver_name_tag(std::string_view label, std::string_view part)
+{
+    return "lng_swofty_driver_" + std::string(label) + "_" + std::string(part);
+}
+
 inline std::string character_erp(std::string group)
 {
     group = replace_all(group, "[CHARACTER_PACKAGE]", "character_package");
@@ -403,10 +408,23 @@ inline void lower_identity(const std::string &id, const Value &rec, const Lookup
     }
     Value set = Value::object({{"_metadata_", label}, {"available", "True"}});
     const Value &n = rec["names"];
+    std::vector<std::string> tags;
     for (auto [field, key] : {std::pair<const char *, const char *>{"first_name", "first"}, {"last_name", "last"},
-                               {"full_name", "full"}})
-        if (!text_of(n[key]).empty())
-            set[field] = text_of(n[key]);
+                               {"full_name", "full"}}) {
+        std::string value = text_of(n[key]);
+        if (value.empty())
+            continue;
+        if (n[key].is_object()) {
+            std::string tag = driver_name_tag(label, key);
+            plan.texts.emplace_back(tag, value);
+            tags.push_back(tag);
+            value = tag;
+            if (std::string_view(key) == "last")
+                if (auto standard = read(from + ".last_name_standard"); standard && !standard->empty())
+                    set["last_name_standard"] = tag;
+        }
+        set[field] = std::move(value);
+    }
     if (n["code"].is_string() && !n["code"].as_string().empty())
         set["initials"] = n["code"];
     if (rec["nationality"].is_string() && !rec["nationality"].as_string().empty())
@@ -434,6 +452,11 @@ inline void lower_identity(const std::string &id, const Value &rec, const Lookup
     std::string line = "driver.identity " + id + ": row " + label + " from " + donor +
                        (sid ? ", stat id " + std::to_string(*sid) : std::string()) + ", look " +
                        label_of(lookup, "driver.look", rec["look"].as_string());
+    if (!tags.empty()) {
+        line += "; literal names as";
+        for (auto &t : tags)
+            line += " " + t;
+    }
     if (rec["pools"].is_array() && rec["pools"].size())
         line += "; pools are not applied (the driver pool tables are not mapped)";
     plan.lines.push_back(line);
