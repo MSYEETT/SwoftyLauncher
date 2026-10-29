@@ -44,7 +44,7 @@ Shipped in 1.6.0:
 - **[Drivers](./drivers)** `swofty/systems/drivers.hpp`: `drivers::people`, `identities`, `heads`, `looks`, `stats`.
 - **[Helmets, suits and gloves](./wearables)** `swofty/systems/wearables.hpp`: `wearables::helmets`, `suits`, `gloves`, `season_sets`.
 - **[Sounds](./sounds)** `swofty/systems/sounds.hpp`: `sounds::engine_sounds`.
-- **[Career](./career)** `swofty/systems/career.hpp`: `career::modes`, `contents`, `seasons`, `calendars`, `ratings`, `characters`, `wizards`, `hub_tabs`.
+- **[Career](./career)** `swofty/systems/career.hpp`: `career::modes`, `contents`, `seasons`, `calendars`, `ratings`, `characters`, `wizards`, `hub_tabs`, `rnd_trees`, `markets`.
 - **[UI and strings](./ui)** `swofty/systems/ui.hpp`: `ui::strings`, `addon_options`.
 - **[Sessions](./sessions)** `swofty/systems/sessions.hpp`: `sessions::Rules`, `set_control`.
 - **[Tracks](./tracks)** `swofty/systems/tracks.hpp`: `tracks::set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`.
@@ -56,7 +56,7 @@ Described on their pages, in headers that come later:
 
 - **[Cars](./cars)**: `vehicle.damage_model`, `vehicle.parts`.
 - **[Sounds](./sounds)**: `audio.car`.
-- **[Career](./career)**: `career.market`, `career.contract_rules`, `career.rnd.department`, `career.rnd.tree`, `career.facility`, `career.economy`, `career.sponsor`.
+- **[Career](./career)**: `career.contract_rules`, `career.rnd.department`, `career.facility`, `career.economy`, `career.sponsor`.
 - **[Tracks](./tracks)**: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines` (1.6.x).
 - **[Tyres](./tyres)** `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
 - **[Power units, ERS and DRS](./power-units)** `power::units`, `suppliers`, `drs_rules`, `component_rules`.

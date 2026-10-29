@@ -13,7 +13,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 
 <Split>
 
-`swofty/systems/career.hpp` has eight registries. The main ones:
+`swofty/systems/career.hpp` has ten registries. The main ones:
 
 - `career::modes`: a mode row, its save container and data group (`career.mode`);
 - `career::contents`: a career tile and the data it clones (`career.content`);
@@ -21,7 +21,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 - `career::calendars`: an event list (`career.calendar`);
 - `career::ratings`: a driver's ratings at the start of a season (`career.driver_ratings`).
 
-The rest: `characters`, `wizards`, `hub_tabs`.
+The rest: `characters`, `wizards`, `hub_tabs`, and the [R&D trees and the driver market](#r-d-trees-and-the-driver-market) (`rnd_trees`, `markets`).
 
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/career.hpp">
@@ -498,9 +498,76 @@ A history career can race each season's real calendar (`Season::calendar`). The 
 [registry] career season 2017 calendar: 20 rounds from swofty.progressive/2017; venue/sepang not installed, round dropped
 ```
 
+## R&D trees and the driver market
+
+A career reads its R&D trees and its driver market from the game database when it is created and each time it loads. `career.rnd.tree` and `career.market` records change those rows at boot, so every career of the group sees them from the next load. Neither is frozen per season.
+
+### R&D trees
+
+A tree is one team's R&D: its `token` (the 12 stock trees: `mercedes`, `ferrari`, `redbull`, `williams`, `tororosso`, `renault`, `haas`, `mclaren`, `sauber`, `force_india`, `gm_cadillac`, `user_defined`) in an upgrades group (`2026`, the only group in the game). Each department (`aerodynamics`, `chassis`, `durability`, `engine`) is a list of nodes, and the hub `default` links to each department's first nodes.
+
+```cpp
+career::rnd_trees.add("mercedes_beam_wing", {
+    .token = "mercedes",
+    .nodes = {
+        { .label = "swofty_beam_wing_1", .department = career::UpgradeDepartment::aerodynamics,
+          .from = "drag_minor_1", .name = "swofty_beam_wing", .type = "Rear Downforce",
+          .size = career::UpgradeSize::minor, .cost = 600, .x = 1, .y = -5,
+          .after = { "drag_minor_1" } },                     // drag_minor_1 unlocks it
+        { .label = "drag_minor_1", .department = career::UpgradeDepartment::aerodynamics, .cost = 450 },
+    },
+});
+```
+
+- **A new label adds a node.** The node copies the row of `from` (default: the department's first node) and takes the fields you give. It has no links of its own unless you give `links`.
+- **A stock label edits that node.** Only the fields you give change. A non-empty `links` replaces the node's links.
+- **`after`** names nodes of the same tree, in any department or the hub `default`, that unlock the new node. A node no other node links to never shows.
+- **`type`** is one of the upgrade types the stock trees use: `Drag`, `Front Downforce`, `Rear Downforce`, `drs`, `Brakes`, `Chassis Weight Redistribution`, `Chassis Weight Reduction`, `Tyre Wear`, the six `... Durability` types, `Engine Power`, `Fuel Consumption` and `ers`. The game reads any other name as the first type, so the core refuses it.
+- **Progress lives in the save by label.** A node removed later loses its progress at the next load. A new node starts unresearched in a running career.
+
+```text
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group 2026
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/ferrari_beam_wing: node sw_x_1 refused: no node drag_minor_9 in aerodynamics to copy
+```
+
+A record covers one tree. Use `extends` to give the other trees the same nodes:
+
+```json
+{
+  "career.rnd.tree": {
+    "mercedes_beam_wing": { "token": "mercedes", "nodes": [ { "label": "swofty_beam_wing_1", "type": "Rear Downforce", "after": [ "drag_minor_1" ] } ] },
+    "ferrari_beam_wing": { "extends": "swofty.beamwing/mercedes_beam_wing", "token": "ferrari" }
+  }
+}
+```
+
+### The driver market
+
+A market group (`2025`, `2026`) holds the drivers who retire, the drivers who are fired, and the driver rating each team asks for. The stock careers read `2026`.
+
+```cpp
+career::markets.add("history", {
+    .retirements = std::vector<career::Retirement>{
+        { .driver = drivers::identities["game/fernando_alonso"], .retire = 2027y / 12 / 14, .announce = 2027y / 9 / 16 },
+        { .driver = drivers::identities["game/lewis_hamilton"], .retire = 2028y / 12 / 14, .announce = 2028y / 9 / 23 },
+    },
+    .firings = std::vector<career::Firing>{ { .driver = drivers::identities["game/lance_stroll"], .season_index = 1 } },
+    .team_ratings = { { .team = teams::identities["game/mclaren_26"], .rating = 97 } },
+});
+```
+
+- **`retirements`** replaces the drivers of every retirement schedule (6 in stock, of 8 drivers each) with this list. A career uses one schedule. An empty list means nobody retires. Absent keeps the stock schedules.
+- **`firings`** replaces the drivers of every firing schedule (4 in stock) the same way. `season_index` 0 is the career's first season.
+- **`team_ratings`** sets the driver rating a team asks for. A team without a row gets one. An added team needs one, with its own `entrants.teams` label, for the market to rank it.
+- A driver without a `entrants.drivers` row, a team without an `entrants.teams` row, or a group the game doesn't have is left out, and the log says so.
+
+```text
+[apply] career.market boot:   career.market swofty.history/history: 2 retirement(s) in 6 schedule(s), 1 firing(s) in 4 schedule(s), 1 team rating(s) set, 0 added in market group 2026
+```
+
 ## Described, in headers that come later
 
-The market, contracts, R&D, facilities, the economy and sponsors are described here. The 1.6.0 headers have no registry for them: `career.market`, `career.contract_rules`, `career.rnd.department`, `career.rnd.tree`, `career.facility`, `career.economy` and `career.sponsor`.
+Contracts, R&D departments, facilities, the economy and sponsors are described here. No header has a registry for them yet: `career.contract_rules`, `career.rnd.department`, `career.facility`, `career.economy` and `career.sponsor`.
 
 ```cpp
 struct RndDepartment {
@@ -510,44 +577,13 @@ struct RndDepartment {
     float cost_scale = 1.0f;                   // UpgradeDepartmentEntry economy scale
 };
 
-struct Retirement {                            // one retirement schedule
-    std::chrono::year_month_day date;          // stock schedules use absolute dates; the last is December 2035
-    std::vector<Ref<drivers::Identity>> drivers;   // up to 8
-};
-
-struct Market {                                // driver_market, per data group
-    std::string data_group;
-    std::vector<Retirement> retirements;       // driver_retirements: 6 schedules of 8 drivers in stock
-    bool firings = true;                       // driver_firings
-    std::vector<Ref<drivers::Identity>> available;   // drivers_available_from_team_setup
-};
-SWOFTY_RECORD(Market, data_group, retirements, firings, available)
-
-struct ContractRules {                         // driver_contracts and career.generic_contracts, per data group
-    std::string data_group;
-    std::map<std::string, std::array<int, 2>> rating_ranges;   // the rating range each team tier asks for
+struct ContractRules {                         // driver_contracts and career.generic_contracts
+    std::map<std::string, std::array<int, 2>> rating_ranges;   // driver_contracts.NCS.rating_ranges
     std::array<int64_t, 2> salary;             // the lowest and highest salary offered
     int secret_meetings = 9;                   // secret meetings a season offers
     bool counteroffers = true;                 // career.generic_contracts counteroffers
 };
-SWOFTY_RECORD(ContractRules, data_group, rating_ranges, salary, secret_meetings, counteroffers)
-
-struct RndUpgrade {                            // one node of a tree: an upgrade_N row
-    int cost = 0, weighting = 0, size = 0;
-    int type = 0;                              // upgrade_type: 0..18 (the game keeps a std::bitset<19>)
-    Ref<RndDepartment> department;
-    std::vector<int> links;                    // the nodes it unlocks, by index
-    std::array<int, 2> grid_coordinates;       // where the node sits in the tree
-    int unlock_at_facility_level = 0;
-};
-
-struct RndTree {                               // one team's tree in one data group
-    std::string data_group;
-    std::string token;                         // one of the 12 compiled-in team tokens: "ferrari" .. "user_defined"
-    std::vector<Ref<RndDepartment>> departments;
-    std::vector<RndUpgrade> nodes;
-};
-SWOFTY_RECORD(RndTree, data_group, token, departments, nodes)
+SWOFTY_RECORD(ContractRules, rating_ranges, salary, secret_meetings, counteroffers)
 
 struct Facility {                              // career.my_team_facilities: Engineering, Personnel, Corporate
     Text name;
@@ -575,7 +611,9 @@ struct Sponsor {                               // career.my_team_sponsors: 15 ti
 SWOFTY_RECORD(Sponsor, name, logo, title, loyalty, stat_id)
 ```
 
-A market record for a mode of its own would clear the stock retirements while its seasons cover the grid. The game draws four R&D departments natively; a fifth and more come from native code, as R&D Tyres does. Team trees are found through 12 compiled-in tokens, and a 13th tree needs native code.
+- **Contracts:** the rating ranges, secret meetings and counteroffers are tables every career shares (`driver_contracts.NCS`, `career.generic_contracts`); no data group partitions them. The rating each team asks for is the market's `team_ratings`.
+- **R&D departments:** the game draws four departments natively. A fifth and more come from native code, as R&D Tyres does. The department economy rows name attribute rows rather than holding numbers.
+- **Trees:** found through 12 compiled-in tokens. A 13th tree needs native code.
 
 ## Characters and wizards
 
@@ -651,7 +689,7 @@ Any other order crashes the career. Every operation runs on the flow thread.
 ## Readiness and limits
 
 - **The most ready system:** 59 career and 46 game functions at L2, saves at L3. Ready: contracts, line-ups, standings, resource points, upgrade start, cancel and cost, the calendar, activities, the wizard step, save containers.
-- **Partial:** Team HQ tabs (L1). Facilities, sponsors and the market are described under "Described, in headers that come later".
+- **Partial:** Team HQ tabs (L1). Contracts, R&D departments, facilities, sponsors and the economy are described under "Described, in headers that come later".
 - **Unknown:** the resource point spend, regulation changes, a 13th team tree.
 - **The save heap** is 3 MB. The core keeps career snapshots outside it, in the `swofty_registry` entry, with a budget per registry and per career.
 - **R&D:** four departments drawn natively; upgrade types are a table of 19 and a `std::bitset<19>` (ids of 19 and up throw without native code).
