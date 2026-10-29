@@ -110,7 +110,7 @@ const SCHEMAS: &[(&str, &str)] = &[
     ),
     (
         "team.identity",
-        include_str!("../../../sdk/std/registries/team.identity/1.0.json"),
+        include_str!("../../../sdk/std/registries/team.identity/1.1.json"),
     ),
     (
         "team.logo",
