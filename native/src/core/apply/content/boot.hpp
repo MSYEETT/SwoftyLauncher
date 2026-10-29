@@ -6,6 +6,7 @@
 #include "wear.hpp"
 #include "teams.hpp"
 
+#include "../../career_ops/start_teams.hpp"
 #include "../../registry/store.hpp"
 
 #include <map>
@@ -250,6 +251,139 @@ inline std::map<std::string, std::vector<std::string>> wearers(registry::Store &
     return out;
 }
 
+// The drivers of the added teams (career_ops/start_teams.hpp added_team_id) in each data group's effective
+// career.season records, by driver identity: where each one races.
+struct AddedSeat {
+    std::string group, team;
+    int year = 0, slot = 0;
+};
+
+inline std::map<std::string, std::vector<AddedSeat>> added_seats(registry::Store &st)
+{
+    std::map<std::string, std::vector<AddedSeat>> out;
+    for (auto &id : st.list("career.season", "")) {
+        registry::Record r = st.get("career.season", id);
+        if (r.status != registry::Status::ok)
+            continue;
+        std::string group(r.value["data_group"].as_string());
+        const auto *teams = r.value["teams"].if_array();
+        if (group.empty() || !teams)
+            continue;
+        for (auto &t : *teams) {
+            std::string team(t["team"].as_string());
+            if (!career_ops::teams::added_team_id(team))
+                continue;
+            for (std::size_t k = 0; k < 2; k++) {
+                std::string driver(t["seats"][k].as_string());
+                if (!driver.empty())
+                    out[driver].push_back({group, team, int(r.value["year"].as_int()), int(t["slot"].as_int())});
+            }
+        }
+    }
+    return out;
+}
+
+// A driver row the core makes (a driver.identity with a donor) has no entrant row, so a career has no line-up row
+// for him and apply_teams can't seat him. Each such driver of an added team gets one teamless entrant (team "",
+// team_position -1, his look and number) and an entry for it in the first list the data group's career list
+// references whose entries are teamless (a driver pool), next to the pool's own entries: the career copies it at
+// creation like every pool driver. The career list is the one the data group's career setup names
+// (ComCareerSetup_0.entrant_list), else the list named as the data group.
+inline void lower_seat_entrants(registry::Store &st, Expansion &x, const Lookup &lookup, const Read &read,
+                                const std::set<std::string> &skip)
+{
+    auto &lines = x.lines["driver.identity"];
+    for (auto &[driver_id, where] : added_seats(st)) {
+        const Value *rec = lookup("driver.identity", driver_id);
+        if (!rec || !(*rec)["donor"].is_string() || skip.count(addon_of(driver_id)))
+            continue;
+        std::string label = label_of(lookup, "driver.identity", driver_id);
+        if (!read(row_at(DRIVERS, "driver", label) + "._metadata_"))
+            continue;
+        std::map<std::string, const AddedSeat *> groups;
+        for (auto &w : where)
+            groups.emplace(w.group, &w);
+        for (auto &[group, seat] : groups) {
+            std::string why_seat = "a seat of the added team " + seat->team + " in " + std::to_string(seat->year) + " slot " +
+                                   std::to_string(seat->slot) + " of " + group;
+            std::string career = read("career.career_setup.CareerSetupDataGroup[_metadata_=" + group + "].ComCareerSetup_0.entrant_list")
+                                     .value_or(std::string());
+            if (career.empty() && read(std::string(LISTS) + "[_metadata_=" + group + "]._metadata_"))
+                career = group;
+            std::string pool, from_entrant;
+            std::string refs = career.empty() ? std::string()
+                                              : read(std::string(LISTS) + "[_metadata_=" + career + "].entrant_list_references").value_or("");
+            std::size_t at = 0;
+            while (pool.empty() && at <= refs.size()) {
+                std::size_t comma = refs.find(',', at);
+                std::string ref = refs.substr(at, comma == std::string::npos ? std::string::npos : comma - at);
+                at = comma == std::string::npos ? refs.size() + 1 : comma + 1;
+                std::string first = std::string(LISTS) + "[_metadata_=" + ref + "].entrant_0";
+                auto team = read(first + ".team");
+                auto pos = read(first + ".team_position");
+                auto entrant = read(first + ".entrant_reference");
+                if (!ref.empty() && team && team->empty() && pos && *pos == "-1" && entrant && !entrant->empty() &&
+                    read(std::string(ENTRANTS) + "[_metadata_=" + *entrant + "]._metadata_")) {
+                    pool = ref;
+                    from_entrant = *entrant;
+                }
+            }
+            if (pool.empty()) {
+                lines.push_back("driver.identity " + driver_id + ": no entrant row (" + why_seat + "): " +
+                                (career.empty() ? "the data group has no career list"
+                                                : "no list " + career + " references holds teamless entries to sit next to") +
+                                "; apply_teams can't seat him");
+                continue;
+            }
+            std::string entrant = "sw-" + label, entry = "sw_pool_" + label;
+            std::string list = std::string(LISTS) + "[_metadata_=" + pool + "]";
+            if (read(list + ".entrant[_metadata_=" + entry + "]._metadata_"))
+                continue;
+            Plan plan;
+            plan.owner = addon_of(driver_id);
+            std::string look = (*rec)["look"].is_string() ? label_of(lookup, "driver.look", (*rec)["look"].as_string()) : std::string();
+            std::string number = (*rec)["number"].is_int() && (*rec)["number"].as_int() > 0 ? std::to_string((*rec)["number"].as_int()) : "255";
+            if (!read(std::string(ENTRANTS) + "[_metadata_=" + entrant + "]._metadata_"))
+                push_row(plan, "entrants.entrant_lists.entrants", std::string(ENTRANTS) + "[_metadata_=" + from_entrant + "]",
+                         Value::object({{"_metadata_", entrant},
+                                        {"driver", label},
+                                        {"driver_customisation", look},
+                                        {"car_number", number},
+                                        {"team", ""},
+                                        {"team_position", "-1"},
+                                        {"vehicle", ""},
+                                        {"vehicle_customisation", ""},
+                                        {"badge_customisation", ""},
+                                        {"entrant_reference", ""}}));
+            push_row(plan, list, list + ".entrant_0",
+                     Value::object({{"_metadata_", entry},
+                                    {"entrant_reference", entrant},
+                                    {"team", ""},
+                                    {"vehicle", ""},
+                                    {"team_position", "-1"},
+                                    {"car_number", "255"},
+                                    {"badge_customisation", ""},
+                                    {"vehicle_customisation", ""},
+                                    {"driver", ""},
+                                    {"driver_customisation", ""}}));
+            x.engine.add_fields(plan.fields);
+            x.engine.attribute(plan.owner, "driver.identity", driver_id);
+            std::size_t mark = x.engine.mark();
+            std::string why;
+            for (std::size_t i = 0; i < plan.ops.size() && why.empty(); i++)
+                why = x.engine.apply(plan.ops[i]);
+            if (!why.empty()) {
+                x.engine.rollback(mark);
+                lines.push_back("driver.identity " + driver_id + ": no entrant row (" + why_seat + "): " + why);
+                continue;
+            }
+            x.engine.commit();
+            lines.push_back("driver.identity " + driver_id + ": entrant " + entrant + " in " + pool + " (teamless, look " +
+                            (look.empty() ? std::string("none") : look) + ", referenced by " + career + "): " + why_seat);
+        }
+    }
+}
+
 inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const std::set<std::string> &skip = {})
 {
     std::map<std::string, Value> keep;
@@ -341,6 +475,7 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 x.refused[reg] += int(plan.refused);
         }
     }
+    lower_seat_entrants(st, x, lookup, read, skip);
     for (auto &l : x.engine.lines)
         x.lines["content.package"].push_back(l);
     for (auto &w : x.engine.writes())
