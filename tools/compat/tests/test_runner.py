@@ -125,6 +125,23 @@ class Files(unittest.TestCase):
             for p in (Path(tmp), Path(tmp) / "a", Path(tmp) / "a/b", Path(tmp) / "a/b/c.txt"):
                 self.assertEqual(p.stat().st_mtime_ns, runner.FIXED_MTIME_NS)
 
+    def test_a_cli_built_without_the_launcher_gets_a_note(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            release = Path(tmp) / "release"
+            release.mkdir()
+            cli = release / "swofty"
+            cli.write_bytes(b"cli")
+            os.utime(cli, ns=(2_000_000_000, 2_000_000_000))
+            self.assertIsNone(runner.lone_cli_note("b", cli), "outside a cargo target dir")
+            (release / ".fingerprint").mkdir()
+            self.assertIn("parts", runner.lone_cli_note("b", cli))
+            launcher = release / "swofty-launcher"
+            launcher.write_bytes(b"launcher")
+            os.utime(launcher, ns=(1_000_000_000, 1_000_000_000))
+            self.assertIsNotNone(runner.lone_cli_note("b", cli), "the cli was built again on its own")
+            os.utime(launcher, ns=(3_000_000_000, 3_000_000_000))
+            self.assertIsNone(runner.lone_cli_note("b", cli))
+
     def test_seed_baseline_links_objects_and_copies_manifests(self):
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "data/baseline"
