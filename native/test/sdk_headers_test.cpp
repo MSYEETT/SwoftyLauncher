@@ -19,6 +19,7 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/liveries.hpp>
+#include <swofty/systems/power.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/spectator.hpp>
@@ -474,6 +475,15 @@ static void schemas()
     CHECK(l.find("\"x-registry\":\"livery\"") != std::string::npos && l.find("\"x-applies\":\"boot\"") != std::string::npos);
     CHECK(l.find("\"x-ref\":\"vehicle\"") != std::string::npos && l.find("\"enum\":[\"owned\",\"game\"]") != std::string::npos);
     CHECK(liveries::liveries.at_major() == "livery@1");
+    std::string d = power::drs_rules.schema();
+    CHECK(d.find("\"x-registry\":\"rules.drs\"") != std::string::npos && d.find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(d.find("\"race_start\":{\"type\":\"integer\"}") != std::string::npos && power::drs_rules.at_major() == "rules.drs@1");
+    CHECK(content::packages.schema().find("\"x-ref\":\"rules.drs\"") != std::string::npos);
+    power::DrsRule never{.race_start = 200, .red_flag_restart = 200, .safety_car_end = 200};
+    std::string never_json = swofty::to_json(never);
+    power::DrsRule back;
+    CHECK(never_json.find("\"race_start\":200") != std::string::npos && swofty::from_json(never_json, back) &&
+          back.safety_car_end == 200 && power::DrsRule{}.race_start == 1);
 }
 
 static void liveries_records()
