@@ -40,8 +40,16 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/career.driver_ratings/1.0.json"),
     ),
     (
+        "career.market",
+        include_str!("../../../sdk/std/registries/career.market/1.0.json"),
+    ),
+    (
         "career.mode",
         include_str!("../../../sdk/std/registries/career.mode/1.0.json"),
+    ),
+    (
+        "career.rnd.tree",
+        include_str!("../../../sdk/std/registries/career.rnd.tree/1.0.json"),
     ),
     (
         "career.season",
