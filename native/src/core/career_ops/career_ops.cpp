@@ -18,6 +18,7 @@
 #include "lineup_plan.hpp"
 #include "number_plan.hpp"
 #include "seat_plan.hpp"
+#include "start_teams.hpp"
 #include "stats.hpp"
 #include "teams_plan.hpp"
 #include "teams_store.hpp"
@@ -1273,6 +1274,132 @@ int api_apply_lineup(SwoftyText request, char *out, size_t cap, size_t *len)
     return w == SWOFTY_TOO_SMALL && r == SWOFTY_ASSET_OK ? SWOFTY_TOO_SMALL : r;
 }
 
+struct StartWorn {
+    int slot = 0;
+    int64_t stat = -1;
+    std::string row, team;
+};
+
+struct StartState {
+    int year = 0;
+    std::vector<StartWorn> worn;
+};
+
+std::map<std::string, StartState> g_start;
+
+std::vector<std::string> slot_rows_of(const std::vector<uint32_t> &slot_teams)
+{
+    std::vector<std::string> rows;
+    std::lock_guard<std::mutex> l(g_lock);
+    for (uint32_t stat : slot_teams) {
+        auto name = g_labels.team_by_stat.find(stat);
+        rows.push_back(name == g_labels.team_by_stat.end() ? std::string() : name->second);
+    }
+    return rows;
+}
+
+StartState take_start(const std::string &group)
+{
+    std::lock_guard<std::mutex> l(g_lock);
+    auto it = g_start.find(group);
+    if (it == g_start.end())
+        return {};
+    StartState s = std::move(it->second);
+    g_start.erase(it);
+    return s;
+}
+
+int start_teams(const json::Value &s, Report &rep, std::string &head, std::string &summary)
+{
+    namespace ct = career_ops::teams;
+    std::string group = s["data_group"].str();
+    int year = number(s["year"], 0);
+    head = "apply_teams " + std::to_string(year) + " (start, " + (group.empty() ? "no data group" : group) + ")";
+    if (group.empty()) {
+        rep.result = "refused";
+        summary = "the request names no data group";
+        return SWOFTY_ASSET_INVALID;
+    }
+    std::vector<uint32_t> slot_teams;
+    bool have_slots = false;
+    {
+        std::lock_guard<std::mutex> l(g_lock);
+        auto it = g_slots.find(group);
+        if (it != g_slots.end()) {
+            have_slots = true;
+            slot_teams = it->second;
+        }
+    }
+    ct::StartPlan plan;
+    if (year) {
+        if (!have_slots) {
+            rep.result = "refused";
+            summary = "the data group has no slot table yet (set_slots)";
+            return SWOFTY_REFUSED;
+        }
+        if (!labels()) {
+            rep.result = "failed";
+            summary = "the teams table is not loaded yet";
+            return SWOFTY_ASSET_LATE;
+        }
+        plan = ct::start_plan(group, ct::seasons_of(swofty_core::registry::store(), group), slot_rows_of(slot_teams));
+    }
+    const ct::StartYear *want = year ? plan.find(year) : nullptr;
+    StartState was = take_start(group), now;
+    now.year = year;
+    size_t dressed = 0, undressed = 0, kept = 0;
+    auto wanted = [&](const StartWorn &w) {
+        if (!want)
+            return false;
+        for (auto &d : want->dresses)
+            if (d.slot == w.slot && d.team == w.team)
+                return true;
+        return false;
+    };
+    for (auto &w : was.worn) {
+        if (wanted(w))
+            continue;
+        std::string row = ct::identity_id(w.row);
+        if (ct::dresser() && ct::dresser()(group.c_str(), w.slot, row.c_str(), row.c_str(), w.stat))
+            ++undressed;
+    }
+    if (want) {
+        for (auto &d : want->dresses) {
+            auto i = static_cast<size_t>(d.slot - 1);
+            int64_t stat = i < slot_teams.size() ? static_cast<int64_t>(slot_teams[i]) : -1;
+            std::string row = ct::identity_id(d.row), team = ct::identity_id(d.team);
+            bool before = std::any_of(was.worn.begin(), was.worn.end(), [&](const StartWorn &w) { return w.slot == d.slot && w.team == d.team; });
+            if (ct::dresser() && ct::dresser()(group.c_str(), d.slot, row.c_str(), team.c_str(), stat)) {
+                now.worn.push_back({d.slot, stat, d.row, d.team});
+                ++(before ? kept : dressed);
+                swofty::log("[career-ops] apply_teams slot %d: team row %s (stat id %lld) wears %s in the new-career wizard of %d",
+                            d.slot, d.row.c_str(), static_cast<long long>(stat), team.c_str(), year);
+            } else {
+                rep.refusals.push_back("slot " + std::to_string(d.slot) + ": team row " + d.row + " (stat id " + std::to_string(stat) +
+                                       ") could not be dressed as " + team + " yet: the loaded team record or the identity is not reachable");
+            }
+        }
+        for (auto &n : want->notes)
+            swofty::log("[career-ops]   %s", n.c_str());
+    }
+    if (!now.worn.empty()) {
+        std::lock_guard<std::mutex> l(g_lock);
+        g_start[group] = now;
+    }
+    rep.changed = dressed + kept;
+    rep.refused = rep.refusals.size();
+    rep.extra = ",\"dressed\":" + std::to_string(dressed + kept) + ",\"undressed\":" + std::to_string(undressed);
+    if (!year)
+        summary = std::to_string(undressed) + " slot row(s) back in their own names and colours; the new-career wizard's dress is off";
+    else if (!want)
+        summary = "no career.season record of " + std::to_string(year) + " names an added team" +
+                  (undressed ? "; " + std::to_string(undressed) + " slot row(s) back in their own names and colours" : std::string());
+    else
+        summary = std::to_string(dressed) + " slot row(s) dressed, " + std::to_string(kept) + " still dressed, " +
+                  std::to_string(undressed) + " undressed: Team Select lists the " + std::to_string(year) + " added team(s) on their slot rows";
+    return SWOFTY_ASSET_OK;
+}
+
 int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
 {
     namespace ct = career_ops::teams;
@@ -1283,11 +1410,22 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
     std::string text = request.data ? std::string(request.data, request.size) : std::string();
     ct::Plan tp;
     size_t dressed = 0, dress_pending = 0;
+    bool parsed = !on_flow_thread() ? false : json::parse(text, j) && j.type == json::Value::Obj;
+    if (parsed && j["start"].type == json::Value::Obj) {
+        r = start_teams(j["start"], rep, head, summary);
+        swofty::log("[career-ops] %s: %s", head.c_str(), summary.c_str());
+        for (auto &why : rep.refusals)
+            swofty::log("[career-ops]   refused: %s", why.c_str());
+        if (rep.result == "ok" && r != SWOFTY_ASSET_OK)
+            rep.result = "failed";
+        int w = put(rep.json(), out, cap, len);
+        return w == SWOFTY_TOO_SMALL && r == SWOFTY_ASSET_OK ? SWOFTY_TOO_SMALL : r;
+    }
     if (!on_flow_thread()) {
         rep.result = "failed";
         summary = "late: called off the flow thread";
         r = SWOFTY_ASSET_LATE;
-    } else if (!json::parse(text, j) || j.type != json::Value::Obj || j["season"].type != json::Value::Obj) {
+    } else if (!parsed || j["season"].type != json::Value::Obj) {
         rep.result = "refused";
         summary = "the request is not a JSON object with a \"season\" record";
         r = SWOFTY_ASSET_INVALID;
@@ -1424,21 +1562,29 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
                 rep.refusals = p.refusals;
                 rep.refusals.insert(rep.refusals.end(), closing.refusals.begin(), closing.refusals.end());
                 rep.refused = rep.refusals.size();
+                StartState wizard = take_start(group);
                 for (auto &a : tp.actions) {
-                    if (a.kind == ct::Kind::closed)
-                        continue;
                     int64_t row_stat = static_cast<int64_t>(slot_teams[static_cast<size_t>(a.slot - 1)]);
                     std::string row = ct::identity_id(a.row);
+                    if (a.kind == ct::Kind::closed) {
+                        if (ct::dresser())
+                            ct::dresser()(group.c_str(), a.slot, row.c_str(), row.c_str(), row_stat);
+                        continue;
+                    }
                     if (a.kind == ct::Kind::open) {
                         if (ct::dresser())
                             ct::dresser()(group.c_str(), a.slot, row.c_str(), row.c_str(), row_stat);
                         continue;
                     }
                     std::string team = ct::identity_id(a.team);
+                    bool from_wizard = std::any_of(wizard.worn.begin(), wizard.worn.end(), [&](const StartWorn &w) {
+                        return w.slot == a.slot && w.stat == row_stat && ct::identity_id(w.team) == team;
+                    });
                     if (ct::dresser() && ct::dresser()(group.c_str(), a.slot, row.c_str(), team.c_str(), row_stat)) {
                         ++dressed;
-                        swofty::log("[career-ops] apply_teams slot %d: team row %s (stat id %lld) is dressed as %s", a.slot, a.row.c_str(),
-                                    static_cast<long long>(row_stat), team.c_str());
+                        swofty::log("[career-ops] apply_teams slot %d: team row %s (stat id %lld) is dressed as %s%s", a.slot, a.row.c_str(),
+                                    static_cast<long long>(row_stat), team.c_str(),
+                                    from_wizard ? " (the same row and dress as the new-career wizard's)" : "");
                     } else {
                         ++dress_pending;
                         rep.refusals.push_back("slot " + std::to_string(a.slot) + ": team row " + a.row + " (stat id " +

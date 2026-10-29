@@ -447,6 +447,45 @@ inline std::vector<NameWrite> team_name_writes(const Data &d, int year, const Id
     return out;
 }
 
+// The new-career wizard's names for a start season (ui/cards.cpp): only the slots whose team is an added team get
+// that team's own names on their name keys, so Choose Driver and Team Select list it in its slot while every other
+// team keeps the names the wizard shows; a year with no added team writes nothing.
+inline std::vector<NameWrite> added_team_name_writes(const Data &d, int year, const IdentityNames &identity)
+{
+    std::vector<NameWrite> out;
+    const Year *y = d.year(year);
+    if (!y || year >= kLastYear || !identity)
+        return out;
+    for (int i = 0; i < kSlots; ++i) {
+        if (!added_team(d, *y, i))
+            continue;
+        std::optional<std::array<std::string, 3>> own = identity(y->teams[i].team_id);
+        if (!own)
+            continue;
+        for (size_t k = 0; k < d.slots[i].name_keys.size(); ++k)
+            if (!d.slots[i].name_keys[k].empty() && !(*own)[k].empty())
+                out.push_back({d.slots[i].name_keys[k], (*own)[k], false});
+    }
+    return out;
+}
+
+// The logo key of an added team in a start season's slot whose career team row is `label`: the row label the core
+// gives the team's own row (its record key), whose logo slices the core's team applier built; empty when the slot
+// holds no added team that year.
+inline std::string added_team_logo(const Data &d, int year, const std::string &label)
+{
+    const Year *y = d.year(year);
+    if (!y || year >= kLastYear)
+        return std::string();
+    for (int i = 0; i < kSlots; ++i)
+        if (d.slots[i].team == label && added_team(d, *y, i)) {
+            const std::string &id = y->teams[i].team_id;
+            size_t slash = id.rfind('/');
+            return slash == std::string::npos ? id : id.substr(slash + 1);
+        }
+    return std::string();
+}
+
 inline std::string season_team(const Data &d, const Plan &p, int slot)
 {
     const Year *y = d.year(clamp_year(p.year));

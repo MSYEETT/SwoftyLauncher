@@ -748,8 +748,108 @@ static void slot_tests()
     check(!team_slots::database_key((600u << 16) | 1u), "a key with a set or flag byte set is not a database loader key");
 }
 
+static void seat_entrant_tests()
+{
+    registry::reset_store();
+    auto &st = registry::store();
+    st.set_order({"ig.teampack", "swofty.progressive"});
+    for (const char *name : {"career.season", "driver.identity", "team.identity"})
+        st.declare(name, swofty::json::parse(R"({"type":"object"})"), false, "");
+    st.add("ig.teampack", "team.identity", "ig_racing", swofty::json::parse(R"({"donor":"game/williams"})"), nullptr);
+    st.add("ig.teampack", "driver.identity", "ig_driver",
+           swofty::json::parse(R"({"donor":"game/jarno_opmeer","look":"ig.teampack/ig_look","number":77})"), nullptr);
+    st.add("ig.teampack", "driver.identity", "stub", swofty::json::parse(R"({"names":{"code":"STB"}})"), nullptr);
+    st.add("swofty.progressive", "career.season", "2016",
+           swofty::json::parse(R"({"data_group":"f1_career_progressive","year":2016,"teams":[
+               {"slot":1,"team":"game/cs16_mercedes","seats":["game/lewis_hamilton","game/nico_rosberg"]},
+               {"slot":11,"team":"ig.teampack/ig_racing","seats":["ig.teampack/ig_driver","ig.teampack/stub"]}]})"),
+           nullptr);
+    st.add("swofty.progressive", "career.season", "2017",
+           swofty::json::parse(R"({"data_group":"f1_career_progressive","year":2017,"teams":[
+               {"slot":11,"team":"ig.teampack/ig_racing","seats":["ig.teampack/ig_driver",""]}]})"),
+           nullptr);
+    st.end_register();
+    auto seats = content::added_seats(st);
+    check(seats.size() == 2 && seats["ig.teampack/ig_driver"].size() == 2 && !seats.count("game/lewis_hamilton"),
+          "an added team's seats are found in every season that names it; a game/ team's seats are not");
+
+    Db db;
+    auto row = [&](const std::string &prefix, std::initializer_list<std::pair<const char *, std::string>> fields) {
+        for (auto &[f, v] : fields)
+            db.put(prefix + "." + f, std::string_view(f) == "_metadata_" ? 4 : 2, v);
+    };
+    db.put("career.career_setup._CareerSetupDataGroup_instancecount_", 0, "1");
+    row("career.career_setup.CareerSetupDataGroup_0", {{"_metadata_", "f1_career_progressive"}});
+    db.put("career.career_setup.CareerSetupDataGroup_0.ComCareerSetup_0.entrant_list", 4, "f1_career_progressive");
+    db.put("entrants.drivers._driver_instancecount_", 0, "2");
+    row("entrants.drivers.driver_0", {{"_metadata_", "jarno_opmeer"}});
+    row("entrants.drivers.driver_1", {{"_metadata_", "ig_driver"}});
+    db.put("entrants.entrant_lists.entrants._entrant_instancecount_", 0, "1");
+    row("entrants.entrant_lists.entrants.entrant_0", {{"_metadata_", "pg-daniel_ricciardo"},
+                                                      {"driver", "daniel_ricciardo"},
+                                                      {"driver_customisation", "x"},
+                                                      {"car_number", "3"},
+                                                      {"team", ""},
+                                                      {"team_position", "-1"},
+                                                      {"vehicle", ""},
+                                                      {"vehicle_customisation", ""},
+                                                      {"badge_customisation", ""},
+                                                      {"entrant_reference", ""}});
+    db.put("entrants.entrant_lists._entrant_list_instancecount_", 0, "3");
+    row("entrants.entrant_lists.entrant_list_0", {{"_metadata_", "f1_career_progressive"},
+                                                  {"entrant_list_references", "f1_2026,f1_career_progressive_driver_pool"}});
+    db.put("entrants.entrant_lists.entrant_list_0._entrant_instancecount_", 0, "0");
+    row("entrants.entrant_lists.entrant_list_1", {{"_metadata_", "f1_2026"}});
+    db.put("entrants.entrant_lists.entrant_list_1._entrant_instancecount_", 0, "1");
+    row("entrants.entrant_lists.entrant_list_1.entrant_0", {{"_metadata_", "e"}, {"team", "mercedes_26"}, {"team_position", "0"},
+                                                            {"entrant_reference", "pg-daniel_ricciardo"}});
+    row("entrants.entrant_lists.entrant_list_2", {{"_metadata_", "f1_career_progressive_driver_pool"}});
+    db.put("entrants.entrant_lists.entrant_list_2._entrant_instancecount_", 0, "1");
+    row("entrants.entrant_lists.entrant_list_2.entrant_0", {{"_metadata_", "pg_pool_daniel_ricciardo"},
+                                                            {"entrant_reference", "pg-daniel_ricciardo"},
+                                                            {"team", ""},
+                                                            {"vehicle", ""},
+                                                            {"team_position", "-1"},
+                                                            {"car_number", "255"},
+                                                            {"badge_customisation", ""},
+                                                            {"vehicle_customisation", ""},
+                                                            {"driver", ""},
+                                                            {"driver_customisation", ""}});
+    content::Expansion x(db.base());
+    std::map<std::string, Value> keep;
+    content::Lookup lookup = content::own_lookup(st, keep);
+    content::Read read = [&x](const std::string &path) -> std::optional<std::string> {
+        auto p = x.engine.resolve(path);
+        return p ? x.engine.text(*p) : std::nullopt;
+    };
+    content::lower_seat_entrants(st, x, lookup, read, {});
+    for (auto &l : x.lines["driver.identity"])
+        std::printf("      %s\n", l.c_str());
+    check(written(x.engine, "entrants.entrant_lists.entrants.entrant_1._metadata_") == "sw-ig_driver" &&
+              written(x.engine, "entrants.entrant_lists.entrants.entrant_1.driver") == "ig_driver" &&
+              written(x.engine, "entrants.entrant_lists.entrants.entrant_1.team_position") == "-1" &&
+              written(x.engine, "entrants.entrant_lists.entrants.entrant_1.car_number") == "77",
+          "the added team's new driver gets one teamless entrant with his number");
+    check(written(x.engine, "entrants.entrant_lists.entrant_list_2.entrant_1._metadata_") == "sw_pool_ig_driver" &&
+              written(x.engine, "entrants.entrant_lists.entrant_list_2.entrant_1.entrant_reference") == "sw-ig_driver" &&
+              written(x.engine, "entrants.entrant_lists.entrant_list_2._entrant_instancecount_") == "2",
+          "and an entry next to the pool's own in the teamless list the career list references");
+    check(!written(x.engine, "entrants.entrant_lists.entrant_list_1._entrant_instancecount_") &&
+              !written(x.engine, "entrants.entrant_lists.entrant_list_0._entrant_instancecount_"),
+          "the seated list and the 0-entry career list are left alone");
+    check(x.lines["driver.identity"].size() == 1, "a driver with no donor (a row something else made) gets nothing");
+    content::Expansion y(db.base());
+    content::Read ready = [&y](const std::string &path) -> std::optional<std::string> {
+        auto p = y.engine.resolve(path);
+        return p ? y.engine.text(*p) : std::nullopt;
+    };
+    content::lower_seat_entrants(st, y, lookup, ready, {"ig.teampack"});
+    check(y.engine.writes().empty(), "an addon left out of the boot apply adds no entrant");
+}
+
 int main(int argc, char **argv)
 {
+    seat_entrant_tests();
     slot_tests();
     engine_tests();
     livery_tests();
