@@ -44,7 +44,7 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("driver.person", "1.0"),
     ("driver.stats", "1.0"),
     ("engine_sound", "1.0"),
-    ("era.box", "1.0"),
+    ("era.box", "1.1"),
     ("gloves", "1.0"),
     ("helmet", "1.0"),
     ("hub.tab", "1.0"),
