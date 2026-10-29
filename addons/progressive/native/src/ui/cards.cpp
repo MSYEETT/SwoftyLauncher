@@ -58,6 +58,7 @@
 #include <cstddef>
 #include <iterator>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -75,6 +76,7 @@
 
 #include "../cards_logic.hpp"
 #include "../choose_logic.hpp"
+#include "../names.hpp"
 #include "../records.hpp"
 #include "wizard_ratings.hpp"
 
@@ -274,24 +276,36 @@ struct Effective {
     progressive::season::Data base, effective;
 };
 
+void load_effective(Effective &e);
+
 Effective &effective_years()
 {
     static Effective e;
-    if (e.tried)
-        return e;
+    static std::once_flag once;
+    std::call_once(once, [] { load_effective(e); });
+    return e;
+}
+
+void load_effective(Effective &e)
+{
     e.tried = true;
     std::string file, text, err;
     if (swofty::storage::read("data/years.json", file) != swofty::storage::Result::ok)
-        return e;
+        return;
     text = file;
     if (!pg::records::read_years(text, "Choose Driver") || text == file)
-        return e;
+        return;
     if (!progressive::season::parse(file, e.base, err) || !progressive::season::parse(text, e.effective, err)) {
         swofty::log("[progressive] cards: Choose Driver keeps the game's season lists: years.json REFUSED: %s", err.c_str());
-        return e;
+        return;
     }
     e.differs = true;
-    return e;
+}
+
+int driver_row_stat(const std::string &label)
+{
+    uint32_t s = 0;
+    return pg::names::load() && pg::names::stat(pg::names::Kind::driver, label, s) && s <= 0xffff ? static_cast<int>(s) : -1;
 }
 
 bool season_rows(unsigned stat, int year, Rows &out, std::vector<EntrantRecord> &store, uintptr_t list)
@@ -302,7 +316,7 @@ bool season_rows(unsigned stat, int year, Rows &out, std::vector<EntrantRecord> 
     if (!e.differs)
         return true;
     store.assign(out.begin, out.begin + out.count);
-    progressive::choose::Stats st = progressive::choose::reseat(store, e.base, e.effective, year);
+    progressive::choose::Stats st = progressive::choose::reseat(store, e.base, e.effective, year, driver_row_stat);
     if (!st.changed())
         return true;
     out.begin = store.data();
@@ -327,8 +341,11 @@ bool dress(uintptr_t vm, uintptr_t mode, uintptr_t entrants, uintptr_t career_li
         return false;
     }
     rows_of(list_at(entrants, pc::kFirstSeasonList), first);
+    Rows pool{};
+    if (season.begin == season_store.data())
+        rows_of(list_at(entrants, pc::kPoolList), pool);
     pc::Stats st{};
-    size_t n = pc::build(career, season, first, g_rows, kMaxRows, st);
+    size_t n = pc::build(career, season, first, g_rows, kMaxRows, st, pool);
     if (!n || st.season == 0)
         return false;
     std::memcpy(g_header, reinterpret_cast<const void *>(career_list), kListHeader);
@@ -350,6 +367,10 @@ bool dress(uintptr_t vm, uintptr_t mode, uintptr_t entrants, uintptr_t career_li
                     "%zu team(s), %zu row(s); kept through Team Select",
                     year, static_cast<unsigned long long>(vm), st.season, year, st.looks, st.cars, st.numbers, st.missing,
                     st.filled, st.benched, st.teams, n);
+    if (st.pooled)
+        swofty::log("[progressive] cards: Choose Driver %d: %zu seat driver(s) of the effective career.season records "
+                    "seated from the driver pool list (%u) on their team rows (an added team's new drivers)",
+                    year, st.pooled, pc::kPoolList);
     return true;
 }
 
@@ -743,6 +764,17 @@ extern "C" __declspec(dllexport) const char *ProgressiveCardsAddedTeamLogo(const
     static thread_local std::string key;
     int year = ProgressiveCardsStartYear();
     if (!year || !label)
+        return nullptr;
+    key = progressive::season::added_team_logo(effective_years().effective, year, label);
+    return key.empty() ? nullptr : key.c_str();
+}
+
+// progressive_teamlogos.dll: the logo key of the added team the effective career.season records put in that year's
+// slot whose career team row is label, in the wizard or a running career; null when the slot holds no added team.
+extern "C" __declspec(dllexport) const char *ProgressiveCardsAddedTeamLogoFor(int year, const char *label)
+{
+    static thread_local std::string key;
+    if (year < pc::kFirstYear || year > pc::kLastListYear || !label)
         return nullptr;
     key = progressive::season::added_team_logo(effective_years().effective, year, label);
     return key.empty() ? nullptr : key.c_str();

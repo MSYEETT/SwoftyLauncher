@@ -13,7 +13,9 @@
 //                and takes Hamilton off it; no layer leaves the list as it is;
 //   a team:      ig.teampack names its ig_racing for 2016 slot 11 with seats ig_driver + rio_haryanto (the IG6d
 //                layer): the apply_teams request carries those seat ids, the plan keeps Haryanto in the record's
-//                second seat, and ig_driver takes the first once the career has a row for him;
+//                second seat, and ig_driver takes the first once the career has a row for him; the start
+//                season view seats ig_driver (from the driver pool list) and Haryanto on the slot-11 row with
+//                its 2016 car, and the slot's logo paths name ig_racing's own key;
 //   no registry: no record means years.json as it is.
 
 #include <cstdio>
@@ -239,6 +241,9 @@ std::vector<ListRow> season_list(const season::Data &d, int year)
         for (const season::SeatDriver &sd : y->teams[static_cast<size_t>(i)].drivers) {
             const season::PoolDriver *p = d.driver(sd.driver);
             ListRow r;
+            std::memset(static_cast<void *>(&r), 0, sizeof r);
+            r.vehicle_customisation = progressive::cards::kNoKey;
+            r.badge_stat_id = progressive::cards::kNoKey;
             r.id_hi = static_cast<uint16_t>(p->stat);
             r.team_stat_id = static_cast<uint32_t>(d.slots[static_cast<size_t>(i)].team_stat) << 16;
             r.vehicle_ref = static_cast<uint32_t>(5000 + i) << 16;
@@ -362,6 +367,95 @@ void a_layer_adds_teams(const sj::Value &file)
     EXPECT(again.teams == 0);
 }
 
+void the_start_view_shows_the_added_team(const sj::Value &file)
+{
+    sj::Value doc = file;
+    pr::Summary n = pr::overlay(doc, season_of, rating_of);
+    EXPECT(n.teams == 2);
+    season::Data base = parse_season(file), eff = parse_season(doc);
+    const uint32_t row486 = static_cast<uint32_t>(base.slots[10].team_stat) << 16;
+    const uint32_t car11 = static_cast<uint32_t>(5000 + 10) << 16;
+    const int haryanto = stat("rio_haryanto"), wehrlein = stat("pascal_wehrlein");
+    EXPECT(base.slots[10].team == "gm_cadillac_26" && base.slots[10].team_stat == 486);
+
+    std::vector<ListRow> plain = season_list(base, 2016);
+    progressive::choose::Stats old = progressive::choose::reseat(plain, base, eff, 2016);
+    EXPECT(old.added == 0 && old.removed == 1);
+
+    std::vector<ListRow> rows = season_list(base, 2016);
+    auto ig_stat = [](const std::string &label) { return label == "ig_driver" ? 208 : -1; };
+    progressive::choose::Stats st = progressive::choose::reseat(rows, base, eff, 2016, ig_stat);
+    EXPECT(st.added == 1 && st.removed == 1 && st.moved == 0);
+    const ListRow *ida = nullptr;
+    for (const ListRow &r : rows)
+        if (r.id_hi == 208)
+            ida = &r;
+    EXPECT(ida && ida->team_stat_id == row486 && ida->vehicle_ref == car11 && ida->team_position == 0x100);
+
+    std::vector<ListRow> career = season_list(base, 2016);
+    ListRow pool_row;
+    pool_row.id_hi = 208;
+    pool_row.driver_customisation = 721u << 16;
+    pool_row.car_number = 77;
+    std::vector<ListRow> out(career.size() + 64);
+    progressive::cards::Rows<ListRow> c{career.data(), career.size()}, s{rows.data(), rows.size()}, f{}, pool{&pool_row, 1};
+    progressive::cards::Stats cs{};
+    size_t built = progressive::cards::build(c, s, f, out.data(), out.size(), cs, pool);
+    EXPECT(cs.pooled == 1 && cs.missing == 0 && cs.filled == 0);
+    std::vector<const ListRow *> seats;
+    for (size_t i = 0; i < built; ++i)
+        if (progressive::cards::seated(out[i]) && progressive::cards::same_team(out[i].team_stat_id, row486))
+            seats.push_back(&out[i]);
+    EXPECT(seats.size() == 2);
+    if (seats.size() == 2) {
+        EXPECT(seats[0]->id_hi == 208 && (seats[0]->team_position & 0xff) == 0 && seats[0]->vehicle_ref == car11 &&
+               seats[0]->driver_customisation == (721u << 16) && seats[0]->car_number == 77);
+        EXPECT(seats[1]->id_hi == haryanto && (seats[1]->team_position & 0xff) == 1 && seats[1]->vehicle_ref == car11);
+    }
+    for (size_t i = 0; i < built; ++i)
+        EXPECT(out[i].id_hi != wehrlein || !progressive::cards::seated(out[i]));
+
+    std::vector<ListRow> out2(career.size() + 64);
+    progressive::cards::Stats no_pool{};
+    progressive::cards::build(c, s, f, out2.data(), out2.size(), no_pool);
+    EXPECT(no_pool.pooled == 0 && no_pool.missing == 1);
+
+    std::vector<ListRow> same = season_list(base, 2016);
+    EXPECT(!progressive::choose::reseat(same, base, base, 2016, ig_stat).changed());
+    std::vector<ListRow> other = season_list(base, 2017), other_plain = season_list(base, 2017);
+    progressive::choose::Stats o = progressive::choose::reseat(other, base, eff, 2017, ig_stat);
+    progressive::choose::Stats op = progressive::choose::reseat(other_plain, base, eff, 2017);
+    EXPECT(o.added == op.added && o.moved == op.moved && o.removed == op.removed && other.size() == other_plain.size());
+
+    std::vector<std::string> missing;
+    ::json::Value years;
+    EXPECT(::json::parse(sj::dump(doc), years));
+    std::vector<progressive::cards::LogoMap> map = progressive::cards::logo_map(years, missing);
+    auto resolve = [&](const season::Data &d, int year, const char *path) {
+        std::string to;
+        auto key_of = [&](const std::string &label) { return season::added_team_logo(d, year, label); };
+        if (progressive::cards::added_logo_path(path, key_of, to) || progressive::cards::logo_path(map, year, path, to))
+            return to;
+        return std::string(path);
+    };
+    EXPECT(season::added_team_logo(eff, 2016, "gm_cadillac_26") == "ig_racing");
+    EXPECT(resolve(eff, 2016, "#overrides.teams.driver_select_team_logos.gm_cadillac_26") ==
+           "#overrides.teams.driver_select_team_logos.ig_racing");
+    EXPECT(resolve(eff, 2016, "overrides.team_logos.driver_career_2024_team_select.gm_cadillac_26") ==
+           "overrides.team_logos.driver_career_2024_team_select.ig_racing");
+    EXPECT(resolve(eff, 2016, "#overrides.teams.badges_broadcast.gm_cadillac_26") == "#overrides.teams.badges_broadcast.ig_racing");
+    EXPECT(resolve(eff, 2016, "overrides.osd.timing_tower.team_badges_hud.gm_cadillac_26") ==
+           "overrides.osd.timing_tower.team_badges_hud.cs16_manor");
+    EXPECT(resolve(eff, 2016, "#overrides.teams.driver_select_team_logos.mercedes_26") ==
+           "#overrides.teams.driver_select_team_logos.cs16_mercedes");
+    EXPECT(resolve(eff, 2017, "#overrides.teams.driver_select_team_logos.gm_cadillac_26") ==
+           resolve(base, 2017, "#overrides.teams.driver_select_team_logos.gm_cadillac_26"));
+    EXPECT(resolve(base, 2016, "#overrides.teams.driver_select_team_logos.gm_cadillac_26") ==
+           "#overrides.teams.driver_select_team_logos.cs16_manor");
+    EXPECT(resolve(eff, 2026, "#overrides.teams.driver_select_team_logos.gm_cadillac_26") ==
+           "#overrides.teams.driver_select_team_logos.gm_cadillac_26");
+}
+
 void no_registry_changes_nothing(const sj::Value &file)
 {
     sj::Value doc = file;
@@ -428,6 +522,7 @@ int main(int argc, char **argv)
         }, swofty::Scope::profile);
         engine->end_register();
         a_layer_adds_teams(file);
+        the_start_view_shows_the_added_team(file);
         swofty::api = nullptr;
     }
     no_registry_changes_nothing(file);
@@ -437,6 +532,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     std::printf("records_test: ok (no layer: years.json as it is; a 2017 layer moves Alonso into the Mercedes, "
-                "his pace to 96 and drops a change; a 2016 layer's own team keeps its drivers in their record seats)\n");
+                "his pace to 96 and drops a change; a 2016 layer's own team keeps its drivers in their record seats and shows them and its logo in the start "
+                "season view)\n");
     return EXIT_SUCCESS;
 }
