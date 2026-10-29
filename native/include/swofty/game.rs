@@ -4745,6 +4745,16 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_AcclimPenalty_Entry: Binding = Binding {
+        id: "site_Game_AcclimPenalty_Entry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_AcclimPenalty_Return: Binding = Binding {
+        id: "site_Game_AcclimPenalty_Return",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_CareerContinue_DriverSlotTitle: Binding = Binding {
         id: "site_Game_CareerContinue_DriverSlotTitle",
         kind: "call",
