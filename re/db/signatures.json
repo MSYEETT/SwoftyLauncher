@@ -76619,30 +76619,6 @@
    ]
   },
   {
-   "id": "game.controller_set_clear_flags",
-   "section": ".xtls",
-   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 78 48 89 CE C6 81 66 03 00 00 01",
-   "match": "0x14389bc50",
-   "anchor": "0x0",
-   "resolve": {
-    "kind": "addr"
-   },
-   "target": "0x14389bc50",
-   "kind": "func_start",
-   "names": [
-    "Game_ControllerSet_ClearFlags"
-   ],
-   "verified": [
-    {
-     "build": "d873a1c8d2044cef",
-     "date": "2026-10-22",
-     "by": "vmknolle",
-     "how": "static"
-    }
-   ],
-   "used_by": []
-  },
-  {
    "id": "game.presence_name_remote_added",
    "section": ".xtls",
    "pattern": "48 8B 47 38 48 8B 88 50 05 00 00 4C 8D 46 50 48 8D 56 10 E8 ?? ?? ?? ?? 48 8B 47 38 C5 F8 10 46 10",
