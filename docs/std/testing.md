@@ -90,7 +90,7 @@ Tests with the same environment share one game start, so a suite of twenty caree
 { "kind": "time_trial", "box": "mod.season-2008/f1_2008", "track": "venue/albert_park", "car": "mod.season-2008/ferrari" }
 ```
 
-`route` and `career` are experimental and not working in 1.6.0; `grand_prix` and `time_trial` are planned.
+A `route` environment fires its routes in order, each from the screen the game is on or from the home screen: `["f1_world", "play"]` opens F1 World and then its Play screen. `grand_prix` and `time_trial` are planned; until then a `route` test reaches them with `pad` steps (below).
 
 In a `benchmark` race the AI drives every car, including the player's. For a test that needs the player's controls, such as the MFD or DRS, a step drives the car with the virtual pad.
 
@@ -107,7 +107,34 @@ In a `benchmark` race the AI drives every car, including the player's. For a tes
 { "read": "career.money", "as": "money_before" }
 { "capture": "frame", "name": "team_hq" }
 { "save": "now" }
+{ "home": true }
+{ "tile": "career_dlc_content" }
+{ "wait": { "screen": "f1_world_activity_container" }, "timeout_s": 30 }
 ```
+
+`home` waits for the main menu, answering the launcher's notice on the way. `tile` runs a tile on the screen the game is on, by its id, as selecting it does: its route fires. Tile screens are the home screen, F1 World, Career and the career season pick; their tile ids are in `loader.log` (`[test] tile screen ...: story, career, mod_menu, f1_world, ...`). Other screens (F1 World's Play cards, Time Trial's season row, team select, track select, the garage, the pause menu) take `pad` steps. `wait` with `screen` waits until that screen is open.
+
+```json
+{
+  "id": "time_trial_session",
+  "env": { "kind": "route", "routes": ["f1_world", "play"] },
+  "steps": [
+    { "pad": { "press": "right" } },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "wait": { "event": "session.start" }, "timeout_s": 150 },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "pad": { "press": "a", "ms": 250 } },
+    { "ai_drives_player": true },
+    { "sample": { "read": "car[player].gearbox.gear_index", "every_ms": 500, "for_s": 20, "as": "gear" } }
+  ],
+  "assert": [{ "series": "gear", "rises_by": 3 }, { "no_crash": true }]
+}
+```
+
+That is Play, Time Trial, the first season, the first team, the first track, then Go to Track and Flying Lap in the garage, with the AI driving the player's car. Pause and Return to Garage are `start`, `down`, `down`, `a`.
 
 `skip` and `advance` use the game's own simulate and calendar code, so a test can get from the first race of a season to the season break in seconds. `read` and `set` use the same names as `cars::live` and the system pages.
 
@@ -218,16 +245,16 @@ Outside the shell, `swofty test fixture capture <name>` captures the last test r
 
 `at` is `team_hq` (the default), `weekend_hub` or `session`. `slot` picks the career by its save slot when the fixture holds more than one; without it the newest is continued. `session` isn't available.
 
-`career load`, `advance` and `save now` are experimental and not working in 1.6.0. They run only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused.
+`career load`, `advance` and `save now` run only in the save sandbox: in a `career` environment, or in `swofty test shell --fixture <name>`. Without a fixture the shell runs on your own saves, so those commands are refused. `career load` passes the title and the notice, opens Career, runs the mode's tile, picks the season whose tile continues a saved career and presses the resume card: from launch to Team HQ takes about a minute. `advance` doesn't work yet (below); a step can press Advance with the pad instead.
 
 Tests always run on a copy of a fixture in a separate save folder. They never read or write your own saves, and nothing they save reaches Steam Cloud: if the launcher can't make sure of that for your game's build, the test doesn't start.
 
 ## What runs today
 
-- **Runs in game:** `none`, `boot` and `benchmark`. The title screen is passed by the virtual pad after 15 seconds, and a `boot` run reaches the main menu with every addon loaded.
+- **Runs in game:** `none`, `boot`, `benchmark`, `route` and `career` at `team_hq`. The agent passes the title screen and the launcher's notice by pressing the virtual pad itself, so a `boot` run ends on the main menu with no clicking, parked on another workspace. `route` fires routes from the home screen and from F1 World and Career; `tile` runs tiles on those screens; `career load` reaches Team HQ from a fixture; `save now` saves into the sandbox; `ai_drives_player` drives the player's car on track; `pad` drives every other screen, including starting a Time Trial session and returning to the garage.
 - **Save sandbox:** runs. Loading a fixture profile and saving three times in the sandbox leaves the player's saves unchanged.
-- **Experimental, not working in 1.6.0:** the `route` environment, the `career` environment, and the agent commands `route`, `career load`, `advance`, `save now` and `title`. They reach the front end but not the home screen.
-- **Planned, not runnable:** `grand_prix` and `time_trial` environments. `swofty test plan` lists them as "needs session setup inside the game's screens". A `career` environment with `"at": "session"` answers `unavailable`.
+- **Not working yet:** `advance` (the agent never sees Team HQ's advance panel update), `capture` (no frame within its time limit), the `career` environment's `weekend_hub` and `session`, and `title` alone without the pad.
+- **Planned, not runnable:** `grand_prix` and `time_trial` environments. `swofty test plan` lists them as "needs session setup inside the game's screens".
 - **Steps and checks the launcher reads itself** (`wait`, and the `log`, `event`, `no_crash` and `perf` checks) work from the session's `loader.log`. Steps that read or write the running game (`read`, `sample`, `set`, `pad`, `capture`, and the `value` and `series` checks) go through the test agent in the game.
 
 ## Running tests
