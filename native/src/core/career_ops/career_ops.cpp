@@ -1541,6 +1541,14 @@ int api_apply_teams(SwoftyText request, char *out, size_t cap, size_t *len)
             if (r == SWOFTY_ASSET_OK) {
                 if (l.player_team < 0)
                     l.player_team = p.player_team;
+                std::vector<career_ops::plan::Given> given;
+                for (auto &m : l.moves)
+                    given.push_back({m.driver, m.team, m.seat});
+                for (auto &m : l.repositions)
+                    for (auto &x : plan_rows(rows))
+                        if (career_ops::plan::stat_of(x.driver) == m.driver && x.car)
+                            given.push_back({m.driver, x.team, m.seat});
+                career_ops::plan::defer_to(p, given);
                 for (auto &m : p.moves) {
                     auto c = car_of_team.find(m.team);
                     l.moves.push_back({m.driver, m.team, m.seat, c == car_of_team.end() ? -1 : c->second, -1, -1});
