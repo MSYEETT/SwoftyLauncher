@@ -109,30 +109,25 @@ int main()
     expect(f.ok && f.no_facts.front() == "no track layer for setup mode f2_mode", "a setup mode with no layer passes");
     trk::Facts built = trk::parse_facts(R"({"version": 1, "grid_size": 22, "layers": [
         {"label": "f1", "setup_modes": ["f1"], "seasons": ["season_2023", "season_2024", "season_2025"], "world": "f1"},
-        {"label": "classic", "setup_modes": ["classic", "f1_generic"], "seasons": ["season_2025"], "world": "classic"},
-        {"label": "f1_26", "setup_modes": ["f1_26"], "seasons": ["season_2026"], "world": "f1_26"}],
+        {"label": "f1_26", "setup_modes": ["f1_26"], "seasons": ["season_2026"], "world": "f1_26"},
+        {"label": "swofty_f1", "setup_modes": ["swofty_f1"], "seasons": ["season_2023", "season_2024", "season_2025"], "world": "f1_26"}],
       "tracks": {
-        "melbourne": {"worlds": {"f1": {"grid": 22, "garages": 10, "pit_boxes": 10}, "classic": {"grid": 22, "garages": 11, "pit_boxes": 11},
-                                 "f1_26": {"grid": 22, "garages": 11, "pit_boxes": 11}}},
-        "okayama": {"worlds": {"f1": {"grid": 24, "garages": 12, "pit_boxes": 12}}}}})");
+        "melbourne": {"worlds": {"f1": {"grid": 22, "garages": 10, "pit_boxes": 10}, "f1_26": {"grid": 22, "garages": 11, "pit_boxes": 11}}},
+        "igora_drive": {"worlds": {"f1": {"grid": 22, "garages": 10, "pit_boxes": 10}, "f1_26": {"grid": 22, "garages": 10, "pit_boxes": 10}}}}})");
     trk::BoxInfo cs = cs2016();
     cs.season = "season_2025";
-    expect(trk::worlds_for(built, cs) == std::vector<std::string>{"f1"},
-           "swofty_f1 with no layer of its own loads the f1 layer's world (the core adds it beside f1)");
-    f = trk::fits(cs, *base.by_code("melbourne"), trk::Mode::grand_prix, &built);
+    expect(trk::worlds_for(built, cs) == std::vector<std::string>{"f1_26"},
+           "Classic Seasons' swofty_f1 layer (a copy of f1_26) gives an 11-team box the f1_26 world, not f1");
+    expect(trk::fits(cs, *base.by_code("melbourne"), trk::Mode::grand_prix, &built).ok,
+           "an 11-team box fits a stock track's 11-garage f1_26 world");
+    f = trk::fits(cs, *base.by_code("igora_drive"), trk::Mode::grand_prix, &built);
     expect(!f.ok && f.rule == trk::Rule::garages && f.reason == "its swofty_f1 world has 10 garages; the box has 11 teams",
-           "an 11-team Classic Seasons box is checked against the f1 world's 10 garages");
-    expect(trk::fits(cs2016(10), *base.by_code("melbourne"), trk::Mode::grand_prix, &built).ok,
-           "a 10-team Classic Seasons box fits the f1 world");
-    expect(trk::fits(cs, *base.by_code("okayama"), trk::Mode::grand_prix, &built).ok, "a 12-garage world fits 11 teams");
-    trk::BoxInfo own_mode = cs2016(10);
-    own_mode.setup_mode = "cs_mode";
-    f = trk::fits(own_mode, *base.by_code("melbourne"), trk::Mode::grand_prix, &built);
-    expect(f.ok && f.no_facts.front() == "no track layer for setup mode cs_mode",
-           "only swofty_f1 borrows the f1 layers; another setup mode with no layer passes");
-    trk::Facts own = built;
-    own.layers.push_back({"swofty_f1", "f1_26", {"swofty_f1"}, {"season_2025"}, {"default"}});
-    expect(trk::worlds_for(own, cs) == std::vector<std::string>{"f1_26"}, "a layer that names swofty_f1 itself wins");
+           "a track whose f1_26 world has 10 garages is left out of an 11-team box");
+    trk::Facts no_layer = built;
+    no_layer.layers.pop_back();
+    f = trk::fits(cs, *base.by_code("igora_drive"), trk::Mode::grand_prix, &no_layer);
+    expect(f.ok && f.no_facts.front() == "no track layer for setup mode swofty_f1",
+           "facts without a swofty_f1 layer pass the world rules and say so; the core doesn't guess a layer");
 
     trk::BoxInfo stock;
     stock.package = "game/f1_2026";
