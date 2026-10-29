@@ -1,15 +1,22 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <swofty/events.hpp>
+#include <swofty/registry.hpp>
 #include <swofty/systems/career.hpp>
 #include <swofty/systems/forward.hpp>
 
-// Tracks: the operations on the game's track data and the session.fuel.load hook point that ship in 1.6.0.
-// The tracks registries come in 1.6.x.
+// Tracks: the operations on the game's track data and the session.fuel.load hook point (1.6.0), and the four
+// tracks registries (1.6.3, experimental): tracks (track; stock rows are game/<code>), venues (track.venue;
+// core-owned shared ids venue/<key>, resolved to the last enabled track in load order that provides one), data
+// (track.data; id <track id>/<data set>; an added track's blocks are variants of its base's) and per_package
+// (track.per_package; id <package id>/<key>; one box's data for one track or venue). track.layer, track.slots
+// and track.ai_line are not in this release: PackageTrack::world is stored and not applied.
 // set_track_fuel and copy_track_fuel call the core's career operations (SwoftyCoreCareerOps version 4) and
 // return unavailable on a core without them. The core keeps the bytes it found and puts them back when the
 // career unloads, or on restore_track_fuel. Data sets: f1_2025, sprint_f1_2025, f1_2026, sprint_f1_2026.
@@ -21,6 +28,117 @@ using Result = swofty::career::Result;
 struct Fuel {
     float burn_per_lap = 0;
 };
+SWOFTY_RECORD(Fuel, burn_per_lap)
+
+struct Venue {
+    static constexpr Version version{1, 0};
+    std::string name;
+    std::string country;
+    Ref<Track> track;
+    json::Value extra;
+};
+SWOFTY_RECORD(Venue, name, country, track)
+
+struct TrackNames {
+    Text title;
+    Text gp;
+    std::string acronym;
+    Text city;
+};
+SWOFTY_RECORD(TrackNames, title, gp, acronym, city)
+
+struct Tyres {
+    std::string softer, medium, harder;
+};
+SWOFTY_RECORD(Tyres, softer, medium, harder)
+
+struct Pit {
+    int speed_limit = 0;
+    float stop_time_dry = 0, stop_time_wet = 0;
+};
+SWOFTY_RECORD(Pit, speed_limit, stop_time_dry, stop_time_wet)
+
+struct Date {
+    int day = 0, month = 0;
+};
+SWOFTY_RECORD(Date, day, month)
+
+struct Track {
+    static constexpr Version version{1, 0};
+    std::string code;
+    std::string name;
+    Ref<Track> base;
+    Ref<Track> slot;
+    std::vector<Ref<Venue>> provides;
+    TrackNames names;
+    Path files;
+    float length_metres = 0;
+    int corners = 0;
+    float latitude = 0, longitude = 0;
+    bool time_trial = false;
+    StatId stat_id = StatId::automatic;
+    json::Value extra;
+};
+SWOFTY_RECORD(Track, code, name, base, slot, provides, names, files, length_metres, corners, latitude, longitude,
+              time_trial, stat_id)
+
+struct TrackData {
+    static constexpr Version version{1, 0};
+    Ref<Track> track;
+    std::string data_set;
+    int laps = 0;
+    Fuel fuel;
+    Tyres tyres;
+    Ref<tyres::Class> tyre_class;
+    Pit pit;
+    Ref<cars::Vehicle> safety_car;
+    TrackNames names;
+    Date date;
+    json::Value extra;
+};
+SWOFTY_RECORD(TrackData, track, data_set, laps, fuel, tyres, tyre_class, pit, safety_car, names, date)
+SWOFTY_RECORD_REGISTRY(TrackData, "track.data")
+
+struct PackageTrack {
+    static constexpr Version version{1, 0};
+    Ref<content::Package> package;
+    Ref<Track> track;
+    Ref<Venue> venue;
+    bool offered = true;
+    int order = 0;
+    Ref<Layer> world;
+    std::optional<int> laps;
+    std::optional<Fuel> fuel;
+    Ref<tyres::Class> tyre_class;
+    std::optional<Pit> pit;
+    std::optional<TrackNames> names;
+    std::optional<Date> date;
+    json::Value extra;
+};
+SWOFTY_RECORD(PackageTrack, package, track, venue, offered, order, world, laps, fuel, tyre_class, pit, names, date)
+SWOFTY_RECORD_REGISTRY(PackageTrack, "track.per_package")
+
+// What a box offers in one mode, as the core's catalog.json and [tracks] log lines report it: the season's real
+// calendar in round order, then every other track that fits ("More tracks"), and the tracks left out with why.
+struct LeftOut {
+    Ref<Track> track;
+    std::string reason;
+};
+SWOFTY_RECORD(LeftOut, track, reason)
+
+struct TrackList {
+    std::vector<Ref<Track>> calendar;
+    std::vector<Ref<Track>> more;
+    std::vector<LeftOut> left_out;
+};
+SWOFTY_RECORD(TrackList, calendar, more, left_out)
+
+inline Registry<Track> tracks{"track", {.applies = Applies::boot}};
+inline Registry<Venue> venues{"track.venue",
+                              {.applies = Applies::boot,
+                               .shared = {.provider_registry = "track", .provides = "/provides", .resolved = "/track"}}};
+inline Registry<TrackData> data{"track.data", {.applies = Applies::session}};
+inline Registry<PackageTrack> per_package{"track.per_package", {.applies = Applies::content}};
 
 namespace detail {
 
