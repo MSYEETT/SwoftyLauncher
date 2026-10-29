@@ -461,6 +461,15 @@ void set_up_dresser()
         return rec.status == registry::Status::ok && rec.value["stat_id"].is_int() ? rec.value["stat_id"].as_int() : -1;
     };
     l.record = &runtime::team_record_of;
+    l.character_stat = [](const std::string &label) -> int64_t {
+        const SwoftyDb *t = runtime::db_table();
+        SwoftyDbCursor c{};
+        SwoftyDbValue v{};
+        if (!t || !t->row || !t->cell || label.empty() || t->row("entrants.characters", label.c_str(), &c) != SWOFTY_ASSET_OK ||
+            t->cell(&c, "stat_id", &v) != SWOFTY_ASSET_OK)
+            return -1;
+        return v.i;
+    };
     runtime::team_record_inserted([](uint16_t stat, uint8_t *record) { redress(stat, record); });
     career_ops::teams::dresser() = &dress_slot;
 }

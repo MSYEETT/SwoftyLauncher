@@ -1,6 +1,7 @@
 #include "../../src/core/apply/content/boot.hpp"
 #include "../../src/core/apply/ids.hpp"
 #include "../../src/core/career_ops/teams_plan.hpp"
+#include "../../src/core/career_ops/teams_store.hpp"
 #include "../../src/core/team_slots_logic.hpp"
 #include "../../src/core/registry/table.hpp"
 #include "../../src/core/registry/validate.hpp"
@@ -475,7 +476,7 @@ static void team_tests(const std::string &regs)
     st.set_validator(&registry::schema_validator());
     const SwoftyRegistry *t = registry::table();
     for (const char *name : {"team.identity", "team.constructor", "team.pit_times", "team.logo"}) {
-        std::string schema = slurp(regs + "/" + name + "/1.0.json");
+        std::string schema = slurp(regs + "/" + name + (std::string(name) == "team.identity" ? "/1.1.json" : "/1.0.json"));
         t->declare(name, SwoftyText{schema.data(), schema.size()});
     }
     int r1 = registry::load_data_file("mod.a", "registry/teams.json", R"j({
@@ -488,7 +489,7 @@ static void team_tests(const std::string &regs)
           "names": { "title": "lng_cs_toro", "short_name": { "literal": "Toro Rosso" }, "super_short": { "literal": "STR" }, "code": "STR" },
           "colours": { "menu": "#0A1E3C", "primary": "#0A1E3C", "secondary": "#C8102E", "tertiary": "#80FFFFFF" },
           "wear": null, "livery_name": "cs17_toro_rosso", "logo": "mod.a/toro_rosso_2017", "prestige": 2,
-          "nationality": "italy", "stat_id": 600 },
+          "nationality": "italy", "stat_id": 600, "team_boss": "franz_tost", "team_base": { "literal": "Faenza, Italy" } },
         "lost": { "donor": "game/nobody", "names": { "code": "LST" }, "livery_name": "x" },
         "mercedes": { "donor": "game/mercedes", "names": { "code": "MER" }, "livery_name": "x" },
         "plain_team": { "donor": "game/mercedes", "names": { "code": "PLN" }, "livery_name": "cs_plain",
@@ -576,8 +577,10 @@ static void team_tests(const std::string &regs)
           "no wear colours: the kit follows the primary triple");
     check(field(tr, "timing_tower_texture_path") == "toro_rosso_2017", "a hud image gives the team its own timing tower key");
     check(field(tr, "story_info_0.description") == "lng_desc_tr" && field(tr, "_story_info_instancecount_") == "1" &&
-              field(tr, "team_base") == "lng_base" && field(tr, "animation_set") == "f1_2025",
+              field(pl, "team_base") == "lng_base" && field(pl, "team_boss") == "boss" && field(tr, "animation_set") == "f1_2025",
           "every other key, story_info included, is the donor's");
+    check(field(tr, "team_boss") == "franz_tost" && field(tr, "team_base") == "Faenza, Italy",
+          "team_boss and team_base: the principal's character label and the base text go on the row");
     check(field(tr, "available") == "False", "available stays false until an entrant list names the team");
     check(field(pl, "timing_tower_texture_path") == "plain_team", "a team with an image but none for hud or broadcast gets its own timing tower key");
     check(written(x.engine, "pit_lane.pit_times._team_pit_times_instancecount_") == "5", "three pit time rows are added");
@@ -700,12 +703,14 @@ static void team_tests(const std::string &regs)
     ct::Plan plan = ct::plan_season(table, season(2013, "mod.b/toro_rosso_b"));
     check(table.ok() && plan.ok() && plan.count(ct::Kind::dressed) == 1, "apply_teams plans slot 1 as dressed in 2013");
     std::vector<uint8_t> record(0x768, 0);
-    std::vector<std::string> bufs(4, std::string(0x80, 'x'));
-    for (std::size_t i = 0; i < 4; i++) {
+    std::vector<std::string> bufs(5, std::string(0x80, 'x'));
+    for (std::size_t i = 0; i < 5; i++) {
         char *p = bufs[i].data();
-        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT, content::team_record::CODE};
+        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT,
+                            content::team_record::CODE, content::team_record::TEAM_BASE};
         std::memcpy(record.data() + at[i], &p, sizeof p);
     }
+    record[content::team_record::TEAM_BOSS] = 9;
     std::vector<std::string> log;
     auto &live = content::live();
     live = content::Live();
@@ -715,6 +720,7 @@ static void team_tests(const std::string &regs)
         return r.status == registry::Status::ok ? &(keep["live|" + id] = r.value) : nullptr;
     };
     live.stat_of = [&](const std::string &id) -> int64_t { return ids.get("team.identity", id).id; };
+    live.character_stat = [](const std::string &label) -> int64_t { return label == "franz_tost" ? 41 : -1; };
     ct::dresser() = &content::dress_slot;
     auto run_dresser = [&]() {
         int dressed = 0, pending = 0;
@@ -737,6 +743,8 @@ static void team_tests(const std::string &regs)
     check(done.first == 1 && done.second == 0, "apply_teams dresses the slot row through the dresser");
     check(std::string(bufs[0].c_str()) == "B Toro" && std::string(bufs[3].c_str()) == "STR" && primary == int32_t(0xFF0A1E3C),
           "the loaded record takes the season team's names and colours");
+    check(std::string(bufs[4].c_str()) == "Faenza, Italy" && record[content::team_record::TEAM_BOSS] == 41,
+          "and its base text and principal: team_boss is the stat id of the character row its label names");
     std::vector<uint8_t> reloaded(0x768, 0);
     std::vector<std::string> bufs2(4, std::string(0x80, 'y'));
     for (std::size_t i = 0; i < 4; i++) {
@@ -756,17 +764,159 @@ static void team_tests(const std::string &regs)
         return rec.status == registry::Status::ok && rec.value["stat_id"].is_int() ? rec.value["stat_id"].as_int() : -1;
     };
     std::vector<uint8_t> stock_record(0x768, 0);
-    std::vector<std::string> bufs3(4, std::string(0x80, 'z'));
-    for (std::size_t i = 0; i < 4; i++) {
+    std::vector<std::string> bufs3(5, std::string(0x80, 'z'));
+    bufs3[4] = std::string("lng_base") + std::string(0x80 - 8, '\0');
+    for (std::size_t i = 0; i < 5; i++) {
         char *p = bufs3[i].data();
-        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT, content::team_record::CODE};
+        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT,
+                            content::team_record::CODE, content::team_record::TEAM_BASE};
         std::memcpy(stock_record.data() + at[i], &p, sizeof p);
     }
+    stock_record[content::team_record::TEAM_BOSS] = 7;
     live.record = [&](uint16_t stat) -> uint8_t * { return stat == 3 ? stock_record.data() : nullptr; };
-    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b", -1) && std::string(bufs3[0].c_str()) == "B Toro",
+    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b", -1) && std::string(bufs3[0].c_str()) == "B Toro" &&
+              std::string(bufs3[4].c_str()) == "Faenza, Italy" && stock_record[content::team_record::TEAM_BOSS] == 41,
           "a stock slot row dresses through the stat id of its stock record");
     check(ct::dresser()("g", 2, "game/tororosso", "game/tororosso", -1) && std::string(bufs3[0].c_str()) == "lng_stock" && !live.wears.count(3),
           "a slot that returns to its own team gets the stock names back and is forgotten");
+    check(std::string(bufs3[4].c_str()) == "lng_base" && stock_record[content::team_record::TEAM_BOSS] == 7 && !live.kept.count(3),
+          "and its own base and principal, as the record held them before the dress");
+    live.character_stat = nullptr;
+    check(ct::dresser()("g", 2, "game/tororosso", "mod.b/toro_rosso_b", -1) && std::string(bufs3[4].c_str()) == "Faenza, Italy" &&
+              stock_record[content::team_record::TEAM_BOSS] == 7 && log.back().find("its team_boss franz_tost is not an entrants.characters row") != std::string::npos,
+          "a principal whose character row can't be found leaves the record's principal and says so");
+    ct::dresser() = nullptr;
+}
+
+static void twelve_slot_tests(const std::string &regs)
+{
+    namespace ct = career_ops::teams;
+    registry::reset_store();
+    auto &st = registry::store();
+    const std::string by = "bydanix.f1-2012-season", group = "bydanix_2012";
+    st.set_order({by});
+    st.set_validator(&registry::schema_validator());
+    const SwoftyRegistry *t = registry::table();
+    for (auto [name, file] : {std::pair{"team.identity", "1.1.json"}, {"team.logo", "1.0.json"}, {"career.season", "1.0.json"}}) {
+        std::string schema = slurp(regs + "/" + name + "/" + file);
+        t->declare(name, SwoftyText{schema.data(), schema.size()});
+    }
+    const char *teams[] = {"red_bull", "mclaren", "ferrari", "mercedes", "lotus", "force_india",
+                           "sauber", "toro_rosso", "williams", "caterham", "marussia", "hrt"};
+    std::string logos, identities, slots, stock_slots;
+    for (int i = 0; i < 12; i++) {
+        std::string n = teams[i], sep = i ? "," : "";
+        logos += sep + "\"" + n + "\": { \"images\": { \"team_select\": \"logos/" + n + "_ts.png\", \"hud\": \"logos/" + n + "_hud.png\" } }";
+        identities += sep + "\"" + n + "\": { \"donor\": \"game/williams_26\", \"names\": { \"title\": { \"literal\": \"" + n +
+                      " 2012\" }, \"code\": \"T" + std::to_string(i) + "\" }, \"colours\": { \"menu\": \"#10203" + std::to_string(i % 10) +
+                      "\", \"primary\": \"#10203" + std::to_string(i % 10) + "\" }, \"livery_name\": \"c12_" + n + "\", \"logo\": \"" + by +
+                      "/" + n + "\", \"team_boss\": \"boss_" + n + "\", \"team_base\": { \"literal\": \"Base " + n + "\" } }";
+        slots += sep + "{ \"slot\": " + std::to_string(i + 1) + ", \"team\": \"" + by + "/" + n + "\" }";
+    }
+    for (int i = 0; i < 11; i++)
+        stock_slots += std::string(i ? "," : "") + "{ \"slot\": " + std::to_string(i + 1) + ", \"team\": \"game/team26_" + std::to_string(i) + "\" }";
+    int r = registry::load_data_file(by, "registry/teams.json",
+                                     "{ \"team.logo\": {" + logos + "}, \"team.identity\": {" + identities + "}, \"career.season\": { \"2012\": { \"data_group\": \"" +
+                                         group + "\", \"year\": 2012, \"teams\": [" + slots + "] }, \"stock_2026\": { \"data_group\": \"f1_career_2026\", \"year\": 2026, \"teams\": [" +
+                                         stock_slots + "] } } }");
+    st.end_register();
+    Value zero("#00000000");
+    Value stock = Value::object({{"names", Value::object({{"title", Value::object({{"literal", Value("lng_stock")}})}})},
+                                 {"colours", Value::object({{"menu", zero}, {"primary", zero}, {"secondary", zero}, {"tertiary", zero}})},
+                                 {"livery_name", Value("x")}});
+    st.add_base("team.identity", "williams_26", stock);
+    for (int i = 0; i < 12; i++)
+        st.add_base("team.identity", "c12_slot_" + std::to_string(i), stock);
+    for (int i = 0; i < 11; i++)
+        st.add_base("team.identity", "team26_" + std::to_string(i), stock);
+    st.stock_loaded("team.identity", true);
+    for (auto &f : st.refusals())
+        std::printf("      refused: %s %s %s: %s\n", f.addon.c_str(), f.registry.c_str(), f.id.c_str(), f.message.c_str());
+    check(r == SWOFTY_ASSET_OK, "12 team.identity records with logos, principals and bases and a 12-slot season register");
+
+    std::vector<ct::SeasonIn> seasons = ct::seasons_of(st, group);
+    check(seasons.size() == 1 && seasons[0].year == 2012 && seasons[0].slots.size() == 12,
+          "the data group's seasons are its own 2012 record, not the f1_career_2026 one");
+    check(ct::build_table(seasons, true).refusals.size() == 1, "12 slots with My Team stays refused (13 teams)");
+    ct::Table table = ct::build_table(seasons, false);
+    std::vector<std::string> physical;
+    for (int i = 0; i < 12; i++)
+        physical.push_back("c12_slot_" + std::to_string(i));
+    ct::anchor_rows(table, physical);
+    ct::Plan plan = ct::plan_season(table, seasons[0]);
+    check(table.ok() && plan.ok() && plan.count(ct::Kind::dressed) == 12, "apply_teams plans all 12 slots dressed: " + ct::summary(plan));
+
+    struct Rec {
+        std::vector<uint8_t> bytes = std::vector<uint8_t>(0x768, 0);
+        std::vector<std::string> bufs = std::vector<std::string>(5, std::string(0x80, '\0'));
+        std::vector<uint8_t> before;
+    };
+    std::map<uint16_t, Rec> loaded;
+    auto load = [&](uint16_t stat, const std::string &label) {
+        Rec &rec = loaded[stat];
+        std::size_t at[] = {content::team_record::DISPLAY_NAME, content::team_record::SHORT, content::team_record::SUPER_SHORT,
+                            content::team_record::CODE, content::team_record::TEAM_BASE};
+        for (std::size_t i = 0; i < 5; i++) {
+            std::memcpy(rec.bufs[i].data(), label.data(), std::min<std::size_t>(label.size(), 0x7f));
+            char *p = rec.bufs[i].data();
+            std::memcpy(rec.bytes.data() + at[i], &p, sizeof p);
+        }
+        rec.bytes[content::team_record::TEAM_BOSS] = 3;
+        rec.before = rec.bytes;
+    };
+    for (int i = 0; i < 12; i++)
+        load(uint16_t(700 + i), "c12_slot_" + std::to_string(i));
+    for (int i = 0; i < 11; i++)
+        load(uint16_t(i), "team26_" + std::to_string(i));
+    std::map<std::string, Value> keep;
+    std::vector<std::string> log;
+    auto &live = content::live();
+    live = content::Live();
+    live.log = [&](const std::string &l) { log.push_back(l); };
+    live.identity = [&](const std::string &id) -> const Value * {
+        auto rec = st.get("team.identity", id);
+        return rec.status == registry::Status::ok ? &(keep[id] = rec.value) : nullptr;
+    };
+    live.stat_of = [](const std::string &) -> int64_t { return -1; };
+    live.record = [&](uint16_t stat) -> uint8_t * {
+        auto it = loaded.find(stat);
+        return it == loaded.end() ? nullptr : it->second.bytes.data();
+    };
+    live.character_stat = [&](const std::string &label) -> int64_t {
+        for (int i = 0; i < 12; i++)
+            if (label == std::string("boss_") + teams[i])
+                return 50 + i;
+        return -1;
+    };
+    ct::dresser() = &content::dress_slot;
+    int dressed = 0;
+    for (auto &a : plan.actions)
+        dressed += a.kind == ct::Kind::dressed &&
+                   ct::dresser()(group.c_str(), a.slot, ct::identity_id(a.row).c_str(), ct::identity_id(a.team).c_str(), 700 + a.slot - 1);
+    bool all = dressed == 12;
+    for (int i = 0; i < 12; i++) {
+        Rec &rec = loaded[uint16_t(700 + i)];
+        all &= std::string(rec.bufs[0].c_str()) == std::string(teams[i]) + " 2012" &&
+               std::string(rec.bufs[3].c_str()) == "T" + std::to_string(i) &&
+               std::string(rec.bufs[4].c_str()) == std::string("Base ") + teams[i] &&
+               rec.bytes[content::team_record::TEAM_BOSS] == 50 + i;
+    }
+    check(all, "the 12 slot rows' loaded records wear the 12 teams' names, codes, bases and principals (" + std::to_string(dressed) + " dressed)");
+    bool untouched = true;
+    for (int i = 0; i < 11; i++)
+        untouched &= loaded[uint16_t(i)].bytes == loaded[uint16_t(i)].before && std::string(loaded[uint16_t(i)].bufs[0].c_str()) == "team26_" + std::to_string(i);
+    check(untouched, "the f1_career_2026 rows' loaded records are untouched");
+    content::Plan logo_plan;
+    for (int i = 0; i < 12; i++) {
+        auto logo = st.get("team.logo", by + "/" + teams[i]);
+        Value v = logo.value;
+        content::lower_logo_images(teams[i], "williams_26", by + "/" + teams[i], logo.status == registry::Status::ok ? &v : nullptr,
+                                   teams[i], logo_plan);
+    }
+    int own_slices = 0;
+    for (auto &l : logo_plan.logos)
+        own_slices += l.array == std::string("team_logos.driver_career_2024_team_select") && !l.fallback && l.key == l.team;
+    check(own_slices == 12, "each team's logo is built as slices under its own label, not the slot row's (" + std::to_string(own_slices) + ")");
     ct::dresser() = nullptr;
 }
 
@@ -902,6 +1052,8 @@ int main(int argc, char **argv)
         variant_tests(argv[1]);
     if (argc > 1)
         team_tests(argv[1]);
+    if (argc > 1)
+        twelve_slot_tests(argv[1]);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }
