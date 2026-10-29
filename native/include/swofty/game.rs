@@ -193,11 +193,6 @@ pub struct EntrantSetupMode {
 }
 
 #[repr(C)]
-pub struct EntrantsManager {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct FEHomeViewModel {
     _opaque: [u8; 0],
 }
@@ -1134,6 +1129,13 @@ const _: () = assert!(core::mem::offset_of!(EntrantWriteData, vehicle_customisat
 const _: () = assert!(core::mem::offset_of!(EntrantWriteData, badge_stat_id) == 0x18);
 const _: () = assert!(core::mem::offset_of!(EntrantWriteData, seat_value) == 0x28);
 const _: () = assert!(core::mem::size_of::<EntrantWriteData>() == 0x2c);
+
+#[repr(C)]
+pub struct EntrantsManager {
+    _pad_0x0: [u8; 0x2b0],
+    pub game_setup_mode: *mut GameSetupMode,
+}
+const _: () = assert!(core::mem::offset_of!(EntrantsManager, game_setup_mode) == 0x2b0);
 
 #[repr(C)]
 pub struct F1SeasonStandings {
@@ -2569,6 +2571,7 @@ pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry
 pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
 pub type Sess_Set_SafetyCarDeploymentType_t =
     unsafe extern "C" fn(sc_state: *mut c_void, sc_deployment_msg: *const c_void);
+pub type Sess_Setup_VehicleComponents_t = unsafe extern "C" fn(module: *mut c_void);
 pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     tod_owner: *mut c_void,
     types: *const u8,
@@ -3529,6 +3532,11 @@ pub mod bindings {
     };
     pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
         id: "Sess_Set_SafetyCarDeploymentType",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Setup_VehicleComponents: Binding = Binding {
+        id: "Sess_Setup_VehicleComponents",
         kind: "func",
         status: Status::Experimental,
     };
