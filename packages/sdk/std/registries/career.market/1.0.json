@@ -5,14 +5,13 @@
   "x-version": "1.0",
   "x-applies": "boot",
   "x-snapshot": false,
-  "description": "career::Market: one driver market group (driver_market.driver_market.DataGroup[<data_group>]): every retirement and firing schedule's drivers, and the driver rating each team asks for.",
+  "description": "career::Market: a driver market group (driver_market.driver_market.DataGroup[<data_group>]), or every group: every retirement and firing schedule's drivers, and the driver rating each team asks for.",
   "type": "object",
   "properties": {
     "data_group": {
-      "description": "The market group.",
+      "description": "The market group (a driver_market.driver_market.DataGroup label) the game mode reads; empty or absent: every group (2025 and 2026).",
       "type": "string",
-      "minLength": 1,
-      "default": "2026"
+      "default": ""
     },
     "retirements": {
       "description": "Replaces every retirement schedule's drivers; absent keeps them.",

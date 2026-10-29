@@ -632,11 +632,18 @@ A history career can race each season's real calendar (`Season::calendar`). The 
 
 ## R&D trees and the driver market
 
-A career reads its R&D trees and its driver market from the game database when it is created and each time it loads. `career.rnd.tree` and `career.market` records change those rows at boot, so every career of the group sees them from the next load. Neither is frozen per season.
+A career reads its R&D trees and its driver market from the game database when it is created and each time it loads. `career.rnd.tree` and `career.market` records change those rows at boot, so a career sees them at its next load, whether it was started before or after the record was installed. Neither is frozen per season.
+
+Each game mode reads its own group of rows. Its upgrades component names the upgrades group (`upgrades_path`, for example `upgrades.myteam_2025` for a My Team career) and its driver market component names the market group (`data_group`). A record without a `data_group` writes every group, so it reaches every mode. A record with one writes only that group.
+
+- **Loading a saved career rebuilds its R&D trees.** The game drops each team's saved R&D model, builds it again from the rows of the mode's upgrades group, then puts the saved progress back on the nodes it still finds by label. A new node starts unresearched. A removed node's progress is dropped.
+- **The driver market is read again too.** The driver market component reads its group's tables (retirement and firing schedules, team rating requirements) in its data load, at a career's creation and at each load.
 
 ### R&D trees
 
-A tree is one team's R&D: its `token` (the 12 stock trees: `mercedes`, `ferrari`, `redbull`, `williams`, `tororosso`, `renault`, `haas`, `mclaren`, `sauber`, `force_india`, `gm_cadillac`, `user_defined`) in an upgrades group (`2026`, the only group in the game). Each department (`aerodynamics`, `chassis`, `durability`, `engine`) is a list of nodes, and the hub `default` links to each department's first nodes.
+A tree is one team's R&D: its `token` (the 12 stock trees: `mercedes`, `ferrari`, `redbull`, `williams`, `tororosso`, `renault`, `haas`, `mclaren`, `sauber`, `force_india`, `gm_cadillac`, `user_defined`) in an upgrades group. The game has four groups: `2022`, `myteam_2025`, `2026` and `myteam_om_xm`. `gm_cadillac` has a tree in `2026` and `myteam_om_xm` only. A My Team car uses the `user_defined` tree. Each department (`aerodynamics`, `chassis`, `durability`, `engine`) is a list of nodes, and the hub `default` links to each department's first nodes.
+
+Without `data_group`, a record changes the token's tree in every group that has one, and the log has a line per group. The groups' trees differ (`2022` and `myteam_2025` have 24 aerodynamics nodes, `2026` has 25), so a `from` or `after` label one group lacks refuses that node in that group only.
 
 ```cpp
 career::rnd_trees.add("mercedes_beam_wing", {
@@ -658,8 +665,11 @@ career::rnd_trees.add("mercedes_beam_wing", {
 - **Progress lives in the save by label.** A node removed later loses its progress at the next load. A new node starts unresearched in a running career.
 
 ```text
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group 2022
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group myteam_2025
 [apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group 2026
-[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/ferrari_beam_wing: node sw_x_1 refused: no node drag_minor_9 in aerodynamics to copy
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group myteam_om_xm
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/ferrari_beam_wing: node sw_x_1 refused in upgrades group 2026: no node drag_minor_9 in aerodynamics to copy
 ```
 
 A record covers one tree. Use `extends` to give the other trees the same nodes:
@@ -675,7 +685,7 @@ A record covers one tree. Use `extends` to give the other trees the same nodes:
 
 ### The driver market
 
-A market group (`2025`, `2026`) holds the drivers who retire, the drivers who are fired, and the driver rating each team asks for. The stock careers read `2026`.
+A market group (`2025`, `2026`) holds the drivers who retire, the drivers who are fired, and the driver rating each team asks for. The stock game modes read both: some name `2025`, others `2026`. Without `data_group`, a record writes every group.
 
 ```cpp
 career::markets.add("history", {
@@ -694,8 +704,11 @@ career::markets.add("history", {
 - A driver without a `entrants.drivers` row, a team without an `entrants.teams` row, or a group the game doesn't have is left out, and the log says so.
 
 ```text
+[apply] career.market boot:   career.market swofty.history/history: 2 retirement(s) in 6 schedule(s), 1 firing(s) in 4 schedule(s), 1 team rating(s) set, 0 added in market group 2025
 [apply] career.market boot:   career.market swofty.history/history: 2 retirement(s) in 6 schedule(s), 1 firing(s) in 4 schedule(s), 1 team rating(s) set, 0 added in market group 2026
 ```
+
+Both registries are experimental in 1.6.4 (features `registry_career_rnd_tree` and `registry_career_market`): their shape can change before they are stable.
 
 ## Described, in headers that come later
 

@@ -1337,17 +1337,20 @@ static void stock_career_rows(Db &db)
         db.put(r + ".grid_coordinates.x", 1, "0");
         db.put(r + ".grid_coordinates.y", 1, std::to_string(-5 + i));
     };
-    std::string t = "upgrades.2026.trees.mercedes.";
-    db.put(t + "aerodynamics._upgrade_instancecount_", 0, "2");
-    node(t + "aerodynamics", 0, "drag_minor_1", "Drag", "Aerodynamics", "drag_major_1");
-    node(t + "aerodynamics", 1, "drag_major_1", "Drag", "Aerodynamics", "");
-    db.put(t + "chassis._upgrade_instancecount_", 0, "1");
-    node(t + "chassis", 0, "brakes_minor_1", "Brakes", "Chassis", "");
-    db.put(t + "fake._upgrade_instancecount_", 0, "1");
-    node(t + "fake", 0, "default", "Drag", "Fake", "drag_minor_1,brakes_minor_1");
-    std::string g = "driver_market.driver_market.DataGroup_0";
-    db.put("driver_market.driver_market._DataGroup_instancecount_", 0, "1");
-    db.put(g + "._metadata_", 2, "2026");
+    for (const char *group : {"2026", "myteam_2025"}) {
+        std::string t = std::string("upgrades.") + group + ".trees.mercedes.";
+        db.put(t + "aerodynamics._upgrade_instancecount_", 0, "2");
+        node(t + "aerodynamics", 0, "drag_minor_1", "Drag", "Aerodynamics", "drag_major_1");
+        node(t + "aerodynamics", 1, "drag_major_1", "Drag", "Aerodynamics", "");
+        db.put(t + "chassis._upgrade_instancecount_", 0, "1");
+        node(t + "chassis", 0, "brakes_minor_1", "Brakes", "Chassis", "");
+        db.put(t + "fake._upgrade_instancecount_", 0, "1");
+        node(t + "fake", 0, "default", "Drag", "Fake", "drag_minor_1,brakes_minor_1");
+    }
+    db.put("driver_market.driver_market._DataGroup_instancecount_", 0, "2");
+    for (int gi = 0; gi < 2; gi++) {
+    std::string g = "driver_market.driver_market.DataGroup_" + std::to_string(gi);
+    db.put(g + "._metadata_", 2, gi ? "2025" : "2026");
     db.put(g + ".driver_retirements._DriverRetirementSchedule_instancecount_", 0, "2");
     const char *retiring[] = {"fernando_alonso", "lewis_hamilton"};
     for (int s = 0; s < 2; s++) {
@@ -1390,6 +1393,7 @@ static void stock_career_rows(Db &db)
     db.put(tr + ".TeamDriverRatingRangeRequirement_0._metadata_", 2, "mclaren");
     db.put(tr + ".TeamDriverRatingRangeRequirement_0.team", 4, "mclaren_26");
     db.put(tr + ".TeamDriverRatingRangeRequirement_0.rating_range", 0, "99");
+    }
     db.put("entrants.drivers._driver_instancecount_", 0, "4");
     const char *drivers[] = {"fernando_alonso", "lewis_hamilton", "lance_stroll", "max_verstappen"};
     for (int i = 0; i < 4; i++)
@@ -1418,7 +1422,8 @@ static void career_registry_tests(const std::string &regs)
           { "label": "drag_major_1", "department": "aerodynamics", "cost": 900, "links": [ "sw_wing_1" ] },
           { "label": "brakes_minor_1", "department": "aerodynamics", "cost": 1 },
           { "label": "sw_hover_1", "department": "chassis", "type": "Hover" } ] },
-        "ferrari": { "token": "ferrari", "nodes": [ { "label": "sw_x_1" } ] } },
+        "ferrari": { "token": "ferrari", "nodes": [ { "label": "sw_x_1" } ] },
+        "mercedes_26": { "data_group": "2026", "token": "mercedes", "nodes": [ { "label": "drag_minor_1", "cost": 333 } ] } },
       "career.market": {
         "history": { "data_group": "2026",
           "retirements": [ { "driver": "game/fernando_alonso", "retire": "2027-11-30", "announce": "2027-07-04" },
@@ -1427,11 +1432,12 @@ static void career_registry_tests(const std::string &regs)
           "firings": [ { "driver": "game/lance_stroll", "season_index": 1 } ],
           "team_ratings": [ { "team": "game/mclaren_26", "rating": 97 }, { "team": "game/ferrari_26", "rating": 90 },
                             { "team": "game/nobody", "rating": 80 } ] },
-        "lost": { "data_group": "1990", "team_ratings": [ { "team": "game/mclaren_26", "rating": 50 } ] } } })j");
+        "lost": { "data_group": "1990", "team_ratings": [ { "team": "game/mclaren_26", "rating": 50 } ] },
+        "everywhere": { "team_ratings": [ { "team": "game/mclaren_26", "rating": 97 } ] } } })j");
     st.end_register();
     for (auto &r : st.refusals())
         std::printf("      refused: %s %s %s %s: %s\n", r.addon.c_str(), r.registry.c_str(), r.id.c_str(), r.reason.c_str(), r.message.c_str());
-    check(r1 == SWOFTY_ASSET_OK && st.list("career.rnd.tree", "").size() == 2 && st.list("career.market", "").size() == 2,
+    check(r1 == SWOFTY_ASSET_OK && st.list("career.rnd.tree", "").size() == 3 && st.list("career.market", "").size() == 3,
           "the career.rnd.tree and career.market records register");
     Db db;
     stock_career_rows(db);
@@ -1442,8 +1448,15 @@ static void career_registry_tests(const std::string &regs)
         for (auto &l : x.lines[reg])
             std::printf("      %s\n", l.c_str());
     std::string a = "upgrades.2026.trees.mercedes.aerodynamics.";
-    check(x.records["career.rnd.tree"] == 1 && x.refused["career.rnd.tree"] == 1,
-          "the mercedes tree applies (two of its nodes refused); the ferrari record, with no such tree here, does not");
+    check(x.records["career.rnd.tree"] == 2 && x.refused["career.rnd.tree"] == 1,
+          "the mercedes trees apply (two of their nodes refused); the ferrari record, with no such tree in any group, does not");
+    std::string m = "upgrades.myteam_2025.trees.mercedes.aerodynamics.";
+    check(written(x.engine, m + "_upgrade_instancecount_") == "3" && written(x.engine, m + "upgrade_2._metadata_") == "sw_wing_1" &&
+              written(x.engine, m + "upgrade_1.cost") == "900" &&
+              written(x.engine, "upgrades.myteam_2025.trees.mercedes.fake.upgrade_0.links") == "drag_minor_1,brakes_minor_1,sw_wing_1",
+          "a record without a data_group edits the tree in every upgrades group that has it");
+    check(written(x.engine, a + "upgrade_0.cost") == "333" && !written(x.engine, m + "upgrade_0.cost"),
+          "a record that names its data_group edits only that group's tree");
     check(written(x.engine, a + "_upgrade_instancecount_") == "3" && written(x.engine, a + "upgrade_2._metadata_") == "sw_wing_1",
           "a new node is a row added to its department");
     check(written(x.engine, a + "upgrade_2.upgrade_size") == "Major" && written(x.engine, a + "upgrade_2.upgrade_type") == "Drag" &&
@@ -1481,7 +1494,12 @@ static void career_registry_tests(const std::string &regs)
               written(x.engine, tr + "TeamDriverRatingRangeRequirement_1.team") == "ferrari_26" &&
               written(x.engine, tr + "TeamDriverRatingRangeRequirement_1.rating_range") == "90",
           "a team's rating is set on its row, or a row is added for a team without one; a team with no entrants.teams row is left out");
-    check(x.records["career.market"] == 1 && x.refused["career.market"] == 1, "a market group the database doesn't have is refused");
+    check(x.records["career.market"] == 2 && x.refused["career.market"] == 1, "a market group the database doesn't have is refused");
+    std::string g25 = "driver_market.driver_market.DataGroup_1.";
+    check(written(x.engine, g25 + "team_driver_rating_range_requirements.TeamDriverRatingRangeRequirement_0.rating_range") == "97" &&
+              !written(x.engine, g25 + "driver_retirements.DriverRetirementSchedule_0._DriverRetirement_instancecount_") &&
+              !written(x.engine, g25 + "driver_firings.DriverFiredSchedule_0._DriverFired_instancecount_"),
+          "a record without a data_group writes every market group; one that names 2026 leaves 2025 alone");
 }
 
 int main(int argc, char **argv)

@@ -477,7 +477,7 @@ static void schemas()
     CHECK(to_json(m).find("\"retire\":\"2027-12-14\"") != std::string::npos);
     career::RndTree rt{.token = "mercedes"};
     rt.nodes.items().push_back({.label = "sw_wing_1", .type = "Drag", .size = career::UpgradeSize::major, .cost = 650, .after = {"default"}});
-    CHECK(to_json(rt).find("\"size\":\"major\"") != std::string::npos && to_json(rt).find("\"data_group\":\"2026\"") != std::string::npos);
+    CHECK(to_json(rt).find("\"size\":\"major\"") != std::string::npos && to_json(rt).find("\"data_group\":\"\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.look\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.person\"") != std::string::npos);
     CHECK(drivers::looks.schema().find("\"x-ref\":\"helmet\"") != std::string::npos);
