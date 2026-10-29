@@ -403,6 +403,46 @@ static void seed_tests(const Fixture &f, const std::string &regs)
           "a stock venue resolves to its stock row; a venue with no provider resolves to nothing");
 }
 
+static void venue_seed_tests(const std::string &regs)
+{
+    const char *calendar = R"j({ "career.calendar": { "f1_2016": { "rounds": [
+        { "round": 1, "venue": "venue/albert_park" }, { "round": 2, "venue": "venue/sochi?" },
+        { "round": 3, "venue": "venue/red_bull_ring" } ] } } })j";
+    for (int with_providers = 0; with_providers < 2; ++with_providers) {
+        declare_tracks(regs);
+        auto &st = registry::store();
+        std::string schema = slurp(regs + "/career.calendar/1.0.json");
+        registry::table()->declare("career.calendar", SwoftyText{schema.data(), schema.size()});
+        int r = registry::load_data_file("mod.a", "registry/content.json", calendar);
+        st.end_register();
+        tk::Seeds seeded = with_providers ? tk::venue_seeds() : tk::seeds({}, {});
+        for (auto &b : seeded.base)
+            st.add_base(b.registry, b.key, b.value);
+        st.stock_loaded("track.venue", true);
+        registry::Record cal = st.get("career.calendar", "mod.a/f1_2016");
+        if (!with_providers) {
+            check(r == SWOFTY_ASSET_OK && cal.status == registry::Status::invalid,
+                  "without the database and with only the venues seeded, a calendar's venue does not resolve (" + cal.why + ")");
+            continue;
+        }
+        check(cal.status == registry::Status::ok, "with the stock tracks that provide the venues seeded, a Classic Seasons "
+                                                  "calendar is valid without the database (" + cal.why + ")");
+        registry::Record v = st.get("track.venue", "venue/albert_park");
+        check(v.status == registry::Status::ok && v.value["track"].as_string() == "game/melbourne",
+              "venue/albert_park resolves to game/melbourne");
+        registry::Record t = st.get("track", "game/melbourne");
+        check(t.status == registry::Status::ok && !t.value["stat_id"].is_int() && t.value["time_trial"].as_bool(),
+              "the seeded provider has no stat id");
+        std::size_t providers = 0;
+        for (auto &b : seeded.base)
+            providers += b.registry == "track";
+        check(providers > 20 && providers < std::size(tk::VENUE_SEEDS), std::to_string(providers) +
+                                                                         " stock track(s) provide a venue; venues without one get none");
+        check(st.get("track.venue", "venue/sochi").status != registry::Status::ok || !st.get("track.venue", "venue/sochi").value["track"].is_string(),
+              "venue/sochi has no provider");
+    }
+}
+
 int main(int argc, char **argv)
 {
     if (argc >= 4 && std::string(argv[1]) == "--make-fixture")
@@ -418,6 +458,7 @@ int main(int argc, char **argv)
     lowering_tests(f);
     parity_tests(f, dir);
     seed_tests(f, regs);
+    venue_seed_tests(regs);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

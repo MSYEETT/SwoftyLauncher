@@ -19,7 +19,8 @@
 // for 1.5 are read from older-tracks.json and, when they or any addon's record or layer in the track registries
 // exist, the database file under the older addons' edits is scanned once: the stock rows, venues and data blocks are
 // seeded, every record track is lowered without stat ids to count its new keys, and its data blocks become variants
-// of its base's. With neither, the file is not read: only the venues are seeded and the base is empty. At boot the
+// of its base's. With neither, the file is not read: only the venues and the stock tracks that provide them are
+// seeded (career.calendar and livery x-ref venues), and the base is empty. At boot the
 // record tracks are lowered again with stat ids from the track pool (254 down, pinned in ids.json), their records are
 // staged for gamedb.cpp, and the effective base is built for the box lists and the guard.
 
@@ -134,13 +135,16 @@ void ensure(registry::Store &st)
     for (auto &l : s.older.lines)
         swofty::log("%s", l.c_str());
     if (!s.ok) {
-        for (auto &b : seeds({}, {}).base)
+        std::size_t providers = 0;
+        for (auto &b : venue_seeds().base) {
             st.add_base(b.registry, b.key, b.value);
+            providers += b.registry == "track";
+        }
         st.stock_loaded("track.venue", true);
-        swofty::log("[tracks] %s: %zu venue(s) seeded, the track base is empty",
+        swofty::log("[tracks] %s: %zu venue(s) seeded with %zu stock track(s) providing them, the track base is empty",
                     s.skipped ? "no track records and no tracks made for 1.5, so the game database is not read"
                               : "the game database file is unreadable",
-                    std::size(VENUE_SEEDS));
+                    std::size(VENUE_SEEDS), providers);
         return;
     }
     Seeds seeded = seeds(s.scan, s.older.tracks);
