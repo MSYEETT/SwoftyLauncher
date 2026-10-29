@@ -620,12 +620,12 @@ struct PoolSpec {
     int64_t cap;
 };
 
-// vehicle.package stops at 254: VehicleIdentity keeps the package stat id in a byte whose 0xff means none.
+// vehicle.package and scenario ids stop at 254: the game keeps them in a byte, and the launcher stops 1.5 operations there too.
 inline constexpr PoolSpec POOLS[] = {
     {"vehicle", "entrants.vehicles", "vehicle", "stat_id", 1023},
     {"vehicle.package", "entrants.vehicles.vehicle_packages", "vehicle_package", "stat_id", 254},
     {"content.package", "entrants.entrant_lists", "entrant_list", "stat_id", 255},
-    {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 255},
+    {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 254},
     {"team.identity", "entrants.teams", "team", "stat_id", 1023},
 };
 
