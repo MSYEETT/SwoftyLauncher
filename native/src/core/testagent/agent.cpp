@@ -1340,6 +1340,18 @@ uint64_t hq_detour(void *vm)
     return h_hq.call<uint64_t>(vm);
 }
 
+// In game on 2026-10-30 the update above never ran while Team HQ showed Advance, so the view model is
+// also taken from its onCommandRaised (slot 10), which the UI raises commands into, as the resume
+// screens are seen in theirs.
+safetyhook::InlineHook h_hq_cmd;
+
+uint64_t hq_cmd_detour(void *vm, swofty::game::NeStr **cmd, void *data)
+{
+    if (vm && runtime::readable(vm, 8) && *static_cast<uintptr_t *>(vm) == ga.hq_vt && hq_vm.exchange(vm) != vm)
+        swofty::log("[test] Team HQ advance view model %p (from a command)", vm);
+    return h_hq_cmd.call<uint64_t>(vm, cmd, data);
+}
+
 void hq_setup()
 {
     if (!runtime::same_build()) {
@@ -1361,6 +1373,9 @@ void hq_setup()
         return;
     }
     h_hq = std::move(*h);
+    auto c = safetyhook::InlineHook::create(addr_of(ga.hq_command), reinterpret_cast<void *>(hq_cmd_detour));
+    if (c)
+        h_hq_cmd = std::move(*c);
     hq_why.clear();
 }
 
