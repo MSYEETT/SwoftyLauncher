@@ -9,8 +9,8 @@ With the power system you give cars an engine, set when DRS opens, and change th
 
 A **power unit** is the engine, turbo, fuel and ERS blocks a car's handling file carries. A **supplier** is the engine maker a car shows. **Component rules** are how many engine parts a driver gets per season, how fast they wear, and the grid drops for using more.
 
-::: info In 1.6.0
-The power system has no header in 1.6.0 (`swofty/systems/power.hpp` ships later). This page describes the design. `sessions::Rules::drs` refers to its `power::DrsRule`.
+::: info In 1.6.4
+`swofty/systems/power.hpp` has `power::DrsRule` and `power::drs_rules` (`rules.drs`), and a Grand Prix or Time Trial box's DRS rule applies: see [DRS per box](#drs-per-box). Power units, suppliers, component rules and the events below are the design; they come in a later header.
 :::
 
 ## The header
@@ -58,10 +58,10 @@ struct Supplier {
 };
 inline Registry<Supplier> suppliers{"engine.supplier", { .applies = Applies::boot }};
 
-struct DrsRule {
-    int race_start = 2;                        // DRS opens on this lap after the start
-    int red_flag_restart = 2;                  // ... after a red-flag restart
-    int safety_car_end = 2;                    // ... after a full safety car ends
+struct DrsRule {                               // in 1.6.4: a drs.drs_allowed_lap group (see DRS per box)
+    int race_start = 1;                        // RaceStart lap_number
+    int red_flag_restart = 1;                  // RedFlagRestart lap_number
+    int safety_car_end = 1;                    // FullSafetyCarEnd lap_number
 };
 inline Registry<DrsRule> drs_rules{"rules.drs", { .applies = Applies::boot }};
 
@@ -102,7 +102,7 @@ struct GridPenalty {                           // Game_EngineMgmt_AddGridPenalty
     Component reason;                          // the part over the allocation
 };
 
-struct DrsAllowed {                            // the DragReductionSystem decision; unavailable until it's reverse-engineered
+struct DrsAllowed {                            // the per-car decision in Game_DRS_UpdateCars; unavailable (L1)
     static constexpr const char *point = "session.drs.allowed";
     static constexpr uint32_t version = 1;
     uint32_t size, payload_version;
@@ -221,18 +221,80 @@ The core writes each unit into the handling files of the cars that use it, and a
 
 ## DRS per box
 
-Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. A box sets its own DRS rule in its rules, and the rule applies when a session loads in that box:
+Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. A box's DRS rule is a `rules.drs` record, and the box's `content.package` names it in `rules.drs`. A 2010 season with no DRS:
 
-```cpp
-// a 2010 pack: no DRS in its box; every other box keeps its own rule
-auto never = power::drs_rules.add("never", { .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 });
-
-content::packages.layer(content::packages["community.f1-2010/f1_2010"], [=](content::Package &p) {
-    p.rules.drs = never;
-});
+```json
+// community.f1-2010: registry/content.json
+{
+  "rules.drs": {
+    "never": { "race_start": 200, "red_flag_restart": 200, "safety_car_end": 200 }
+  },
+  "content.package": {
+    "f1_2010": {
+      "title": { "literal": "F1 2010" },
+      "entrant_list": "f1_2010",
+      "season": 2010,
+      "rules": { "drs": "community.f1-2010/never" }
+    }
+  }
+}
 ```
 
-The core applies a box's DRS rule through `session.drs.allowed`. Until the DRS decision is reverse-engineered, that hook point is unavailable and a box runs its setup mode's DRS rule.
+The same in code, as a layer on another addon's box:
+
+```cpp
+// community.f1-2010-rules: native/src/drs.cpp
+#include <swofty/registry.hpp>
+#include <swofty/systems/content.hpp>
+#include <swofty/systems/power.hpp>
+
+using namespace swofty;
+
+SWOFTY_REGISTER
+{
+    // DRS never opens in a race in this box; every other box keeps its own rule
+    auto never = power::drs_rules.add("never", { .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 });
+
+    content::packages.layer(content::packages["community.f1-2010/f1_2010"], [=](content::Package &p) {
+        p.rules.drs = never;
+    });
+}
+
+SWOFTY_ADDON()
+```
+
+```text
+[apply] rules.drs boot: 1 applied, 0 put back, 0 refused
+[apply] rules.drs boot:   9 database record(s) staged
+[apply] rules.drs boot:   rules.drs community.f1-2010/never: group swofty_drs_never_2f7b7102 from f1_2024, race start lap 200, red flag restart 200, safety car end 200
+[registry] applied at boot: ..., rules.drs 1 (9 database records), ...
+[drs] box f1_2010 (community.f1-2010/f1_2010): swofty_f1 DRS group swofty_drs_never_2f7b7102 (rules.drs community.f1-2010/never: race start lap 200, red flag restart 200, safety car end 200)
+[drs] box f1_2017 (swofty.classic-seasons-2017/f1_2017): no DRS rule; swofty_f1 keeps its own DRS group (f1_2024)
+```
+
+### The three laps
+
+The three numbers are the game's `lap_number` fields of a `drs.drs_allowed_lap` group:
+
+```cpp
+power::DrsRule stock;                       // the stock f1_2024 group every F1 mode uses: 1, 1, 1
+stock.race_start = 1;                       // RaceStart: DRS is allowed once a car's lap count reaches this
+stock.red_flag_restart = 1;                 // RedFlagRestart: the lap of the red-flag restart + this
+stock.safety_car_end = 1;                   // FullSafetyCarEnd: the lap the full safety car ends on + this
+power::DrsRule never{ .race_start = 200, .red_flag_restart = 200, .safety_car_end = 200 };   // never in a race
+```
+
+- A missing field is the stock 1. A lap is 0 to 9999; the launcher and the core refuse anything else.
+- The game's other groups: `f2_2023` (1, 1, 1) for F2, `f1_elimination` (0, 1, 1) for Elimination.
+- The rule gates race sessions only. Practice, qualifying and Time Trial allow DRS in the zones as before.
+- A car still needs a DRS zone (the track's `drs_det` and `drs_act` markers), the dry, and to be within one second at the detection point. 2026-regulation cars (`is_26_aero_regulations` on the vehicle package) run the 2026 active aero instead and ignore the rule.
+
+### How it applies
+
+- **Boot.** Each `rules.drs` record becomes one `drs.drs_allowed_lap.drs_allowed_lap_group` row, a copy of `f1_2024` labelled `swofty_drs_<key>_<8 hex digits of the record id's hash>`, with its three laps set. On a boot where the game database is not reachable, the records are refused with `the game database is not reachable at this boot; no rows applied` and every box runs `f1_2024`.
+- **Box press.** When an addon box is pressed, the era picker narrows `swofty_f1` to the box's entrant list and points `swofty_f1`'s DRS group at the box's rule. A stock box, a box without a rule, or a rebuilt picker with no addon box selected puts the game's group back.
+- **Session.** The game reads the mode's group at session load, when a full safety car ends and at a red-flag restart.
+- **Unchanged:** careers (they run their own modes), a box with its own setup mode (its mode row names its group; set it with a [database operation](/reference/ops/database)), and every addon without `rules.drs` records.
 
 ## Swapping a unit into other cars
 
@@ -275,7 +337,9 @@ power::set_component_wear(drivers::identities["game/max_verstappen"], power::Com
 ## Readiness and limits
 
 - **Applies at boot: ready.** Unit swaps shipped (Classic Seasons, F1 1990) and were verified. The handling-file round trip is proven.
-- **Events: partial.** Engine management (`ApplySessionWear`, `AddGridPenalty`) is L2. DRS and ERS decisions are L1 or unknown: `session.drs.allowed` is unavailable until the DragReductionSystem decision is reverse-engineered, and per-box DRS waits on it. Also unknown: the component-set selector, the ERS deploy and harvest writers, and overtake-mode gating.
+- **DRS per box: implemented in 1.6.4, waiting on the in-game check.** The game setup mode's DRS group field (`GameSetupMode` +0x1e0) and its parser are L2; the DRS readers (`Game_DRS_OnSessionLoad`, `Game_DRS_ResetAllowedLap`, the safety car and red flag handlers) and the current-mode pointer are L1.
+- **Events: partial.** Engine management (`ApplySessionWear`, `AddGridPenalty`) is L2. DRS and ERS decisions are L1 or unknown: `session.drs.allowed` (the per-car decision in `Game_DRS_UpdateCars`) is unavailable. Also unknown: the component-set selector, the ERS deploy and harvest writers, and overtake-mode gating.
+- **Fixed in the game:** the one-second DRS detection gap (set at session load) and each track's DRS zones (its track markup). `drs_capable` on each vehicle row is read at boot; what reads it in a session is not traced.
 - **The game picks a component set by season only.** Choosing one per career needs the selector found.
 - **AI tables carry baked ERS data per car** (`ers_boost_data`, `ers_use_granular`). A new unit can outrun the baked tables.
 - **The HUD dial differs per package** (`hud_dial` modern, 26, f2).
