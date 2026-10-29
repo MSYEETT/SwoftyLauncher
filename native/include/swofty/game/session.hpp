@@ -31,6 +31,12 @@ static_assert(offsetof(ControllerSet, ai_controller) == 0x28);
 static_assert(offsetof(ControllerSet, flags) == 0x30);
 static_assert(offsetof(ControllerSet, vehicle) == 0x34);
 
+struct GameSetupMode {
+    uint8_t _pad_0x0[0x1e0];
+    void *drs_allowed_lap_group; // L2 experimental
+};
+static_assert(offsetof(GameSetupMode, drs_allowed_lap_group) == 0x1e0);
+
 struct GameWeatherSystem {
     uint8_t _pad_0x0[0x1d98];
     TimeOfDaySystem *tod; // L2 experimental

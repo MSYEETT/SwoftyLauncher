@@ -203,11 +203,6 @@ pub struct FEHomeViewModel {
 }
 
 #[repr(C)]
-pub struct GameSetupMode {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct GdbTableCursor {
     _opaque: [u8; 0],
 }
@@ -1270,6 +1265,13 @@ pub struct GameModeContext {
     pub championship_holder: *mut ChampionshipHolder,
 }
 const _: () = assert!(core::mem::offset_of!(GameModeContext, championship_holder) == 0x88);
+
+#[repr(C)]
+pub struct GameSetupMode {
+    _pad_0x0: [u8; 0x1e0],
+    pub drs_allowed_lap_group: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(GameSetupMode, drs_allowed_lap_group) == 0x1e0);
 
 #[repr(C)]
 pub struct GameWeatherSystem {
