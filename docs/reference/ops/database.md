@@ -250,7 +250,7 @@ A `stat_id` in `set` wins, unless a row an addon added earlier in the build hold
 my-addon: stat_id 500 of my_team is taken by their_team from other-addon; the build gave it stat_id 512. The addon's author should leave stat_id out of add-row
 ```
 
-The conflicts report counts each of these as a database conflict between the two addons. An id that a stock row holds stays as set. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
+The conflicts report counts each of these as a database conflict between the two addons. The id a copy moves to depends on the addons before it in the load order, so a career made with one load order expects that order's ids. An id that a stock row holds stays as set. A copy into a nested table, such as an entrant of an entrant list, keeps its source's id; the build prints a line when the nested table's ids were all different.
 
 An `unlockable_se_livery` row added to an `unlockable_content.unlockable_items.unlockable_item_list_<n>.folder_<m>` table, by `add-row` or by `put-record`, unlocks the new special livery. The build writes the row's ownership key, the djb2 hash of `eSELivery` and the row's `_metadata_`, to the `owned_items` block of `swofty/settings.json`, and `swofty_core.dll` reports that key as owned to the livery picker. A key that any stock database value also gives is left out with a warning.
 
