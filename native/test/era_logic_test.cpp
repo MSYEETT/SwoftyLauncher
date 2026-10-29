@@ -1,5 +1,5 @@
 // Host unit test for the era picker logic (era_logic.hpp): the box check, the default title and image,
-// the box order, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
+// the box order, the Time Trial list and car limit, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
 #include "../src/core/era_logic.hpp"
 
 #include <cstdio>
@@ -18,7 +18,7 @@ static void expect(bool ok, const std::string &what)
 
 static era::Box box(const char *list, const char *title = "", const char *image = "", int32_t order = 0)
 {
-    return era::Box{list, title, image, order, "test", 0};
+    return era::Box{list, title, image, order, "test", 0, {}};
 }
 
 // A VM node as the game constructs a reference node (0x14083c570): its own handle at +0x8 heads its holder list.
@@ -215,6 +215,51 @@ int main()
         game_teardown(old_a);
         expect(old_b.refs() < ob && !old_b.self().node,
                "1.5.4's reset left A's holder list running into B's, so tearing A down released B's node");
+    }
+
+    {
+        std::vector<era::Box> none;
+        era::Box tt = box("bdx_2012", "lng_bdx_2012", "", 2012);
+        tt.time_trial = "bdx_2012_tt";
+        expect(era::check(tt, none).empty() && tt.time_trial == "bdx_2012_tt", "a box with a Time Trial list is accepted");
+        expect(era::list_for(tt, true) == "bdx_2012_tt" && era::list_for(tt, false) == "bdx_2012",
+               "the Time Trial picker uses the box's Time Trial list, the Grand Prix picker its own");
+        era::Box plain = box("cs_f1_2016");
+        expect(era::check(plain, none).empty() && era::list_for(plain, true) == "cs_f1_2016",
+               "a box without a Time Trial list uses its own list in Time Trial");
+        era::Box same = box("cs_f1_2017");
+        same.time_trial = "cs_f1_2017";
+        expect(era::check(same, none).empty() && same.time_trial.empty(), "a Time Trial list equal to the box's list is dropped");
+        era::Box bad = box("cs_f1_2018");
+        bad.time_trial = "has space";
+        expect(!era::check(bad, none).empty(), "a Time Trial list that is not a plain name is refused");
+        std::vector<era::Box> shared = {tt};
+        era::Box other = box("bdx_2012_alt");
+        other.time_trial = "bdx_2012_tt";
+        expect(era::check(other, shared).empty(), "two boxes may share a Time Trial list");
+
+        expect(era::TT_MAX_CARS == 23, "Time Trial holds 23 cars of a list (26 slots, 3 the game adds)");
+        expect(era::time_trial_refusal(plain, 22).empty() && era::time_trial_refusal(plain, 23).empty(),
+               "a list of 22 or 23 cars is offered in Time Trial");
+        std::string why = era::time_trial_refusal(plain, 24);
+        expect(why.find("cs_f1_2016 holds 24 cars") != std::string::npos && why.find("at most 23") != std::string::npos &&
+                   why.find("Give the box a Time Trial entrant list") != std::string::npos,
+               "a 24-car list without a Time Trial list is refused, naming the fix (" + why + ")");
+        why = era::time_trial_refusal(tt, 24);
+        expect(why.find("bdx_2012_tt holds 24 cars") != std::string::npos && why.find("Give the box") == std::string::npos,
+               "an oversized Time Trial list is refused by its own name (" + why + ")");
+        expect(era::time_trial_refusal(plain, -1).empty(), "an unread car count refuses nothing");
+
+        expect(era::entrant_count(0x1000, 0x1000 + 24 * 0x88) == 24, "24 entrant records of 0x88 bytes count 24");
+        expect(era::entrant_count(0x1000, 0x1000) == 0, "an empty list counts 0");
+        expect(era::entrant_count(0, 0x88) < 0 && era::entrant_count(0x2000, 0x1000) < 0 &&
+                   era::entrant_count(0x1000, 0x1000 + 0x89) < 0 && era::entrant_count(0x1000, 0x1000 + 65 * 0x88) < 0,
+               "a null, reversed, misaligned or over-long entrant vector is unread");
+
+        for (const char *m : {"time_trial", "solo_testing"})
+            expect(era::time_trial_mode(m), std::string(m) + " is a Time Trial picker");
+        for (const char *m : {"grand_prix_23", "grand_prix_splitscreen", "", "my_team_career_25"})
+            expect(!era::time_trial_mode(m), std::string("'") + m + "' is not a Time Trial picker");
     }
 
     expect(era::ADDON_PRESS == 0x8fb68dffu && era::SELECT_PRESS == 0x2b0357au && era::ADDON_TILES == 0xf2614e2bu,

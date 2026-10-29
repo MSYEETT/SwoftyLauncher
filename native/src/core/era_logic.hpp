@@ -3,11 +3,20 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "apply/facts.hpp"
+
 // Pure logic of the era picker addon row (era_picker.cpp): the box check, the box order, the image
-// default, the press guard and the links of the row's two node handles. No game calls, so the unit test
-// runs on the host.
+// default, the Time Trial list and its car limit, the press guard and the links of the row's two node
+// handles. No game calls, so the unit test runs on the host.
+//
+// Time Trial: a session holds the cars of the entrant list it was picked with plus three cars of its own,
+// and the session system that walks them (0x142f45960, called from Game_GameModule_OnSessionEnter) keeps
+// them in a table of 26 at +0xb0 with its count right behind it at +0x180. A 22-car list gives 25; a
+// 24-car list gives 27 and overwrites the count. A list object (Sess_Load_AvailableEntrantLists, copied
+// by 0x1424df240) holds its entrants as 0x88-byte records from +0x10 to +0x18.
 
 namespace runtime::era {
 
@@ -21,6 +30,13 @@ constexpr size_t TEXT_MAX = 255;
 constexpr size_t NODE_REFS = 0x24;
 constexpr size_t NODE_HOLDERS = 0x28;
 constexpr size_t HOLDER_PREV = 0x10;
+constexpr size_t TT_TABLE = 26;
+constexpr size_t TT_EXTRA_CARS = 3;
+constexpr size_t TT_MAX_CARS = TT_TABLE - TT_EXTRA_CARS;
+constexpr size_t LIST_ENTRANTS_BEGIN = 0x10;
+constexpr size_t LIST_ENTRANTS_END = 0x18;
+constexpr size_t ENTRANT_RECORD = 0x88;
+constexpr size_t MAX_LIST_ENTRANTS = 64;
 
 constexpr uint32_t djb2(const char *s)
 {
@@ -40,6 +56,7 @@ struct Box {
     int32_t order = 0;
     std::string owner;
     size_t seq = 0;
+    std::string time_trial;
 };
 
 inline bool plain_name(const std::string &s)
@@ -55,6 +72,10 @@ inline std::string check(Box &box, const std::vector<Box> &have)
 {
     if (!plain_name(box.entrant_list))
         return "entrant_list must be 1 to 63 letters, digits or underscores";
+    if (box.time_trial == box.entrant_list)
+        box.time_trial.clear();
+    if (!box.time_trial.empty() && !plain_name(box.time_trial))
+        return "time_trial_entrant_list must be empty or 1 to 63 letters, digits or underscores";
     if (box.title.empty())
         box.title = "lng_" + box.entrant_list;
     if (box.title.size() > TEXT_MAX || box.image.size() > TEXT_MAX)
@@ -72,6 +93,36 @@ inline std::string check(Box &box, const std::vector<Box> &have)
 inline std::string image_of(const Box &box)
 {
     return box.image.empty() ? std::string(IMAGE_ARRAY) + "[" + box.entrant_list + "]" : box.image;
+}
+
+inline bool time_trial_mode(std::string_view label)
+{
+    return swofty_core::apply::facts::mode_of(label) == "time_trial";
+}
+
+inline const std::string &list_for(const Box &box, bool time_trial)
+{
+    return time_trial && !box.time_trial.empty() ? box.time_trial : box.entrant_list;
+}
+
+inline int64_t entrant_count(uintptr_t begin, uintptr_t end)
+{
+    if (!begin || end < begin || (end - begin) % ENTRANT_RECORD || (end - begin) / ENTRANT_RECORD > MAX_LIST_ENTRANTS)
+        return -1;
+    return int64_t((end - begin) / ENTRANT_RECORD);
+}
+
+inline std::string time_trial_refusal(const Box &box, int64_t cars)
+{
+    if (cars < 0 || size_t(cars) <= TT_MAX_CARS)
+        return {};
+    std::string list = list_for(box, true);
+    std::string why = "its Time Trial list " + list + " holds " + std::to_string(cars) + " cars; Time Trial holds at most " +
+                      std::to_string(TT_MAX_CARS) + " (the game adds " + std::to_string(TT_EXTRA_CARS) +
+                      " cars of its own to a table of " + std::to_string(TT_TABLE) + ")";
+    if (box.time_trial.empty())
+        why += ". Give the box a Time Trial entrant list of at most " + std::to_string(TT_MAX_CARS) + " cars";
+    return why;
 }
 
 inline std::vector<Box> ordered(std::vector<Box> boxes)

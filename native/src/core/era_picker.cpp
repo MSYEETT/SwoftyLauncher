@@ -39,6 +39,11 @@ std::string settings_addon(const void *from, std::string &dll);
 // FeTile_Add_EraTile adds each box while vm+0x698 points at addon_tiles, so its VM node lands in the
 // addon row and its Tile in the stock vector after the stock tiles, which the game frees with them.
 // Boxes whose entrant list the screen's mode does not offer under swofty_f1 are skipped with one log line.
+// On a Time Trial picker (the mode's name, *(*(mode+0x88)+0x278), is one the core reports as time_trial)
+// a box with its own Time Trial entrant list gets that list as its tile's command, so its press selects
+// and narrows to it; a box without one keeps its own list. Either way the box is skipped there, with one
+// log line, when that list is not offered under swofty_f1 or holds more cars than a Time Trial session
+// holds (era_logic.hpp); the car count is the list object's entrant records.
 // The VM bool addon_tiles_visible says whether the addon row holds a box; the UI only moves Down from the
 // stock row to the addon row while it is true.
 //
@@ -78,6 +83,7 @@ using swofty::game::Vm_Set_NodeRef_t;
 constexpr const char *MIXIN = "swofty_core.dll (era picker)";
 constexpr uint32_t LOG_FIRST = 6;
 
+constexpr size_t MODE_NAME = 0x278;
 constexpr size_t VM_ROOT = 0x10;
 constexpr size_t VM_ALLOCATOR = 0x270;
 constexpr size_t VM_MODE = 0x670;
@@ -147,6 +153,8 @@ uint32_t logged_renarrow;
 FeTile_Press_EraTile_t *press_orig;
 Game_F1WorldActivityContainer_SelectEntrantList_t *select_orig;
 uint32_t logged_builds, logged_narrow, logged_refused, logged_detached;
+constexpr size_t BOX_TIME_TRIAL = offsetof(SwoftyEraBox, time_trial_entrant_list);
+static_assert(BOX_TIME_TRIAL == 0x28);
 
 template <class T> T at(const void *base, size_t off)
 {
@@ -229,6 +237,44 @@ void narrow(void *mode, const char *list)
         if (logged_narrow++ < LOG_FIRST)
             swofty::log("[era] %s offers only %s (of %lld lists)", logic::HOST, list, (long long)count);
     });
+}
+
+bool time_trial(void *mode)
+{
+    uintptr_t holder = 0, name = 0;
+    std::string label;
+    if (!mode || !mem::read(reinterpret_cast<uintptr_t>(mode) + MODE_SETUP, holder) || !holder ||
+        !mem::read(holder + MODE_NAME, name) || !mem::c_string(name, label, 64))
+        return false;
+    return logic::time_trial_mode(label);
+}
+
+int64_t cars_of(void *mode, const std::string &list)
+{
+    int64_t cars = -1;
+    for_each_host_setup(mode, [&](uint8_t *setup) {
+        int64_t count = at<int64_t>(setup, LIST_COUNT);
+        auto **lists = reinterpret_cast<uint8_t **>(setup + LISTS);
+        for (int64_t i = 0; i < count && i < int64_t(LIST_SLOTS) && cars < 0; ++i) {
+            const char *name = name_of(lists[i], LIST_NAME);
+            uintptr_t begin = 0, end = 0;
+            if (!name || strcmp(name, list.c_str()) ||
+                !mem::read(reinterpret_cast<uintptr_t>(lists[i]) + logic::LIST_ENTRANTS_BEGIN, begin) ||
+                !mem::read(reinterpret_cast<uintptr_t>(lists[i]) + logic::LIST_ENTRANTS_END, end))
+                continue;
+            cars = logic::entrant_count(begin, end);
+        }
+    });
+    return cars;
+}
+
+bool skip_once(const std::string &key)
+{
+    std::lock_guard<std::mutex> g(lock);
+    if (std::find(skipped.begin(), skipped.end(), key) != skipped.end())
+        return false;
+    skipped.push_back(key);
+    return true;
 }
 
 bool is_ours(const char *list)
@@ -314,27 +360,46 @@ void site_entry(SwoftyContext *c)
     auto available = reinterpret_cast<FeTile_Is_EraScenarioAvailable_Thunk_t *>(b.available);
     auto add = reinterpret_cast<FeTile_Add_EraTile_t *>(b.add);
     uint8_t *tiles_node = at<uint8_t *>(vm, VM_TILES_NODE);
+    bool tt = time_trial(mode);
     built = {vm, stock, 0, {}};
     ref<uint8_t *>(vm, VM_TILES_NODE) = list;
     for (const auto &box : order) {
         if (built.boxes >= logic::MAX_BOXES)
             break;
         if (!mode || !available(mode, logic::HOST, box.entrant_list.c_str())) {
-            std::lock_guard<std::mutex> g(lock);
-            if (std::find(skipped.begin(), skipped.end(), box.entrant_list) == skipped.end()) {
-                skipped.push_back(box.entrant_list);
+            if (skip_once(box.entrant_list))
                 swofty::log("[era] box %s from %s skipped: this screen's mode does not offer the entrant list under %s "
                             "(it must exist and be in %s's entrant lists)",
                             box.entrant_list.c_str(), box.owner.c_str(), logic::HOST, logic::HOST);
-            }
             continue;
+        }
+        const std::string &list = logic::list_for(box, tt);
+        if (tt && list != box.entrant_list && !available(mode, logic::HOST, list.c_str())) {
+            if (skip_once("time_trial " + box.entrant_list))
+                swofty::log("[era] box %s from %s skipped in Time Trial: its Time Trial entrant list %s is not offered "
+                            "under %s (it must exist and be in %s's entrant lists)",
+                            box.entrant_list.c_str(), box.owner.c_str(), list.c_str(), logic::HOST, logic::HOST);
+            continue;
+        }
+        if (tt) {
+            int64_t cars = cars_of(mode, list);
+            std::string why = logic::time_trial_refusal(box, cars);
+            if (!why.empty()) {
+                if (skip_once("time_trial " + box.entrant_list))
+                    swofty::log("[era] box %s from %s skipped in Time Trial: %s", box.entrant_list.c_str(),
+                                box.owner.c_str(), why.c_str());
+                continue;
+            }
+            if (cars < 0 && skip_once("time_trial count " + list))
+                swofty::log("[era] box %s from %s: the car count of its Time Trial list %s could not be read; not checked",
+                            box.entrant_list.c_str(), box.owner.c_str(), list.c_str());
         }
         char node[0x20];
         snprintf(node, sizeof node, "select_tile_%zu", built.boxes);
         std::string image = logic::image_of(box);
         add(vm + VM_TILES, alloc, uint8_t(built.boxes), node, box.entrant_list.c_str(), 1, box.title.c_str(),
-            box.entrant_list.c_str(), image.c_str(), 0);
-        built.lists.push_back(box.entrant_list);
+            list.c_str(), image.c_str(), 0);
+        built.lists.push_back(list);
         built.boxes++;
     }
     ref<uint8_t *>(vm, VM_TILES_NODE) = tiles_node;
@@ -344,8 +409,8 @@ void site_entry(SwoftyContext *c)
         reinterpret_cast<Vm_Set_Bool_t *>(b.set_bool)(registry(), root + 8, logic::ADDON_TILES_VISIBLE, &visible, 1);
     }
     if (logged_builds++ < LOG_FIRST)
-        swofty::log("[era] era select: %zu stock box(es), %zu addon box(es) of %zu registered", stock, built.boxes,
-                    order.size());
+        swofty::log("[era] era select%s: %zu stock box(es), %zu addon box(es) of %zu registered",
+                    tt ? " (Time Trial)" : "", stock, built.boxes, order.size());
 }
 
 char *press_entry(void *vm, void *command)
@@ -440,12 +505,14 @@ int api_available()
 int api_add_box(const SwoftyEraBox *desc)
 {
     std::string who = caller(__builtin_return_address(0));
-    if (!desc || desc->size < sizeof(SwoftyEraBox)) {
+    if (!desc || desc->size < BOX_TIME_TRIAL) {
         swofty::log("[era] box from %s refused: no descriptor, or its size %u is below %zu", who.c_str(),
-                    desc ? desc->size : 0, sizeof(SwoftyEraBox));
+                    desc ? desc->size : 0, BOX_TIME_TRIAL);
         return SWOFTY_ASSET_INVALID;
     }
-    logic::Box box{text(desc->entrant_list), text(desc->title), text(desc->image), desc->order, who, 0};
+    logic::Box box{text(desc->entrant_list), text(desc->title), text(desc->image), desc->order, who, 0, {}};
+    if (desc->size >= sizeof(SwoftyEraBox))
+        box.time_trial = text(desc->time_trial_entrant_list);
     std::lock_guard<std::mutex> g(lock);
     std::string why = logic::check(box, boxes);
     if (!why.empty()) {
@@ -455,8 +522,9 @@ int api_add_box(const SwoftyEraBox *desc)
     box.seq = boxes.size();
     boxes.push_back(box);
     std::string state = off ? "off: " + off_why : live ? "live from the next build of the picker" : "queued for the next mixin commit";
-    swofty::log("[era] box %s from %s registered (title %s, image %s, order %d): %s", box.entrant_list.c_str(),
-                who.c_str(), box.title.c_str(), logic::image_of(box).c_str(), box.order, state.c_str());
+    std::string tt = box.time_trial.empty() ? std::string() : ", Time Trial list " + box.time_trial;
+    swofty::log("[era] box %s from %s registered (title %s, image %s, order %d%s): %s", box.entrant_list.c_str(),
+                who.c_str(), box.title.c_str(), logic::image_of(box).c_str(), box.order, tt.c_str(), state.c_str());
     return off ? SWOFTY_ASSET_UNAVAILABLE : SWOFTY_ASSET_OK;
 }
 
