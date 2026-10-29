@@ -9,9 +9,10 @@
 
 // track.per_package (Applies::content): at each box press the box's list is built against the effective base and
 // its per_package entries along its variant chain, logged as the [tracks] box line, written to catalog.json's
-// "tracks" object and kept as the active box for the guard and the session's fuel writes (data_session.cpp). The
-// next box press, leaving the box and a career unload put the box's fuel writes back in reverse order. A career's
-// own activation lists nothing: careers keep their own calendars.
+// "tracks" object and kept as the active box for the guard and the fuel writes (data_session.cpp: a Grand Prix
+// box's fuel at the press, the session's track again at each session load). The next box press, leaving the box
+// and a career unload put the box's fuel writes back in reverse order. A career's own activation lists nothing:
+// careers keep their own calendars. With no track base (no track content), no list is built.
 
 namespace swofty_core::apply::tracks {
 
@@ -28,6 +29,13 @@ public:
     {
         if (!base().ready || !ctx.career.empty())
             return;
+        if (base().tracks.empty()) {
+            if (!empty_logged_) {
+                empty_logged_ = true;
+                swofty::log("[tracks] no track base (no track content): box track lists are not built");
+            }
+            return;
+        }
         std::string package = ctx.content.empty() ? std::string() : ctx.content.front(), list;
         std::vector<std::string> chain = ctx.content;
         if (package.empty()) {
@@ -58,7 +66,11 @@ public:
         }
         write_catalog(a.package, mode, l);
         report.applied += int(a.entries.by_track.size());
-        set_active(std::move(a));
+        bool own = !package.empty();
+        int stat = own ? setup_mode_stat(a.box.setup_mode) : -1;
+        set_active(a);
+        if (own)
+            write_box_fuel_now(a, stat);
     }
 
     void deactivate(Store &, Report &report) override
@@ -69,6 +81,7 @@ public:
 
 private:
     std::set<std::string> logged_;
+    bool empty_logged_ = false;
 };
 
 }

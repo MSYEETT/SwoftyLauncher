@@ -390,9 +390,9 @@ A track that doesn't fit is left out of that box, with the reason in the log. A 
 - **Garages.** The world the box's setup mode loads at that track has a garage for every team in the box. The setup mode is the game's rule set a weekend runs under, and every Grand Prix and Time Trial box shares `swofty_f1`.
 - **Grid size.** That world, with any extra slots from `tracks::slots`, has a grid slot for every car the box runs. Grid size is one boot setting per install, and each box is clamped to it.
 - **AI data.** Every car in the box has AI data at the track: an AI line for its `ai_package_folder/asset_filename`, and the track's `ai_track_difficulties` entry for its package.
-- **Time Trial support.** In a Time Trial box, the track has `time_trial` set.
+- **Time Trial support.** In a Time Trial box, the track is a stock track, a track made for 1.5 or a record track with `time_trial` set, and its facts don't say `time_trial: false`.
 
-Each build writes what the rules read to `$DATA/registry/track-facts.json`: the track layers, and per track code the grid slots, garages and pit boxes of each world after the grid extension, the AI folders, the `ai_track_difficulties` packages, whether Time Trial can run there (`time_trial_why` when not) and, for a track record, the menu lists it has pictures in. A rule with no facts passes and logs `[tracks] <code>: no facts (<what>)`.
+Each build writes what the rules read to `$DATA/registry/track-facts.json`: the track layers of the database the game reads (the runtime database edits the core applies at its early stage included), and per track code the grid slots, garages and pit boxes of each world after the grid extension, the AI folders, the `ai_track_difficulties` packages, whether Time Trial can run there (`time_trial_why` when not) and, for a track record, the menu lists it has pictures in. A rule with no facts passes and logs `[tracks] <code>: no facts (<what>)`.
 
 ```json
 { "version": 1, "profile": "Classic Seasons", "inputs": "3f9a0c2e71d4b8a5", "grid_size": 22,
@@ -477,7 +477,8 @@ A box can also give a track its own data: laps, fuel, tyre class, pit lane, name
 - **An empty field comes from the base track data,** and layers on the base reach every box that doesn't set the field.
 - **`offered = false`** leaves a track out of the box. **`order`** places a track under "More tracks".
 - **A variant package** (F1 2017 V10) inherits its base package's track data.
-- **It applies when the box is picked.** The core writes the box's data into the track data the game reads (`Game_TrackData_GetTrack`), and puts it back when the box is left.
+- **Any addon can give a box data.** A box's entries are the ids `<package id>/<key>` and every `per_package` record whose `package` names the box.
+- **It applies when the box is picked.** The core writes the box's data into the track data the game reads (`Game_TrackData_GetTrack`), and puts it back when the box is left. A Grand Prix box's fuel goes into every data set its setup mode reads when the box is picked, and the session's track again at session load.
 - **In 1.6.5 the core writes `fuel`.** `laps`, `pit`, `names`, `date` and `tyre_class` are stored, and apply once those fields of the game's track data are mapped (see [Readiness and limits](#readiness-and-limits)).
 
 <template #example>
@@ -671,13 +672,13 @@ tracks::set_data(tracks::tracks["game/monaco"], [](tracks::TrackData &d) { d.lap
 
 - **The four registries are experimental** in 1.6.5. Their shapes can change before they are stable.
 - **Records:** stock rows, venues, record tracks and tracks made for 1.5 are records at boot. A record track's rows, names and stat id come from the core; the launcher places its files.
-- **No tracks registry records, no track made for 1.5:** the core seeds the venues and doesn't read the game database for the base. The base is empty, each box's list is empty and the guard lets every track through.
+- **No tracks registry records, no track made for 1.5:** the core seeds the venues and the stock tracks that provide them (without stat ids), so calendars stay valid, and doesn't read the game database for the base. The base is empty, no box list is built and the guard lets every track through.
 - **Calendars:** Classic Seasons 2016 to 2024 name their real calendars. Careers keep their own calendars in 1.6.5.
 - **Track data at boot:** `track.data` values are written into the database before it loads, so they hold from the first session. At session load the core writes fuel again into the data set the session reads.
-- **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
+- **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The game reads `fuel_burn_per_lap` in the garage refuel, the virtual session's per-lap fuel and a fuel-for-laps set in the start sequence. A race's starting fuel comes from the track's race fuel rows (`Game_CarSetup_SessionFuelLoad`), which a burn per lap leaves as they are. The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
 - **The box's track list: logged, not shown.** The core works out each box's list and writes it to the log and `catalog.json`. The track select screen still shows its own list, built from view-model nodes (`track_data.track_list`, `track_info.gm_track_list`). The list builder behind `ui.track_select.build` isn't found yet.
 - **The guard:** the Grand Prix confirm (`advance_pressed`) and the Time Trial confirm (`select_pressed`) are L2. Refusing the press before the game's handler runs leaves no state behind.
-- **Time Trial:** added tracks have `time_trial` false. Tracks made for 1.5 stay on the Time Trial list, and the guard stops them.
+- **Time Trial:** record tracks have `time_trial` false unless their record sets it. Tracks made for 1.5 run Time Trial unless their facts say `time_trial: false` (`time_trial_why`: none of their files holds a world the track layers load).
 - **Stat ids:** the game stores each track record at its stat id and tolerates holes, so a record track's id from 254 down is safe there. Weekends and track data records hold stat ids as one byte, with 0xff for none.
 - **Stock slots without assets:** `paul_ricard`, `portimao`, `sochi`, `hanoi`, `texas_nat`, `suzuka_east`, `bahrain_pad`, `silverstone_int`. `bahrain24` is empty.
 - **Stack-built keys:** a new track must carry `CareerHubFirstVisit_N`, `CareerHubLastVisit_N`, `TrackHighlights_N` and `TrackVideo_N` (`tools/track_keys.py`).

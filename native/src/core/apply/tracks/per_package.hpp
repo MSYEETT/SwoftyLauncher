@@ -10,9 +10,10 @@
 #include <utility>
 #include <vector>
 
-// One box's track.per_package entries (TRACKS-CONTRACTS.md C1): ids <package id>/<key>. An entry's target is its
-// track when set, else its venue resolved through the base, else the base track whose code ends the id. A variant
-// package uses its base package's entries; its own entry for the same target wins. Pure.
+// One box's track.per_package entries (TRACKS-CONTRACTS.md C1): ids <package id>/<key>, and the records of any
+// addon whose package field names the package. An entry's target is its track when set, else its venue resolved
+// through the base, else the base track whose code ends the id. A variant package uses its base package's entries;
+// its own entry for the same target wins. Pure.
 
 namespace swofty_core::apply::tracks {
 
@@ -45,6 +46,25 @@ inline bool entry_of_package(const std::string &id, const std::string &package)
 {
     return id.size() > package.size() + 1 && id.compare(0, package.size(), package) == 0 && id[package.size()] == '/' &&
            id.find('/', package.size() + 1) == std::string::npos;
+}
+
+// An entry of the package: its id is under "<package>/", or its package field names the package.
+inline bool entry_for(const std::string &id, const swofty::json::Value &rec, const std::string &package)
+{
+    return entry_of_package(id, package) || (rec["package"].is_string() && rec["package"].as_string() == package);
+}
+
+// The records of a box's entries, from every track.per_package record in load order and the box's chain (the box
+// first, then its bases): the bases' entries first and the box's last, so the box's own win.
+inline std::vector<std::pair<std::string, swofty::json::Value>>
+chain_records(const std::vector<std::pair<std::string, swofty::json::Value>> &all, const std::vector<std::string> &chain)
+{
+    std::vector<std::pair<std::string, swofty::json::Value>> out;
+    for (auto it = chain.rbegin(); it != chain.rend(); ++it)
+        for (auto &[id, rec] : all)
+            if (entry_for(id, rec, *it))
+                out.push_back({id, rec});
+    return out;
 }
 
 inline const BaseTrack *entry_target(const Base &base, const std::string &id, const swofty::json::Value &rec, std::string &ref)

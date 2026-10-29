@@ -14,11 +14,13 @@
 
 // Whether a track fits a box (the frozen fit rules of work/std16/TRACKS-CONTRACTS.md C2), and the guard's
 // decision. A box is a content.package (or a stock box with no record) in a mode. The world is the one the box's
-// setup mode loads at the track: the facts' layers whose setup_modes hold it, narrowed to the box's game season
-// when a layer names it; several worlds: the smallest room among them. Rules, in this order: Time Trial support,
-// garages for every team, grid slots for the box's cars clamped to the install's grid size, an AI folder for
-// every car and the track's ai_track_difficulties for its package. A rule without facts passes and names what it
-// lacked in no_facts. Pure: host tests build boxes, bases and facts by hand.
+// setup mode loads at the track: the facts' layers whose setup_modes hold it (the launcher scans the database the
+// game reads, runtime database edits included, so Classic Seasons' swofty_f1 layer is there), narrowed to the
+// box's game season when a layer names it; several worlds: the smallest room among them. Rules, in this order: Time Trial support (stock tracks and tracks made for
+// 1.5 run it, D5; a record track when its record says so; none whose facts say time_trial false), garages for every
+// team, grid slots for the box's cars clamped to the install's grid size, an AI folder for every car and the track's
+// ai_track_difficulties for its package. A rule without facts passes and names what it lacked in no_facts. Pure:
+// host tests build boxes, bases and facts by hand.
 
 namespace swofty_core::apply::tracks {
 
@@ -85,11 +87,25 @@ inline Fit fail(Fit f, Rule rule, int have, int need, std::string what, std::str
     return f;
 }
 
+// Time Trial support: a stock track or a track made for 1.5 (D5), a record track whose record says time_trial;
+// never a track whose facts say it holds no world Time Trial loads. why: the facts' reason, when they give one.
+inline bool runs_time_trial(const BaseTrack &track, const Facts *facts, std::string &why)
+{
+    const TrackFacts *tf = facts && facts->loaded ? facts->track(track.code) : nullptr;
+    if (tf && !tf->time_trial) {
+        why = tf->time_trial_why;
+        return false;
+    }
+    return track.kind != Kind::record || track.time_trial;
+}
+
 inline Fit fits(const BoxInfo &box, const BaseTrack &track, Mode mode, const Facts *facts)
 {
     Fit f;
-    if (mode == Mode::time_trial && track.kind != Kind::stock && !track.time_trial)
-        return fail(f, Rule::time_trial, 0, 0, {}, "no Time Trial support");
+    std::string tt_why;
+    if (mode == Mode::time_trial && !runs_time_trial(track, facts, tt_why))
+        return fail(f, Rule::time_trial, 0, 0, tt_why,
+                    "no Time Trial support" + (tt_why.empty() ? std::string() : " (" + tt_why + ")"));
     if (!facts || !facts->loaded) {
         f.no_facts.push_back("no track-facts.json");
         return f;

@@ -1991,6 +1991,7 @@ fn track_files(
             .cloned()
             .collect(),
         added,
+        edits: built.plan.loader.get(crate::runtime::ASSETS_FILE).cloned(),
     };
     let mut warnings = Vec::new();
     if let Err(e) = crate::activation::facts::write(&store.root, &scan) {

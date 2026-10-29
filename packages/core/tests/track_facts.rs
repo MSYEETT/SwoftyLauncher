@@ -18,6 +18,7 @@ fn the_stock_tracks_worlds_and_ai_data_scan_from_the_game_folder() {
         file: &file,
         placed: Vec::new(),
         added: Vec::new(),
+        edits: None,
     };
     let started = std::time::Instant::now();
     let mut cache = WorldsCache::default();
@@ -118,6 +119,7 @@ fn an_installed_tracks_placed_archive_scans_with_its_stand_ins() {
             base: Some("melbourne".into()),
             ui_lists: Vec::new(),
         }],
+        edits: None,
     };
     let f = facts(&scan, None, &mut WorldsCache::default()).unwrap().unwrap();
     let t = &f.tracks["okayama"];

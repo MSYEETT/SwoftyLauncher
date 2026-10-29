@@ -1,7 +1,8 @@
 //! `$DATA/registry/track-facts.json`: what each track's worlds and AI data hold after a build,
 //! for the core's box track lists (docs/std/systems/tracks.md, contract C2). Every successful
 //! build writes it, also with no track addon, next to the core's reports and never into the
-//! game folder. `inputs` hashes every scanned file's path, size and modification time plus the
+//! game folder. The database scanned is the one the game reads: the build's file with the
+//! runtime database edits the core applies at its early stage. `inputs` hashes every scanned file's path, size and modification time plus the
 //! grid size; a build whose inputs match the file on disk leaves it as it is.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -108,6 +109,55 @@ pub struct Scan<'a> {
     /// The game-folder paths the build adds or replaces.
     pub placed: Vec<String>,
     pub added: Vec<Added>,
+    /// The build's `swofty/assets.json`: on the runtime database route the core applies its
+    /// `db_edits` at its early stage, so the database the game reads is `db` with them.
+    pub edits: Option<PathBuf>,
+}
+
+#[derive(Deserialize)]
+struct RuntimeEdit {
+    hash: String,
+    #[serde(rename = "type")]
+    tag: u8,
+    value: String,
+}
+
+#[derive(Deserialize)]
+struct RuntimeAssets {
+    #[serde(default)]
+    db_edits: Vec<RuntimeEdit>,
+}
+
+/// `gvdb` with the runtime database edits of `assets` (a `swofty/assets.json`) applied: each
+/// edit sets its record's type and text, or adds the record.
+fn with_edits(gvdb: &mut Gvdb, assets: &[u8]) -> usize {
+    let Ok(parsed) = serde_json::from_slice::<RuntimeAssets>(assets) else {
+        return 0;
+    };
+    let mut at: HashMap<u64, usize> = gvdb.records.iter().enumerate().map(|(i, r)| (r.key, i)).collect();
+    let mut applied = 0;
+    for e in parsed.db_edits {
+        let Ok(key) = u64::from_str_radix(&e.hash, 16) else {
+            continue;
+        };
+        let value = e.value.into_bytes();
+        match at.get(&key) {
+            Some(&i) => {
+                gvdb.records[i].tag = e.tag;
+                gvdb.records[i].value = value;
+            }
+            None => {
+                at.insert(key, gvdb.records.len());
+                gvdb.records.push(Record {
+                    key,
+                    tag: e.tag,
+                    value,
+                });
+            }
+        }
+        applied += 1;
+    }
+    applied
 }
 
 struct Keyed<'a>(HashMap<u64, &'a Record>);
@@ -449,13 +499,20 @@ fn all_worlds(
 /// The facts for the build `scan` describes, or `None` when `previous` holds the same inputs.
 pub fn facts(scan: &Scan, previous: Option<&Facts>, cache: &mut WorldsCache) -> Result<Option<Facts>> {
     let bytes = std::fs::read(&scan.db).map_err(crate::io_err(&scan.db))?;
-    let gvdb = Gvdb::parse(&bytes)?;
+    let mut gvdb = Gvdb::parse(&bytes)?;
+    let mut hasher = Sha256::new();
+    if let Some(edits) = &scan.edits
+        && let Ok(assets) = std::fs::read(edits)
+    {
+        let n = with_edits(&mut gvdb, &assets);
+        hasher.update(format!("edits {n};"));
+        stamp(&mut hasher, edits);
+    }
     let db = Keyed::new(&gvdb);
     let grid_size = grid::grid_size(&gvdb);
     let layers = layers(&db);
     let worlds: BTreeSet<String> = layers.iter().map(|l| l.world.clone()).collect();
     let codes = track_codes(&db);
-    let mut hasher = Sha256::new();
     hasher.update(format!("grid {grid_size};"));
     stamp(&mut hasher, &scan.db);
     let mut jobs: Vec<Job> = Vec::new();
@@ -787,6 +844,7 @@ mod tests {
                     ui_lists: vec!["track_select".into()],
                 },
             ],
+            edits: None,
         };
         let f = facts(&scan, None, &mut WorldsCache::default()).unwrap().unwrap();
         assert_eq!(
@@ -891,6 +949,41 @@ mod tests {
             .unwrap();
         assert!(write(&data, &other).unwrap(), "a changed file writes again");
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_runtime_database_edits_are_scanned() {
+        let mut gvdb = database();
+        let key = |path: &str| format!("{:016x}", fnv1a64(path));
+        let row = format!("{LAYERS}_3");
+        let edit = |path: &str, tag: u8, value: &str| serde_json::json!({ "hash": key(path), "type": tag, "value": value });
+        let assets = serde_json::json!({ "early_stage": true, "db_edits": [
+            edit("track_data.track_layers._TrackLayer_instancecount_", 0, "4"),
+            edit(&format!("{row}._metadata_"), 2, "swofty_f1"),
+            edit(&format!("{row}.game_setup_modes"), 2, "swofty_f1"),
+            edit(&format!("{row}.is_invalid"), 2, "False"),
+            edit(&format!("{row}.seasons"), 2, "season_2025"),
+            edit(&format!("{row}.worldEri"), 2, "eaid://environment_package/tracks/[FILENAME]/wep/[FILENAME]_f1_26.wep"),
+            edit(&format!("{LAYERS}_0.game_setup_modes"), 2, "f1_26"),
+        ] });
+        let applied = with_edits(&mut gvdb, &serde_json::to_vec(&assets).unwrap());
+        assert_eq!(applied, 7);
+        let db = Keyed::new(&gvdb);
+        let found = layers(&db);
+        assert_eq!(
+            found
+                .iter()
+                .map(|l| (l.label.as_str(), l.setup_modes.join(","), l.world.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("f1_26", "f1_26".to_owned(), "f1_26"),
+                ("myteam_26", String::new(), "f1_26_myteam"),
+                ("swofty_f1", "swofty_f1".to_owned(), "f1_26"),
+            ],
+            "an edited row and a row the edits add are read as the game reads them"
+        );
+        assert_eq!(with_edits(&mut gvdb, b"not json"), 0);
+        assert_eq!(with_edits(&mut gvdb, b"{}"), 0);
     }
 
     #[test]

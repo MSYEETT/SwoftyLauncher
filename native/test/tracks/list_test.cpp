@@ -47,11 +47,13 @@ int main()
     int no_tt = 0;
     for (auto &o : tt.left_out)
         no_tt += o.reason == "no Time Trial support";
-    expect(tt.calendar.empty() && no_tt == 3 && tt.more.size() == 4, "a Time Trial box leaves out every added track");
+    expect(tt.calendar.empty() && no_tt == 1 && tt.more.size() == 5 && trk::listed(tt.more, "mod.okayama/okayama"),
+           "a Time Trial box leaves out the record track without time_trial and keeps the tracks made for 1.5 (D5)");
     expect(trk::list_line("game/f1_2026", trk::Mode::time_trial, tt) ==
-               "[tracks] box game/f1_2026 (time_trial): 4 tracks; left out game/monaco (its swofty_f1 world has 20 grid "
-               "slots; the box runs 22 cars), 3 tracks (no Time Trial support)",
-           "the Time Trial line groups left-out tracks by reason");
+               "[tracks] box game/f1_2026 (time_trial): 5 tracks; left out game/monaco (its swofty_f1 world has 20 grid "
+               "slots; the box runs 22 cars), test.bahrain24/sepang (no Time Trial support), mod.miami24/igora_drive (its "
+               "swofty_f1 world has 10 garages; the box has 11 teams)",
+           "the Time Trial line names each left-out track with its reason");
 
     trk::Entries e;
     e.by_track["game/bahrain"] = {"cs/f1_2016/bahrain", "game/bahrain", false, 0, {}};

@@ -70,13 +70,32 @@ int main()
            "an AI folder without the package's difficulty is left out");
 
     f = trk::fits(box, *base.by_code("okayama"), trk::Mode::time_trial, &facts);
-    expect(!f.ok && f.rule == trk::Rule::time_trial && f.reason == "no Time Trial support",
-           "a 1.5 track in a Time Trial box has no Time Trial support");
+    expect(f.ok, "D5: a track made for 1.5 runs Time Trial");
+    expect(trk::fits(box, *base.by_code("okayama"), trk::Mode::time_trial, nullptr).ok,
+           "a track made for 1.5 runs Time Trial without facts too");
+    trk::Facts no_world = facts;
+    no_world.tracks["okayama"].time_trial = false;
+    no_world.tracks["okayama"].time_trial_why = "its files hold none of the worlds the game's track layers load";
+    f = trk::fits(box, *base.by_code("okayama"), trk::Mode::time_trial, &no_world);
+    expect(!f.ok && f.rule == trk::Rule::time_trial &&
+               f.reason == "no Time Trial support (its files hold none of the worlds the game's track layers load)",
+           "a track whose facts say time_trial false is left out of Time Trial with the facts' reason");
+    expect(trk::fits(box, *base.by_code("okayama"), trk::Mode::grand_prix, &no_world).ok,
+           "time_trial false in the facts leaves Grand Prix alone");
+    trk::Facts parsed_tt = trk::parse_facts(R"({"version": 1, "grid_size": 22, "layers": [], "tracks": {
+        "a": {"worlds": {}, "time_trial": false, "time_trial_why": "no world"}, "b": {"worlds": {}}}})");
+    expect(!parsed_tt.track("a")->time_trial && parsed_tt.track("a")->time_trial_why == "no world" &&
+               parsed_tt.track("b")->time_trial && parsed_tt.track("b")->time_trial_why.empty(),
+           "the facts' time_trial and time_trial_why parse; time_trial defaults to true");
     f = trk::fits(box, *base.by_code("bahrain24"), trk::Mode::time_trial, &facts);
     expect(!f.ok && f.rule == trk::Rule::time_trial, "a record track with time_trial false is left out of Time Trial");
     trk::BaseTrack tt = *base.by_code("bahrain24");
     tt.time_trial = true;
     expect(trk::fits(box, tt, trk::Mode::time_trial, &facts).ok, "a record track with time_trial true runs Time Trial");
+    trk::Facts record_no_world = facts;
+    record_no_world.tracks["bahrain24"].time_trial = false;
+    expect(!trk::fits(box, tt, trk::Mode::time_trial, &record_no_world).ok,
+           "a record track with time_trial true but no world Time Trial loads is left out");
     expect(trk::fits(box, *base.by_code("melbourne"), trk::Mode::time_trial, &facts).ok, "a stock track runs Time Trial");
 
     f = trk::fits(box, *base.by_code("melbourne_reverse"), trk::Mode::grand_prix, &facts);
@@ -88,6 +107,28 @@ int main()
     other_mode.setup_mode = "f2_mode";
     f = trk::fits(other_mode, *base.by_code("igora_drive"), trk::Mode::grand_prix, &facts);
     expect(f.ok && f.no_facts.front() == "no track layer for setup mode f2_mode", "a setup mode with no layer passes");
+    trk::Facts built = trk::parse_facts(R"({"version": 1, "grid_size": 22, "layers": [
+        {"label": "f1", "setup_modes": ["f1"], "seasons": ["season_2023", "season_2024", "season_2025"], "world": "f1"},
+        {"label": "f1_26", "setup_modes": ["f1_26"], "seasons": ["season_2026"], "world": "f1_26"},
+        {"label": "swofty_f1", "setup_modes": ["swofty_f1"], "seasons": ["season_2023", "season_2024", "season_2025"], "world": "f1_26"}],
+      "tracks": {
+        "melbourne": {"worlds": {"f1": {"grid": 22, "garages": 10, "pit_boxes": 10}, "f1_26": {"grid": 22, "garages": 11, "pit_boxes": 11}}},
+        "igora_drive": {"worlds": {"f1": {"grid": 22, "garages": 10, "pit_boxes": 10}, "f1_26": {"grid": 22, "garages": 10, "pit_boxes": 10}}}}})");
+    trk::BoxInfo cs = cs2016();
+    cs.season = "season_2025";
+    expect(trk::worlds_for(built, cs) == std::vector<std::string>{"f1_26"},
+           "Classic Seasons' swofty_f1 layer (a copy of f1_26) gives an 11-team box the f1_26 world, not f1");
+    expect(trk::fits(cs, *base.by_code("melbourne"), trk::Mode::grand_prix, &built).ok,
+           "an 11-team box fits a stock track's 11-garage f1_26 world");
+    f = trk::fits(cs, *base.by_code("igora_drive"), trk::Mode::grand_prix, &built);
+    expect(!f.ok && f.rule == trk::Rule::garages && f.reason == "its swofty_f1 world has 10 garages; the box has 11 teams",
+           "a track whose f1_26 world has 10 garages is left out of an 11-team box");
+    trk::Facts no_layer = built;
+    no_layer.layers.pop_back();
+    f = trk::fits(cs, *base.by_code("igora_drive"), trk::Mode::grand_prix, &no_layer);
+    expect(f.ok && f.no_facts.front() == "no track layer for setup mode swofty_f1",
+           "facts without a swofty_f1 layer pass the world rules and say so; the core doesn't guess a layer");
+
     trk::BoxInfo stock;
     stock.package = "game/f1_2026";
     f = trk::fits(stock, *base.by_code("igora_drive"), trk::Mode::grand_prix, &facts);
@@ -110,8 +151,11 @@ int main()
     expect(!d.ok && d.body == "Its grid holds 20 cars. F1 2016 runs 22.", "the grid popup");
     d = trk::decide(base.by_code("okayama"), box, trk::Mode::time_trial,
                     trk::fits(box, *base.by_code("okayama"), trk::Mode::time_trial, &facts), "");
-    expect(!d.ok && d.title == "Okayama can't run in F1 2016" && d.body == "It has no Time Trial support.",
-           "D5: a 1.5 track stays offered in Time Trial and the guard stops it");
+    expect(d.ok, "D5: the guard lets a track made for 1.5 run Time Trial");
+    d = trk::decide(base.by_code("bahrain24"), box, trk::Mode::time_trial,
+                    trk::fits(box, *base.by_code("bahrain24"), trk::Mode::time_trial, &facts), "");
+    expect(!d.ok && d.title == "Sepang can't run in F1 2016" && d.body == "It has no Time Trial support.",
+           "a record track without time_trial: the guard's Time Trial popup");
     d = trk::decide(base.by_code("melbourne"), box, trk::Mode::grand_prix,
                     trk::fits(box, *base.by_code("melbourne"), trk::Mode::grand_prix, &facts), "");
     expect(d.ok && d.line.find(": fits") != std::string::npos, "a fitting track is allowed");

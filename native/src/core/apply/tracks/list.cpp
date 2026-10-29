@@ -7,6 +7,7 @@
 
 #include <swofty/mixin.hpp>
 
+#include <cstdlib>
 #include <map>
 #include <mutex>
 
@@ -74,6 +75,14 @@ const Facts &facts()
     return f;
 }
 
+int setup_mode_stat(const std::string &setup_mode)
+{
+    std::string text = db_text(db_read(), "game_setup.game_setup_modes.game_setup_mode[_metadata_=" + setup_mode + "].stat_id");
+    char *end = nullptr;
+    long v = std::strtol(text.c_str(), &end, 10);
+    return text.empty() || !end || *end ? -1 : int(v);
+}
+
 BoxInfo box_info(registry::Store &store, const std::string &package, const std::string &entrant_list)
 {
     BoxInfo b;
@@ -100,16 +109,13 @@ BoxInfo box_info(registry::Store &store, const std::string &package, const std::
 
 Entries box_entries(registry::Store &store, const std::vector<std::string> &chain)
 {
-    std::vector<std::pair<std::string, Value>> recs;
-    std::vector<std::string> ids = store.list("track.per_package", "");
-    for (auto it = chain.rbegin(); it != chain.rend(); ++it)
-        for (auto &id : ids)
-            if (entry_of_package(id, *it)) {
-                registry::Record r = store.get("track.per_package", id);
-                if (r.status == registry::Status::ok)
-                    recs.push_back({id, std::move(r.value)});
-            }
-    return resolve_entries(base(), recs);
+    std::vector<std::pair<std::string, Value>> all;
+    for (auto &id : store.list("track.per_package", "")) {
+        registry::Record r = store.get("track.per_package", id);
+        if (r.status == registry::Status::ok)
+            all.push_back({id, std::move(r.value)});
+    }
+    return resolve_entries(base(), chain_records(all, chain));
 }
 
 List box_list(registry::Store &store, const BoxInfo &box, Mode mode, const Entries &entries)

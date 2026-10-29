@@ -301,6 +301,19 @@ inline Seeds seeds(const Scan &s, const std::vector<Older> &older)
     return out;
 }
 
+// Without the database (no track content): the venues, and for each venue a stock track provides, that track as a
+// record with no stat id, so the venues resolve and calendars that name them stay valid. It adds nothing to the
+// track base.
+inline Seeds venue_seeds()
+{
+    Seeds out = seeds({}, {});
+    for (const VenueSeed &v : VENUE_SEEDS)
+        if (*v.stock)
+            out.base.push_back({"track", v.stock,
+                                track_value(v.stock, v.name, "", "", {std::string("venue/") + v.key}, true, -1)});
+    return out;
+}
+
 inline constexpr int64_t TRACK_STAT_CAP = 254;
 
 // The record tracks' stat-id pool: every id from 254 down that no loaded row and no older track holds, highest first,

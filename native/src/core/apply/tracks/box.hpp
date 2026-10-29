@@ -36,6 +36,8 @@ Active active();
 Mode mode_named(std::string_view mode);
 Decision guard_package(const std::string &package, const BaseTrack *track, Mode mode, std::string_view label);
 int put_back_box_fuel(const char *why);
+int write_box_fuel_now(const Active &a, int mode_stat);
+int setup_mode_stat(const std::string &setup_mode);
 void register_box_appliers();
 
 }
