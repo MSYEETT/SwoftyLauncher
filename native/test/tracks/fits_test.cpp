@@ -135,7 +135,7 @@ int main()
         {"entrants.vehicles.vehicle[_metadata_=mclaren_2016].vehicle_package", "f1_2025"},
         {"entrants.vehicles.vehicle_packages.vehicle_package[_metadata_=f1_2025].ai_package_folder", "f1_2025"},
         {"entrants.entrant_lists.entrant_list[_metadata_=cs_2016].season", "season_2016"}};
-    trk::Read read = [&](const std::string &p) -> std::optional<std::string> {
+    trk::TextRead read = [&](const std::string &p) -> std::optional<std::string> {
         auto it = db.find(p);
         return it == db.end() ? std::nullopt : std::optional<std::string>(it->second);
     };

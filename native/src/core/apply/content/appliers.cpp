@@ -9,12 +9,12 @@
 #include "logos.hpp"
 #include "teams.hpp"
 #include "../tracks/boot.hpp"
+#include "../tracks/box.hpp"
 #include "../../career_ops/teams_plan.hpp"
 #include "../../registry/older.hpp"
 #include "../../registry/table.hpp"
 
 #include "../../runtime.hpp"
-#include "../tracks/box.hpp"
 
 #include <swofty/mixin.hpp>
 
@@ -706,6 +706,7 @@ void register_appliers()
         make<Constructors>();
         make<Logos>();
         tracks::register_appliers();
+        tracks::register_box_appliers();
         set_up_dresser();
     });
 }

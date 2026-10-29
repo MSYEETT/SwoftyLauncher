@@ -198,7 +198,7 @@ inline Decision decide(const BaseTrack *track, const BoxInfo &box, Mode mode, co
 
 using Value = swofty::json::Value;
 using Lookup = std::function<const Value *(const std::string &registry, const std::string &id)>;
-using Read = std::function<std::optional<std::string>(const std::string &path)>;
+using TextRead = std::function<std::optional<std::string>(const std::string &path)>;
 
 inline constexpr const char *DB_VEHICLES = "entrants.vehicles.vehicle";
 inline constexpr const char *DB_PACKAGES = "entrants.vehicles.vehicle_packages.vehicle_package";
@@ -219,7 +219,7 @@ inline std::string text_of(const Value &t)
     return {};
 }
 
-inline std::string db_text(const Read &read, const std::string &path)
+inline std::string db_text(const TextRead &read, const std::string &path)
 {
     if (!read)
         return {};
@@ -229,7 +229,7 @@ inline std::string db_text(const Read &read, const std::string &path)
 
 // One team's car: its vehicle record's package folder and AI asset, else the database rows the vehicle's label
 // (written by the content records at boot) or its donor holds.
-inline Car car_of(const std::string &team, const Value &t, const Lookup &lookup, const Read &read)
+inline Car car_of(const std::string &team, const Value &t, const Lookup &lookup, const TextRead &read)
 {
     Car car{team, {}, {}};
     if (!t["vehicle"].is_string())
@@ -266,7 +266,7 @@ inline Car car_of(const std::string &team, const Value &t, const Lookup &lookup,
 }
 
 // A box from its effective content.package record. A team with no seats listed runs two cars.
-inline BoxInfo box_from_package(const std::string &id, const Value &pkg, const Lookup &lookup, const Read &read)
+inline BoxInfo box_from_package(const std::string &id, const Value &pkg, const Lookup &lookup, const TextRead &read)
 {
     BoxInfo b;
     b.package = id;

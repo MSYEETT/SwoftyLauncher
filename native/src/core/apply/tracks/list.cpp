@@ -30,7 +30,7 @@ std::string registry_dir()
     return runtime::narrow((state.empty() ? runtime::swofty_root() : state) + L"registry");
 }
 
-Read db_read()
+TextRead db_read()
 {
     const SwoftyDb *db = runtime::db_table();
     if (!db || !db->available || !db->string_at || !db->available())

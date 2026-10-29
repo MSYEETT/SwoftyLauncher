@@ -268,7 +268,7 @@ int put_back_box_fuel(const char *why)
 
 void register_per_package();
 
-void register_appliers()
+void register_box_appliers()
 {
     static std::once_flag once;
     std::call_once(once, [] {
