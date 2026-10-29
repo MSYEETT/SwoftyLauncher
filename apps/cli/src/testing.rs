@@ -1224,7 +1224,7 @@ impl Harness<'_> {
                 if by_pad && pressed.is_none_or(|p| p.elapsed() >= self.times.title_press) {
                     pressed = Some(Instant::now());
                     a.client
-                        .send("pad", json!({ "press": "a", "ms": 150 }), None)
+                        .send("pad", json!({ "press": "a", "ms": 250 }), None)
                         .ok();
                 }
             } else if at_title && agent.is_none() && !told_title {
@@ -1256,6 +1256,7 @@ impl Harness<'_> {
                     }
                     other => other?,
                 }
+                self.env_home(&b.env, a, &mut *run);
                 self.env_routes(&b.env, a, &mut *run)?;
                 self.env_career(
                     &b.env,
@@ -1814,6 +1815,20 @@ impl Harness<'_> {
         }
     }
 
+    /// A boot environment ends on the main menu: the agent answers the
+    /// core's notice and waits for the home screen. An agent that can't
+    /// leaves the batch where the front end put it.
+    fn env_home(&self, env: &Env, a: &mut Agent, run: &mut dyn Running) {
+        if env.kind != Kind::Boot {
+            return;
+        }
+        match a.call("home", Value::Null, self.times.step * 4, &self.times, run) {
+            Ok(r) if r.outcome == Outcome::Ok => say(&format!("home screen up ({})", r.value)),
+            Ok(r) => say(&format!("home screen: {}", r.text())),
+            Err(e) => say(&format!("home screen: {e}")),
+        }
+    }
+
     /// A route environment: fire its routes from the home screen in order.
     fn env_routes(&self, env: &Env, a: &mut Agent, run: &mut dyn Running) -> std::result::Result<(), String> {
         if env.kind != Kind::Route {
@@ -2191,7 +2206,7 @@ fn shell_loop(h: Harness, b: &Batch, out: &Path, fixture: Option<Fixture>) -> Re
         eprintln!("swofty: {e}");
     } else {
         eprintln!(
-            "type a command (title, route <name>, read <path>, wait <event> [s], pad <button>, capture [name], career load <slot|newest> [at <place>], save now, quit); end with Ctrl-D"
+            "type a command (title, home, route <name>, tile <id>, read <path>, wait <event> [s], wait screen=<name> [s], pad <button>, capture [name], career load <slot|newest> [at <place>], advance <days>, save now, quit); end with Ctrl-D"
         );
     }
     let stdin = std::io::stdin();
