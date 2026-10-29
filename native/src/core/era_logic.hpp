@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Pure logic of the era picker addon row (era_picker.cpp): the box check, the box order, the image
@@ -12,6 +13,12 @@
 namespace runtime::era {
 
 constexpr const char *HOST = "swofty_f1";
+// The host game setup mode's display_name (content.package lowering sets it). The Time Trial pause menu's
+// Car Type (HotLoadViewModel) shows a game setup mode's display_name when its entrant setup mode offers one
+// list, which is the case while an addon box is narrowed: the core resolves this key to the narrowed list's
+// display_name, and to the stock F1 2025 text (the display_name the host mode copies from f1) otherwise.
+constexpr const char *HOST_TITLE = "lng_swofty_f1";
+constexpr const char *HOST_TITLE_STOCK = "lng_modern";
 constexpr const char *SELECTED_ADDON_TILE = "selected_addon_tile";
 constexpr const char *ADDON_TILES_VISIBLE = "addon_tiles_visible";
 constexpr const char *IMAGE_ARRAY = "#overrides.home_screen.tiles_solo_6x6";
@@ -67,6 +74,16 @@ inline std::string check(Box &box, const std::vector<Box> &have)
     if (have.size() >= MAX_BOXES)
         return "the core holds at most 64 boxes";
     return {};
+}
+
+inline std::string host_title(const char *list_display)
+{
+    if (!list_display)
+        return HOST_TITLE_STOCK;
+    std::string_view d(list_display);
+    if (d.size() <= 4 || d.size() > TEXT_MAX || d.rfind("lng_", 0) != 0 || d == HOST_TITLE)
+        return HOST_TITLE_STOCK;
+    return std::string(d);
 }
 
 inline std::string image_of(const Box &box)

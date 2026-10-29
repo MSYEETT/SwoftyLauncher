@@ -142,6 +142,27 @@ int main()
         for (auto &[t, v] : pp.texts)
             text = text || (t == tag && v == "F1 2017 (V10)");
         check(text, "whose text is the variant's title");
+        check(category.find("\"display_name\":\"F1 2017 (V10)\"") == std::string::npos &&
+                  category.find("\"_metadata_\":\"esp_f1_2017_v10\",\"display_name\":\"" + tag + "\"") !=
+                      std::string::npos,
+              "its entrant list and scenario show the language tag, not the literal title");
+        std::string host = "{\"op\":\"set\",\"select\":\"game_setup.game_setup_modes.game_setup_mode[_metadata_="
+                           "swofty_f1]\",\"field\":\"display_name\",\"value\":\"lng_swofty_f1\"}";
+        auto title_op = content::host_title_op(*lookup("content.package", "mod.esp/f1_2017_v10"));
+        check(title_op && swofty::json::dump(*title_op) == host,
+              "the host setup mode's title becomes the key the era picker points at the narrowed box");
+        content::Plan rp;
+        content::lower_package("swofty.classic-seasons-2017/f1_2017",
+                               *lookup("content.package", "swofty.classic-seasons-2017/f1_2017"), lookup, rp, none);
+        std::string real_ops = swofty::json::dump(rp.ops);
+        check(real_ops.find("\"_metadata_\":\"cs_f1_2017\",\"display_name\":\"lng_cs_f1_2017\"") != std::string::npos &&
+                  rp.texts.empty(),
+              "the real 2017 box's entrant list keeps its own tag (F1 2017), with no text of the core's");
+        auto real_title = content::host_title_op(*lookup("content.package", "swofty.classic-seasons-2017/f1_2017"));
+        check(real_title && swofty::json::dump(*real_title) == host, "and the real box sets the same host title key");
+        check(runtime::era::host_title("lng_cs_f1_2017") == "lng_cs_f1_2017" &&
+                  runtime::era::host_title(tag.c_str()) == tag && runtime::era::host_title(nullptr) == "lng_modern",
+              "a narrowed box's car type reads its list's tag, the unnarrowed host the stock F1 2025 text");
     }
     check(swofty::content::packages.schema().find("\"type\":[\"number\",\"null\"]") != std::string::npos,
           "an optional field's schema accepts null");

@@ -83,6 +83,7 @@ const SwoftyLang *lang_table();
 const SwoftyCharacters *characters_table();
 const SwoftyCareerWizard *wizard_table();
 void lang_override_setup();
+int lang_alias(const char *key, const char *target);
 const json::Value &sdk();
 void ready();
 void assets_setup();

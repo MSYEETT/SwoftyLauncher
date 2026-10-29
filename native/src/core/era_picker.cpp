@@ -59,6 +59,12 @@ std::string settings_addon(const void *from, std::string &dll);
 // without a new press, and a Time Trial that loads all nine Classic Seasons lists overflows the fixed
 // 43 MiB AUDIO_BUNDLE heap with their engine sound bundles.
 //
+// Title: the host game setup mode's display_name is lng_swofty_f1 (content.package lowering). A game setup mode
+// whose one entrant setup mode offers one list shows its own display_name where the game lists car types (the
+// Time Trial pause menu's Car Type, HotLoadViewModel's selector builder 0x141750320), so while the host is
+// narrowed the core aliases lng_swofty_f1 to the narrowed list's display_name (list +0x30), and to lng_modern,
+// the F1 2025 text the host copies from f1, otherwise.
+//
 // The three hooks are one core mixin set, offered at the first mixin commit after a box was registered,
 // so a game without registered boxes runs none of them.
 
@@ -100,6 +106,7 @@ constexpr size_t LISTS = 0x130;
 constexpr size_t LIST_COUNT = 0x230;
 constexpr size_t LIST_SLOTS = 32;
 constexpr size_t LIST_NAME = 0x28;
+constexpr size_t LIST_DISPLAY = 0x30;
 constexpr int64_t ENTRANT_SETUP_SLOTS = 12;
 
 using logic::Handle;
@@ -143,6 +150,8 @@ Built built;
 Narrowed narrowed[4];
 size_t narrowed_count;
 std::string last_pick;
+std::string host_title;
+uint32_t logged_title;
 uint32_t logged_renarrow;
 FeTile_Press_EraTile_t *press_orig;
 Game_F1WorldActivityContainer_SelectEntrantList_t *select_orig;
@@ -190,6 +199,18 @@ template <class F> void for_each_host_setup(void *mode, F f)
     }
 }
 
+void title_host(const char *list_display)
+{
+    std::string target = logic::host_title(list_display);
+    if (target == host_title)
+        return;
+    int r = runtime::lang_alias(logic::HOST_TITLE, target.c_str());
+    host_title = r == SWOFTY_ASSET_OK ? target : std::string();
+    if (logged_title++ < LOG_FIRST)
+        swofty::log("[era] %s's title %s reads %s%s", logic::HOST, logic::HOST_TITLE, target.c_str(),
+                    r == SWOFTY_ASSET_OK ? "" : " (not set: the string overrides are off)");
+}
+
 void restore()
 {
     for (size_t i = 0; i < narrowed_count; ++i) {
@@ -201,6 +222,7 @@ void restore()
         ref<int64_t>(n.setup, LIST_COUNT) = n.count;
     }
     narrowed_count = 0;
+    title_host(nullptr);
 }
 
 void narrow(void *mode, const char *list)
@@ -226,6 +248,7 @@ void narrow(void *mode, const char *list)
         memcpy(n.lists, lists, size_t(count) * sizeof(void *));
         lists[0] = hit;
         ref<int64_t>(setup, LIST_COUNT) = 1;
+        title_host(name_of(hit, LIST_DISPLAY));
         if (logged_narrow++ < LOG_FIRST)
             swofty::log("[era] %s offers only %s (of %lld lists)", logic::HOST, list, (long long)count);
     });
@@ -522,6 +545,7 @@ void era_commit()
     settled = true;
     if (core_mixins_active(MIXIN)) {
         live = true;
+        title_host(nullptr);
         swofty::log("[era] era picker hooks installed; addon boxes show from the next build of the picker");
         return;
     }

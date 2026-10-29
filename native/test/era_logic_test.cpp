@@ -220,6 +220,14 @@ int main()
     expect(era::ADDON_PRESS == 0x8fb68dffu && era::SELECT_PRESS == 0x2b0357au && era::ADDON_TILES == 0xf2614e2bu,
            "djb2 of addon_select_pressed, select_pressed and addon_tiles");
 
+    expect(era::host_title("lng_cs_f1_2017") == "lng_cs_f1_2017",
+           "a narrowed host's car type reads the narrowed list's display_name");
+    expect(era::host_title("lng_swofty_era_esp_f1_2017_v10") == "lng_swofty_era_esp_f1_2017_v10",
+           "a variant's list reads its core title tag");
+    expect(era::host_title(nullptr) == "lng_modern", "no narrowed list reads the stock F1 2025 text");
+    expect(era::host_title("F1 2017 (V10)") == "lng_modern" && era::host_title("lng_") == "lng_modern",
+           "a literal or empty tag falls back to the stock text");
+    expect(era::host_title(era::HOST_TITLE) == "lng_modern", "the host key never aliases itself");
     printf("%s\n", fails ? "era_logic_test: FAILED" : "era_logic_test: all passed");
     return fails ? 1 : 0;
 }

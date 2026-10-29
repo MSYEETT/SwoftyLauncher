@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "../../era_logic.hpp"
+
 // Turns the effective records of the content registries (content.package, era.box, vehicle,
 // vehicle.package, engine_sound) into the database changes the game needs, in the operation format of
 // a database operation file (add-row, set, list-append, put-record): the same rows Classic Seasons'
@@ -92,6 +94,7 @@ inline constexpr const char *STANDINGS = "entrants.standings.standings";
 inline constexpr const char *LISTS = "entrants.entrant_lists.entrant_list";
 inline constexpr const char *SCENARIOS = "game_setup.scenarios.scenario";
 inline constexpr const char *SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode";
+inline constexpr const char *GAME_SETUP_ROW = "game_setup.game_setup_modes.game_setup_mode";
 inline constexpr const char *CATEGORY =
     "options_system.options.multiplayer.options_folder_2.option[_metadata_=category]";
 
@@ -403,6 +406,22 @@ inline std::string title_tag(const std::string &entrant_list)
     return "lng_swofty_era_" + entrant_list;
 }
 
+// A package on the host setup mode renames that game setup mode's display_name to the key the era picker
+// points at the narrowed box's title (era_logic.hpp HOST_TITLE), so the Time Trial Car Type names the box.
+// The boot expansion adds it only while the host game setup mode row exists (the launcher's core rows add it).
+inline std::string host_row()
+{
+    return std::string(GAME_SETUP_ROW) + "[_metadata_=" + ::runtime::era::HOST + "]";
+}
+
+inline std::optional<Value> host_title_op(const Value &rec)
+{
+    std::string mode = rec["setup_mode"].is_string() ? std::string(rec["setup_mode"].as_string()) : "swofty_f1";
+    if (mode != ::runtime::era::HOST)
+        return std::nullopt;
+    return set_op(host_row(), "display_name", ::runtime::era::HOST_TITLE);
+}
+
 inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
                           const StatIds &stat = {}, const PersonMap *wear = nullptr)
 {
@@ -412,6 +431,7 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     std::string title = title_text(rec["title"]);
     if (title.empty())
         title = list;
+    std::string category_tag = title.rfind("lng_", 0) == 0 ? title : title_tag(list);
     std::string mode = rec["setup_mode"].is_string() ? std::string(rec["setup_mode"].as_string()) : "swofty_f1";
     bool own = !db["entrant_list"].is_string() || db["entrant_list"].as_string() == list;
     std::string prefix = own && db["entrant_prefix"].is_string() ? std::string(db["entrant_prefix"].as_string())
@@ -458,7 +478,7 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
                                  std::to_string(t),
                              "team", vehicle_label(teams[t], lookup)));
     Value row = Value::object({{"_metadata_", list},
-                               {"display_name", title},
+                               {"display_name", category_tag},
                                {"previous_season_team_standings", standings},
                                {"previous_season_driver_standings", ""}});
     if (db["entrant_list_set"].is_object())
@@ -492,18 +512,15 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
         }
     }
     Value scenario = Value::object({{"_metadata_", list},
-                                    {"display_name", title},
+                                    {"display_name", category_tag},
                                     {"entrant_list", list},
                                     {"game_setup_mode", mode}});
     auto scenario_id = stat_of(stat, SCENARIO_IDS, id, scenario_pin);
     if (scenario_id)
         scenario["statId"] = std::to_string(*scenario_id);
     push_row(plan, "game_setup.scenarios", std::string(SCENARIOS) + "[_metadata_=f1]", std::move(scenario));
-    std::string category_tag = title;
-    if (title.rfind("lng_", 0) != 0) {
-        category_tag = title_tag(list);
+    if (category_tag != title)
         plan.texts.emplace_back(category_tag, title);
-    }
     push_row(plan, CATEGORY, std::string(CATEGORY) + ".value[_metadata_=f1_2025]",
              Value::object({{"_metadata_", list}, {"game_value", list}, {"loc_tag", category_tag}}));
     for (const char *field : {"entrant_lists", "selectable_entrant_lists"})

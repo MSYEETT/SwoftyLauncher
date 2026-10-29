@@ -5,6 +5,7 @@
 #include <swofty/mixin.hpp>
 
 #include <atomic>
+#include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
@@ -22,6 +23,8 @@
 // g_Loc_LanguageInfo +0x60). Each distinct text is copied once into storage that is never freed,
 // because the game may keep a returned pointer after the override is cleared. refresh() sends the current language
 // to the module's listeners (+0x170), the notification the game sends after it loads a language.
+// An alias (runtime::lang_alias, core only) makes one key read another key's text, override or stock, in the
+// current language; the era picker points the host setup mode's title key at the narrowed box's title.
 
 namespace {
 
@@ -64,6 +67,8 @@ SRWLOCK g_lock = SRWLOCK_INIT;
 std::atomic<size_t> g_count{0};
 std::unordered_map<std::string, Entry, Hash, Eq> g_map;
 std::unordered_set<std::string, Hash, Eq> g_texts;
+std::atomic<size_t> g_alias_count{0};
+std::unordered_map<std::string, const char *, Hash, Eq> g_alias;
 std::atomic<uint8_t *> g_module{nullptr};
 uint8_t *g_info;
 
@@ -172,8 +177,22 @@ void put_layer(const std::string &addon, const std::string &key)
     older::string_layer(st, addon, key, k->second);
 }
 
+const char *alias_of(const char *key)
+{
+    const char *out = nullptr;
+    AcquireSRWLockShared(&g_lock);
+    auto it = g_alias.find(std::string_view(key));
+    if (it != g_alias.end())
+        out = it->second;
+    ReleaseSRWLockShared(&g_lock);
+    return out;
+}
+
 const char *find_hook(void *set, const char *key, int32_t mode)
 {
+    if (g_alias_count.load(std::memory_order_acquire) && key)
+        if (const char *target = alias_of(key))
+            key = target;
     if (g_count.load(std::memory_order_acquire) && key)
         if (const char *text = lookup(key))
             return text;
@@ -345,6 +364,25 @@ void setup_once()
         std::call_once(g_setup_once, setup);
 }
 
+int lang_alias_set(const char *key, const char *target)
+{
+    setup_once();
+    if (!g_on || !g_find_at)
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (!key || !*key)
+        return SWOFTY_ASSET_INVALID;
+    if (target && *target && !ensure_find_hook())
+        return SWOFTY_ASSET_UNAVAILABLE;
+    AcquireSRWLockExclusive(&g_lock);
+    if (target && *target && strcmp(key, target))
+        g_alias[key] = g_texts.emplace(target).first->c_str();
+    else
+        g_alias.erase(std::string(key));
+    g_alias_count.store(g_alias.size(), std::memory_order_release);
+    ReleaseSRWLockExclusive(&g_lock);
+    return SWOFTY_ASSET_OK;
+}
+
 const SwoftyLang table = {lang_available, lang_override_set, lang_override_clear, lang_override_clear_all,
                           lang_refresh};
 
@@ -353,6 +391,11 @@ const SwoftyLang table = {lang_available, lang_override_set, lang_override_clear
 const SwoftyLang *runtime::lang_table()
 {
     return &table;
+}
+
+int runtime::lang_alias(const char *key, const char *target)
+{
+    return lang_alias_set(key, target);
 }
 
 void runtime::lang_override_setup()

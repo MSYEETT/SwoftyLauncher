@@ -199,6 +199,8 @@ static void stock_package_rows(Db &db)
     row("entrants.entrant_setup_modes.entrant_setup_mode_0", {{"_metadata_", "swofty_f1"}});
     db.put("entrants.entrant_setup_modes.entrant_setup_mode_0.entrant_lists", 13, "f1_2025");
     db.put("entrants.entrant_setup_modes.entrant_setup_mode_0.selectable_entrant_lists", 13, "f1_2025");
+    db.put("game_setup.game_setup_modes._game_setup_mode_instancecount_", 0, "1");
+    row("game_setup.game_setup_modes.game_setup_mode_0", {{"_metadata_", "swofty_f1"}, {"display_name", "lng_modern"}});
     db.put("audio.audio_bundle_settings._audio_bundle_settings_instancecount_", 0, "1");
     row("audio.audio_bundle_settings.audio_bundle_settings_0",
         {{"_metadata_", "mercedes_2025"}, {"bundle_name", "mercedes_2025"}, {"era", "x"}, {"engine", "e"}, {"exhaust", "x"}, {"cabin", "c"}});
@@ -305,7 +307,12 @@ static void variant_tests(const std::string &regs)
     std::string var_sc = has_label("game_setup.scenarios", "scenario", "esp_f1_2017_v10");
     check(written(x.engine, base_sc + ".statId") == "16" && written(x.engine, var_sc + ".statId") == "15",
           "the base keeps its scenario id, the variant gets the first free one above the stock scenarios");
-    check(written(x.engine, var_list + ".display_name") == "F1 2017 (V10)", "a literal title is the list's name");
+    check(written(x.engine, var_list + ".display_name") == "lng_swofty_era_esp_f1_2017_v10" &&
+              written(x.engine, var_sc + ".display_name") == "lng_swofty_era_esp_f1_2017_v10",
+          "a literal title's language tag is the list's and the scenario's name");
+    check(written(x.engine, base_list + ".display_name") == "lng_cs_f1_2017", "a tag title is the list's name as it is");
+    check(written(x.engine, "game_setup.game_setup_modes.game_setup_mode_0.display_name") == "lng_swofty_f1",
+          "the host game setup mode's title is the key the era picker points at the narrowed box");
     std::string car = has_label("entrants.vehicles", "vehicle", "cs17_mercedes");
     std::string v10 = has_label("entrants.vehicles", "vehicle", "esp_cs17_mercedes");
     check(!car.empty() && written(x.engine, car + ".stat_id") == "520", "the base car keeps its pinned stat id");

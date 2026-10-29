@@ -307,8 +307,11 @@ inline void expand(registry::Store &st, Expansion &x, const StatIds &stat, const
                 lower_team(id, *rec, lookup, read, refs, plan, stat);
             else if (r == "team.pit_times")
                 lower_pit_times(id, *rec, lookup, read, refs, plan);
-            else
+            else {
                 lower_package(id, *rec, lookup, plan, stat, &wear.person_driver);
+                if (auto title = host_title_op(*rec); title && read(host_row() + "._metadata_"))
+                    push_op(plan, std::move(*title));
+            }
             x.engine.add_fields(plan.fields);
             x.engine.attribute(owner, reg, id);
             std::size_t mark = x.engine.mark();
