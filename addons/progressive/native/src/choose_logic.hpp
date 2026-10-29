@@ -9,6 +9,8 @@
 //   and the record's seat; his own row keeps his look and number, and a driver the list has no row
 //   for gets one made from the slot's rows with the pool's number and no look;
 //   a driver years.json seats and the effective seats no longer hold has no row.
+// A seat driver the pool has no entry for (an added team's new driver) takes his stat id from driver_stat (the game's
+// drivers table row of his label) and gets a row like a pool driver with none; without driver_stat he is left out.
 // With the same years.json on both sides nothing changes. R is any record with the EntrantRecord
 // field names this file reads. Pure logic, no game access, so native/test builds it on the host.
 
@@ -16,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -59,7 +62,11 @@ template <class R> size_t row_of(const std::vector<R> &rows, int stat)
     return any;
 }
 
-template <class R> Stats reseat(std::vector<R> &rows, const season::Data &base, const season::Data &effective, int year)
+using DriverStat = std::function<int(const std::string &label)>;
+
+template <class R>
+Stats reseat(std::vector<R> &rows, const season::Data &base, const season::Data &effective, int year,
+             const DriverStat &driver_stat = {})
 {
     Stats st;
     const season::Year *by = base.year(year), *ey = effective.year(year);
@@ -83,9 +90,10 @@ template <class R> Stats reseat(std::vector<R> &rows, const season::Data &base, 
             continue;
         const season::PoolDriver *p = effective.driver(label);
         const std::optional<R> &tmpl = slot_row[static_cast<size_t>(at.first)];
-        if (!p || p->stat < 0 || !tmpl)
+        int stat = p ? p->stat : driver_stat ? driver_stat(label) : -1;
+        if (stat < 0 || stat > 0xffff || !tmpl)
             continue;
-        size_t i = row_of(rows, p->stat);
+        size_t i = row_of(rows, stat);
         R r;
         if (i != rows.size()) {
             r = rows[i];
@@ -93,10 +101,13 @@ template <class R> Stats reseat(std::vector<R> &rows, const season::Data &base, 
         } else {
             r = *tmpl;
             r.id_lo = 0;
-            r.id_hi = static_cast<uint16_t>(p->stat);
+            r.id_hi = static_cast<uint16_t>(stat);
             r.driver_customisation = cards::kNoKey;
-            auto n = p->numbers.find(year);
-            int number = n != p->numbers.end() ? n->second : p->number;
+            int number = -1;
+            if (p) {
+                auto n = p->numbers.find(year);
+                number = n != p->numbers.end() ? n->second : p->number;
+            }
             r.car_number = number >= 0 && number < 0xff ? static_cast<uint8_t>(number) : cards::kNoNumber;
         }
         r.team_stat_id = tmpl->team_stat_id;
