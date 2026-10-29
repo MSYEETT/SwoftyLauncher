@@ -633,9 +633,11 @@ for guard in on off; do
             echo "ok  : acclim_penalty on: no crash report"
     else
         once "acclim_penalty off: the guard is off" '\[acclim\] track acclimatisation guard off \(SWOFTY_ACCLIM_GUARD=0\)'
-        check "acclim_penalty off: the penalty flag faults where the game does" '\[crash\] unhandled ACCESS_VIOLATION .*Game_PracticeTrackAcclimatisation_FlagCurrentTarget\+0x14'
+        flag=$(grep -P '\tGame_PracticeTrackAcclimatisation_FlagCurrentTarget\t' "$SW/addons/core/symbols.tsv" | cut -f1)
+        fault=$(printf '%x' $((0x${flag:-0} + 0x14)))
+        check "acclim_penalty off: the penalty flag faults where the game does" "\[crash\] unhandled ACCESS_VIOLATION \(0xc0000005\) at F1_25\.exe\+0x$fault "
         check "acclim_penalty off: faulting access" '\[crash\]   reading 0xc4'
-        parse_report "Game_PracticeTrackAcclimatisation_FlagCurrentTarget+0x14" "reading 0xc4" || status=1
+        parse_report "F1_25.exe+0x$fault" "reading 0xc4" || status=1
         [[ $code != 0 ]] && echo "ok  : acclim_penalty off: process ended with $code" || { echo "FAIL: acclim_penalty off: process exited 0"; status=1; }
     fi
 done
