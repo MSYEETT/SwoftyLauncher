@@ -601,7 +601,7 @@ key	path	reader	sites	level	subsystem	evidence	notes
 0x897a93bb6a2ab7c0	?	0x1445de9d0	0x1445de9fc	L1	gamedb	imm:0x897a93bb6a2ab7c0;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0x89810085a9351e4d	?	0x140d6fe50	0x140d70aa9	L1	gamedb	imm:0x89810085a9351e4d;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0x89f2760fa09d9b8a	?	0x140c444a0	0x140c4800d	L1	gamedb	imm:0x89f2760fa09d9b8a;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
-0x8a2a50afb00de7ca	?	0x1435b6c60	0x1435b6edb	L1	gamedb	imm:0x8a2a50afb00de7ca;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
+0x8a2a50afb00de7ca	rules.multiple_warnings.accumulated_time.accumulated_time	0x1435b6c60	0x1435b6edb	L1	gamedb	imm:0x8a2a50afb00de7ca;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites | name cracked (fnv1a64 exact, present in gamedatabases.2025.bin), stock 0.5
 0x8a4af18a9d68f07e	?	0x1438b5da0	0x1438b6ea3	L1	gamedb	imm:0x8a4af18a9d68f07e;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0x8a66e38a9d81536c	?	0x1438b5da0	0x1438b6df3	L1	gamedb	imm:0x8a66e38a9d81536c;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0x8aeaf113979d34b2	?	0x140c444a0	0x140c47e2d	L1	gamedb	imm:0x8aeaf113979d34b2;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
@@ -800,7 +800,7 @@ key	path	reader	sites	level	subsystem	evidence	notes
 0xb4c1cc395450c715	?	0x14360f6c0	0x14360f7bf	L1	gamedb	imm:0xb4c1cc395450c715;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xb4c542246c520071	{25cf0df4f4e96348}5.min_points	0x14358dfd0	0x14358e608	L1	gamedb	imm:0xb4c542246c520071;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xb4ee1099ea7da521	?	0x1445d54e0	0x1445d54f1	L1	gamedb	imm:0xb4ee1099ea7da521;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
-0xb53ba356de3a5137	?	0x1435b6c60	0x1435b6fac	L1	gamedb	imm:0xb53ba356de3a5137;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
+0xb53ba356de3a5137	rules.multiple_warnings.accumulated_time.penalty_level_0.level	0x1435b6c60	0x1435b6fac	L1	gamedb	imm:0xb53ba356de3a5137;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites | name cracked (fnv1a64 exact, present in gamedatabases.2025.bin), stock 3
 0xb58a9715a7e90104	?	0x142bf1b50	0x142bf20dd	L1	gamedb	imm:0xb58a9715a7e90104;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xb5b15c00d74be673	?	0x142d26b90	0x142d26bfc	L1	gamedb	imm:0xb5b15c00d74be673;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xb600e4b33c43229e	?	0x143595a10	0x143595d99	L1	gamedb	imm:0xb600e4b33c43229e;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
@@ -1004,7 +1004,7 @@ key	path	reader	sites	level	subsystem	evidence	notes
 0xe72381da608d49b1	?	0x1435ae950	0x1435aebcc	L1	gamedb	imm:0xe72381da608d49b1;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xe7abeb68cfb6e54d	?	0x1435bf150	0x1435bfc09	L1	gamedb	imm:0xe7abeb68cfb6e54d;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xe7bb9066db1cc789	?	0x1427b13f0	0x1427b1d6f	L1	gamedb	imm:0xe7bb9066db1cc789;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
-0xe86e820306367474	?	0x1435b6c60	0x1435b6d59	L1	gamedb	imm:0xe86e820306367474;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
+0xe86e820306367474	rules.multiple_warnings.penalty_frequency	0x1435b6c60	0x1435b6d59	L1	gamedb	imm:0xe86e820306367474;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites | name cracked (fnv1a64 exact, present in gamedatabases.2025.bin), stock 3
 0xe8a7918bdd5ac56c	{b562d06d2e5be592}5.level_4_incidents_accumulation	0x143575df0	0x1435765d8	L1	gamedb	imm:0xe8a7918bdd5ac56c;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xe8cece9277cb1038	?	0x1411012a0	0x14110145d	L1	gamedb	imm:0xe8cece9277cb1038;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
 0xe903f17695093585	?	0x1436a9270	0x1436a9de5	L1	gamedb	imm:0xe903f17695093585;doc:work/exe/db_key_immediates.txt	64-bit immediate equal to the key hash at the listed sites
