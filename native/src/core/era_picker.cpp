@@ -608,10 +608,48 @@ bool box_list(const std::string &name)
     return false;
 }
 
+uint8_t *resolved_esm(uintptr_t setup, uint8_t *esm)
+{
+    uint8_t id = 0;
+    uintptr_t slots = 0, meta = 0, mask = 0;
+    if (!esm || !mem::read(reinterpret_cast<uintptr_t>(esm), id) || !mem::read(setup + logic::MGR_OVERRIDE_MASK, mask) ||
+        !mask || !mem::read(setup + logic::MGR_OVERRIDES, slots) || !mem::read(setup + logic::MGR_OVERRIDE_META, meta) ||
+        !slots || meta < slots || (meta - slots) % logic::OVERRIDE_SLOT)
+        return esm;
+    size_t count = (meta - slots) / logic::OVERRIDE_SLOT;
+    if (count > logic::MAX_OVERRIDE_SLOTS || !mem::readable(reinterpret_cast<void *>(slots), count * logic::OVERRIDE_SLOT) ||
+        !mem::readable(reinterpret_cast<void *>(meta), count))
+        return esm;
+    auto *to = static_cast<uint8_t *>(const_cast<void *>(logic::override_for(
+        id, reinterpret_cast<const uint8_t *>(slots), reinterpret_cast<const uint8_t *>(meta), count)));
+    return to ? to : esm;
+}
+
+std::vector<uint32_t> pool_refs(uint32_t pools)
+{
+    std::vector<uint32_t> refs;
+    uintptr_t slot = swofty::api ? swofty::api->resolve("g_Game_Manager") : 0, gm = 0, es = 0;
+    if (!slot || !mem::read(slot, gm) || !gm || !mem::read(gm + logic::GM_ENTRANTS_SYSTEM, es) || !es)
+        return refs;
+    for (auto [bit, off] : {std::pair<uint32_t, size_t>{logic::TAKES_POOL_A, logic::ES_POOL_A},
+                            std::pair<uint32_t, size_t>{logic::TAKES_POOL_B, logic::ES_POOL_B}}) {
+        uintptr_t pool = 0, begin = 0, end = 0;
+        if (!(pools & bit) || !mem::read(es + off, pool) || !pool || !mem::read(pool + 8, begin) ||
+            !mem::read(pool + 0x10, end) || end < begin || (end - begin) / 0x10 > logic::MAX_POOL)
+            continue;
+        for (uintptr_t e = begin; e < end; e += 0x10) {
+            uintptr_t at_ref = 0;
+            uint32_t ref = 0;
+            if (mem::read(e + 8, at_ref) && at_ref && mem::read(at_ref, ref))
+                refs.push_back(ref);
+        }
+    }
+    return refs;
+}
+
 void time_trial_budget(void *mode, uintptr_t setup)
 {
     static uint32_t logged;
-    static std::string last_line;
     uintptr_t selected = 0;
     uint8_t board = 0;
     if (!mem::read(setup + SELECTED_LIST, selected) || !selected || !leaderboard_of(reinterpret_cast<void *>(selected), board))
@@ -625,21 +663,29 @@ void time_trial_budget(void *mode, uintptr_t setup)
         return;
     std::vector<LeaderboardList> found{{reinterpret_cast<void *>(selected), {}}};
     std::vector<bool> addon{false};
+    uint32_t pools = 0;
     for (auto **p = at<uint8_t **>(vec, 8), **e = at<uint8_t **>(vec, 0x10); p != e; ++p) {
         const char *gsm = name_of(*p, SETUP_MODE_NAME);
         bool host = gsm && !strcmp(gsm, logic::HOST);
         int64_t n = at<int64_t>(*p, ENTRANT_SETUP_COUNT);
         auto **esms = reinterpret_cast<uint8_t **>(*p + ENTRANT_SETUPS);
         for (int64_t k = 0; k < n && k < ENTRANT_SETUP_SLOTS; ++k) {
-            uint8_t *esm = esms[k];
+            uint8_t *esm = resolved_esm(setup, esms[k]);
             int64_t count = 0;
+            uint32_t player = 0, second = 0;
             if (!esm || !mem::read(reinterpret_cast<uintptr_t>(esm) + LIST_COUNT, count) || count <= 0 ||
                 count > int64_t(LIST_SLOTS))
                 continue;
+            mem::read(reinterpret_cast<uintptr_t>(esm) + logic::ESM_VEHICLE_FLAGS, player);
+            mem::read(reinterpret_cast<uintptr_t>(esm) + logic::ESM_VEHICLE_FLAGS + 4, second);
+            uint32_t takes = logic::vehicle_flags(player, second);
             auto **lists = reinterpret_cast<void **>(esm + LISTS);
             for (int64_t i = 0; i < count; ++i) {
                 uint8_t id = 0;
                 if (!leaderboard_of(lists[i], id) || id != board)
+                    continue;
+                pools |= takes & (logic::TAKES_POOL_A | logic::TAKES_POOL_B);
+                if (!(takes & logic::TAKES_LIST) && lists[i] != reinterpret_cast<void *>(selected))
                     continue;
                 size_t at_found = found.size();
                 for (size_t f = 0; f < found.size(); ++f)
@@ -664,14 +710,26 @@ void time_trial_budget(void *mode, uintptr_t setup)
         l.refs = vehicle_refs(found[f].list);
         lists.push_back(std::move(l));
     }
+    if (pools) {
+        logic::TtList pool;
+        pool.name = "entrants system pools";
+        pool.fixed = true;
+        pool.refs = pool_refs(pools);
+        lists.push_back(std::move(pool));
+    }
     auto budget = logic::time_trial_budget(lists);
+    size_t unrecorded = 0;
     for (size_t d : budget.dropped)
         for (const auto &slot : found[d].slots) {
             bool known = false;
             for (size_t i = 0; i < narrowed_count; ++i)
                 known = known || (narrowed[i].time_trial && narrowed[i].setup == slot.setup &&
                                   narrowed[i].kept == at<int64_t>(slot.setup, LIST_COUNT));
-            if (!known && narrowed_count < std::size(narrowed)) {
+            if (!logic::cut_recordable(narrowed_count, std::size(narrowed), known)) {
+                unrecorded++;
+                continue;
+            }
+            if (!known) {
                 Narrowed &n = narrowed[narrowed_count++];
                 n.setup = slot.setup;
                 n.count = at<int64_t>(slot.setup, LIST_COUNT);
@@ -693,10 +751,12 @@ void time_trial_budget(void *mode, uintptr_t setup)
                     break;
                 }
         }
-    std::string line = logic::time_trial_budget_line(lists, budget, board);
-    if (line != last_line && logged++ < LOG_FIRST * 2)
-        swofty::log("[era] %s", line.c_str());
-    last_line = line;
+    if (unrecorded)
+        swofty::log("[era] Time Trial cut skipped in %zu entrant setup mode(s): the core's restore stack of %zu is full, "
+                    "so those lists stay offered",
+                    unrecorded, std::size(narrowed));
+    if (logged++ < LOG_FIRST * 3)
+        swofty::log("[era] %s", logic::time_trial_budget_line(lists, budget, board).c_str());
 }
 
 bool skip_once(const std::string &key)
@@ -1080,9 +1140,9 @@ void drop_setup_pointers()
         p.held = holding;
         holding = false;
         held = {};
+        p.narrowed = narrowed_count;
+        narrowed_count = 0;
     }
-    p.narrowed = narrowed_count;
-    narrowed_count = 0;
     p.drs = drs.forget();
     last_drs_line.clear();
     std::string line = logic::availability_drop_line(p);
@@ -1146,11 +1206,20 @@ void era_session_trace(const char *state, int to)
 
 void era_session_end()
 {
+    std::lock_guard<std::mutex> g(held_lock);
+    put_back();
+}
+
+void era_session_unloaded(const char *state, int to)
+{
     static uint32_t logged;
+    if (!state || !logic::time_trial_cut_off(state, to))
+        return;
     std::lock_guard<std::mutex> g(held_lock);
     if (size_t n = restore_time_trial_lists(); n && logged++ < LOG_FIRST)
-        swofty::log("[era] the Time Trial session unloads: %s's lists are back in %zu entrant setup mode(s)", logic::HOST, n);
-    put_back();
+        swofty::log("[era] StateUnloadSession Exiting: the lists the Time Trial guards left out are back in %zu entrant "
+                    "setup mode(s)",
+                    n);
 }
 
 std::vector<CoreMixins> era_mixins()

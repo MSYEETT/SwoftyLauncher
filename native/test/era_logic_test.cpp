@@ -424,8 +424,42 @@ int main()
                "entrants without a vehicle ref (0x3fff) take no slot");
         std::string bl = era::time_trial_budget_line({custom, f1_2025, bdx}, with_2012, 3);
         expect(bl == "the Time Trial session's list f1_custom_team (leaderboard 3) draws 11 cars from 2 list(s) of its leaderboard; "
-                     "with the game's 4 entries 15 of the 26-slot vehicle table; left out until the session ends: bdx_s5_2012 (12 cars)",
+                     "with the game's 4 entries 15 of the 26-slot vehicle table; left out until the session unloads: bdx_s5_2012 (12 cars)",
                "the budget line names the list, leaderboard, cars, vehicles and what it left out (" + bl + ")");
+        {
+            alignas(8) uint8_t slots[4 * era::OVERRIDE_SLOT] = {};
+            uint8_t meta[4] = {0, 3, 0, 5};
+            int base = 0, f1_custom_team = 0, other = 0;
+            slots[1 * era::OVERRIDE_SLOT] = 9;
+            *reinterpret_cast<void **>(slots + 1 * era::OVERRIDE_SLOT + 8) = &f1_custom_team;
+            slots[3 * era::OVERRIDE_SLOT] = 12;
+            *reinterpret_cast<void **>(slots + 3 * era::OVERRIDE_SLOT + 8) = &other;
+            slots[0] = 7;
+            *reinterpret_cast<void **>(slots + 8) = &base;
+            expect(era::override_for(9, slots, meta, 4) == &f1_custom_team && era::override_for(12, slots, meta, 4) == &other,
+                   "an entrant setup mode with an override row is swapped for its override, as slot 0x1d8 does");
+            expect(!era::override_for(7, slots, meta, 4) && !era::override_for(8, slots, meta, 4),
+                   "a slot whose metadata byte is 0 is empty, so stale key bytes there match nothing; no row, no swap");
+            expect(!era::override_for(9, nullptr, meta, 4) && !era::override_for(9, slots, meta, era::MAX_OVERRIDE_SLOTS + 1),
+                   "an unread or over-long override map swaps nothing");
+        }
+        expect(era::ref_key(0x02a5001fu) == era::ref_key(0x02a5ff1fu) && era::ref_key(0x02a5001fu) != era::ref_key(0x02a60020u),
+               "vehicle refs are the same car when byte +0 and the u16 +2 match, whatever byte +1 holds");
+        era::TtList pool{"entrants system pools", false, false, refs(1, 3)};
+        pool.fixed = true;
+        pool.refs.push_back(60u << 16);
+        auto with_pool = era::time_trial_budget({custom, pool, bdx});
+        expect(with_pool.cars == 12 && with_pool.dropped == std::vector<size_t>{2},
+               "entrants system pool refs always count (11 + 1 new) and never leave; the 12-car list still does");
+        std::string pl = era::time_trial_budget_line({custom, pool, bdx}, with_pool, 3);
+        expect(pl.find("from 1 list(s) of its leaderboard and the entrants system pools (4)") != std::string::npos &&
+                   pl.find("16 of the 26-slot") != std::string::npos,
+               "the budget line names the pools and their cars (" + pl + ")");
+        expect(era::vehicle_flags(era::TAKES_LIST, 0) == era::TAKES_LIST &&
+                   era::vehicle_flags(0, era::TAKES_POOL_A) == era::TAKES_POOL_A && era::vehicle_flags(0, 0) == 0,
+               "the fill's human record reads the player or the second player flag word, so both are taken together");
+        expect(era::cut_recordable(15, 16, false) && !era::cut_recordable(16, 16, false) && era::cut_recordable(16, 16, true),
+               "a cut needs a free restore slot, or an entry already holding that mode; with the stack full it is skipped");
         expect(era::LIST_LEADERBOARD == 0xe0 && era::LIST_LEADERBOARD_SET == 0xf0 && era::ENTRANT_VEHICLE == 0x5c &&
                    era::TT_ROOM == 22,
                "a list's leaderboard is +0xe0 (engaged +0xf0), an entrant's vehicle ref +0x5c, and 22 cars fit beside the 4 entries");
@@ -433,10 +467,16 @@ int main()
         expect(era::trace_flow("StateLoadSession", 1) && era::trace_flow("StateLoadSession", 2) &&
                    era::trace_flow("StateLoadSession", 3) && era::trace_flow("StateSession", 1),
                "the session trace runs at StateLoadSession Entering, Updating and Exiting and at StateSession Entering");
+        expect(era::trace_flow("StateSession", 3) && era::trace_flow("StateUnloadSession", 1) &&
+                   era::trace_flow("StateUnloadSession", 2) && era::trace_flow("StateUnloadSession", 3),
+               "a restart or retry is traced too: StateSession Exiting and every StateUnloadSession step");
         expect(!era::trace_flow("StateLoadSession", 0) && !era::trace_flow("StateSession", 2) &&
-                   !era::trace_flow("StateSession", 3) && !era::trace_flow("StateUnloadSession", 1) &&
-                   !era::trace_flow("#957880c6", 1) && !era::trace_flow("", 1),
-               "no trace when a state leaves, on a session's later steps, at unload or on menu flows");
+                   !era::trace_flow("StateUnloadSession", 0) && !era::trace_flow("#957880c6", 1) && !era::trace_flow("", 1),
+               "no trace when a state leaves, while a session runs or on menu flows");
+        expect(era::time_trial_cut_off("StateUnloadSession", 3) && !era::time_trial_cut_off("StateUnloadSession", 1) &&
+                   !era::time_trial_cut_off("StateUnloadSession", 2) && !era::time_trial_cut_off("StateSession", 3) &&
+                   !era::time_trial_cut_off("StateLoadSession", 3),
+               "the Time Trial cut comes off at StateUnloadSession Exiting, after the onStateEnter keep check, not at Entering");
         uintptr_t d = 0x200000;
         expect(era::participant_count(d, d + 27 * era::PARTICIPANT) == 27 && era::participant_count(d, d) == 0,
                "a descriptor's participants count in 0x6780-byte steps");

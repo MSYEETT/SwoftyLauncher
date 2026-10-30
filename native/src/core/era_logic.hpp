@@ -191,7 +191,55 @@ struct TtList {
     std::string name;
     bool selected = false, addon = false;
     std::vector<uint32_t> refs;
+    bool fixed = false;
 };
+
+// The fill dedupes vehicle refs by their byte +0 and u16 +2 (0x1424a1c20), so byte +1 is not part of the key.
+inline uint32_t ref_key(uint32_t ref)
+{
+    return ref & 0xffff00ffu;
+}
+
+// Entrant setup mode overrides (the game mode's EntrantSetupModeOverride rows): the fill gets each game setup mode's
+// entrant setup modes through EntrantsManager slot 0x1d8 (body 0x1485b5280), which copies gsm +0x10 (count +0x70)
+// and swaps every mode whose stat id byte +0 has an entry in the flat map at manager +0xfd8: slots of 0x10 bytes
+// from +0xfe0 to the metadata bytes at +0xfe8 (key byte +0, override at +8), mask +0xff8 (0 = empty map). A slot is
+// in use when its metadata byte is not 0; keys are unique, so a scan finds what the game's probe finds.
+constexpr size_t MGR_OVERRIDES = 0xfe0;
+constexpr size_t MGR_OVERRIDE_META = 0xfe8;
+constexpr size_t MGR_OVERRIDE_MASK = 0xff8;
+constexpr size_t OVERRIDE_SLOT = 0x10;
+constexpr size_t MAX_OVERRIDE_SLOTS = 1024;
+
+inline const void *override_for(uint8_t id, const uint8_t *slots, const uint8_t *meta, size_t count)
+{
+    if (!slots || !meta || count > MAX_OVERRIDE_SLOTS)
+        return nullptr;
+    for (size_t i = 0; i < count; ++i)
+        if (meta[i] && slots[i * OVERRIDE_SLOT] == id)
+            return *reinterpret_cast<void *const *>(slots + i * OVERRIDE_SLOT + 8);
+    return nullptr;
+}
+
+// 0x1424a1c20 takes a list's own records when the mode's flag word +0x258 + idx * 4 has bit 0 (idx 0 or 1 for the
+// fill's human record), every ref of the entrants system pool +0x338 with bit 1 and of +0x348 with bit 2.
+constexpr size_t ESM_VEHICLE_FLAGS = 0x258;
+constexpr uint32_t TAKES_LIST = 1, TAKES_POOL_A = 2, TAKES_POOL_B = 4;
+constexpr size_t ES_POOL_A = 0x338;
+constexpr size_t ES_POOL_B = 0x348;
+constexpr size_t GM_ENTRANTS_SYSTEM = 0x290;
+constexpr size_t MAX_POOL = 512;
+
+inline uint32_t vehicle_flags(uint32_t player, uint32_t second_player)
+{
+    return player | second_player;
+}
+
+// A cut is made only where the restore stack can record it, or where an entry for that mode already does.
+inline bool cut_recordable(size_t used, size_t capacity, bool known)
+{
+    return known || used < capacity;
+}
 
 struct TtBudget {
     std::vector<size_t> dropped;
@@ -205,16 +253,16 @@ inline TtBudget time_trial_budget(const std::vector<TtList> &lists, size_t room 
     std::vector<size_t> order(lists.size());
     for (size_t i = 0; i < order.size(); ++i)
         order[i] = i;
-    auto rank = [&](size_t i) { return lists[i].selected ? 0 : lists[i].addon ? 2 : 1; };
+    auto rank = [&](size_t i) { return lists[i].selected || lists[i].fixed ? 0 : lists[i].addon ? 2 : 1; };
     std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) { return rank(a) < rank(b); });
     std::vector<uint32_t> have;
     TtBudget out;
     for (size_t i : order) {
         std::vector<uint32_t> next = have;
         for (uint32_t r : lists[i].refs)
-            if (vehicle_ref_set(r) && std::find(next.begin(), next.end(), r) == next.end())
-                next.push_back(r);
-        if (lists[i].selected || next.size() <= room)
+            if (vehicle_ref_set(r) && std::find(next.begin(), next.end(), ref_key(r)) == next.end())
+                next.push_back(ref_key(r));
+        if (lists[i].selected || lists[i].fixed || next.size() <= room)
             have = std::move(next);
         else
             out.dropped.push_back(i);
@@ -228,23 +276,31 @@ inline size_t distinct_cars(const std::vector<uint32_t> &refs)
 {
     std::vector<uint32_t> d;
     for (uint32_t r : refs)
-        if (vehicle_ref_set(r) && std::find(d.begin(), d.end(), r) == d.end())
-            d.push_back(r);
+        if (vehicle_ref_set(r) && std::find(d.begin(), d.end(), ref_key(r)) == d.end())
+            d.push_back(ref_key(r));
     return d.size();
 }
 
 inline std::string time_trial_budget_line(const std::vector<TtList> &lists, const TtBudget &b, unsigned leaderboard)
 {
     std::string selected = "?";
-    for (const auto &l : lists)
-        if (l.selected)
-            selected = l.name;
+    size_t kept = 0, pool = 0;
+    for (size_t i = 0; i < lists.size(); ++i) {
+        if (lists[i].selected)
+            selected = lists[i].name;
+        if (lists[i].fixed)
+            pool += distinct_cars(lists[i].refs);
+        else if (std::find(b.dropped.begin(), b.dropped.end(), i) == b.dropped.end())
+            kept++;
+    }
     std::string line = "the Time Trial session's list " + selected + " (leaderboard " + std::to_string(leaderboard) +
-                       ") draws " + std::to_string(b.cars) + " cars from " + std::to_string(lists.size() - b.dropped.size()) +
-                       " list(s) of its leaderboard; with the game's " + std::to_string(TT_OWN_ENTRIES) + " entries " +
+                       ") draws " + std::to_string(b.cars) + " cars from " + std::to_string(kept) +
+                       " list(s) of its leaderboard" +
+                       (pool ? " and the entrants system pools (" + std::to_string(pool) + ")" : std::string()) +
+                       "; with the game's " + std::to_string(TT_OWN_ENTRIES) + " entries " +
                        std::to_string(b.cars + TT_OWN_ENTRIES) + " of the " + std::to_string(TT_TABLE) + "-slot vehicle table";
     if (!b.dropped.empty()) {
-        line += "; left out until the session ends:";
+        line += "; left out until the session unloads:";
         for (size_t k = 0; k < b.dropped.size(); ++k) {
             const auto &l = lists[b.dropped[k]];
             line += std::string(k ? "," : "") + " " + l.name + " (" + std::to_string(distinct_cars(l.refs)) + " cars" +
@@ -321,11 +377,20 @@ constexpr size_t GM_MODULE = 0x140;
 constexpr size_t MODULE_SESSION = 0x1a8;
 constexpr size_t MODULE_SESSION_NEXT = 0x198;
 constexpr size_t MAX_PARTICIPANTS = 64;
-constexpr uint32_t TRACE_LINES = 40;
+constexpr uint32_t TRACE_LINES = 120;
 
 inline bool trace_flow(std::string_view state, int to)
 {
-    return (state == "StateLoadSession" && to >= 1 && to <= 3) || (state == "StateSession" && to == 1);
+    return ((state == "StateLoadSession" || state == "StateUnloadSession") && to >= 1 && to <= 3) ||
+           (state == "StateSession" && (to == 1 || to == 3));
+}
+
+// The Time Trial cut stays through StateSession onStateExit and StateUnloadSession onStateEnter, whose loader keep
+// checks (0x1436f8340, 0x143709970 -> 0x142d48040) fill a temporary descriptor and compare it with the live one; it
+// comes off at StateUnloadSession Exiting.
+inline bool time_trial_cut_off(std::string_view state, int to)
+{
+    return state == "StateUnloadSession" && to == 3;
 }
 
 inline int64_t participant_count(uintptr_t begin, uintptr_t end)

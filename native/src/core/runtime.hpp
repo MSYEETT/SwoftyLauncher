@@ -143,6 +143,7 @@ void era_commit();
 void era_session_load();
 void era_session_end();
 void era_session_trace(const char *state, int to);
+void era_session_unloaded(const char *state, int to);
 std::vector<CoreMixins> tt_guard_mixins();
 void tt_guard_commit();
 std::vector<CoreMixins> car_category_mixins();
