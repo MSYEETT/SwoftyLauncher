@@ -2567,6 +2567,7 @@ pub type Sess_Record_GroupTimes_t =
 pub type Sess_RedFlagRaceStrategy_Enter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
 pub type Sess_RedFlagRaceStrategy_Update_t =
     unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_Register_RaceRecordables_t = unsafe extern "C" fn(game: *mut c_void);
 pub type Sess_RuleManager_Initialise_t =
     unsafe extern "C" fn(self_: *mut c_void, systems: *mut c_void, components: *mut c_void) -> u32;
 pub type Sess_Rules_IsPracticeQualifying_t =
@@ -3524,6 +3525,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Recordable_Register: Binding = Binding {
+        id: "Sess_Recordable_Register",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_RedFlagRaceStrategy_Enter: Binding = Binding {
         id: "Sess_RedFlagRaceStrategy_Enter",
         kind: "func",
@@ -3536,6 +3542,11 @@ pub mod bindings {
     };
     pub const Sess_RedFlagSystem_Deploy: Binding = Binding {
         id: "Sess_RedFlagSystem_Deploy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Register_RaceRecordables: Binding = Binding {
+        id: "Sess_Register_RaceRecordables",
         kind: "func",
         status: Status::Experimental,
     };

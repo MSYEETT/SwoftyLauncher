@@ -77107,6 +77107,150 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "session.recordable_register",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 97 0F 8D ?? ?? ?? ?? 3E AF E9",
+   "match": "0x1445cce80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445cce80",
+   "kind": "func_start",
+   "names": [
+    "Sess_Recordable_Register"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.register_race_recordables",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 58 48 89 CE 48 8B 79 30",
+   "match": "0x140802dc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140802dc0",
+   "kind": "func_start",
+   "names": [
+    "Sess_Register_RaceRecordables"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.view_instant_replay_update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 54 56 57 55 53 48 81 EC 90 00 00 00 C5 F8 29 B4 24 80 00 00 00 48 89 D6",
+   "match": "0x142da2760",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142da2760",
+   "kind": "func_start",
+   "names": [
+    "Sess_ViewInstantReplay_Update"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.replay_truncate_on_jump_in",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 28 48 89 CE 48 8B B9 C0 00 00 00",
+   "match": "0x1445cd2a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1445cd2a0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Truncate_ReplayOnJumpIn"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.subscribe_bus_message",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC A8 00 00 00 C5 F8 29 BC 24 90 00 00 00 C5 F8 29 B4 24 80 00 00 00 4C 89 C3 48 89 D7 49 89 CC",
+   "match": "0x143987810",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143987810",
+   "kind": "func_start",
+   "names": [
+    "Ne_Subscribe_BusMessage"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "session.restart_session_systems",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 28 48 89 CE 48 8B 81 80 00 00 00",
+   "match": "0x14080cd30",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14080cd30",
+   "kind": "func_start",
+   "names": [
+    "Sess_Restart_SessionSystems"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
   }
  ]
 }

@@ -1788,3 +1788,11 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	sd-verify	func	Sess_ScCond_ReturnVsc_Update	L2	partial	xref:0x14363a4b0	V1796 D5; extra return conditions
 2026-10-29	sd-verify	func	Sess_ScCond_MaxLapsCompleted_Read	L2	agree	xref:0x145853c80	V1797 D6
 2026-10-29	sd-verify	func	Sess_ScCond_DynamicObstruction_Update	L2	agree	xref:0x143631bd0	V1798 D7
+2026-10-29	fb-verify	func	Sess_Recordable_Register	L2	agree	xref:0x140802dc0	V1799 C1 94 hub calls of 121; C7 setup data recordable
+2026-10-29	fb-verify	func	Sess_ViewInstantReplay_Update	L2	partial	xref:0x1457e3948	V1800 C2 snapshot-commit claim disagreed; row states the verifier reading
+2026-10-29	fb-verify	func	Ne_ReplaySystem_OnJumpIn_Body	L2	partial	xref:0x154f6ed24	V1801 C3 chain confirmed; restore lives in the recordables
+2026-10-29	fb-verify	func	Ne_Truncate_ReplayOnJumpIn	L2	partial	xref:0x154f6ed24	V1802 C3 truncate + buffer vt+8 + system vt+0x50, no deserialise
+2026-10-29	fb-verify	func	Ne_Subscribe_BusMessage	L2	partial	xref:0x142da2a3a	V1803 C4 subscribe agree; bus = *(*(0x14618b3b8)+8)
+2026-10-29	fb-verify	func	Sess_Restart_SessionSystems	L2	partial	xref:0x142d892d0	V1804 C6 behaviour agree, class name not provable
+2026-10-29	fb-verify	global	vt_Game_MessageFlashbackUsed	L1	agree	xref:0x142da2a3a	V1805 C5 getName 0x142c88930
+2026-10-29	fb-verify	func	Sess_Register_RaceRecordables	L2	agree	xref:0x1407f7320	V1806 C1 94 registrations (hub_names.txt)
