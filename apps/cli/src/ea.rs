@@ -59,6 +59,14 @@ fn handoff(store: &Store) -> Option<Handoff> {
     ea_app::handoff(store.config().launch.ea_launch_command.as_deref())
 }
 
+/// Whether a session puts offline play's file in EA AntiCheat's launcher's
+/// place. The EA app runs that launcher to start F1 25 and asks to repair
+/// F1 25 when another file is there, so a vanilla session through the EA
+/// app leaves it as installed.
+pub fn stages_offline(via_ea: bool, vanilla: bool) -> bool {
+    !(via_ea && vanilla)
+}
+
 /// An EA app copy needs the EA app: start it when it is closed and wait for
 /// it, as Steam is for a Steam copy. On Linux the launch.ea_launch_command
 /// setting, run without a link, starts it; a command that needs the link
@@ -289,6 +297,9 @@ pub fn start(store: &Store, game: &Path, args: &[String], session: &Path, before
 /// Play and tell the player.
 fn restage(store: &Store) {
     let journal = offline::journal_path(&store.root);
+    if matches!(offline::slot(&journal), Ok(None)) {
+        return;
+    }
     let done = offline::artifacts(&store.root).and_then(|a| offline::restage(&a, &journal));
     match done {
         Ok(Some(Slot::Staged) | None) => {}
@@ -456,6 +467,14 @@ mod tests {
             polls.get() > 3
         };
         assert_eq!(wait_for_app(&mut child, timed_out), AppStart::TimedOut);
+    }
+
+    #[test]
+    fn a_vanilla_session_through_the_ea_app_leaves_the_anti_cheat_launcher_alone() {
+        assert!(!stages_offline(true, true));
+        assert!(stages_offline(true, false));
+        assert!(stages_offline(false, true));
+        assert!(stages_offline(false, false));
     }
 
     #[cfg(unix)]
