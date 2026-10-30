@@ -1674,3 +1674,10 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	dcso-verify	func	Car_PadAssist_DriftAssist	L2	agree	decomp:re/decomp/1447546c0.c;xref:0x1447552bc	V1682 claim 14 static scan, indirect writes not excluded
 2026-10-28	sp-verify	func	Car_Setup_ApplyTuning	L2	agree	decomp:re/decomp/140c11550.c;xref:0x140c12854	V1683 claim 2; bits 17/18 together
 2026-10-28	gb-verify	func	Car_Contact_QueryWheels	L2	agree	decomp:re/decomp/1446d8cf0.c;xref:0x1446daef4	V1684 claim 1 depth/bumps on wheel+0x254
+2026-10-28	tr-verify	func	Car_Physics_PreAdvance	L1	agree	xref:0x14464252c	V1685 tr-verify: 'prePhysicsAdvance update' ref inside 0x144641610
+2026-10-28	tr-verify	func	Game_PhysicsUpdateStage_Update	L1	agree	xref:0x1444cfc8c	V1686 tr-verify: [0x145a8f960] = 0x14445aea0 = slot 10; 'Car advanceStage' 0x1446428b0, 'postPhysicsVehicleUpdate' 0x144642b53
+2026-10-28	tr-verify	func	Car_Chassis_Build	L1	agree	xref:0x14462979a,0x144629912,0x1446288bf	V1687 tr-verify: phase loop 0..6 call [rax+0x28], lists +0x4f8.., mov [rdi+0x5f0],rdi
+2026-10-28	tr-verify	func	Hud_MfdVm_RefreshPanelAvailability	L1	partial	xref:0x1414f641c	V1688 tr-verify: binder maps holders 0x440..0x4e0; 0x1414f70b0 loads holder pointers and calls setter 0x140973e20 (6 calls), no direct store
+2026-10-28	tr-verify	func	Car_GearBox_GetClutchSlipping	L1	agree	xref:0x1446a6090,0x1446e399b	V1689 tr-verify: cmp byte [rcx+0x694],0 -> 0.0/1.0; mov byte [rsi+0x538],1
+2026-10-28	dcso-verify	func	Car_Physics_PreAdvance	L2	agree	decomp:re/decomp/144641610.c;xref:0x144641dd0	V1690 claim 1 wake reset 1.0 + length max(0.1, 2|v.fwd|)
+2026-10-28	dcso-verify	func	Car_Physics_PreAdvance	L2	partial	decomp:re/decomp/144641610.c;xref:0x1446423b6	V1691 claim 2: s = 8/W clamped [1,80], f = 0 when x > 1
