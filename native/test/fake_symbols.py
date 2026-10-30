@@ -8,7 +8,8 @@ off = lambda r: next(r - va + rp for vs, va, rs, rp in secs if va <= r < va + ma
 e = off(struct.unpack_from('<I', d, pe + 24 + 112)[0])
 count, funcs, names, ords = struct.unpack_from('<IIII', d, e + 24)
 want = {b'fake_crash': 'Fake_Crash_Here', b'fake_heap_free': 'Fake_Heap_Free',
-        b'fake_acclim_refresh': 'Game_PracticeTrackAcclimatisation_RefreshState'}
+        b'fake_acclim_refresh': 'Game_PracticeTrackAcclimatisation_RefreshState',
+        b'fake_acclim_flag': 'Game_PracticeTrackAcclimatisation_FlagCurrentTarget'}
 rows = []
 for i in range(count):
     name = d[off(struct.unpack_from('<I', d, off(names) + 4 * i)[0]):].split(b'\0')[0]

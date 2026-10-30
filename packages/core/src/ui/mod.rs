@@ -934,7 +934,7 @@ fn car_category_boxes(
             ],
             Vec::new(),
         )?;
-        std::fs::rename(&tmp, &dst).map_err(io_err(&dst))?;
+        swofty_formats::erp::replace(&tmp, &dst).map_err(io_err(&dst))?;
         written.push(rel);
     }
     if written.is_empty() {
