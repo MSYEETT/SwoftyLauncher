@@ -727,6 +727,7 @@ fn fake_agent(game: PathBuf, play: AgentPlay) -> std::thread::JoinHandle<Vec<Str
                     }
                     "run_test" => r#""status":"error","error":"1 expectation failed","value":{"expects":[{"ok":true,"what":"on the hub"},{"ok":false,"what":"the R&D tab is hidden"}]}"#.to_owned(),
                     "quit" => r#""status":"ok""#.to_owned(),
+                    "home" => r#""status":"ok","value":{"home":true,"notice_presses":1}"#.to_owned(),
                     _ => r#""status":"unavailable","error":"the car struct is not bound in this build""#.to_owned(),
                 };
                 out(format!(r#"{{"seq":{seq},{reply},"ms":1}}"#));
@@ -1359,13 +1360,72 @@ fn the_title_falls_back_to_the_pad_only_when_the_agent_cannot_pass_it() {
         "the title command comes first"
     );
     assert!(
-        same_command(&seen[1], "pad", r#"{"ms":150,"press":"a"}"#),
+        same_command(&seen[1], "pad", r#"{"ms":250,"press":"a"}"#),
         "the pad only after the title answered unavailable"
     );
+
     assert_eq!(
         seen.iter().filter(|c| c.starts_with("title")).count(),
         1,
         "title is sent once"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn a_boot_batch_waits_for_the_home_screen() {
+    let root = temp("boot-home");
+    let (data, game, out) = (root.join("data"), root.join("game"), root.join("out"));
+    std::fs::create_dir_all(&game).unwrap();
+    let store = Store::new(&data);
+    let s = suite::parse(
+        r#"{"schema":1,"suite":"me.t","tests":[{"id":"menu","env":{"kind":"boot"},"assert":[{"no_crash":true}]}]}"#,
+        Path::new("tests/t.test.json"),
+        None,
+    )
+    .unwrap();
+    let plan = plan::plan(&[s], &Selector::default());
+    let mut fake = Fake {
+        scripts: vec![AGENT_GAME],
+        root: root.clone(),
+        game: game.clone(),
+        launches: Vec::new(),
+        envs: Vec::new(),
+    };
+    let agent_thread = fake_agent(
+        game.clone(),
+        AgentPlay {
+            title_unbound: true,
+            ..AgentPlay::default()
+        },
+    );
+    let mut report = Report::new("r7", &out.display().to_string());
+    Harness {
+        store: &store,
+        game: &game,
+        out: &out,
+        profile: "test-r7",
+        launcher: &mut fake,
+        times: quick(),
+        run_id: "r7",
+        bases: BTreeMap::new(),
+        exe_sha: None,
+        live_saves: None,
+    }
+    .run(&plan, &mut report);
+    let seen = agent_thread.join().unwrap();
+    assert_eq!(
+        status_of(&report, "menu").status,
+        Status::Pass,
+        "{:#?}",
+        report.tests
+    );
+    let title = seen.iter().position(|c| c.starts_with("title"));
+    let home = seen.iter().position(|c| same_command(c, "home", "null"));
+    assert!(
+        title.is_some() && home.is_some() && title < home,
+        "a boot batch passes the title, then waits for the home screen: {seen:?}"
     );
     std::fs::remove_dir_all(&root).ok();
 }
