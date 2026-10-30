@@ -1704,3 +1704,18 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	sp-verify	func	Game_Read_QualifyingConfig	L2	agree	decomp:re/decomp/142e44b50.c;xref:0x142e4782c	V1712 claim 10 TrackPitData offsets
 2026-10-28	sp-verify	func	Game_PitStopLogic_NeSequenceClipTargetImpl	L2	agree	decomp:re/decomp/1403bbda0.c;xref:0x1403bc081	V1713 claim 11; idx >= 27 writes 1.0
 2026-10-28	sp-verify	func	Sess_Read_StopGoPenaltyConfig_Body	L2	agree	decomp:re/decomp/1507566f0.c;xref:0x150756813	V1714 claim 12
+2026-10-28	dcso-verify	func	Car_Contact_ModifyVehicle	L2	partial	decomp:re/decomp/142f04040.c;xref:0x142f043ae	V1715 claim 4: DRUB r' = 1+(r-1)*s, not r*s; 0.01/100 for state 3
+2026-10-28	gb-verify	func	Car_Contact_InstallBodyFilters	L1	partial	xref:0x142f0689c	V1716 claim 4; entry 0x142f06740; list confirmed, no HDG+/MDG+
+2026-10-28	gb-verify	func	Car_Contact_BodyLiftNormal	L2	partial	decomp:re/decomp/142f057a0.c;xref:0x142f06740	V1717 claim 4; normal = world up, chassis up only vs CARW/CARB
+2026-10-28	gb-verify	func	Game_AutoResetToTrack_StartTimer	L2	partial	decomp:re/decomp/142f01210.c;xref:0x142f03a30	V1718 claim 5; 0x142f03a30 only posts message; reason 15 target in .data1
+2026-10-28	gb-verify	func	Ai_BehaviourRecover_Evaluate	L1	agree	decomp:re/decomp/140653440.c	V1719 claim 6 no stuck/surface logic
+2026-10-28	gb-verify	func	Game_Game_RetireLocalPlayer	L2	agree	decomp:re/decomp/142cea5b0.c;xref:0x142cea230	V1720 claim 7
+2026-10-28	gb-verify	func	Game_Breakable_OnContact	L2	agree	decomp:re/decomp/14458bb90.c;xref:0x145bed8a8	V1721 claim 9
+2026-10-28	gb-verify	func	Game_Breakable_Activate	L2	partial	decomp:re/decomp/14458bc70.c;xref:0x145bed8a8	V1722 claim 10; pool full evicts farthest entry, not silent no-op
+2026-10-28	gb-verify	func	Ne_PhysBody_ApplyImpulse	L1	partial	decomp:re/decomp/1440c12e0.c	V1723 claim 13; +0x400 clamp only in angular branch
+2026-10-29	bt-verify	func	Car_Contact_ReadTunables	L2	partial	decomp:re/decomp/142f04ec0.c;xref:0x142f04040	V1724 claim 1; 12 slots, copies to 0x146081100..
+2026-10-29	bt-verify	func	Car_Contact_ModifyVehicle	L2	agree	decomp:re/decomp/142f04040.c;xref:0x142f0435c	V1725 claims 1/2 gates
+2026-10-29	bt-verify	func	Car_Contact_InstallBodyFilters	L2	agree	decomp:re/decomp/142f06740.c;xref:0x142f0689c	V1726 claim 3
+2026-10-29	bt-verify	func	Game_AutoResetToTrack_Init	L2	agree	decomp:re/decomp/142f00a70.c;xref:0x142f01210	V1727 claim 4
+2026-10-29	bt-verify	func	Game_PauseMenu_ResetToTrackCfg	L2	agree	decomp:re/decomp/142bb7020.c;xref:0x1457cb8c0	V1728 claim 5
+2026-10-29	bt-verify	func	Game_OffTrack_StuckMonitor	L2	agree	decomp:re/decomp/142521230.c;xref:0x144740efc	V1729 claim 7
