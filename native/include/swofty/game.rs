@@ -3498,6 +3498,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_MultipleWarningsPenalty_SendData: Binding = Binding {
+        id: "Sess_MultipleWarningsPenalty_SendData",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_PreRaceToRace_Update: Binding = Binding {
         id: "Sess_PreRaceToRace_Update",
         kind: "func",
@@ -3540,6 +3545,11 @@ pub mod bindings {
     };
     pub const Sess_Rules_IsPracticeQualifying: Binding = Binding {
         id: "Sess_Rules_IsPracticeQualifying",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCornerCuttingSettings: Binding = Binding {
+        id: "Sess_Rules_ReadCornerCuttingSettings",
         kind: "func",
         status: Status::Experimental,
     };

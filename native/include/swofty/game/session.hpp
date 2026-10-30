@@ -241,6 +241,7 @@ using Sess_Issue_TimePenalty_t = void(void *rules, uint8_t *incident, uint32_t r
 inline constexpr fn<"Sess_Issue_TimePenalty", Sess_Issue_TimePenalty_t> Sess_Issue_TimePenalty{}; // L2 experimental
 using Sess_Issue_Warning_t = void(void *rules, uint8_t *incident, uint32_t reason);
 inline constexpr fn<"Sess_Issue_Warning", Sess_Issue_Warning_t> Sess_Issue_Warning{}; // L2 experimental
+inline constexpr address<"Sess_MultipleWarningsPenalty_SendData"> Sess_MultipleWarningsPenalty_SendData{}; // L2 experimental
 using Sess_PreRaceToRace_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_PreRaceToRace_Update", Sess_PreRaceToRace_Update_t> Sess_PreRaceToRace_Update{}; // L2 experimental
 using Sess_PreRace_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
@@ -257,6 +258,7 @@ inline constexpr fn<"Sess_RuleManager_Initialise", Sess_RuleManager_Initialise_t
 inline constexpr address<"Sess_Rules_Disqualify"> Sess_Rules_Disqualify{}; // L2 experimental
 using Sess_Rules_IsPracticeQualifying_t = bool(void *owner_with_session_at_0x1b8);
 inline constexpr fn<"Sess_Rules_IsPracticeQualifying", Sess_Rules_IsPracticeQualifying_t> Sess_Rules_IsPracticeQualifying{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadCornerCuttingSettings"> Sess_Rules_ReadCornerCuttingSettings{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateProgress_t = void(void *tether_entry);
 inline constexpr fn<"Sess_SafetyCarTether_UpdateProgress", Sess_SafetyCarTether_UpdateProgress_t> Sess_SafetyCarTether_UpdateProgress{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateTarget_t = void(void *tether_entry, float gap);

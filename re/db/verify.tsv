@@ -1773,3 +1773,10 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	bind7-verify	func	Sess_RedFlagSystem_Deploy	L2	agree	decomp:re/decomp/143583b60.c;xref:0x143646d6b	V1781 blind re-check of corrected notes
 2026-10-29	bind7-verify	global	vt_Sess_ScAheadOfLead	L2	agree	xref:0x1435f906b	V1782 11 code slots, slot 10 0x14361dac0; factory 0x1435f8ff1, dtor 0x14361bd00
 2026-10-29	bind7-verify	global	vt_Sess_ScCarsGrouped	L2	agree	xref:0x1435f9b35	V1783 11 slots, slot 10 0x143622f00; dtor 0x14361e6f0
+2026-10-29	tl-verify	func	Sess_Rules_CornerCuttingTimeGained	L2	partial	xref:0x1435a0b40	V1784 L1; speed grades gated by rec+0xac, record not vehicle
+2026-10-29	tl-verify	func	Sess_Issue_StopGo	L2	partial	xref:0x143572a00	V1785 L2; conditional mapping, table rewritten at runtime
+2026-10-29	tl-verify	func	Sess_Rules_ReadCornerCuttingSettings	L2	agree	xref:0x1435a0c53	V1786 L3
+2026-10-29	tl-verify	func	Sess_MultipleWarningsPenalty_SendData	L2	agree	xref:0x1435b6d57	V1787 L4
+2026-10-29	v3-verify	func	Sess_RaceStrategy_RedFlagRecompute	L2	partial	xref:0x1436abf80	V1788 R1; +0x170 only local player
+2026-10-29	v3-verify	func	Sess_Strategy_RedFlagRecomputeAll	L2	partial	xref:0x142dfd595	V1789 R2; argument dereferenced
+2026-10-29	v3-verify	func	Sess_RedFlagStrategyCalc_Update	L2	partial	xref:0x142dfd595	V1790 R2; vtable start unverifiable
