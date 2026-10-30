@@ -89,6 +89,17 @@ def cli_version(cli):
     return words[-1]
 
 
+def lone_cli_note(name, cli):
+    cli = Path(cli).resolve()
+    if not (cli.parent / ".fingerprint").is_dir():
+        return None
+    launchers = [p for p in (cli.parent / "swofty-launcher", cli.parent / "swofty-launcher.exe") if p.is_file()]
+    if any(p.stat().st_mtime_ns >= cli.stat().st_mtime_ns for p in launchers):
+        return None
+    return (f"{name}'s {cli} has no newer swofty-launcher next to it: a swofty built without the launcher "
+            "differs from the release's in the parts category (README, Between launcher versions)")
+
+
 def link_tree(src, dst):
     src, dst = Path(src), Path(dst)
     for root, dirs, files in os.walk(src):

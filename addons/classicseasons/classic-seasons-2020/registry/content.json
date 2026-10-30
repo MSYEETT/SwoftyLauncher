@@ -300,11 +300,154 @@
    "archive": "cars/teams/williams/wep/williams.erp"
   }
  },
+ "career.calendar": {
+  "f1_2020": {
+   "rounds": [
+    {
+     "round": 1,
+     "race": {
+      "literal": "Austrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2020-07-05"
+    },
+    {
+     "round": 2,
+     "race": {
+      "literal": "Styrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2020-07-12"
+    },
+    {
+     "round": 3,
+     "race": {
+      "literal": "Hungarian Grand Prix"
+     },
+     "venue": "venue/hungaroring",
+     "date": "2020-07-19"
+    },
+    {
+     "round": 4,
+     "race": {
+      "literal": "British Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2020-08-02"
+    },
+    {
+     "round": 5,
+     "race": {
+      "literal": "70th Anniversary Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2020-08-09"
+    },
+    {
+     "round": 6,
+     "race": {
+      "literal": "Spanish Grand Prix"
+     },
+     "venue": "venue/catalunya",
+     "date": "2020-08-16"
+    },
+    {
+     "round": 7,
+     "race": {
+      "literal": "Belgian Grand Prix"
+     },
+     "venue": "venue/spa",
+     "date": "2020-08-30"
+    },
+    {
+     "round": 8,
+     "race": {
+      "literal": "Italian Grand Prix"
+     },
+     "venue": "venue/monza",
+     "date": "2020-09-06"
+    },
+    {
+     "round": 9,
+     "race": {
+      "literal": "Tuscan Grand Prix"
+     },
+     "venue": "venue/mugello?",
+     "date": "2020-09-13"
+    },
+    {
+     "round": 10,
+     "race": {
+      "literal": "Russian Grand Prix"
+     },
+     "venue": "venue/sochi?",
+     "date": "2020-09-27"
+    },
+    {
+     "round": 11,
+     "race": {
+      "literal": "Eifel Grand Prix"
+     },
+     "venue": "venue/nurburgring?",
+     "date": "2020-10-11"
+    },
+    {
+     "round": 12,
+     "race": {
+      "literal": "Portuguese Grand Prix"
+     },
+     "venue": "venue/portimao?",
+     "date": "2020-10-25"
+    },
+    {
+     "round": 13,
+     "race": {
+      "literal": "Emilia Romagna Grand Prix"
+     },
+     "venue": "venue/imola",
+     "date": "2020-11-01"
+    },
+    {
+     "round": 14,
+     "race": {
+      "literal": "Turkish Grand Prix"
+     },
+     "venue": "venue/istanbul?",
+     "date": "2020-11-15"
+    },
+    {
+     "round": 15,
+     "race": {
+      "literal": "Bahrain Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2020-11-29"
+    },
+    {
+     "round": 16,
+     "race": {
+      "literal": "Sakhir Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2020-12-06"
+    },
+    {
+     "round": 17,
+     "race": {
+      "literal": "Abu Dhabi Grand Prix"
+     },
+     "venue": "venue/yas_marina",
+     "date": "2020-12-13"
+    }
+   ]
+  }
+ },
  "content.package": {
   "f1_2020": {
    "title": "lng_cs_f1_2020",
    "entrant_list": "cs_f1_2020",
    "season": 2020,
+   "calendar": "swofty.classic-seasons-2020/f1_2020?",
    "teams": [
     {
      "key": "mercedes",
