@@ -693,8 +693,14 @@ impl<'a> Planner<'a> {
         let pending = std::mem::take(&mut self.db);
         let row_ids = self.row_ids.take();
         if let Some(ids) = &row_ids {
-            ids.borrow_mut()
-                .building(pending.iter().map(|(o, _)| o.addon.clone()));
+            let mut ids = ids.borrow_mut();
+            ids.building(pending.iter().map(|(o, _)| o.addon.clone()));
+            ids.plan(
+                db,
+                stock,
+                tracks,
+                pending.iter().map(|(o, ops)| (o.addon.as_str(), ops)),
+            );
         }
         let mut later = vec![HashSet::new(); pending.len()];
         for k in (1..pending.len()).rev() {

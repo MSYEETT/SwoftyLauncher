@@ -12,7 +12,10 @@ use serde_json::Value;
 use swofty_formats::gvdb::{Gvdb, instance_count_path};
 use swofty_formats::hash::fnv1a64;
 
-use crate::ops::{Claimed, RowIds, stat_id_field};
+use crate::ops::{
+    Claimed, DbOp, DbOps, IdFrom, RowIds, StatIdMode, add_row_name, explicit_stat_ids, hash_pool, hash_probe,
+    row_shape, stat_id_ceiling, stat_id_field,
+};
 use crate::stdlib::reports;
 use crate::{Loaded, Result, io_err};
 
@@ -39,10 +42,50 @@ struct File {
     #[serde(default)]
     version: u32,
     #[serde(default)]
-    rows: BTreeMap<String, i64>,
+    rows: BTreeMap<String, Entry>,
     /// The profiles whose last build before the store seeded it.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     seeded: BTreeSet<String>,
+}
+
+// A row key the build plans an id for, its label, and which row with that label of its addon it is.
+type Planned = (String, String, usize);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Entry {
+    id: i64,
+    from: IdFrom,
+}
+
+/// One row the store keeps an id for: its table, label, id and how it got it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Kept {
+    pub table: String,
+    pub label: String,
+    pub id: i64,
+    pub from: IdFrom,
+}
+
+/// The rows of `addon` the store in `data` keeps ids for, by table and label.
+pub fn kept_rows(data: &Path, addon: &str) -> Result<Vec<Kept>> {
+    let file: File = match crate::load_json(&path(data))? {
+        Loaded::Found(f) => f,
+        Loaded::Missing | Loaded::Damaged(_) => File::default(),
+    };
+    let prefix = format!("{addon}/");
+    Ok(file
+        .rows
+        .into_iter()
+        .filter_map(|(key, e)| {
+            let (table, label) = key.strip_prefix(&prefix)?.split_once('/')?;
+            Some(Kept {
+                table: table.to_owned(),
+                label: label.to_owned(),
+                id: e.id,
+                from: e.from,
+            })
+        })
+        .collect())
 }
 
 pub fn path(data: &Path) -> PathBuf {
@@ -119,6 +162,8 @@ impl Seed {
 #[derive(Default)]
 pub struct Store {
     rows: BTreeMap<String, i64>,
+    from: HashMap<String, IdFrom>,
+    planned: HashMap<String, i64>,
     seeded: BTreeSet<String>,
     by_id: HashMap<String, BTreeMap<i64, String>>,
     pinned: HashMap<String, HashSet<i64>>,
@@ -153,8 +198,9 @@ impl Store {
             Ok(Loaded::Found(f)) => {
                 store.read_only = f.version > VERSION;
                 store.seeded = f.seeded;
-                for (key, id) in f.rows {
-                    store.insert(key, id);
+                for (key, e) in f.rows {
+                    store.from.insert(key.clone(), e.from);
+                    store.insert(key, e.id);
                 }
             }
             Ok(Loaded::Missing) => {}
@@ -197,14 +243,117 @@ impl Store {
         }
     }
 
-    fn put(&mut self, key: &str, id: i64) {
+    fn put(&mut self, key: &str, id: i64, from: IdFrom) {
         match self.rows.get(key) {
             Some(&kept) if kept == id => return,
             Some(_) => self.moved += 1,
             None => self.added += 1,
         }
         self.insert(key.to_owned(), id);
+        self.from.insert(key.to_owned(), from);
         self.changed = true;
+    }
+
+    /// Plans the hashed ids of the rows the `add-row` ops in `files` add to `db` (rows with no
+    /// kept or seeded id and a label in `set`): each row key in turn, lowest first, takes the
+    /// first id from its hash that no row of `db`, explicit `stat_id`, kept id, seed or
+    /// registry id holds. `stock` and `tracks` are the keys of the stock rows and the rows tracks added.
+    pub fn plan<'a>(
+        &mut self,
+        db: &Gvdb,
+        stock: &HashSet<u64>,
+        tracks: &HashSet<u64>,
+        files: impl IntoIterator<Item = (&'a str, &'a DbOps)>,
+    ) {
+        self.planned.clear();
+        let mut keys: BTreeMap<(String, String), Vec<Planned>> = BTreeMap::new();
+        let mut explicit: HashMap<String, HashSet<i64>> = HashMap::new();
+        for (addon, ops) in files {
+            for (table, id) in explicit_stat_ids(ops) {
+                explicit.entry(table).or_default().insert(id);
+            }
+            let mut seen: HashMap<String, usize> = HashMap::new();
+            for op in &ops.ops {
+                let DbOp::AddRow {
+                    table,
+                    from,
+                    set,
+                    stat_id,
+                    ..
+                } = op
+                else {
+                    continue;
+                };
+                if table.contains(['[', '{']) || row_shape(table).contains("_N") {
+                    continue;
+                }
+                let Some(row) = add_row_name(table, from) else {
+                    continue;
+                };
+                let Some(label) = set.get("_metadata_") else {
+                    continue;
+                };
+                if set.contains_key(stat_id_field(table, row)) || *stat_id == Some(StatIdMode::Keep) {
+                    continue;
+                }
+                let base = format!("{addon}/{table}.{row}/{label}");
+                let nth = seen.entry(base.clone()).or_default();
+                let key = match *nth {
+                    0 => base,
+                    n => format!("{base}#{}", n + 1),
+                };
+                keys.entry((table.clone(), row.to_owned()))
+                    .or_default()
+                    .push((key, label.clone(), *nth));
+                *nth += 1;
+            }
+        }
+        if keys.is_empty() {
+            return;
+        }
+        let index: HashMap<u64, usize> = db.records.iter().enumerate().map(|(i, r)| (r.key, i)).collect();
+        let text = |key: u64| index.get(&key).map(|&i| db.records[i].text().into_owned());
+        for ((table, row), mut list) in keys {
+            let name = format!("{table}.{row}");
+            let field = stat_id_field(&table, &row);
+            let count = text(fnv1a64(instance_count_path(&table, &row)))
+                .and_then(|v| v.trim().parse::<usize>().ok())
+                .unwrap_or(0);
+            let mut fixed = explicit.remove(&name).unwrap_or_default();
+            let mut top = -1;
+            for i in 0..count {
+                let key = fnv1a64(format!("{table}.{row}_{i}.{field}"));
+                let Some(id) = text(key).and_then(|v| v.trim().parse::<i64>().ok()) else {
+                    continue;
+                };
+                fixed.insert(id);
+                if stock.contains(&key) || tracks.contains(&key) {
+                    top = top.max(id);
+                }
+            }
+            fixed.extend(self.by_id.get(&name).into_iter().flat_map(|ids| ids.keys()));
+            fixed.extend(self.pinned.get(&name).into_iter().flatten());
+            list.sort();
+            let mut new = Vec::new();
+            for (key, label, nth) in list {
+                if self.rows.contains_key(&key) {
+                    continue;
+                }
+                match self.seed.id(&table, &row, &label, nth) {
+                    Some(id) => {
+                        fixed.insert(id);
+                    }
+                    None => new.push(key),
+                }
+            }
+            let pool = hash_pool(stat_id_ceiling(&table, &row), top);
+            for key in new {
+                if let Some(id) = hash_probe(&key, pool).find(|id| !fixed.contains(id)) {
+                    fixed.insert(id);
+                    self.planned.insert(key, id);
+                }
+            }
+        }
     }
 
     /// Starts a build of `addons`; ids kept for other addons' rows are reused when a table is full.
@@ -243,9 +392,17 @@ impl Store {
         if !self.changed || self.read_only {
             return Ok(());
         }
+        let rows = self
+            .rows
+            .iter()
+            .map(|(key, &id)| {
+                let from = self.from.get(key).copied().unwrap_or(IdFrom::Hashed);
+                (key.clone(), Entry { id, from })
+            })
+            .collect();
         let file = File {
             version: VERSION,
-            rows: self.rows.clone(),
+            rows,
             seeded: self.seeded.clone(),
         };
         crate::write_json(&path(data), &file)
@@ -303,7 +460,13 @@ impl RowIds for Scoped<'_> {
             Some(_) => None,
             None => s.seed.id(table, row, label, nth),
         };
-        Claimed { key, kept, seed }
+        let hashed = s.planned.get(&key).copied();
+        Claimed {
+            key,
+            kept,
+            seed,
+            hashed,
+        }
     }
 
     fn taken(&self, table: &str, row: &str, key: &str, id: i64) -> bool {
@@ -316,8 +479,8 @@ impl RowIds for Scoped<'_> {
             || s.pinned.get(&table).is_some_and(|ids| ids.contains(&id))
     }
 
-    fn keep(&self, _: &str, _: &str, key: &str, id: i64) {
-        self.store.borrow_mut().put(key, id);
+    fn keep(&self, _: &str, _: &str, key: &str, id: i64, from: IdFrom) {
+        self.store.borrow_mut().put(key, id, from);
     }
 
     fn reclaim(
@@ -340,7 +503,7 @@ impl RowIds for Scoped<'_> {
         };
         let (id, from) = spare.into_iter().find(|(id, _)| free(*id))?;
         let mut s = self.store.borrow_mut();
-        s.put(key, id);
+        s.put(key, id, IdFrom::Reused);
         s.reused += 1;
         Some((id, from))
     }
@@ -440,6 +603,58 @@ mod tests {
         std::fs::write(path, text).unwrap();
     }
 
+    fn key(addon: &str, (table, row): (&str, &str), label: &str) -> String {
+        format!("{addon}/{table}.{row}/{label}")
+    }
+
+    // The ids hashing gives `rows` of `table` over stock rows up to `stock`, lowest key first, past `fixed`.
+    fn hashed(
+        table: (&str, &str),
+        stock: i64,
+        rows: &[(&str, &str)],
+        fixed: &[i64],
+    ) -> BTreeMap<String, i64> {
+        let pool = hash_pool(stat_id_ceiling(table.0, table.1), stock);
+        let mut fixed: HashSet<i64> = fixed.iter().copied().chain([stock]).collect();
+        let mut keys: Vec<(String, &str)> = rows.iter().map(|(a, l)| (key(a, table, l), *l)).collect();
+        keys.sort();
+        keys.into_iter()
+            .map(|(k, label)| {
+                let id = hash_probe(&k, pool).find(|id| !fixed.contains(id)).unwrap();
+                fixed.insert(id);
+                (label.to_owned(), id)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn new_ids_come_from_the_row_key_whatever_the_order() {
+        let rows = [("a", "a1"), ("a", "a2"), ("b", "b1")];
+        let want = hashed(VEHICLES, 10, &rows, &[]);
+        let first = build(
+            VEHICLES,
+            10,
+            &[("a", &["a1", "a2"]), ("b", &["b1"])],
+            Store::default(),
+        );
+        assert_eq!(first.ids, want);
+        assert!(
+            first.lines.iter().any(|l| l.ends_with(&format!(
+                ": stat_id {} (the source's is 10; from the row's key)",
+                want["b1"]
+            ))),
+            "{:?}",
+            first.lines
+        );
+        let other = build(
+            VEHICLES,
+            10,
+            &[("b", &["b1"]), ("a", &["a1", "a2"])],
+            Store::default(),
+        );
+        assert_eq!(other.ids, want);
+    }
+
     #[test]
     fn an_order_swap_keeps_each_rows_id() {
         let first = build(
@@ -448,21 +663,44 @@ mod tests {
             &[("a", &["a1", "a2"]), ("b", &["b1"])],
             Store::default(),
         );
-        assert_eq!(
-            first.ids,
-            BTreeMap::from([("a1".into(), 11), ("a2".into(), 12), ("b1".into(), 13)])
-        );
         let swapped = build(VEHICLES, 10, &[("b", &["b1"]), ("a", &["a1", "a2"])], first.store);
         assert_eq!(swapped.ids, first.ids);
         assert!(
-            swapped
-                .lines
-                .iter()
-                .any(|l| l.ends_with(": stat_id 13 (the source's is 10; kept from row-ids.json)")),
+            swapped.lines.iter().any(|l| l.ends_with(&format!(
+                ": stat_id {} (the source's is 10; kept from row-ids.json)",
+                first.ids["b1"]
+            ))),
             "{:?}",
             swapped.lines
         );
         assert_eq!(swapped.store.summary(), None);
+    }
+
+    #[test]
+    fn identical_addon_sets_built_from_different_histories_get_the_same_ids() {
+        let set: &[(&str, &[&str])] = &[("a", &["a1"]), ("b", &["b1", "b2"])];
+        let one = build(VEHICLES, 10, &[("a", &["a1"])], Store::default());
+        let one = build(VEHICLES, 10, set, one.store);
+        let two = build(VEHICLES, 10, &[("b", &["b2", "b1"])], Store::default());
+        let two = build(
+            VEHICLES,
+            10,
+            &[("x", &["x1", "x2"]), ("b", &["b1", "b2"])],
+            two.store,
+        );
+        let two = build(VEHICLES, 10, set, two.store);
+        let three = build(
+            VEHICLES,
+            10,
+            &[("b", &["b1", "b2"]), ("a", &["a1"])],
+            Store::default(),
+        );
+        assert_eq!(one.ids, two.ids);
+        assert_eq!(one.ids, three.ids);
+        assert_eq!(
+            one.ids,
+            hashed(VEHICLES, 10, &[("a", "a1"), ("b", "b1"), ("b", "b2")], &[])
+        );
     }
 
     #[test]
@@ -479,10 +717,14 @@ mod tests {
             &[("a", &["a0", "a1", "a2"]), ("b", &["b1"])],
             first.store,
         );
-        assert_eq!(updated.ids["a1"], 11);
-        assert_eq!(updated.ids["a2"], 12);
-        assert_eq!(updated.ids["b1"], 13);
-        assert_eq!(updated.ids["a0"], 14);
+        for label in ["a1", "a2", "b1"] {
+            assert_eq!(updated.ids[label], first.ids[label]);
+        }
+        let old: Vec<i64> = first.ids.values().copied().collect();
+        assert_eq!(
+            updated.ids["a0"],
+            hashed(VEHICLES, 10, &[("a", "a0")], &old)["a0"]
+        );
         assert_eq!(
             updated.store.summary().as_deref(),
             Some("database: row-ids.json keeps 4 added-row id(s) (1 new)")
@@ -492,19 +734,18 @@ mod tests {
     #[test]
     fn a_removed_addon_keeps_its_ids_and_gets_them_back() {
         let first = build(VEHICLES, 10, &[("a", &["a1"]), ("b", &["b1"])], Store::default());
-        assert_eq!((first.ids["a1"], first.ids["b1"]), (11, 12));
         let without = build(VEHICLES, 10, &[("b", &["b1"]), ("c", &["c1"])], first.store);
-        assert_eq!((without.ids["b1"], without.ids["c1"]), (12, 13));
+        assert_eq!(without.ids["b1"], first.ids["b1"]);
+        assert_ne!(without.ids["c1"], first.ids["a1"]);
         let back = build(
             VEHICLES,
             10,
             &[("a", &["a1"]), ("b", &["b1"]), ("c", &["c1"])],
             without.store,
         );
-        assert_eq!(
-            back.ids,
-            BTreeMap::from([("a1".into(), 11), ("b1".into(), 12), ("c1".into(), 13)])
-        );
+        assert_eq!(back.ids["a1"], first.ids["a1"]);
+        assert_eq!(back.ids["b1"], first.ids["b1"]);
+        assert_eq!(back.ids["c1"], without.ids["c1"]);
     }
 
     #[test]
@@ -515,37 +756,47 @@ mod tests {
         let one = build(VEHICLES, 10, &[("a", &["a1"]), ("b", &["b1"])], store);
         one.store.save(&data).unwrap();
         let saved: Value = serde_json::from_slice(&std::fs::read(path(&data)).unwrap()).unwrap();
-        assert_eq!(saved["rows"]["b/entrants.vehicles.vehicle/b1"], 12);
+        assert_eq!(
+            saved["rows"]["b/entrants.vehicles.vehicle/b1"]["id"],
+            one.ids["b1"]
+        );
+        assert_eq!(saved["rows"]["b/entrants.vehicles.vehicle/b1"]["from"], "hashed");
         let (store, _) = Store::load(&data, None, "two", None);
         let two = build(VEHICLES, 10, &[("b", &["b1"])], store);
-        assert_eq!(two.ids["b1"], 12);
+        assert_eq!(two.ids["b1"], one.ids["b1"]);
         std::fs::remove_dir_all(&data).ok();
     }
 
     #[test]
     fn ids_the_core_registry_holds_are_passed_over() {
         let data = data_dir("registry");
+        let slot = hashed(VEHICLES, 10, &[("a", "a1")], &[])["a1"];
         put(
             &reports::path(&data, reports::IDS),
-            r#"{"version":1,"ids":{"vehicle":{"mod.x/car":{"id":11,"since":"2026-10-29"},"mod.x/old":12}},
-                "careers":{"dc-1":{"vehicle":{"mod.y/car":13}}}}"#,
+            &format!(
+                r#"{{"version":1,"ids":{{"vehicle":{{"mod.x/car":{{"id":{slot},"since":"2026-10-29"}},"mod.x/old":12}}}},
+                "careers":{{"dc-1":{{"vehicle":{{"mod.y/car":13}}}}}}}}"#
+            ),
         );
         let (store, _) = Store::load(&data, None, "p", None);
         let first = build(VEHICLES, 10, &[("a", &["a1"])], store);
-        assert_eq!(first.ids["a1"], 14);
+        let want = hashed(VEHICLES, 10, &[("a", "a1")], &[slot, 12, 13])["a1"];
+        assert_ne!(want, slot);
+        assert_eq!(first.ids["a1"], want);
         let mut kept = Store::default();
-        kept.put("a/entrants.vehicles.vehicle/a1", 11);
+        kept.put(&key("a", VEHICLES, "a1"), 13, IdFrom::Hashed);
         kept.pinned = Store::load(&data, None, "p", None).0.pinned;
         let moved = build(VEHICLES, 10, &[("a", &["a1"])], kept);
-        assert_eq!(moved.ids["a1"], 14);
+        assert_eq!(moved.ids["a1"], want);
         assert!(
-            moved.lines.iter().any(|l| l.ends_with(
-                "stat_id 14 (the source's is 10; 11, kept for it, is kept for another row or held by a record of the core's registry)"
-            )),
+            moved.lines.iter().any(|l| l.ends_with(&format!(
+                "stat_id {want} (the source's is 10; 13, kept for it, is kept for another row or held by a record of the core's registry; from the row's key)"
+            ))),
             "{:?}",
             moved.lines
         );
-        assert_eq!(moved.store.get("a/entrants.vehicles.vehicle/a1"), Some(14));
+        assert_eq!(moved.store.get(&key("a", VEHICLES, "a1")), Some(want));
+        assert_eq!(moved.store.from[&key("a", VEHICLES, "a1")], IdFrom::Moved);
         std::fs::remove_dir_all(&data).ok();
     }
 
@@ -557,10 +808,9 @@ mod tests {
             &[("a", &["a1", "a2", "a3", "a4"])],
             Store::default(),
         );
-        assert_eq!(
-            first.ids.values().copied().collect::<Vec<_>>(),
-            [251, 252, 253, 254]
-        );
+        let mut ids: Vec<i64> = first.ids.values().copied().collect();
+        ids.sort();
+        assert_eq!(ids, [251, 252, 253, 254]);
         let e = try_build(
             PACKAGES,
             250,
@@ -570,20 +820,17 @@ mod tests {
         .err()
         .unwrap();
         assert!(e.to_string().contains("has no free stat_id up to 254"), "{e}");
+        let holder = |id: i64| first.ids.iter().find(|(_, v)| **v == id).unwrap().0.clone();
         let b = build(PACKAGES, 250, &[("b", &["b1", "b2"])], first.store);
         assert_eq!((b.ids["b1"], b.ids["b2"]), (251, 252));
-        let line = "b: add-row entrants.vehicles.vehicle_packages.vehicle_package_1 (from entrants.vehicles.vehicle_packages.vehicle_package_0): stat_id 251 (the source's is 250; no other id up to 254 is free; reused from a/entrants.vehicles.vehicle_packages.vehicle_package/a1, which this build leaves out)";
-        assert!(b.lines.iter().any(|l| l == line), "{:?}", b.lines);
-        assert_eq!(
-            b.store
-                .get("a/entrants.vehicles.vehicle_packages.vehicle_package/a1"),
-            None
+        let line = format!(
+            "b: add-row entrants.vehicles.vehicle_packages.vehicle_package_1 (from entrants.vehicles.vehicle_packages.vehicle_package_0): stat_id 251 (the source's is 250; no other id up to 254 is free; reused from {}, which this build leaves out)",
+            key("a", PACKAGES, &holder(251))
         );
-        assert_eq!(
-            b.store
-                .get("a/entrants.vehicles.vehicle_packages.vehicle_package/a3"),
-            Some(253)
-        );
+        assert!(b.lines.contains(&line), "{:?}", b.lines);
+        assert_eq!(b.store.get(&key("a", PACKAGES, &holder(251))), None);
+        assert_eq!(b.store.get(&key("a", PACKAGES, &holder(253))), Some(253));
+        assert_eq!(b.store.from[&key("b", PACKAGES, "b1")], IdFrom::Reused);
         assert_eq!(
             b.store.summary().as_deref(),
             Some("database: row-ids.json keeps 4 added-row id(s) (2 new, 2 reused)")
@@ -619,9 +866,10 @@ mod tests {
             &[("b", &["b1"]), ("a", &["a1"]), ("c", &["c1"])],
             store,
         );
+        let c1 = hashed(VEHICLES, 10, &[("c", "c1")], &[40, 41])["c1"];
         assert_eq!(
             first.ids,
-            BTreeMap::from([("a1".into(), 40), ("b1".into(), 41), ("c1".into(), 42)])
+            BTreeMap::from([("a1".into(), 40), ("b1".into(), 41), ("c1".into(), c1)])
         );
         assert!(
             first
@@ -631,20 +879,38 @@ mod tests {
             "{:?}",
             first.lines
         );
-        assert_eq!(first.store.get("a/entrants.vehicles.vehicle/a1"), Some(40));
+        assert_eq!(first.store.from[&key("a", VEHICLES, "a1")], IdFrom::Seeded);
         first.store.save(&data).unwrap();
         let seed = |profile: &str| Store::load(&data, None, profile, last_build(&overlays, "new", rel)).0;
         assert_eq!(seed("p").seed.path, None);
         assert!(seed("q").seed.path.is_some());
+        let kept = kept_rows(&data, "a").unwrap();
+        assert_eq!(
+            kept,
+            [Kept {
+                table: "entrants.vehicles.vehicle".into(),
+                label: "a1".into(),
+                id: 40,
+                from: IdFrom::Seeded
+            }]
+        );
         std::fs::remove_dir_all(&data).ok();
     }
 
     #[test]
     fn two_rows_of_one_addon_with_one_label_keep_their_own_ids() {
         let first = build(VEHICLES, 10, &[("a", &["x", "x"])], Store::default());
-        assert_eq!(first.store.get("a/entrants.vehicles.vehicle/x"), Some(11));
-        assert_eq!(first.store.get("a/entrants.vehicles.vehicle/x#2"), Some(12));
+        let x = first.store.get(&key("a", VEHICLES, "x")).unwrap();
+        let x2 = first
+            .store
+            .get(&format!("{}#2", key("a", VEHICLES, "x")))
+            .unwrap();
+        assert_ne!(x, x2);
         let again = build(VEHICLES, 10, &[("b", &["b1"]), ("a", &["x", "x"])], first.store);
-        assert_eq!(again.ids["b1"], 13);
+        assert_eq!(again.store.get(&key("a", VEHICLES, "x")), Some(x));
+        assert_eq!(
+            again.store.get(&format!("{}#2", key("a", VEHICLES, "x"))),
+            Some(x2)
+        );
     }
 }

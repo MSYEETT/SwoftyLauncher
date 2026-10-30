@@ -484,8 +484,8 @@ pub trait RowIds {
     /// record of the core's registry.
     fn taken(&self, table: &str, row: &str, key: &str, id: i64) -> bool;
 
-    /// Keeps `id` for `key`.
-    fn keep(&self, table: &str, row: &str, key: &str, id: i64);
+    /// Keeps `id` for `key`, which it got as `from` says.
+    fn keep(&self, table: &str, row: &str, key: &str, id: i64, from: IdFrom);
 
     /// The lowest id kept for a row of an addon this build leaves out that no record of the core's registry
     /// holds and `free` accepts, moved to `key`, and the key that held it.
@@ -499,6 +499,46 @@ pub struct Claimed {
     pub key: String,
     pub kept: Option<i64>,
     pub seed: Option<i64>,
+    /// The id the build planned for the key from its hash, rows with lower keys taking theirs first.
+    pub hashed: Option<i64>,
+}
+
+/// How a row got the id the install keeps for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IdFrom {
+    /// The profile's last build before the store gave its row that id.
+    Seeded,
+    /// The hash of its key, or the next id after it that was free.
+    Hashed,
+    /// The kept id was taken, and the row took a hashed one.
+    Moved,
+    /// The table was full, and the row took an id kept for an addon the build left out.
+    Reused,
+}
+
+/// How many ids above the stock rows' highest the hash of a row key spreads over, in a table
+/// with no ceiling.
+pub const HASH_SPAN: i64 = 256;
+
+/// The pool a row's hashed id comes from: its first id, how many ids the hash spreads over, and
+/// the highest id when the table has a [`StatIdCeiling`]; `stock` is the stock rows' highest id.
+pub fn hash_pool(ceiling: Option<StatIdCeiling>, stock: i64) -> (i64, i64, Option<i64>) {
+    let lo = ceiling.and_then(|c| c.from).unwrap_or(stock + 1);
+    match ceiling {
+        Some(c) => (lo, (c.max - lo + 1).max(1), Some(c.max)),
+        None => (lo, HASH_SPAN, None),
+    }
+}
+
+/// The ids to try for `key` in the pool [`hash_pool`] gives: the hash of the key, then each id
+/// after it, wrapping round to the first at the ceiling.
+pub fn hash_probe(key: &str, (lo, span, max): (i64, i64, Option<i64>)) -> Box<dyn Iterator<Item = i64>> {
+    let start = lo + (fnv1a64(key) % span.max(1) as u64) as i64;
+    match max {
+        Some(max) => Box::new((start..=max).chain(lo..start)),
+        None => Box::new(start..),
+    }
 }
 
 /// Stock record keys and no field names.
@@ -1210,6 +1250,17 @@ fn stat_ids(db: &Db, table: &str, row: &str, rows: usize, skip: &HashSet<String>
         .collect()
 }
 
+// The highest id a stock row of the table holds, or a row a track added; -1 when none does.
+fn stock_top(db: &Db, names: &dyn FieldNames, table: &str, row: &str, rows: usize) -> i64 {
+    let field = stat_id_field(table, row);
+    (0..rows)
+        .map(|i| fnv1a64(format!("{table}.{row}_{i}.{field}")))
+        .filter(|k| names.stock(*k) || names.track(*k))
+        .filter_map(|k| db.text(k)?.trim().parse::<i64>().ok())
+        .max()
+        .unwrap_or(-1)
+}
+
 // The row added earlier that holds `id`, unless a stock row holds it too.
 fn added_holder(
     db: &Db,
@@ -1404,19 +1455,16 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
     };
     // The next id above the table's highest, or the lowest free one when that passes the ceiling.
     // A moved id, and any id under the ceiling, passes over the ids later addons set on their rows.
-    // Every id passes over the ids kept for other rows and the ids the core's registry holds.
-    let next = |moving: bool, key: Option<&str>| -> Result<(i64, Option<String>)> {
-        let elsewhere = |id: i64| kept.zip(key).is_some_and(|(k, key)| k.taken(&path, row, key, id));
+    let next = |moving: bool| -> Result<(i64, Option<String>)> {
         let mut top = stat_ids(db, &path, row, n, &HashSet::new())
             .into_iter()
             .max()
             .map_or(0, |m| m + 1);
-        while (moving && later(top)) || elsewhere(top) {
+        while moving && later(top) {
             top += 1;
         }
-        let skip = |id: i64| later(id) || elsewhere(id);
         match ceiling {
-            Some(c) if top > c.max => free_stat_id(db, names, &path, row, n, c, &skip)
+            Some(c) if top > c.max => free_stat_id(db, names, &path, row, n, c, &later)
                 .map(|id| {
                     (
                         id,
@@ -1434,10 +1482,11 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
         }
     };
     // The id kept for the row when it's still free, else the id the profile's last build gave a row with
-    // its label, else the next id; a full table takes back an id kept for an addon the build leaves out.
+    // its label, else the id the build planned from the row's key, else the first free one from its hash;
+    // a full table takes back an id kept for an addon the build leaves out.
     let give = |moving: bool| -> Result<(i64, Option<String>)> {
         let Some((k, label)) = kept.zip(label.as_deref()) else {
-            return next(moving, None);
+            return next(moving);
         };
         let claimed = k.claim(&path, row, label);
         let key = claimed.key.as_str();
@@ -1459,37 +1508,51 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             })
         };
         let mut notes = Vec::new();
+        let mut from = IdFrom::Hashed;
         match claimed.kept {
             Some(id) => match blocked(id) {
                 None => return Ok((id, Some("kept from row-ids.json".to_owned()))),
-                Some(why) => notes.push(format!("{id}, kept for it, {why}")),
+                Some(why) => {
+                    notes.push(format!("{id}, kept for it, {why}"));
+                    from = IdFrom::Moved;
+                }
             },
             None => {
                 if let Some(id) = claimed.seed.filter(|id| blocked(*id).is_none()) {
-                    k.keep(&path, row, key, id);
+                    k.keep(&path, row, key, id, IdFrom::Seeded);
                     return Ok((id, Some("as the profile's last build gave it".to_owned())));
                 }
             }
         }
-        let (id, passed) = match next(moving, Some(key)) {
-            Ok(v) => v,
-            Err(e) => {
+        let free = |id: i64| blocked(id).is_none() && !later(id);
+        let pool = hash_pool(ceiling, stock_top(db, names, &path, row, n));
+        let hashed = claimed
+            .hashed
+            .filter(|id| free(*id))
+            .or_else(|| hash_probe(key, pool).find(|id| free(*id)));
+        let id = match hashed {
+            Some(id) => {
+                notes.push("from the row's key".to_owned());
+                id
+            }
+            None => {
                 let free = |id: i64| unfit(id).is_none() && !later(id);
-                let Some((id, from)) = k.reclaim(&path, row, key, &free) else {
-                    return Err(e);
+                let Some((id, held_by)) = k.reclaim(&path, row, key, &free) else {
+                    return Err(Error::Resolve(format!(
+                        "{what}: {path} has no free {field} up to {}, the highest the game reads",
+                        pool.2.unwrap_or(i64::MAX)
+                    )));
                 };
                 let max = ceiling.map_or(String::new(), |c| format!(" up to {}", c.max));
-                (
-                    id,
-                    Some(format!(
-                        "no other id{max} is free; reused from {from}, which this build leaves out"
-                    )),
-                )
+                notes.push(format!(
+                    "no other id{max} is free; reused from {held_by}, which this build leaves out"
+                ));
+                from = IdFrom::Reused;
+                id
             }
         };
-        k.keep(&path, row, key, id);
-        notes.extend(passed);
-        Ok((id, (!notes.is_empty()).then(|| notes.join("; "))))
+        k.keep(&path, row, key, id, from);
+        Ok((id, Some(notes.join("; "))))
     };
     if fresh && let Some(i) = rows.iter().position(|r| r.key == stat_key) {
         let old = String::from_utf8_lossy(&rows[i].value).into_owned();
