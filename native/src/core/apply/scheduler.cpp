@@ -216,8 +216,13 @@ Totals Scheduler::run(Moment m, Applies kind, const std::function<void(Applier &
 
 bool Scheduler::has_addon_content(const std::string &registry)
 {
+    // The core's own records are game/<key>, or <prefix>/<key> in a shared registry (add_base), such as the venues
+    // it seeds at prepare; neither is addon content.
+    std::string core = "game/";
+    if (auto d = store_.def(registry); d && d->shared && !d->shared_prefix.empty())
+        core = d->shared_prefix + "/";
     for (auto &id : store_.list(registry, ""))
-        if (id.rfind("game/", 0) != 0)
+        if (id.rfind(core, 0) != 0)
             return true;
     for (auto &addon : store_.order())
         if (store_.layer_count(addon, registry))

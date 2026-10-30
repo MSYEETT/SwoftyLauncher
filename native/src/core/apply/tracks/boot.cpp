@@ -317,10 +317,11 @@ public:
         ensure(st);
         for (auto &id : st.list("track.venue", "")) {
             std::string track = venue_track(st, id);
-            if (track.empty())
+            bool core = id.rfind("venue/", 0) == 0;
+            if (track.empty() || (core && track.rfind("game/", 0) == 0))
                 continue;
             report.applied++;
-            if (id.rfind("venue/", 0) == 0 && track.rfind("game/", 0) != 0)
+            if (core)
                 report.lines.push_back(id + ": provided by " + track);
         }
     }
