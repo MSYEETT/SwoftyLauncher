@@ -2566,6 +2566,10 @@ pub type Sess_Record_GroupTimes_t =
 pub type Sess_RedFlagRaceStrategy_Enter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
 pub type Sess_RedFlagRaceStrategy_Update_t =
     unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_RuleManager_Initialise_t =
+    unsafe extern "C" fn(self_: *mut c_void, systems: *mut c_void, components: *mut c_void) -> u32;
+pub type Sess_Rules_IsPracticeQualifying_t =
+    unsafe extern "C" fn(owner_with_session_at_0x1b8: *mut c_void) -> bool;
 pub type Sess_SafetyCarTether_UpdateProgress_t = unsafe extern "C" fn(tether_entry: *mut c_void);
 pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry: *mut c_void, gap: f32);
 pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
@@ -3519,8 +3523,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RuleManager_Initialise: Binding = Binding {
+        id: "Sess_RuleManager_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Rules_Disqualify: Binding = Binding {
         id: "Sess_Rules_Disqualify",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_IsPracticeQualifying: Binding = Binding {
+        id: "Sess_Rules_IsPracticeQualifying",
         kind: "func",
         status: Status::Experimental,
     };

@@ -1758,3 +1758,6 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	cf-verify	func	Game_Assists_SetTyreTempFreeze	L1	partial	decomp:re/decomp/1424238a0.c	V1766 claim 7; value from local, names H
 2026-10-29	cf-verify	func	Game_Season_ApplyDamageModeFlags	L1	partial	decomp:re/decomp/143099190.c	V1767 claim 8; writes rules record not car
 2026-10-29	bt-verify	func	Car_Physics_AdvanceCar	L2	partial	decomp:re/decomp/14473fd80.c;xref:0x144740efc	V1768 claim 6; 6 legal types when 9f28 == 0
+2026-10-29	bind6-verify	func	Game_Teleport_VehicleImmediate_Thunk	L1	agree	decomp:re/decomp/1555b8a20.c;xref:0x1434beef3	V1769 blind re-check: jmp stub into .data1 body 0x1555b8a20 -> FUN_14473dcc0, 6 args unchanged; 2 callers
+2026-10-29	bind6-verify	func	Sess_Rules_IsPracticeQualifying	L2	agree	decomp:re/decomp/142a40710.c;xref:0x142d5683d	V1770 blind re-check of corrected notes
+2026-10-29	bind6-verify	func	Sess_RuleManager_Initialise	L2	agree	decomp:re/decomp/1435676a0.c;xref:0x1458493e0	V1771 blind re-check of corrected notes

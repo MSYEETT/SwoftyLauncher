@@ -251,7 +251,11 @@ using Sess_RedFlagRaceStrategy_Enter_t = uint64_t(void *state);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Enter", Sess_RedFlagRaceStrategy_Enter_t> Sess_RedFlagRaceStrategy_Enter{}; // L2 experimental
 using Sess_RedFlagRaceStrategy_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Update", Sess_RedFlagRaceStrategy_Update_t> Sess_RedFlagRaceStrategy_Update{}; // L2 experimental
+using Sess_RuleManager_Initialise_t = uint32_t(void *self, void *systems, void *components);
+inline constexpr fn<"Sess_RuleManager_Initialise", Sess_RuleManager_Initialise_t> Sess_RuleManager_Initialise{}; // L2 experimental
 inline constexpr address<"Sess_Rules_Disqualify"> Sess_Rules_Disqualify{}; // L2 experimental
+using Sess_Rules_IsPracticeQualifying_t = bool(void *owner_with_session_at_0x1b8);
+inline constexpr fn<"Sess_Rules_IsPracticeQualifying", Sess_Rules_IsPracticeQualifying_t> Sess_Rules_IsPracticeQualifying{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateProgress_t = void(void *tether_entry);
 inline constexpr fn<"Sess_SafetyCarTether_UpdateProgress", Sess_SafetyCarTether_UpdateProgress_t> Sess_SafetyCarTether_UpdateProgress{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateTarget_t = void(void *tether_entry, float gap);
