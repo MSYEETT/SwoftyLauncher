@@ -2514,6 +2514,7 @@ pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *con
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
 pub type Ne_Parse_Long_t = unsafe extern "C" fn(text: *const c_char, end: *mut *mut c_char, base: i32) -> i32;
+pub type Ne_Phys_ParseMaterials_t = unsafe extern "C" fn(lib: *mut c_void, node: *mut c_void);
 pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
     feature_system: *mut c_void,
     path: *mut *mut NeStr,
@@ -3360,6 +3361,11 @@ pub mod bindings {
     };
     pub const Ne_Parse_Long: Binding = Binding {
         id: "Ne_Parse_Long",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Phys_ParseMaterials: Binding = Binding {
+        id: "Ne_Phys_ParseMaterials",
         kind: "func",
         status: Status::Experimental,
     };

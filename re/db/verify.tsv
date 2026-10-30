@@ -1780,3 +1780,4 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	v3-verify	func	Sess_RaceStrategy_RedFlagRecompute	L2	partial	xref:0x1436abf80	V1788 R1; +0x170 only local player
 2026-10-29	v3-verify	func	Sess_Strategy_RedFlagRecomputeAll	L2	partial	xref:0x142dfd595	V1789 R2; argument dereferenced
 2026-10-29	v3-verify	func	Sess_RedFlagStrategyCalc_Update	L2	partial	xref:0x142dfd595	V1790 R2; vtable start unverifiable
+2026-10-29	pm-verify	func	Ne_Phys_ParseMaterials	L2	agree	decomp:re/decomp/1440bee90.c;xref:0x1440bef14	V1791 blind re-check of the corrected notes (layout, defaults, extension table, no readable caller)
