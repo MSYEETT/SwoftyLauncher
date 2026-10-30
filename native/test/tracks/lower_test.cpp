@@ -1,5 +1,6 @@
 #include "../../src/core/apply/tracks/boot.hpp"
 #include "../../src/core/apply/content/gvdb.hpp"
+#include "../../src/core/registry/declare_all.hpp"
 #include "../../src/core/registry/table.hpp"
 #include "../../src/core/registry/validate.hpp"
 
@@ -294,7 +295,13 @@ static void seed_tests(const Fixture &f, const std::string &regs)
     const Value *dormant = seed("track", "sochi");
     check(dormant && !(*dormant)["time_trial"].as_bool() && (*dormant)["provides"].size() == 0,
           "a dormant row is a record that provides nothing and is not in Time Trial");
-    check(seed("track.venue", "sepang") && (*seed("track.venue", "sepang"))["track"].is_null(), "venue/sepang is seeded with no track");
+    const tk::Seed *sepang = nullptr;
+    std::vector<tk::Seed> venues_seeded = tk::venue_bases();
+    for (auto &v : venues_seeded)
+        if (v.key == "sepang")
+            sepang = &v;
+    check(sepang && sepang->value["track"].is_null() && !seed("track.venue", "sepang"),
+          "venue/sepang is seeded with no track, apart from the database's seeds");
     check(seed("track.data", "melbourne/f1_2025") != nullptr, "game/melbourne/f1_2025 is seeded");
     check(seeded.older.size() == 2 && seeded.older[0].second.value["provides"][0].as_string() == "venue/okayama" &&
               !seeded.older[0].second.value["time_trial"].as_bool(),
@@ -323,6 +330,7 @@ static void seed_tests(const Fixture &f, const std::string &regs)
     for (auto &r : st.refusals())
         std::printf("      refused: %s %s %s %s: %s\n", r.addon.c_str(), r.registry.c_str(), r.id.c_str(), r.reason.c_str(), r.message.c_str());
     check(r1 == SWOFTY_ASSET_OK && r2 == SWOFTY_ASSET_OK, "the track records register");
+    tk::declare_venues(st);
     tk::declare_seeds(st, seeded);
     check(st.get("track", "game/melbourne").status == registry::Status::ok, "game/melbourne is a record");
     check(st.get("track", "mod.older/okayama").status == registry::Status::ok, "the older track is a record");
@@ -415,7 +423,8 @@ static void venue_seed_tests(const std::string &regs)
         registry::table()->declare("career.calendar", SwoftyText{schema.data(), schema.size()});
         int r = registry::load_data_file("mod.a", "registry/content.json", calendar);
         st.end_register();
-        tk::Seeds seeded = with_providers ? tk::venue_seeds() : tk::seeds({}, {});
+        tk::Seeds seeded = with_providers ? tk::venue_providers() : tk::Seeds{};
+        tk::declare_venues(st);
         for (auto &b : seeded.base)
             st.add_base(b.registry, b.key, b.value);
         st.stock_loaded("track.venue", true);
@@ -443,6 +452,57 @@ static void venue_seed_tests(const std::string &regs)
     }
 }
 
+static void boot_order_tests(const Fixture &f, const std::string &regs)
+{
+    (void)regs;
+    for (int with_database = 0; with_database < 2; ++with_database) {
+        registry::reset_store();
+        auto &st = registry::store();
+        st.set_order({"mod.a"});
+        st.set_validator(&registry::schema_validator());
+        const SwoftyRegistry *t = registry::table();
+        registry::declare_system_registries([t](const std::string &name, const std::string &schema) {
+            return name.rfind("track", 0) == 0 && t->declare(name.c_str(), SwoftyText{schema.data(), schema.size()}) == SWOFTY_ASSET_OK;
+        });
+        std::vector<std::string> notes;
+        st.set_log([&notes](const std::string &line) { notes.push_back(line); });
+        int r = registry::load_data_file("mod.a", "registry/track.json", R"j({ "track": {
+            "hockenheim": { "code": "hockenheim", "name": "Hockenheimring", "base": "game/austria",
+                            "provides": ["venue/hockenheimring"], "files": "track/" },
+            "nowhere": { "code": "nowhere", "base": "game/austria", "provides": ["venue/nowhere"] } } })j");
+        st.end_register();
+        tk::declare_venues(st);
+        bool content = tk::has_track_records(st);
+        if (with_database) {
+            tk::Db db(fixture_read(f));
+            tk::declare_seeds(st, tk::seeds(tk::scan(db, tk::builtin_tables()), {}));
+        } else {
+            for (auto &b : tk::venue_providers().base)
+                st.add_base(b.registry, b.key, b.value);
+            st.stock_loaded("track.venue", true);
+        }
+        st.list("track", "");
+        st.list("track.venue", "");
+        auto said = [&](const std::string &part) {
+            std::size_t n = 0;
+            for (auto &l : notes)
+                n += l.find(part) != std::string::npos;
+            return n;
+        };
+        std::string with = with_database ? "with the database: " : "without the database: ";
+        check(r == SWOFTY_ASSET_OK && content, with + "the track records count as track content");
+        check(said("venue/hockenheimring") == 0 && st.get("track", "mod.a/hockenheim").status == registry::Status::ok,
+              with + "a record providing a seeded venue logs nothing at boot and is valid");
+        check(st.get("track.venue", "venue/hockenheimring").value["track"].as_string() == "mod.a/hockenheim",
+              with + "venue/hockenheimring resolves to the record");
+        check(said("[registry] track mod.a/nowhere is invalid: /provides/0 venue/nowhere does not resolve in track.venue") == 1 &&
+                  st.get("track", "mod.a/nowhere").status == registry::Status::invalid,
+              with + "a record providing an unknown venue is invalid and logged once");
+        check(said("is invalid") == 1, with + std::to_string(said("is invalid")) + " invalid line(s) at boot");
+        st.set_log(nullptr);
+    }
+}
+
 int main(int argc, char **argv)
 {
     if (argc >= 4 && std::string(argv[1]) == "--make-fixture")
@@ -459,6 +519,7 @@ int main(int argc, char **argv)
     parity_tests(f, dir);
     seed_tests(f, regs);
     venue_seed_tests(regs);
+    boot_order_tests(f, regs);
     std::printf("%s\n", failures ? "FAILED" : "all passed");
     return failures ? 1 : 0;
 }

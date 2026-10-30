@@ -15,13 +15,13 @@
 #include <mutex>
 #include <unordered_map>
 
-// The core's appliers for the track registries at boot. Before the database loads (database_keys) the tracks made
-// for 1.5 are read from older-tracks.json and, when they or any addon's record or layer in the track registries
-// exist, the database file under the older addons' edits is scanned once: the stock rows, venues and data blocks are
-// seeded, every record track is lowered without stat ids to count its new keys, and its data blocks become variants
-// of its base's. With neither, the file is not read: only the venues and the stock tracks that provide them are
-// seeded (career.calendar and livery x-ref venues), and the base is empty. At boot the
-// record tracks are lowered again with stat ids from the track pool (254 down, pinned in ids.json), their records are
+// The core's appliers for the track registries at boot. Before any applier reads the store (prepare) the venues are
+// declared and the tracks made for 1.5 are read from older-tracks.json and, when they or any addon's record or layer
+// in the track registries exist, the database file under the older addons' edits is scanned once: the stock rows and
+// data blocks are seeded, every record track is lowered without stat ids to count its new keys, and its data blocks
+// become variants of its base's. With neither, the file is not read: only the stock tracks that provide the venues
+// are seeded (career.calendar and livery x-ref venues), and the base is empty. At boot the record tracks are lowered
+// again with stat ids from the track pool (254 down, pinned in ids.json), their records are
 // staged for gamedb.cpp, and the effective base is built for the box lists and the guard.
 
 namespace swofty_core::apply::tracks {
@@ -83,25 +83,12 @@ std::string build_profile()
     return err.message.empty() ? std::string(doc["profile"].as_string()) : std::string();
 }
 
-bool has_track_records(registry::Store &st)
-{
-    static const char *const registries[] = {"track", "track.venue", "track.data", "track.per_package"};
-    std::vector<std::string> addons = st.order();
-    for (const char *reg : registries) {
-        if (!st.list(reg, "").empty())
-            return true;
-        for (auto &a : addons)
-            if (st.layer_count(a, reg))
-                return true;
-    }
-    return false;
-}
-
 void load(State &s, registry::Store &st)
 {
     if (s.loaded)
         return;
     s.loaded = true;
+    declare_venues(st);
     std::string older = runtime::read_file(data_registry() + L"\\older-tracks.json", size_t(16) << 20);
     s.older = parse_older(older, build_profile());
     if (s.older.tracks.empty() && !has_track_records(st)) {
@@ -136,9 +123,9 @@ void ensure(registry::Store &st)
         swofty::log("%s", l.c_str());
     if (!s.ok) {
         std::size_t providers = 0;
-        for (auto &b : venue_seeds().base) {
+        for (auto &b : venue_providers().base) {
             st.add_base(b.registry, b.key, b.value);
-            providers += b.registry == "track";
+            providers++;
         }
         st.stock_loaded("track.venue", true);
         swofty::log("[tracks] %s: %zu venue(s) seeded with %zu stock track(s) providing them, the track base is empty",
@@ -233,6 +220,12 @@ class Tracks : public Applier {
 public:
     const char *registry() const override { return "track"; }
     Applies applies() const override { return Applies::boot; }
+
+    void prepare(Store &st) override
+    {
+        std::lock_guard g(mu);
+        ensure(st);
+    }
 
     std::size_t database_keys(Store &st) override
     {

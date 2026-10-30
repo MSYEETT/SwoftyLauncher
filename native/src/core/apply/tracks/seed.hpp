@@ -267,14 +267,21 @@ struct Seeds {
     std::vector<std::pair<std::string, Seed>> older;
 };
 
-// The records the core declares: stock rows (a row an older track holds is its, not a stock row), venues, data
-// blocks of stock rows, and the older tracks as <addon>/<code>.
+// The venues, which need no database: the core declares them before any record that names one is read.
+inline std::vector<Seed> venue_bases()
+{
+    std::vector<Seed> out;
+    for (const VenueSeed &v : VENUE_SEEDS)
+        out.push_back({"track.venue", v.key,
+                       Value::object({{"name", Value(v.name)}, {"country", Value(v.country)}, {"track", Value()}})});
+    return out;
+}
+
+// The records the core declares from the database: stock rows (a row an older track holds is its, not a stock row),
+// data blocks of stock rows, and the older tracks as <addon>/<code>.
 inline Seeds seeds(const Scan &s, const std::vector<Older> &older)
 {
     Seeds out;
-    for (const VenueSeed &v : VENUE_SEEDS)
-        out.base.push_back({"track.venue", v.key,
-                            Value::object({{"name", Value(v.name)}, {"country", Value(v.country)}, {"track", Value()}})});
     std::set<std::string> older_codes;
     for (auto &o : older)
         older_codes.insert(o.code);
@@ -301,12 +308,11 @@ inline Seeds seeds(const Scan &s, const std::vector<Older> &older)
     return out;
 }
 
-// Without the database (no track content): the venues, and for each venue a stock track provides, that track as a
-// record with no stat id, so the venues resolve and calendars that name them stay valid. It adds nothing to the
-// track base.
-inline Seeds venue_seeds()
+// Without the database (no track content): for each venue a stock track provides, that track as a record with no
+// stat id, so the venues resolve and calendars that name them stay valid. It adds nothing to the track base.
+inline Seeds venue_providers()
 {
-    Seeds out = seeds({}, {});
+    Seeds out;
     for (const VenueSeed &v : VENUE_SEEDS)
         if (*v.stock)
             out.base.push_back({"track", v.stock,
