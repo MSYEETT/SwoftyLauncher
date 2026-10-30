@@ -248,8 +248,9 @@ f1-1990: add-row entrants.entrant_lists.entrant_list_68 (from entrants.entrant_l
 
 A copy keeps its id from build to build, so a career keeps its cars, teams and drivers. The launcher keeps the id of every copy it gives one in `$DATA/registry/row-ids.json`, one file per install next to the core's `ids.json`, keyed `<addon>/<table>.<row>/<label>`. Every profile's build reads it, so a row has the same id whatever the profile, the load order or the other addons:
 
-- A copy the file has no id for takes, at a profile's first build with the file, the id the profile's last build gave the row with its label.
+- A copy the file has no id for takes, at a profile's first build with the file, the id the profile's last build gave the row with its label, or, for a new profile, the newest build of any profile.
 - Any other new copy takes the id the hash of its key picks, in the ids above the stock rows' highest: as many as the power of two at or above twice the build's `add-row` ops into the table, at least 32, and none above the table's ceiling. When a row holds that id, or the file keeps it for another row, or the core's `ids.json` holds it, the copy takes the next one, and copies with lower keys pick first. The load order doesn't change the id.
+- In a table whose ceiling leaves 32 ids or fewer above the stock rows, such as game setup modes, a new copy takes the next free id above the table's rows, in load order.
 - An addon that is turned off or removed keeps its rows' ids. Turned back on, its rows get them back. An update that adds a row gives the new row a new id and leaves the others alone.
 - A kept id that a row of the database, the core's `ids.json` or the table's ceiling now rules out moves to a new id from the hash.
 - A table with no free id left takes the lowest id kept for an addon the build leaves out.
@@ -259,7 +260,7 @@ The build prints where each id came from:
 
 ```text
 swofty.classic-seasons-2016: add-row entrants.vehicles.vehicle_438 (from entrants.vehicles.vehicle[_metadata_=f1_2025_mercedes]): stat_id 512 (the source's is 3; kept from row-ids.json)
-swofty.classic-seasons-2016: add-row entrants.vehicles.vehicle_439 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 513 (the source's is 4; as the profile's last build gave it)
+swofty.classic-seasons-2016: add-row entrants.vehicles.vehicle_439 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 513 (the source's is 4; as the last build gave it)
 my-addon: add-row entrants.vehicles.vehicle_449 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 655 (the source's is 4; from the row's key)
 my-addon: add-row entrants.vehicles.vehicle_450 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 737 (the source's is 4; 600, kept for it, is kept for another row or held by a record of the core's registry; from the row's key)
 my-addon: add-row entrants.vehicles.vehicle_packages.vehicle_package_90 (from entrants.vehicles.vehicle_packages.vehicle_package_0): stat_id 83 (the source's is 2; no other id up to 254 is free; reused from old-addon/entrants.vehicles.vehicle_packages.vehicle_package/old_era, which this build leaves out)
@@ -275,7 +276,7 @@ my-addon: 2 added row(s) keep these stat ids
   entrants.vehicles.vehicle/my_old_car   512  kept, seeded from a profile's last build
 ```
 
-The game keeps the id of some tables in one byte. A copy into one of them never gets an id above the table's highest:
+The game keeps the id of some tables in one byte, and of game setup modes and seasons as a bit of a 32-bit mask. A copy into one of them never gets an id above the table's highest:
 
 | Table | Highest `stat_id` |
 | --- | --- |
@@ -287,6 +288,11 @@ The game keeps the id of some tables in one byte. A copy into one of them never 
 | `entrants.entrant_lists.entrant_list_N` | 255 |
 | `entrants.nationality.nationality_N` | 255 |
 | `game_setup.scenarios.scenario_N` (`statId`) | 254 |
+| `game_setup.game_setup_modes.game_setup_mode_N` | 31 |
+| `game_setup.seasons.season_N` (`statId`) | 31 |
+| `entrants.entrant_setup_modes.entrant_setup_mode_N` | 31 |
+
+A game setup mode or season id above 31 stops the game at boot.
 
 The hash of a copy's key picks its id from the ids above the stock rows' highest up to the ceiling, and a driver's from 208, wrapping round to the lowest when the ids above it are taken. The build prints it:
 
