@@ -1761,3 +1761,12 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	bind6-verify	func	Game_Teleport_VehicleImmediate_Thunk	L1	agree	decomp:re/decomp/1555b8a20.c;xref:0x1434beef3	V1769 blind re-check: jmp stub into .data1 body 0x1555b8a20 -> FUN_14473dcc0, 6 args unchanged; 2 callers
 2026-10-29	bind6-verify	func	Sess_Rules_IsPracticeQualifying	L2	agree	decomp:re/decomp/142a40710.c;xref:0x142d5683d	V1770 blind re-check of corrected notes
 2026-10-29	bind6-verify	func	Sess_RuleManager_Initialise	L2	agree	decomp:re/decomp/1435676a0.c;xref:0x1458493e0	V1771 blind re-check of corrected notes
+2026-10-29	en-verify	func	Sess_Rules_ReadUnlappingSettings	L2	agree	decomp:re/decomp/14361f370.c;xref:0x14361fff0	V1772 claim 1
+2026-10-29	en-verify	func	Sess_RC_SendCarsGroupedData	L2	partial	decomp:re/decomp/14361fff0.c;xref:0x145f96cb8	V1773 claim 2; grouping meaning interpreted
+2026-10-29	en-verify	func	Sess_Flags_UpdateYellowReasons	L2	agree	decomp:re/decomp/14356d950.c;xref:0x14356eca6	V1774 claim 2 bit 0x1000
+2026-10-29	en-verify	func	Game_Engineer_OnSafetyCarMessage	L2	partial	decomp:re/decomp/142a54c30.c;xref:0x142a5558e	V1775 claims 4/5/7; pointer array, not inline
+2026-10-29	en-verify	func	Game_Engineer_OnRedFlagDeploy	L2	agree	decomp:re/decomp/142a53ad0.c;xref:0x1457bb3f0	V1776 claims 6/7
+2026-10-29	en-verify	func	Game_Engineer_OnRedFlagWithdrawn	L2	agree	decomp:re/decomp/142a53aa0.c;xref:0x142a54c30	V1777 claim 7
+2026-10-29	en-verify	func	Sess_YellowFlagReason_ToString	L2	partial	decomp:re/decomp/1435827f0.c;xref:0x14356d950	V1778 claim 3; param_1 only
+2026-10-29	tl-verify	func	Sess_RC_SendCarsGroupedData	L2	agree	xref:0x143621363	V1779 U1 (msg lea at 0x143621bd1)
+2026-10-29	tl-verify	func	Sess_Flags_UpdateYellowReasons	L2	partial	xref:0x14356eca6	V1780 U2; matrix base this+0x19c
