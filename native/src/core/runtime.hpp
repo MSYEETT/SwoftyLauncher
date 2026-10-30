@@ -181,6 +181,8 @@ std::string snapshots_career_loaded(const char *key, unsigned mode);
 std::string snapshots_career_id(const char *key);
 std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
+std::vector<CoreMixins> ers_mode_mixins();
+void ers_mode_commit();
 std::vector<CoreMixins> track_acclim_mixins();
 void track_acclim_commit();
 std::vector<CoreMixins> track_select_mixins();

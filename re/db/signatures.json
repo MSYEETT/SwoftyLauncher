@@ -74725,7 +74725,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/ers_mode.cpp"
+   ]
   },
   {
    "id": "car.fuel_flow_store",

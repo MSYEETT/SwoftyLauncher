@@ -299,6 +299,9 @@ in J, EnergyStoreCapacity 4 MJ, efficiencies, MaxBrakeTorqueMGUK, MGU-H coeffici
 gear_modifier[11] indexed by gear index, DerateStartSpeed), per-track TrackSettings +0x1980.. (read only for the
 current track at load). Runtime: energy +0x19f0, lap counters +0x19c8..+0x19d0, lap_harvest_limit +0x19f4, powers
 +0x1a00/+0x1a04/+0x1a14, ers_mode +0x1a68 (Reset with 0x10|0x200 = 1 Medium).
+The factory leaves the energy, the lap counters and ers_mode unset, and a system created on a reset of the car's
+systems with arg 1 never gets the 0x200 Reset (V2124, V2125). Core's ERS mode guard (`native/src/core/ers_mode.cpp`) hooks
+site_Car_ErsGearModifierLoad and runs the system's own Reset with 0x10|0x200 when the mode is outside 0..3.
 
 Deploy (Car_Powertrain_Step): MaxDeployPower x clamp(modes[ers_mode].gear_modifier[gear]) (site_Car_ErsGearModifierLoad
 0x1446e286f) x deploy factor (track +0x1980.. when track_settings_found, else defaults +0x19a8..; mode 2 Overtake uses
