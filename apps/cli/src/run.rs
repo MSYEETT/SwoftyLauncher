@@ -443,11 +443,28 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     }
     let installed = apply.then(Instant::now);
     become_subreaper();
+    let vanilla = store.profile(&profile).is_ok_and(|p| p.is_vanilla());
+    if crate::ea::stages_offline(args.via_ea, vanilla) {
+        stage_offline(store, &game)?;
+    } else {
+        say(
+            "info",
+            "offline play: not staged; the vanilla profile starts F1 25 through the EA app as installed, \
+             with EA AntiCheat",
+        );
+    }
+    let backup = crate::saves::before_session(store, &profile, g);
+    let result = run_loop(store, args, &config, &request, &profile, g, installed);
+    crate::saves::after_session(store, backup.as_ref());
+    finish(session, result)
+}
+
+fn stage_offline(store: &Store, game: &Path) -> Result<()> {
     let artifacts = crate::offline::ensure_extension(store)?;
     if let Some(note) = crate::offline::loader_note(&artifacts) {
         say("info", &format!("offline play: {note}"));
     }
-    let probe = swofty_core::offline::probe_cached(&store.root, &game, &artifacts)?;
+    let probe = swofty_core::offline::probe_cached(&store.root, game, &artifacts)?;
     if !probe.supported {
         bail!(
             "this F1 25 build is not supported by the offline play extension yet ({}); \
@@ -457,9 +474,9 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
     }
     say("info", &format!("game build supported: {}", probe.report));
     let journal = swofty_core::offline::journal_path(&store.root);
-    let staged = swofty_core::offline::stage(&game, &artifacts, &journal);
+    let staged = swofty_core::offline::stage(game, &artifacts, &journal);
     if let Err(swofty_core::Error::MissingStock { files, version }) = &staged {
-        swofty_core::stock::Report::missing(files.clone(), &game, version.clone())
+        swofty_core::stock::Report::missing(files.clone(), game, version.clone())
             .write(&store.root)
             .ok();
     }
@@ -470,10 +487,7 @@ fn wrapper(store: &Store, profile: &str, args: &RunArgs, g: &Game) -> Result<Exi
         "info",
         "staged offline play: EA AntiCheat is not started this session; multiplayer is unavailable",
     );
-    let backup = crate::saves::before_session(store, &profile, g);
-    let result = run_loop(store, args, &config, &request, &profile, g, installed);
-    crate::saves::after_session(store, backup.as_ref());
-    finish(session, result)
+    Ok(())
 }
 
 /// A launch the loader check refused before the game started.

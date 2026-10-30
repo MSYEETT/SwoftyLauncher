@@ -224,3 +224,10 @@ The launcher installs addons, builds older addons' operations, checks the depend
 ## Without code
 
 Data files in `registry/` apply at the same moments, by their registry's `x-applies`. The core reads them in game at the early stage, after the addon's DLL (if any) has registered.
+
+The launcher loads the core at the early stage (`"early_stage": true` in `swofty/assets.json`) for every profile with an enabled addon that has data files, or a `registry.lock.json` that lists `SWOFTY_REGISTER` registrations. It does so whichever route the database takes: the older addons' edits applied at runtime, or built into the game's database file. The loader also loads the core early for every DLL that exports `SwoftyAddonRegister`.
+
+```text
+registry: the core loads at the early stage for the registry records of 2012 Season
+database: built into the game file; the addons add 110903 record(s) and the game's database takes 91907 more once it has loaded
+```

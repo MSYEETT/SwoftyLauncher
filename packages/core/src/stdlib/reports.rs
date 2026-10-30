@@ -326,6 +326,114 @@ impl Room {
 }
 
 /// The status line of each addon from the last session's reports: what didn't apply.
+/// A track a box leaves out, and why.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LeftOut {
+    pub track: String,
+    pub reason: String,
+}
+
+/// What one box offers in one mode, as `catalog.json`'s `tracks` holds it: the season's calendar
+/// first, then "More tracks", then what it leaves out.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TrackList {
+    pub calendar: Vec<String>,
+    pub more: Vec<String>,
+    pub left_out: Vec<LeftOut>,
+}
+
+/// `catalog.json`'s `tracks`: by box (`content.package` id), by mode (`grand_prix`, `time_trial`).
+pub type BoxTracks = BTreeMap<String, BTreeMap<String, TrackList>>;
+
+impl TrackList {
+    fn of(v: &Value) -> Self {
+        let ids = |key: &str| -> Vec<String> {
+            v.get(key)
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        };
+        Self {
+            calendar: ids("calendar"),
+            more: ids("more"),
+            left_out: v
+                .get("left_out")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|e| {
+                    Some(LeftOut {
+                        track: e.get("track")?.as_str()?.to_owned(),
+                        reason: s(e, "reason"),
+                    })
+                })
+                .collect(),
+        }
+    }
+}
+
+/// `catalog.json`'s box track lists and the build they came from: the core keeps one build's boxes
+/// and starts again when a box is pressed under another profile or build. `profile` and `build` are
+/// `None` in a catalog an older core wrote, which can hold boxes from earlier sessions and profiles.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Catalog {
+    pub profile: Option<String>,
+    pub build: Option<String>,
+    pub boxes: BoxTracks,
+}
+
+impl Catalog {
+    /// The catalog's lists are the profile's: written for it, or by an older core that named none.
+    pub fn is_for(&self, profile: &str) -> bool {
+        self.profile.as_deref().is_none_or(|p| p == profile)
+    }
+}
+
+/// The box track lists of a `catalog.json`; `None` when it has none.
+pub fn box_tracks(text: &str) -> Option<BoxTracks> {
+    catalog(text).map(|c| c.boxes)
+}
+
+/// The box track lists of a `catalog.json` with the build they came from; `None` when it has none.
+pub fn catalog(text: &str) -> Option<Catalog> {
+    let doc: Value = serde_json::from_str(text).ok()?;
+    let boxes = doc.get("tracks")?.as_object()?;
+    let named = |key: &str| {
+        doc.get(key)
+            .and_then(Value::as_str)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    Some(Catalog {
+        profile: named("profile"),
+        build: named("build"),
+        boxes: boxes
+            .iter()
+            .filter_map(|(id, modes)| {
+                let modes: BTreeMap<String, TrackList> = modes
+                    .as_object()?
+                    .iter()
+                    .map(|(mode, list)| (mode.clone(), TrackList::of(list)))
+                    .collect();
+                Some((id.clone(), modes))
+            })
+            .collect(),
+    })
+}
+
+/// The box track lists the core wrote in `catalog.json` in your last session.
+pub fn read_box_tracks(data: &Path, game: Option<&Path>) -> Option<BoxTracks> {
+    read_catalog(data, game).map(|c| c.boxes)
+}
+
+/// The core's last `catalog.json` with the build its box lists came from.
+pub fn read_catalog(data: &Path, game: Option<&Path>) -> Option<Catalog> {
+    catalog(&read_report(data, game, CATALOG)?)
+}
+
 pub fn status_lines(conflicts: Option<&Conflicts>, room: Option<&Room>) -> BTreeMap<String, Vec<String>> {
     let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
     if let Some(c) = conflicts {
@@ -409,6 +517,54 @@ pub fn status_lines(conflicts: Option<&Conflicts>, room: Option<&Room>) -> BTree
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_each_boxs_track_lists_from_the_catalog() {
+        let text = r#"{ "records": {}, "tracks": {
+            "swofty.classic-seasons-2016/f1_2016": {
+              "grand_prix": { "calendar": ["game/melbourne", "mod.bahrain24/bahrain24"], "more": ["game/miami"],
+                              "left_out": [ { "track": "mod.okayama/okayama",
+                                              "reason": "its swofty_f1 world has 10 garages; the box has 11 teams" },
+                                            { "reason": "no track" } ] },
+              "time_trial": { "calendar": [], "more": ["game/melbourne", 3], "left_out": [], "extra": true } },
+            "game/f1_2025": "not a box" } }"#;
+        let boxes = box_tracks(text).unwrap();
+        assert_eq!(boxes.len(), 1);
+        let cs = &boxes["swofty.classic-seasons-2016/f1_2016"];
+        assert_eq!(
+            cs["grand_prix"],
+            TrackList {
+                calendar: vec!["game/melbourne".into(), "mod.bahrain24/bahrain24".into()],
+                more: vec!["game/miami".into()],
+                left_out: vec![LeftOut {
+                    track: "mod.okayama/okayama".into(),
+                    reason: "its swofty_f1 world has 10 garages; the box has 11 teams".into(),
+                }],
+            }
+        );
+        assert_eq!(cs["time_trial"].more, ["game/melbourne"]);
+        assert_eq!(box_tracks(r#"{ "records": {} }"#), None);
+        assert_eq!(box_tracks("not json"), None);
+        let old = catalog(text).unwrap();
+        assert_eq!((old.profile, old.build), (None, None));
+        assert!(catalog(text).unwrap().is_for("anything"));
+    }
+
+    #[test]
+    fn a_catalog_names_the_profile_and_build_of_its_boxes() {
+        let c = catalog(
+            r#"{ "profile": "Classic Seasons", "build": "9d7a5f9177e1436d",
+                 "tracks": { "game/f1_2025": { "grand_prix": {} } } }"#,
+        )
+        .unwrap();
+        assert_eq!(c.profile.as_deref(), Some("Classic Seasons"));
+        assert_eq!(c.build.as_deref(), Some("9d7a5f9177e1436d"));
+        assert_eq!(c.boxes.len(), 1);
+        assert!(c.is_for("Classic Seasons"));
+        assert!(!c.is_for("Tails what-if"));
+        let unnamed = catalog(r#"{ "profile": "", "build": "", "tracks": {} }"#).unwrap();
+        assert_eq!((unnamed.profile, unnamed.build), (None, None));
+    }
 
     const CONFLICTS_DOC: &str = r#"{
       "registry": [

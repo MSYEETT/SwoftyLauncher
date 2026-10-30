@@ -19,6 +19,8 @@
 //                (the cards' driver keys) has ig_driver in Wehrlein's place with his own look and number;
 //   no registry: no record means years.json as it is.
 
+#include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -368,6 +370,43 @@ void a_layer_adds_teams(const sj::Value &file)
     EXPECT(again.teams == 0);
 }
 
+void a_twelfth_team_joins_the_season_start_standings(const sj::Value &file)
+{
+    sj::Value doc = file;
+    pr::overlay(doc, season_of, rating_of);
+    season::Data base = parse_season(file), eff = parse_season(doc);
+    const season::Year *y = eff.year(2016);
+    EXPECT(y && season::extra_team_label(*y, 12) == "ig_twelve" && season::extra_team_label(*y, 11).empty());
+    std::vector<int> stock = season::start_slot_order(*base.year(2016));
+    std::vector<int> twelve = season::start_slot_order(*y);
+    EXPECT(stock.size() == static_cast<size_t>(season::kSlots));
+    EXPECT(twelve.size() == static_cast<size_t>(season::kMaxSlots) && twelve.back() == season::kSlots);
+    EXPECT(std::equal(stock.begin(), stock.end(), twelve.begin()));
+    std::array<bool, season::kSlots> closed{};
+    closed[10] = true;
+    std::vector<int> eleven = season::start_slot_order(*y, closed);
+    EXPECT(eleven.size() == static_cast<size_t>(season::kSlots) &&
+           std::find(eleven.begin(), eleven.end(), 10) == eleven.end() && eleven.back() == season::kSlots);
+    season::Year ranked = *y;
+    ranked.previous_slots.insert(ranked.previous_slots.begin() + 1, season::kSlots);
+    std::vector<int> listed = season::start_slot_order(ranked);
+    EXPECT(listed.size() == static_cast<size_t>(season::kMaxSlots) && listed[1] == season::kSlots &&
+           std::count(listed.begin(), listed.end(), season::kSlots) == 1);
+    sj::Value twelve_file = file;
+    sj::Value *prev = twelve_file.find("seasons");
+    prev = prev ? prev->find("2017") : nullptr;
+    prev = prev ? prev->find("previous_standings") : nullptr;
+    sj::Value *slots = prev ? prev->find("slots") : nullptr;
+    EXPECT(slots && slots->is_array());
+    if (slots && slots->is_array())
+        slots->push_back(12);
+    season::Data parsed = parse_season(twelve_file);
+    const season::Year *y17 = parsed.year(2017);
+    EXPECT(y17 && !y17->previous_slots.empty() && y17->previous_slots.back() == season::kSlots);
+    std::vector<int> no_team = season::start_slot_order(*y17);
+    EXPECT(no_team == season::start_slot_order(*base.year(2017)));
+}
+
 void the_start_view_shows_the_added_team(const sj::Value &file)
 {
     sj::Value doc = file;
@@ -542,6 +581,7 @@ int main(int argc, char **argv)
         }, swofty::Scope::profile);
         engine->end_register();
         a_layer_adds_teams(file);
+        a_twelfth_team_joins_the_season_start_standings(file);
         the_start_view_shows_the_added_team(file);
         swofty::api = nullptr;
     }

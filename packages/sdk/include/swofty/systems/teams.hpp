@@ -57,7 +57,7 @@ SWOFTY_RECORD(Logo, images)
 SWOFTY_RECORD_REGISTRY(Logo, "team.logo")
 
 struct Identity {
-    static constexpr Version version{1, 0};
+    static constexpr Version version{1, 1};
     Ref<Identity> donor;
     Ref<Constructor> constructor;
     std::vector<Ref<Constructor>> provides;
@@ -70,10 +70,12 @@ struct Identity {
     int prestige = 0;
     std::string nationality;
     StatId stat_id = StatId::automatic;
+    std::string team_boss;
+    Text team_base;
     json::Value extra;
 };
 SWOFTY_RECORD(Identity, donor, constructor, provides, names, colours, wear, livery_name, logo, audio_id, prestige,
-              nationality, stat_id)
+              nationality, stat_id, team_boss, team_base)
 
 struct PitTimes {
     static constexpr Version version{1, 0};
