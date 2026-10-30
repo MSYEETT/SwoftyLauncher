@@ -303,13 +303,22 @@ pub fn catalog_url() -> String {
     format!("{}/v1/addons", base_url())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 struct Catalog {
-    addons: Vec<Addon>,
+    addons: Vec<serde_json::Value>,
 }
 
+/// The addons of a catalog. An entry this launcher can't read is left out, so one
+/// malformed addon doesn't hide the others.
 pub fn parse(text: &str) -> Option<Vec<Addon>> {
-    serde_json::from_str::<Catalog>(text).ok().map(|c| c.addons)
+    let catalog = serde_json::from_str::<Catalog>(text).ok()?;
+    Some(
+        catalog
+            .addons
+            .into_iter()
+            .filter_map(|a| serde_json::from_value(a).ok())
+            .collect(),
+    )
 }
 
 pub fn cache_path(root: &Path) -> PathBuf {
@@ -697,6 +706,25 @@ fn file_name(addon: &Addon, v: &Version) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unreadable_entry_leaves_the_rest_of_the_catalog() {
+        let entry = |id: &str, game: serde_json::Value| {
+            serde_json::json!({
+                "id": id, "name": id, "author": "a", "summary": "", "description": "",
+                "versions": [], "latest": { "version": "1.0.0", "game": game, "size": 1,
+                "sha256": "00", "url": "http://x/a.zip", "published_at": "2026-10-30T00:00:00Z" }
+            })
+        };
+        let text = serde_json::json!({ "addons": [
+            entry("a.good", serde_json::json!("f1_25")),
+            entry("a.bad", serde_json::Value::Null),
+        ] })
+        .to_string();
+        let ids: Vec<String> = parse(&text).unwrap().into_iter().map(|a| a.id).collect();
+        assert_eq!(ids, ["a.good"]);
+        assert!(parse("{\"not\": 1}").is_none());
+    }
 
     #[test]
     fn ensure_dir_moves_a_file_aside() {

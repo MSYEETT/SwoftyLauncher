@@ -470,6 +470,35 @@ inline std::vector<NameWrite> added_team_name_writes(const Data &d, int year, co
     return out;
 }
 
+// Who the team names and event titles belong to when the new-career wizard sets its start season's
+// (ProgressiveWizardNames, at the tile press and every wizard step) or another career tile is pressed. A loaded
+// Progressive career with a live store entry (Team HQ, or its load matched an entry) owns them: its season apply
+// and Team HQ set its own year. A championship entity filed under f1_career_progressive without one is the wizard's
+// own new career: the game makes it at career.starting, before the setup page, so it never stops the wizard.
+enum class NamesOwner { none, wizard, career };
+
+inline NamesOwner names_owner(bool career_entry, bool progressive_entity)
+{
+    return career_entry ? NamesOwner::career : progressive_entity ? NamesOwner::wizard : NamesOwner::none;
+}
+
+// The year whose names the wizard sets for start season `start` while `names_year` is set (0: none yet), or 0 to
+// leave them: a step after the setup page moved the start season sets the new season's names (its writes put every
+// key of the previous season's back), the same season again writes nothing.
+inline int wizard_names_year(int start, int names_year, NamesOwner owner)
+{
+    if (owner == NamesOwner::career)
+        return 0;
+    int year = clamp_year(start);
+    return year == names_year ? 0 : year;
+}
+
+// Another career tile was pressed: the 2026 names come back unless a Progressive career owns them.
+inline bool tile_press_clears_names(int names_year, NamesOwner owner)
+{
+    return names_year && owner != NamesOwner::career;
+}
+
 // The logo key of an added team in a start season's slot whose career team row is `label`: the row label the core
 // gives the team's own row (its record key), whose logo slices the core's team applier built; empty when the slot
 // holds no added team that year.
@@ -665,6 +694,51 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
                 take(yr->teams[slot].vehicle, y);
     take(d.slots[slot].vehicle_2026, kLastYear);
     return out;
+}
+
+// A seat whose car (vehicle_ref, the vehicle row's stat id in the high word) names no vehicle row of the loaded
+// database. Before 1.6.6 an addon's add-row ids were numbered afresh by every build, so an update moved Classic
+// Seasons' cars (cs16_mercedes 534 -> 725 for vanderlinde0401) and a save's seats kept the old ids: entering a
+// session, Sess_Build_AiSystem read a null vehicle (0xce8). The seat gets its team slot's season car back, by
+// label (vehicle_for, the season apply's car). A seat with no car, or whose car exists, is left alone; `left`
+// says why a seat with a missing car cannot be repaired.
+struct CarRepair {
+    int old_stat = -1;
+    int slot = -1;
+    VehicleSet car;
+    const char *left = nullptr;
+};
+
+inline bool empty_key(uint32_t key)
+{
+    return (key & 0xffff0000u) == 0x3fff0000u;
+}
+
+inline std::optional<CarRepair> car_repair(const Data &d, const Resolve &r, int year, uint32_t team_key,
+                                           uint32_t vehicle_ref, const std::function<bool(int)> &vehicle_known)
+{
+    if (empty_key(vehicle_ref) || vehicle_known(static_cast<int>(vehicle_ref >> 16)))
+        return std::nullopt;
+    CarRepair out;
+    out.old_stat = static_cast<int>(vehicle_ref >> 16);
+    if (empty_key(team_key)) {
+        out.left = "the seat has no team";
+        return out;
+    }
+    out.slot = slot_of_team(d, static_cast<int>(team_key >> 16));
+    if (out.slot < 0) {
+        out.left = "its team is none of Progressive's slots";
+        return out;
+    }
+    out.car = vehicle_for(d, r, year, out.slot);
+    if (out.car.stat < 0 || !vehicle_known(out.car.stat))
+        out.left = "no vehicle row resolves for the slot";
+    return out;
+}
+
+inline uint32_t repaired_ref(uint32_t vehicle_ref, int stat)
+{
+    return (static_cast<uint32_t>(stat) << 16) | (vehicle_ref & 0xffffu);
 }
 
 // move_player (follow mode): when the player raced in the year (at the career's round, with `at`)
