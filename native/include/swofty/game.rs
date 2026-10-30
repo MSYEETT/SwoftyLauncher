@@ -2514,7 +2514,8 @@ pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *con
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
 pub type Ne_Parse_Long_t = unsafe extern "C" fn(text: *const c_char, end: *mut *mut c_char, base: i32) -> i32;
-pub type Ne_Phys_ParseMaterials_t = unsafe extern "C" fn(lib: *mut c_void, node: *mut c_void);
+pub type Ne_PhysBody_ApplyImpulse_t =
+    unsafe extern "C" fn(body: *mut c_void, J: *const f32, worldPoint: *const f32);
 pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
     feature_system: *mut c_void,
     path: *mut *mut NeStr,
@@ -3615,6 +3616,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetConnectionStore_Initialise: Binding = Binding {
+        id: "Ne_NetConnectionStore_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetHttpRequestHandler_CreateRequest: Binding = Binding {
         id: "Ne_NetHttpRequestHandler_CreateRequest",
         kind: "func",
@@ -3622,6 +3628,11 @@ pub mod bindings {
     };
     pub const Ne_NetNullSSLPeer_Update: Binding = Binding {
         id: "Ne_NetNullSSLPeer_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetReliableAsyncSocket_DisconnectAll: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_DisconnectAll",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3645,6 +3656,236 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetReliableAsyncSocket_SetKeyMaterial: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_SetKeyMaterial",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_JoinSession: Binding = Binding {
+        id: "Ne_NetSessionF1OS_JoinSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_MigrateSessionClient: Binding = Binding {
+        id: "Ne_NetSessionF1OS_MigrateSessionClient",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_MigrateSessionHost: Binding = Binding {
+        id: "Ne_NetSessionF1OS_MigrateSessionHost",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_SetCrossplay: Binding = Binding {
+        id: "Ne_NetSessionF1OS_SetCrossplay",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_SetSessionName: Binding = Binding {
+        id: "Ne_NetSessionF1OS_SetSessionName",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionLAN_MigrateSessionClient: Binding = Binding {
+        id: "Ne_NetSessionLAN_MigrateSessionClient",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionLAN_MigrateSessionHost: Binding = Binding {
+        id: "Ne_NetSessionLAN_MigrateSessionHost",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionLAN_OnCreateMigratedSessionFinished: Binding = Binding {
+        id: "Ne_NetSessionLAN_OnCreateMigratedSessionFinished",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionSearcherLAN_SearchForSessions: Binding = Binding {
+        id: "Ne_NetSessionSearcherLAN_SearchForSessions",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSyncClock_IntegrateRemoteHostClock: Binding = Binding {
+        id: "Ne_NetSyncClock_IntegrateRemoteHostClock",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSyncClock_RecalculateClockOffset: Binding = Binding {
+        id: "Ne_NetSyncClock_RecalculateClockOffset",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_CreateSession: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_CreateSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_MigrateSession: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_MigrateSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_NotifyPeersMigrationResult: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_NotifyPeersMigrationResult",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnCreateSessionComplete: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnCreateSessionComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnHandshakingComplete: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnHandshakingComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnJoinSessionComplete: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnJoinSessionComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnMigrateSessionClient: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnMigrateSessionClient",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnSessionError: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnSessionError",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_OnSessionSearchComplete: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_OnSessionSearchComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_ResetNetworkSystem: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_ResetNetworkSystem",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_ResetNetworkSystemCompleted: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_ResetNetworkSystemCompleted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_SearchForSessions: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_SearchForSessions",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_HandleSendToConnection: Binding = Binding {
+        id: "Ne_NetSystemCommon_HandleSendToConnection",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_LeaveSession: Binding = Binding {
+        id: "Ne_NetSystemCommon_LeaveSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_Migrate: Binding = Binding {
+        id: "Ne_NetSystemCommon_Migrate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_OnConnectionArrived: Binding = Binding {
+        id: "Ne_NetSystemCommon_OnConnectionArrived",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_ResetNetworkSystem: Binding = Binding {
+        id: "Ne_NetSystemCommon_ResetNetworkSystem",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_ResetNetworkSystemCompleted: Binding = Binding {
+        id: "Ne_NetSystemCommon_ResetNetworkSystemCompleted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemCommon_SendKeepAliveToConnections: Binding = Binding {
+        id: "Ne_NetSystemCommon_SendKeepAliveToConnections",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemHelloMessage_Deserialise: Binding = Binding {
+        id: "Ne_NetSystemHelloMessage_Deserialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemHelloMessage_Serialise: Binding = Binding {
+        id: "Ne_NetSystemHelloMessage_Serialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemServerHelloResponseMessage_Deserialise: Binding = Binding {
+        id: "Ne_NetSystemServerHelloResponseMessage_Deserialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemServerHelloResponseMessage_Serialise: Binding = Binding {
+        id: "Ne_NetSystemServerHelloResponseMessage_Serialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_AddHostConnectionInfoToConnectionStore: Binding = Binding {
+        id: "Ne_NetTransportCommon_AddHostConnectionInfoToConnectionStore",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_BroadcastNewConnectionToClients: Binding = Binding {
+        id: "Ne_NetTransportCommon_BroadcastNewConnectionToClients",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_HandleClientHello: Binding = Binding {
+        id: "Ne_NetTransportCommon_HandleClientHello",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_InitialiseClient: Binding = Binding {
+        id: "Ne_NetTransportCommon_InitialiseClient",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_Migrate: Binding = Binding {
+        id: "Ne_NetTransportCommon_Migrate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_ReportClientInitialConnections: Binding = Binding {
+        id: "Ne_NetTransportCommon_ReportClientInitialConnections",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_StartHandshaking: Binding = Binding {
+        id: "Ne_NetTransportCommon_StartHandshaking",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportLAN_RegisterArrivedConnection: Binding = Binding {
+        id: "Ne_NetTransportLAN_RegisterArrivedConnection",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportPlayFab_MigrateConnections: Binding = Binding {
+        id: "Ne_NetTransportPlayFab_MigrateConnections",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportPlayFab_SendTo: Binding = Binding {
+        id: "Ne_NetTransportPlayFab_SendTo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportPlayFab_SendToConnectionInfo: Binding = Binding {
+        id: "Ne_NetTransportPlayFab_SendToConnectionInfo",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetVoiceNotificationClient_WaveInAddBuffer: Binding = Binding {
         id: "Ne_NetVoiceNotificationClient_WaveInAddBuffer",
         kind: "func",
@@ -3665,6 +3906,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_PhysBody_ApplyImpulse: Binding = Binding {
+        id: "Ne_PhysBody_ApplyImpulse",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Phys_ParseMaterials: Binding = Binding {
         id: "Ne_Phys_ParseMaterials",
         kind: "func",
@@ -3672,6 +3918,31 @@ pub mod bindings {
     };
     pub const Ne_Play_FullscreenVideo: Binding = Binding {
         id: "Ne_Play_FullscreenVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_PlayerManager_HandleLeadPlayerLogoutOrChangeCallback: Binding = Binding {
+        id: "Ne_PlayerManager_HandleLeadPlayerLogoutOrChangeCallback",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Player_AddPlayerInputProvider: Binding = Binding {
+        id: "Ne_Player_AddPlayerInputProvider",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Player_DestroyCustomInputProvider: Binding = Binding {
+        id: "Ne_Player_DestroyCustomInputProvider",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Player_DisableCustomControls: Binding = Binding {
+        id: "Ne_Player_DisableCustomControls",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Player_RemovePlayerInputProvider: Binding = Binding {
+        id: "Ne_Player_RemovePlayerInputProvider",
         kind: "func",
         status: Status::Experimental,
     };
