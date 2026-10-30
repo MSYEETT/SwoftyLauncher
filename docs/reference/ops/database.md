@@ -94,7 +94,7 @@ dataset-scoped set is not implemented yet
 `add-row` copies every key of the source row: its fields, its sub-object keys such as `ai_vehicle_config.*` on vehicles, and its nested tables with their `_instancecount_` keys and rows, at any depth. `set` then changes keys of the copy. Every `set` key must be a key the copy has. The copy goes at the table's next row number, and the table's count goes up by one ([The row-count rule](#the-row-count-rule)).
 
 - `copy`: `all` copies every key of the source row and every key in the file's `fields` list. `listed` copies only the keys in the `fields` list.
-- `stat_id`: `fresh` gives the next free id above the table's highest `stat_id`. `keep` keeps the source row's id. The default is `fresh` in a top-level table whose rows all have different ids, and `keep` elsewhere ([Stat ids](#stat-ids)).
+- `stat_id`: `fresh` gives the copy the id the install keeps for it, else the next free id above the table's highest `stat_id` ([Kept ids](#kept-ids)). `keep` keeps the source row's id. The default is `fresh` in a top-level table whose rows all have different ids, and `keep` elsewhere ([Stat ids](#stat-ids)).
 
 The build prints, prefixed with the addon's id:
 
@@ -242,6 +242,26 @@ A copy into such a table gets the next free id above the table's highest, and th
 
 ```text
 f1-1990: add-row entrants.entrant_lists.entrant_list_68 (from entrants.entrant_lists.entrant_list[_metadata_=f1_2026]): stat_id 105 (the source's is 67)
+```
+
+#### Kept ids
+
+A copy keeps its id from build to build. The launcher keeps the id of every copy it gives one in `$DATA/registry/row-ids.json`, one file per install next to the core's `ids.json`, keyed `<addon>/<table>.<row>/<label>`. Every profile's build reads it, so a row has the same id whatever the profile, the load order or the other addons:
+
+- A copy the file has no id for takes the id the profile's last build gave the row with its label, else the next free id. Neither is an id the file keeps for another row or one the core's `ids.json` holds ([Stat ids](/std/registry#stat-ids)).
+- An addon that is turned off or removed keeps its rows' ids. Turned back on, its rows get them back. An update that adds a row gives the new row a new id and leaves the others alone.
+- A kept id that a row of the database, the core's `ids.json` or the table's ceiling now rules out moves to the next free id.
+- A table with no free id left takes the lowest id kept for an addon the build leaves out.
+- Two copies with one label in one addon's table are `<label>` and `<label>#2`.
+
+The build prints where each id came from:
+
+```text
+swofty.classic-seasons-2016: add-row entrants.vehicles.vehicle_438 (from entrants.vehicles.vehicle[_metadata_=f1_2025_mercedes]): stat_id 512 (the source's is 3; kept from row-ids.json)
+swofty.classic-seasons-2016: add-row entrants.vehicles.vehicle_439 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 513 (the source's is 4; as the profile's last build gave it)
+my-addon: add-row entrants.vehicles.vehicle_450 (from entrants.vehicles.vehicle[_metadata_=f1_2025_ferrari]): stat_id 737 (the source's is 4; 600, kept for it, is kept for another row or held by a record of the core's registry)
+my-addon: add-row entrants.vehicles.vehicle_packages.vehicle_package_90 (from entrants.vehicles.vehicle_packages.vehicle_package_0): stat_id 83 (the source's is 2; no other id up to 254 is free; reused from old-addon/entrants.vehicles.vehicle_packages.vehicle_package/old_era, which this build leaves out)
+database: row-ids.json keeps 412 added-row id(s) (11 new)
 ```
 
 The game keeps the id of some tables in one byte. A copy into one of them never gets an id above the table's highest:
