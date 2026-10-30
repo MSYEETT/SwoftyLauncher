@@ -270,7 +270,8 @@ pub fn start(store: &Store, game: &Path, args: &[String], session: &Path, before
             if let Some((mut open, _)) = desktop_opener(&h) {
                 detach(&mut open).ok();
             }
-            match offline::slot(&offline::journal_path(&store.root)) {
+            let slot = offline::slot(&offline::journal_path(&store.root));
+            match &slot {
                 Ok(Some(Slot::Staged)) => say("ea app", "offline play's file is in place"),
                 Ok(Some(Slot::Replaced)) => say("ea app", "the EA app put its own file over offline play's"),
                 Ok(Some(Slot::Missing)) => say("ea app", "offline play's file is gone from the game folder"),
@@ -280,11 +281,9 @@ pub fn start(store: &Store, game: &Path, args: &[String], session: &Path, before
                 Ok(None) => {}
                 Err(e) => say("ea app", &format!("could not check offline play's file: {e}")),
             }
-            say(
-                "ea app",
-                "F1 25 did not start from the launch link; press Play on F1 25 in the EA app",
-            );
-            stage.set("Press Play on F1 25 in the EA app");
+            let (line, status) = waiting(slot.ok().flatten());
+            say("ea app", line);
+            stage.set(status);
             wait_for_game(game, before, PRESS_PLAY_TIMEOUT, &mut None)?.ok_or_else(|| {
                 anyhow!(
                     "F1 25 was not started from the EA app within {} min; the game files are rolled back",
@@ -296,6 +295,22 @@ pub fn start(store: &Store, game: &Path, args: &[String], session: &Path, before
     say("ea app", &format!("F1 25 started (pid {pid})"));
     restage(store);
     Ok(Started { pid, handoff })
+}
+
+/// What the session says and shows while it waits for the EA app after the
+/// launch link started nothing. An EA app that took offline play's file out
+/// is repairing F1 25 and starts it once the repair is done.
+fn waiting(slot: Option<Slot>) -> (&'static str, &'static str) {
+    match slot {
+        Some(Slot::Missing | Slot::Replaced) => (
+            "the EA app took offline play's file out to repair F1 25; F1 25 starts without mods after the repair",
+            "The EA app is repairing F1 25",
+        ),
+        _ => (
+            "F1 25 did not start from the launch link; press Play on F1 25 in the EA app",
+            "Press Play on F1 25 in the EA app",
+        ),
+    }
 }
 
 /// An EA app repair puts EA's anti-cheat launcher over offline play's file,
@@ -488,6 +503,26 @@ mod tests {
         assert!(stages_offline(true, false));
         assert!(stages_offline(false, true));
         assert!(stages_offline(false, false));
+    }
+
+    #[test]
+    fn says_the_ea_app_is_repairing_when_it_took_offline_plays_file_out() {
+        for slot in [Slot::Missing, Slot::Replaced] {
+            let (line, status) = waiting(Some(slot));
+            assert!(
+                line.starts_with("the EA app took offline play's file out"),
+                "{line}"
+            );
+            assert_eq!(status, "The EA app is repairing F1 25");
+        }
+        for slot in [Some(Slot::Staged), Some(Slot::Unknown), None] {
+            let (line, status) = waiting(slot);
+            assert!(
+                line.starts_with("F1 25 did not start from the launch link"),
+                "{line}"
+            );
+            assert_eq!(status, "Press Play on F1 25 in the EA app");
+        }
     }
 
     #[cfg(unix)]
