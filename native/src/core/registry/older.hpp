@@ -11,7 +11,10 @@
 // calling addon's name, and the library's behaviour reads the effective record, so other addons can
 // read and layer it. With no layer the effective record is what the call gave, field for field.
 //
-// - career.content: "<addon>/<content id>", added by career::content::add.
+// - career.content: "<addon>/<content id>", added by career::content::add. A record a data file or
+//   SWOFTY_REGISTER adds with no call behind it gets its tile too: content_from turns it into the
+//   descriptor the call would have given, its title, save container and data group falling back to the
+//   career.mode record its mode names, its description to its title.
 // - hub.tab: "<addon>/<tab name>", added from the swofty.json hub_tab field.
 // - career.wizard: "<addon>/<data group>", the addon's whole wizard state for that group, rewritten by
 //   every call.
@@ -29,6 +32,7 @@ inline constexpr const char *WIZARD = "career.wizard";
 inline constexpr const char *CHARACTER = "career.character";
 inline constexpr const char *STRING = "lang.string";
 inline constexpr const char *OPTION = "addon.option";
+inline constexpr const char *MODE = "career.mode";
 
 void declare(Store &st);
 int put(Store &st, const std::string &addon, const char *registry, const std::string &key, const Value &value,
@@ -41,13 +45,15 @@ std::string key_of(const std::string &id);
 
 struct ContentDesc {
     std::string id, title, description, data_group, suffix, mode, entitlement;
-    uint32_t model = 1;
+    uint32_t model = 0;
     int32_t car_group = -1;
     uint32_t badge = 0;
     uint32_t careers = 1;
 };
 Value content_record(const ContentDesc &d);
 void content_shown(const Value &rec, ContentDesc &d);
+bool content_from(const std::string &id, const Value &rec, const Value &mode, ContentDesc &d, std::string &why);
+std::string content_mode_id(const std::string &id, const Value &rec);
 
 struct HubTab {
     std::string addon, name, title, group;

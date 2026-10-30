@@ -94,12 +94,17 @@ jobs:
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
-            # The registry schemas and examples, the tools that check them, and the templates whose data files they validate.
+            # The registry schemas and examples, the tools that check them, the templates whose data files they validate, and the
+            # venues table with the Classic Seasons calendars made from it.
             std:
               - *always
               - packages/sdk/std/**
               - tools/std/**
               - templates/std/**
+              - addons/classicseasons/*/registry/**
+              - addons/classicseasons/classic-seasons/tools/calendars.py
+              - addons/classicseasons/test/calendars.py
+              - addons/progressive/data/rounds.json
             compat:
               - *always
               - tools/compat/**
@@ -285,6 +290,10 @@ jobs:
       - name: Template data files
         run: python3 tools/std/templates.py --no-build
 
+      # The venues table, and each Classic Seasons season's calendar against Progressive's rounds and the schemas.
+      - name: Venues and Classic Seasons calendars
+        run: python3 addons/classicseasons/test/calendars.py
+
   native:
     name: Native loader and Wine test
     needs: changes
@@ -394,8 +403,12 @@ jobs:
         run: native/test/run_career_ops_test.sh
       - name: Live apply paths (scheduler, put-back, context, budgets, sizing, stat ids, reports)
         run: native/test/run_apply_test.sh
+      - name: Box track lists (fit rules, calendar and More tracks, per-box entries, fuel plan, guard decision)
+        run: native/test/run_track_lists_test.sh
       - name: Content registries (row engine, Classic Seasons lowering, variants, stat-id pools)
         run: native/test/run_content_test.sh
+      - name: Track registries (seeds, record lowering, parity with the launcher's track activation)
+        run: native/test/run_tracks_test.sh
       - name: Progressive registration test
         env:
           ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/native/build/zig-cache

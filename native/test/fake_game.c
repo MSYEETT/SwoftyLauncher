@@ -590,9 +590,23 @@ static void acclim_listener(void *ctx, int code)
     acclim_notified += code == 2;
 }
 
+// Game_PracticeTrackAcclimatisation_FlagCurrentTarget, copied byte for byte from the Steam build
+// (0x1429a0620..0x1429a0647, a leaf without unwind data). Core's track acclimatisation penalty guard resolves its
+// entry and ret sites here, and the test flags the current target of a programme with targets and of one without.
+__asm__(
+    ".section .xtls,\"xr\"\n"
+    ".globl fake_acclim_flag\nfake_acclim_flag:\n"
+    ".byte 0x8B,0x91,0x28,0x03,0x00,0x00,0x48,0x8B,0x81,0x50,0x03,0x00,0x00,0x48,0x69,0xCA,0x70,0x03,0x00,0x00,0x83,0xBC,0x08,0xC4\n"
+    ".byte 0x00,0x00,0x00,0x00,0x74,0x08,0xC6,0x84,0x08,0x62,0x03,0x00,0x00,0x01,0xC3,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC,0xCC\n"
+    ".section .drectve\n"
+    ".ascii \" -export:fake_acclim_flag\"\n"
+    ".text\n");
+void fake_acclim_flag(void *self);
+
 static void test_track_acclim(void)
 {
     static uint8_t empty[0x840], before[0x840], held[0x840], targets[2][0x370], table[0x30], list[0x18];
+    static uint8_t flagged[0x840], marks[3][0x370];
     static void *vt[2] = {NULL, (void *)acclim_slot};
     static void *listeners[2] = {(void *)acclim_listener, NULL};
     memcpy(before, empty, sizeof empty);
@@ -616,16 +630,35 @@ static void test_track_acclim(void)
            lap, held[0x830], acclim_gates, acclim_notified);
     expect(g0 == 1 && g1 == 1 && g2 == 0 && lap == 0 && held[0x830] == 0 && acclim_gates == 1 && acclim_notified == 1,
            "acclim: a programme with two targets runs the game's refresh: two gate states set, listeners notified once");
+    memcpy(before, empty, sizeof empty);
+    fake_acclim_flag(empty);
+    expect(!memcmp(empty, before, sizeof empty),
+           "acclim: flagging a penalty on a Track Acclimatisation programme without targets returns and changes nothing");
+    *(uint32_t *)(marks[1] + 0xc4) = 2;
+    *(void **)(flagged + 0x350) = marks;
+    *(void **)(flagged + 0x358) = marks + 3;
+    *(uint32_t *)(flagged + 0x328) = 1;
+    fake_acclim_flag(flagged);
+    *(uint32_t *)(flagged + 0x328) = 2;
+    fake_acclim_flag(flagged);
+    printf("      penalty flag with 3 targets: flags %u %u %u\n", marks[0][0x362], marks[1][0x362], marks[2][0x362]);
+    expect(marks[0][0x362] == 0 && marks[1][0x362] == 1 && marks[2][0x362] == 0,
+           "acclim: a programme with targets runs the game's penalty flag: only the current target with gate flags is "
+           "flagged");
 }
 
-static void crash_track_acclim(void)
+static void crash_track_acclim(int penalty)
 {
     static uint8_t programme[0x840];
     SetErrorMode(SEM_NOGPFAULTERRORBOX);
-    printf("      acclim: refreshing a Track Acclimatisation programme without targets\n");
+    printf("      acclim: %s a Track Acclimatisation programme without targets\n",
+           penalty ? "flagging a penalty on" : "refreshing");
     fflush(stdout);
-    fake_acclim_refresh(programme);
-    printf("      acclim: the refresh returned\n");
+    if (penalty)
+        fake_acclim_flag(programme);
+    else
+        fake_acclim_refresh(programme);
+    printf("      acclim: the %s returned\n", penalty ? "penalty flag" : "refresh");
     fflush(stdout);
 }
 
@@ -1233,7 +1266,9 @@ int main(int argc, char **argv)
     if (argc > 1 && !strcmp(argv[1], "exit"))
         ExitProcess(255);
     if (argc > 1 && !strcmp(argv[1], "acclim"))
-        crash_track_acclim();
+        crash_track_acclim(0);
+    if (argc > 1 && !strcmp(argv[1], "acclim_penalty"))
+        crash_track_acclim(1);
     if (argc > 1 && !strcmp(argv[1], "heap")) {
         SetErrorMode(SEM_NOGPFAULTERRORBOX);
         for (int i = 0; i < 3; i++)
