@@ -251,6 +251,7 @@ using Sess_RedFlagRaceStrategy_Enter_t = uint64_t(void *state);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Enter", Sess_RedFlagRaceStrategy_Enter_t> Sess_RedFlagRaceStrategy_Enter{}; // L2 experimental
 using Sess_RedFlagRaceStrategy_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Update", Sess_RedFlagRaceStrategy_Update_t> Sess_RedFlagRaceStrategy_Update{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagSystem_Deploy"> Sess_RedFlagSystem_Deploy{}; // L2 experimental, RedFlagSystem
 using Sess_RuleManager_Initialise_t = uint32_t(void *self, void *systems, void *components);
 inline constexpr fn<"Sess_RuleManager_Initialise", Sess_RuleManager_Initialise_t> Sess_RuleManager_Initialise{}; // L2 experimental
 inline constexpr address<"Sess_Rules_Disqualify"> Sess_Rules_Disqualify{}; // L2 experimental
@@ -290,8 +291,13 @@ inline constexpr call<"site_Sess_ControllerSystem_ApplyRecordCall"> site_Sess_Co
 inline constexpr call<"site_Sess_InGamePlayerFinishedAiCall"> site_Sess_InGamePlayerFinishedAiCall{}; // L2 experimental
 inline constexpr call<"site_Sess_InGameSessionCompleteAiCall"> site_Sess_InGameSessionCompleteAiCall{}; // L2 experimental
 inline constexpr vtable<"vt_Sess_AiController", 4> vt_Sess_AiController{}; // L2 experimental
+inline constexpr vtable<"vt_Sess_RaceRuleset", 60> vt_Sess_RaceRuleset{}; // L2 experimental
+inline constexpr vtable<"vt_Sess_ScAheadOfLead", 11> vt_Sess_ScAheadOfLead{}; // L2 experimental
 inline constexpr vtable<"vt_Sess_ScCanReturn", 10> vt_Sess_ScCanReturn{}; // L2 experimental
+inline constexpr vtable<"vt_Sess_ScCarsGrouped", 11> vt_Sess_ScCarsGrouped{}; // L2 experimental
+inline constexpr vtable<"vt_Sess_ScDebugDeploy", 10> vt_Sess_ScDebugDeploy{}; // L2 experimental
 inline constexpr vtable<"vt_Sess_ScRaceLapsRemaining", 10> vt_Sess_ScRaceLapsRemaining{}; // L2 experimental
 inline constexpr vtable<"vt_Sess_ScTriggerRedFlag", 10> vt_Sess_ScTriggerRedFlag{}; // L2 experimental
+inline constexpr vtable<"vt_Sess_ScTriggerVsc", 10> vt_Sess_ScTriggerVsc{}; // L2 experimental
 
 }

@@ -1770,3 +1770,6 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	en-verify	func	Sess_YellowFlagReason_ToString	L2	partial	decomp:re/decomp/1435827f0.c;xref:0x14356d950	V1778 claim 3; param_1 only
 2026-10-29	tl-verify	func	Sess_RC_SendCarsGroupedData	L2	agree	xref:0x143621363	V1779 U1 (msg lea at 0x143621bd1)
 2026-10-29	tl-verify	func	Sess_Flags_UpdateYellowReasons	L2	partial	xref:0x14356eca6	V1780 U2; matrix base this+0x19c
+2026-10-29	bind7-verify	func	Sess_RedFlagSystem_Deploy	L2	agree	decomp:re/decomp/143583b60.c;xref:0x143646d6b	V1781 blind re-check of corrected notes
+2026-10-29	bind7-verify	global	vt_Sess_ScAheadOfLead	L2	agree	xref:0x1435f906b	V1782 11 code slots, slot 10 0x14361dac0; factory 0x1435f8ff1, dtor 0x14361bd00
+2026-10-29	bind7-verify	global	vt_Sess_ScCarsGrouped	L2	agree	xref:0x1435f9b35	V1783 11 slots, slot 10 0x143622f00; dtor 0x14361e6f0

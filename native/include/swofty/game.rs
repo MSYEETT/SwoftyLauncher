@@ -3523,6 +3523,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RedFlagSystem_Deploy: Binding = Binding {
+        id: "Sess_RedFlagSystem_Deploy",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_RuleManager_Initialise: Binding = Binding {
         id: "Sess_RuleManager_Initialise",
         kind: "func",
@@ -5198,6 +5203,11 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Ne_ParticleEffectComponent: Binding = Binding {
+        id: "vt_Ne_ParticleEffectComponent",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Ne_SaveSystem2Win: Binding = Binding {
         id: "vt_Ne_SaveSystem2Win",
         kind: "vtable",
@@ -5208,8 +5218,28 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Sess_RaceRuleset: Binding = Binding {
+        id: "vt_Sess_RaceRuleset",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScAheadOfLead: Binding = Binding {
+        id: "vt_Sess_ScAheadOfLead",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Sess_ScCanReturn: Binding = Binding {
         id: "vt_Sess_ScCanReturn",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScCarsGrouped: Binding = Binding {
+        id: "vt_Sess_ScCarsGrouped",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScDebugDeploy: Binding = Binding {
+        id: "vt_Sess_ScDebugDeploy",
         kind: "vtable",
         status: Status::Experimental,
     };
@@ -5220,6 +5250,11 @@ pub mod bindings {
     };
     pub const vt_Sess_ScTriggerRedFlag: Binding = Binding {
         id: "vt_Sess_ScTriggerRedFlag",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScTriggerVsc: Binding = Binding {
+        id: "vt_Sess_ScTriggerVsc",
         kind: "vtable",
         status: Status::Experimental,
     };
