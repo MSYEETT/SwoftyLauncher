@@ -704,6 +704,8 @@ const STEPS: &[(&str, &[&str])] = &[
     ("sample", &[]),
     ("capture", &["name"]),
     ("save", &[]),
+    ("home", &[]),
+    ("tile", &[]),
 ];
 
 fn step(at: &At, v: &Value) -> Result<Step, Error> {
@@ -735,22 +737,26 @@ fn step(at: &At, v: &Value) -> Result<Step, Error> {
     let host = match action {
         "wait" => {
             let w = here.object(value)?;
-            here.keys(w, &["event", "log"])?;
-            match (w.get("event"), w.get("log")) {
-                (Some(e), None) => Some(Wait::Event(here.at("event").str(e)?.to_owned())),
-                (None, Some(l)) => {
+            here.keys(w, &["event", "log", "screen"])?;
+            match (w.get("event"), w.get("log"), w.get("screen")) {
+                (Some(e), None, None) => Some(Wait::Event(here.at("event").str(e)?.to_owned())),
+                (None, Some(l), None) => {
                     let pattern = here.at("log").str(l)?;
                     here.at("log").regex(pattern)?;
                     Some(Wait::Log(pattern.to_owned()))
                 }
-                _ => return Err(here.err("wait for one of \"event\" or \"log\"")),
+                (None, None, Some(n)) => {
+                    here.at("screen").str(n)?;
+                    None
+                }
+                _ => return Err(here.err("wait for one of \"event\", \"log\" or \"screen\"")),
             }
         }
-        "route" | "skip" | "save" | "capture" | "read" => {
+        "route" | "skip" | "save" | "capture" | "read" | "tile" => {
             here.str(value)?;
             None
         }
-        "ai_drives_player" => {
+        "ai_drives_player" | "home" => {
             here.bool(value)?;
             None
         }

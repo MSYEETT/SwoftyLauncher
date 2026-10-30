@@ -43,15 +43,21 @@ struct Package {
 };
 SWOFTY_RECORD(Package, title, entrant_list, season, calendar, teams, rules, setup_mode, stat_id)
 
+struct TimeTrial {
+    std::string entrant_list;
+};
+SWOFTY_RECORD(TimeTrial, entrant_list)
+
 struct EraBox {
-    static constexpr Version version{1, 0};
+    static constexpr Version version{1, 1};
     Ref<Package> package;
     Text title;
     std::string image;
     int order = 0;
+    TimeTrial time_trial;
     json::Value extra;
 };
-SWOFTY_RECORD(EraBox, package, title, image, order)
+SWOFTY_RECORD(EraBox, package, title, image, order, time_trial)
 
 inline Registry<Package> packages{"content.package", {.applies = Applies::content}};
 inline Registry<EraBox> era_boxes{"era.box", {.applies = Applies::read}};

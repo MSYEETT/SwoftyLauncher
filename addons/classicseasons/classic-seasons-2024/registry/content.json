@@ -260,11 +260,210 @@
    "archive": "cars/teams/haas/wep/haas.erp"
   }
  },
+ "career.calendar": {
+  "f1_2024": {
+   "rounds": [
+    {
+     "round": 1,
+     "race": {
+      "literal": "Bahrain Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2024-03-02"
+    },
+    {
+     "round": 2,
+     "race": {
+      "literal": "Saudi Arabian Grand Prix"
+     },
+     "venue": "venue/jeddah",
+     "date": "2024-03-09"
+    },
+    {
+     "round": 3,
+     "race": {
+      "literal": "Australian Grand Prix"
+     },
+     "venue": "venue/albert_park",
+     "date": "2024-03-24"
+    },
+    {
+     "round": 4,
+     "race": {
+      "literal": "Japanese Grand Prix"
+     },
+     "venue": "venue/suzuka",
+     "date": "2024-04-07"
+    },
+    {
+     "round": 5,
+     "race": {
+      "literal": "Chinese Grand Prix"
+     },
+     "venue": "venue/shanghai",
+     "date": "2024-04-21"
+    },
+    {
+     "round": 6,
+     "race": {
+      "literal": "Miami Grand Prix"
+     },
+     "venue": "venue/miami",
+     "date": "2024-05-05"
+    },
+    {
+     "round": 7,
+     "race": {
+      "literal": "Emilia Romagna Grand Prix"
+     },
+     "venue": "venue/imola",
+     "date": "2024-05-19"
+    },
+    {
+     "round": 8,
+     "race": {
+      "literal": "Monaco Grand Prix"
+     },
+     "venue": "venue/monaco",
+     "date": "2024-05-26"
+    },
+    {
+     "round": 9,
+     "race": {
+      "literal": "Canadian Grand Prix"
+     },
+     "venue": "venue/villeneuve",
+     "date": "2024-06-09"
+    },
+    {
+     "round": 10,
+     "race": {
+      "literal": "Spanish Grand Prix"
+     },
+     "venue": "venue/catalunya",
+     "date": "2024-06-23"
+    },
+    {
+     "round": 11,
+     "race": {
+      "literal": "Austrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2024-06-30"
+    },
+    {
+     "round": 12,
+     "race": {
+      "literal": "British Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2024-07-07"
+    },
+    {
+     "round": 13,
+     "race": {
+      "literal": "Hungarian Grand Prix"
+     },
+     "venue": "venue/hungaroring",
+     "date": "2024-07-21"
+    },
+    {
+     "round": 14,
+     "race": {
+      "literal": "Belgian Grand Prix"
+     },
+     "venue": "venue/spa",
+     "date": "2024-07-28"
+    },
+    {
+     "round": 15,
+     "race": {
+      "literal": "Dutch Grand Prix"
+     },
+     "venue": "venue/zandvoort",
+     "date": "2024-08-25"
+    },
+    {
+     "round": 16,
+     "race": {
+      "literal": "Italian Grand Prix"
+     },
+     "venue": "venue/monza",
+     "date": "2024-09-01"
+    },
+    {
+     "round": 17,
+     "race": {
+      "literal": "Azerbaijan Grand Prix"
+     },
+     "venue": "venue/baku",
+     "date": "2024-09-15"
+    },
+    {
+     "round": 18,
+     "race": {
+      "literal": "Singapore Grand Prix"
+     },
+     "venue": "venue/marina_bay",
+     "date": "2024-09-22"
+    },
+    {
+     "round": 19,
+     "race": {
+      "literal": "United States Grand Prix"
+     },
+     "venue": "venue/americas",
+     "date": "2024-10-20"
+    },
+    {
+     "round": 20,
+     "race": {
+      "literal": "Mexico City Grand Prix"
+     },
+     "venue": "venue/rodriguez",
+     "date": "2024-10-27"
+    },
+    {
+     "round": 21,
+     "race": {
+      "literal": "São Paulo Grand Prix"
+     },
+     "venue": "venue/interlagos",
+     "date": "2024-11-03"
+    },
+    {
+     "round": 22,
+     "race": {
+      "literal": "Las Vegas Grand Prix"
+     },
+     "venue": "venue/vegas",
+     "date": "2024-11-23"
+    },
+    {
+     "round": 23,
+     "race": {
+      "literal": "Qatar Grand Prix"
+     },
+     "venue": "venue/losail",
+     "date": "2024-12-01"
+    },
+    {
+     "round": 24,
+     "race": {
+      "literal": "Abu Dhabi Grand Prix"
+     },
+     "venue": "venue/yas_marina",
+     "date": "2024-12-08"
+    }
+   ]
+  }
+ },
  "content.package": {
   "f1_2024": {
    "title": "lng_cs_f1_2024",
    "entrant_list": "cs_f1_2024",
    "season": 2024,
+   "calendar": "swofty.classic-seasons-2024/f1_2024?",
    "teams": [
     {
      "key": "redbull",

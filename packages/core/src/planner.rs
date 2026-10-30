@@ -9,7 +9,10 @@ pub use crate::asset::{Features, Kind};
 use crate::conflicts::Changes;
 use crate::dbedit::deps::Copy;
 use crate::entrant_lists::StockLists;
-use crate::ops::{DbOps, DbReport, ErpOp, MovedStatId, apply_db_ops_lenient, apply_db_ops_report};
+use crate::ops::{
+    DbOps, DbReport, ErpOp, FieldNames, MovedStatId, apply_db_ops_lenient, apply_db_ops_report,
+    explicit_stat_ids, stat_id_ceiling,
+};
 use crate::owned::{self, Added};
 use crate::rowkeys::{Names, RowKeys};
 use crate::{Error, Result};
@@ -118,18 +121,64 @@ pub fn track_removals_line(name: &str, n: usize) -> String {
     )
 }
 
+// Field names, plus the ids that the addons after this one set on the rows they add.
+struct Reserving<'a> {
+    names: Names<'a>,
+    later: &'a HashSet<(String, i64)>,
+}
+
+impl FieldNames for Reserving<'_> {
+    fn fields(&self, table: &str, row: &str) -> Option<Vec<String>> {
+        self.names.fields(table, row)
+    }
+
+    fn row_keys(&self, shape: &str) -> Option<&[String]> {
+        self.names.row_keys(shape)
+    }
+
+    fn stock(&self, key: u64) -> bool {
+        self.names.stock(key)
+    }
+
+    fn track(&self, key: u64) -> bool {
+        self.names.track(key)
+    }
+
+    fn reserved(&self, table: &str, row: &str, id: i64) -> bool {
+        self.later.contains(&(format!("{table}.{row}"), id))
+    }
+}
+
 fn stat_row(row: &str) -> &str {
     row.rsplit_once('_').map_or(row, |(table, _)| table)
 }
 
-/// The build warning for a row of `addon` whose `stat_id` a row of `holder` already had.
-pub fn moved_stat_id_line(addon: &str, holder: &str, m: &MovedStatId) -> String {
+/// The build warning for a row of `addon` whose `stat_id` a row of `holder` already had, or
+/// which was above the table's ceiling when `holder` is `None`.
+pub fn moved_stat_id_line(addon: &str, holder: Option<&str>, m: &MovedStatId) -> String {
     let label = |l: &Option<String>, row: &str| l.clone().unwrap_or_else(|| row.to_owned());
+    let why = match (holder, &m.holder) {
+        (Some(holder), Some(row)) => {
+            format!("is taken by {} from {holder}", label(&m.holder_label, row))
+        }
+        _ => {
+            let table = stat_row(&m.row);
+            let max = table
+                .rsplit_once('.')
+                .and_then(|(t, r)| stat_id_ceiling(t, r))
+                .map_or_else(String::new, |c| format!(" {}", c.max));
+            format!("is above{max}, the highest the game reads in {table}")
+        }
+    };
+    let field = m.field;
+    let advice = match field {
+        "stat_id" => "leave stat_id out of add-row",
+        _ => "give the row a statId no other addon uses",
+    };
     format!(
-        "{addon}: stat_id {} of {} is taken by {} from {holder}; the build gave it stat_id {}. The addon's author should leave stat_id out of add-row",
+        "{addon}: {field} {} of {} {why}; the build gave it {field} {}. The addon's author should {advice}",
         m.old,
         label(&m.label, &m.row),
-        label(&m.holder_label, &m.holder),
         m.new
     )
 }
@@ -633,13 +682,23 @@ impl<'a> Planner<'a> {
         let fields = std::mem::take(&mut self.fields);
         let none = BTreeMap::new();
         let mut added = Vec::new();
-        for (origin, ops) in std::mem::take(&mut self.db) {
+        let pending = std::mem::take(&mut self.db);
+        let mut later = vec![HashSet::new(); pending.len()];
+        for k in (1..pending.len()).rev() {
+            let mut ids = later[k].clone();
+            ids.extend(explicit_stat_ids(&pending[k].1));
+            later[k - 1] = ids;
+        }
+        for ((origin, ops), later) in pending.into_iter().zip(later) {
             let before = owned::counts(db);
-            let names = Names {
-                fields: fields.get(&origin.addon).unwrap_or(&none),
-                keys: RowKeys::builtin(),
-                stock: Some(stock),
-                tracks: Some(tracks),
+            let names = Reserving {
+                names: Names {
+                    fields: fields.get(&origin.addon).unwrap_or(&none),
+                    keys: RowKeys::builtin(),
+                    stock: Some(stock),
+                    tracks: Some(tracks),
+                },
+                later: &later,
             };
             let mut ours = DbReport::default();
             let lists = self.lists.as_ref().filter(|l| l.touched(&ops));
@@ -687,24 +746,29 @@ impl<'a> Planner<'a> {
                 quiet: false,
             }));
             for m in ours.moved_stat_ids {
+                let Some(held) = &m.holder else {
+                    report.warnings.push(moved_stat_id_line(&origin.addon, None, &m));
+                    continue;
+                };
                 let holder = self
                     .copies
                     .iter()
                     .rev()
-                    .find(|c| c.row == m.holder)
+                    .find(|c| &c.row == held)
                     .map_or_else(|| origin.addon.clone(), |c| c.addon.clone());
                 report
                     .warnings
-                    .push(moved_stat_id_line(&origin.addon, &holder, &m));
+                    .push(moved_stat_id_line(&origin.addon, Some(&holder), &m));
                 let keeper = Origin {
                     addon: holder,
                     item: None,
                 };
                 if keeper.addon != origin.addon {
-                    let key = swofty_formats::hash::fnv1a64(format!("{}.stat_id", m.holder));
+                    let field = m.field;
+                    let key = swofty_formats::hash::fnv1a64(format!("{held}.{field}"));
                     let name = match &m.holder_label {
-                        Some(l) => format!("{}[_metadata_={l}].stat_id", stat_row(&m.holder)),
-                        None => format!("{}.stat_id", m.holder),
+                        Some(l) => format!("{}[_metadata_={l}].{field}", stat_row(held)),
+                        None => format!("{held}.{field}"),
                     };
                     self.planned.record_names.insert(key, name);
                     self.kept(Target::Record(key), &keeper, &origin);
@@ -1120,6 +1184,125 @@ mod tests {
                 pairs.pairs[0].database
             ),
             ("a", "b", 1)
+        );
+    }
+
+    #[test]
+    fn a_package_stat_id_above_the_byte_ceiling_moves_with_a_warning() {
+        use swofty_formats::gvdb::Record;
+        let features = Features::default();
+        let opt_in = BTreeSet::new();
+        let t = "entrants.vehicles.vehicle_packages";
+        let mut p = Planner::new(&features, &opt_in);
+        p.add_fields(
+            "a",
+            BTreeMap::from([(
+                format!("{t}.vehicle_package"),
+                vec!["_metadata_".to_owned(), "stat_id".to_owned()],
+            )]),
+        );
+        p.push(op(
+            "a",
+            &format!(
+                r#"{{"op":"db.add-row","table":"{t}","from":"{t}.vehicle_package_0","set":{{"_metadata_":"era","stat_id":"300"}}}}"#
+            ),
+        ));
+        let mut db = Gvdb {
+            records: vec![
+                Record::new(&format!("{t}._vehicle_package_instancecount_"), 0, "1"),
+                Record::new(&format!("{t}.vehicle_package_0._metadata_"), 4, "base"),
+                Record::new(&format!("{t}.vehicle_package_0.stat_id"), 0, "58"),
+            ],
+        };
+        let stock = db.records.iter().map(|r| r.key).collect();
+        let mut report = DbReport::default();
+        p.apply_db_report(&mut db, &stock, &HashSet::new(), &mut report)
+            .unwrap();
+        assert_eq!(
+            db.get_text(&format!("{t}.vehicle_package_1.stat_id")).as_deref(),
+            Some("59")
+        );
+        assert_eq!(
+            report.warnings,
+            [
+                "a: stat_id 300 of era is above 254, the highest the game reads in entrants.vehicles.vehicle_packages.vehicle_package; the build gave it stat_id 59. The addon's author should leave stat_id out of add-row"
+            ]
+        );
+        assert!(p.finish().conflicts.is_empty());
+    }
+
+    #[test]
+    fn a_scenario_stat_id_an_earlier_addon_holds_moves_and_counts_as_a_conflict() {
+        use swofty_formats::gvdb::Record;
+        let features = Features::default();
+        let opt_in = BTreeSet::new();
+        let t = "game_setup.scenarios";
+        let fields = || {
+            BTreeMap::from([(
+                format!("{t}.scenario"),
+                vec!["_metadata_".to_owned(), "statId".to_owned()],
+            )])
+        };
+        let mut p = Planner::new(&features, &opt_in);
+        p.add_fields("cs", fields());
+        p.add_fields("era", fields());
+        p.add_fields("cs22", fields());
+        let add = |label: &str, id: u32| {
+            format!(
+                r#"{{"op":"db.add-row","table":"{t}","from":"{t}.scenario[_metadata_=f1]","set":{{"_metadata_":"{label}","statId":"{id}"}}}}"#
+            )
+        };
+        p.push(op("cs", &add("cs_f1_2021", 20)));
+        p.push(op("era", &add("era_2012", 20)));
+        p.push(op(
+            "era",
+            &format!(r#"{{"op":"db.set","select":"{t}.scenario[statId=20]","field":"_metadata_","value":"era_found"}}"#),
+        ));
+        p.push(op("cs22", &add("cs_f1_2022", 21)));
+        let mut db = Gvdb {
+            records: vec![
+                Record::new(&format!("{t}._scenario_instancecount_"), 0, "2"),
+                Record::new(&format!("{t}.scenario_0._metadata_"), 4, "f1"),
+                Record::new(&format!("{t}.scenario_0.statId"), 0, "14"),
+                Record::new(&format!("{t}.scenario_1._metadata_"), 4, "f1_alt"),
+                Record::new(&format!("{t}.scenario_1.statId"), 0, "14"),
+            ],
+        };
+        let stock = db.records.iter().map(|r| r.key).collect();
+        let mut report = DbReport::default();
+        p.apply_db_report(&mut db, &stock, &HashSet::new(), &mut report)
+            .unwrap();
+        assert_eq!(
+            db.get_text(&format!("{t}.scenario_2.statId")).as_deref(),
+            Some("20")
+        );
+        assert_eq!(
+            db.get_text(&format!("{t}.scenario_3.statId")).as_deref(),
+            Some("22")
+        );
+        assert_eq!(
+            db.get_text(&format!("{t}.scenario_4.statId")).as_deref(),
+            Some("21")
+        );
+        assert_eq!(
+            db.get_text(&format!("{t}.scenario_3._metadata_")).as_deref(),
+            Some("era_found")
+        );
+        assert_eq!(
+            report.warnings,
+            [
+                "era: statId 20 of era_2012 is taken by cs_f1_2021 from cs; the build gave it statId 22. The addon's author should give the row a statId no other addon uses"
+            ]
+        );
+        let planned = p.finish();
+        assert_eq!(planned.conflicts.len(), 1);
+        assert_eq!(
+            planned.conflicts[0].target,
+            Target::Record(swofty_formats::hash::fnv1a64(format!("{t}.scenario_2.statId")))
+        );
+        assert_eq!(
+            planned.record_names.values().collect::<Vec<_>>(),
+            ["game_setup.scenarios.scenario[_metadata_=cs_f1_2021].statId"]
         );
     }
 
