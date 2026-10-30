@@ -1681,3 +1681,6 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	tr-verify	func	Car_GearBox_GetClutchSlipping	L1	agree	xref:0x1446a6090,0x1446e399b	V1689 tr-verify: cmp byte [rcx+0x694],0 -> 0.0/1.0; mov byte [rsi+0x538],1
 2026-10-28	dcso-verify	func	Car_Physics_PreAdvance	L2	agree	decomp:re/decomp/144641610.c;xref:0x144641dd0	V1690 claim 1 wake reset 1.0 + length max(0.1, 2|v.fwd|)
 2026-10-28	dcso-verify	func	Car_Physics_PreAdvance	L2	partial	decomp:re/decomp/144641610.c;xref:0x1446423b6	V1691 claim 2: s = 8/W clamped [1,80], f = 0 when x > 1
+2026-10-28	aaa-verify	func	Sess_Set_SessionDefaultFuelErs	L1	partial	xref:0x142f43b7b,0x142f43bbb	V1692 aaa-verify: 3 for 5..14 and 18, 1 for 15..17, none for 0..4/19; 'Controls' object name not provable
+2026-10-28	aaa-verify	func	Ai_Parse_DriverParameterMap	L1	partial	xref:0x14065af10,0x140683db9	V1693 aaa-verify: 10 calls + tail jmp, name table 0x145639210 idx 10 = wet_weather_ability
+2026-10-28	aaa-verify	func	Ai_Ers_DecidePushReasons	L1	agree	xref:0x145636d60	V1694 aaa-verify: vtable 0x145636d40 slot 4
