@@ -21284,7 +21284,7 @@
    "target": "0x142c907a0",
    "kind": "func_start",
    "names": [
-    "Ne_WindowWin_GetMonitorDimensionsByIndex"
+    "Ne_WindowWin_BuildResolutionOptions"
    ],
    "verified": [
     {
@@ -27908,7 +27908,7 @@
    "target": "0x14024e750",
    "kind": "func_start",
    "names": [
-    "Ne_CutsceneScriptResource_CreateResource"
+    "Ne_CutsceneScriptResourceFactory_CreateResource"
    ],
    "verified": [
     {
@@ -29060,7 +29060,7 @@
    "target": "0x1413f0a90",
    "kind": "func_start",
    "names": [
-    "Ne_CrowdPluginProxy_SetWetnessData"
+    "Ne_CrowdPluginProxy_Update"
    ],
    "verified": [
     {
@@ -47694,7 +47694,7 @@
    "target": "0x1413f38f0",
    "kind": "func_start",
    "names": [
-    "Ne_CrowdPlugin_SetAnimType"
+    "Ne_CrowdPlugin_FindZoneIndex"
    ],
    "verified": [
     {
@@ -47814,7 +47814,7 @@
    "target": "0x14368ca60",
    "kind": "func_start",
    "names": [
-    "Ne_Sequence_SetName"
+    "Ne_Sequence_Deserialize"
    ],
    "verified": [
     {
@@ -76778,6 +76778,102 @@
    ],
    "expect": "C3",
    "func_start": "0x1429a0620"
+  },
+  {
+   "id": "core.get_feature_flags",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 5D DE FD A3 48 0F 80 3A DE A5 FD",
+   "match": "0x1413ca0d0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1413ca0d0",
+   "kind": "func_start",
+   "names": [
+    "Ne_Get_FeatureFlags"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "engine-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.set_fixed_string",
+   "section": ".xtls",
+   "pattern": "56 57 48 83 EC 28 48 89 D7 48 89 CE 0F B6 02 34",
+   "match": "0x141600d80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141600d80",
+   "kind": "func_start",
+   "names": [
+    "Ne_Set_FixedString"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "engine-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.network_init",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 83 EC 28 4C 89 CB 48 89 D7 48",
+   "match": "0x143985c10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143985c10",
+   "kind": "func_start",
+   "names": [
+    "Ne_Network_Init"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "engine-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "core.network_start_async",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 78 4D 89 CF 4C 89 C7 48 89",
+   "match": "0x143986470",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x143986470",
+   "kind": "func_start",
+   "names": [
+    "Ne_Network_StartAsync"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "engine-re",
+     "how": "static"
+    }
+   ],
+   "used_by": []
   }
  ]
 }
