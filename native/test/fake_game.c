@@ -662,6 +662,95 @@ static void crash_track_acclim(int penalty)
     fflush(stdout);
 }
 
+// The ERS mode load of Car_Powertrain_Step, copied byte for byte from the Steam build (0x1446e2858..0x1446e2878),
+// in a small frame that takes the powertrain in rcx and the ERS system in rdx and returns the gear modifier it loads.
+// Core's ERS mode guard resolves site_Car_ErsGearModifierLoad here, at +0x20.
+__asm__(
+    ".section .xtls,\"xr\"\n"
+    ".globl fake_powertrain_ers\n"
+    ".def fake_powertrain_ers; .scl 2; .type 32; .endef\n"
+    ".seh_proc fake_powertrain_ers\n"
+    "fake_powertrain_ers:\n"
+    ".byte 0x56\n.seh_pushreg %rsi\n"
+    ".byte 0x41,0x56\n.seh_pushreg %r14\n"
+    ".seh_endprologue\n"
+    ".byte 0x48,0x89,0xCE,0x49,0x89,0xD6\n"
+    ".byte 0x8B,0x8E,0xF0,0x04,0x00,0x00,0x49,0x63,0x86,0x68,0x1A,0x00,0x00,0x48,0x89,0xC2,0x48,0xC1,0xE2,0x06\n"
+    ".byte 0x4C,0x01,0xF2,0xC5,0xFA,0x10,0x8C,0x8A,0x90,0x18,0x00,0x00\n"
+    ".byte 0xC5,0xF8,0x28,0xC1,0x41,0x5E,0x5E,0xC3\n"
+    ".seh_endproc\n"
+    ".section .drectve\n"
+    ".ascii \" -export:fake_powertrain_ers\"\n"
+    ".text\n");
+float fake_powertrain_ers(void *powertrain, void *ers);
+
+static int ers_resets;
+static uint32_t ers_reset_flags;
+
+static void fake_ers_reset(uint8_t *ers, uint32_t flags)
+{
+    ers_resets++;
+    ers_reset_flags = flags;
+    if (~flags & 0x210)
+        return;
+    memcpy(ers + 0x19f0, ers + 0x60, 4);
+    *(uint64_t *)(ers + 0x1a68) = 0x500000001ull;
+}
+
+static void *fake_ers_vt[8] = {NULL, NULL, NULL, (void *)fake_ers_reset};
+static uint8_t ers_cars[3][0x100], ers_powertrain[0x500];
+static __attribute__((aligned(16))) uint8_t ers_systems[3][0x1a78];
+
+static uint8_t *ers_system(int i, int32_t mode)
+{
+    uint8_t *ers = ers_systems[i];
+    float capacity = 4e6f;
+    memset(ers, 0, sizeof ers_systems[i]);
+    *(void ***)ers = fake_ers_vt;
+    *(void **)(ers + 8) = ers_cars[i];
+    ers_cars[i][0xe8] = (uint8_t)(7 + i);
+    memcpy(ers + 0x60, &capacity, 4);
+    for (int m = 0; m < 4; m++) {
+        float modifier = 0.25f * (m + 1);
+        memcpy(ers + 0x1890 + m * 0x40 + 4, &modifier, 4);
+    }
+    memcpy(ers + 0x1a68, &mode, 4);
+    *(uint32_t *)(ers_powertrain + 0x4f0) = 1;
+    return ers;
+}
+
+static void test_ers_mode(void)
+{
+    float got = fake_powertrain_ers(ers_powertrain, ers_system(0, 2));
+    expect(got == 0.75f && ers_resets == 0,
+           "ers mode: a car in Overtake loads the Overtake gear modifier and its ERS is not reset");
+    uint8_t *ers = ers_system(1, (int32_t)0x8054c554);
+    got = fake_powertrain_ers(ers_powertrain, ers);
+    float energy = 0.0f;
+    int32_t mode = -1;
+    memcpy(&energy, ers + 0x19f0, 4);
+    memcpy(&mode, ers + 0x1a68, 4);
+    printf("      ERS mode 0x8054c554: loaded %.2f, mode %d, energy %.0f, %d reset(s) with flags 0x%x\n", got, mode,
+           energy, ers_resets, ers_reset_flags);
+    expect(got == 0.5f && mode == 1 && energy == 4e6f && ers_resets == 1 && ers_reset_flags == 0x210,
+           "ers mode: a car whose ERS mode was never set gets the game's ERS reset (0x10|0x200) and loads the Medium "
+           "gear modifier");
+    got = fake_powertrain_ers(ers_powertrain, ers);
+    expect(got == 0.5f && ers_resets == 1, "ers mode: that car's next step runs the game's code unchanged");
+    got = fake_powertrain_ers(ers_powertrain, ers_system(2, 4));
+    expect(got == 0.5f && ers_resets == 2, "ers mode: a mode one past Hotlap is reset to Medium too");
+}
+
+static void crash_ers_mode(void)
+{
+    SetErrorMode(SEM_NOGPFAULTERRORBOX);
+    printf("      ers mode: stepping a car whose ERS mode was never set\n");
+    fflush(stdout);
+    float got = fake_powertrain_ers(ers_powertrain, ers_system(0, (int32_t)0x8054c554));
+    printf("      ers mode: the step returned %.2f\n", got);
+    fflush(stdout);
+}
+
 static void test_settings(int on, uint64_t chain)
 {
     HMODULE t = GetModuleHandleW(L"t_settings.dll");
@@ -1237,6 +1326,7 @@ int main(int argc, char **argv)
     test_items(settings);
     if (argc > 1 && !strcmp(argv[1], "trigger")) {
         test_ers_newlap();
+        test_ers_mode();
         test_track_acclim();
     }
     HMODULE ta = GetModuleHandleW(L"t_assets.dll");
@@ -1269,6 +1359,8 @@ int main(int argc, char **argv)
         crash_track_acclim(0);
     if (argc > 1 && !strcmp(argv[1], "acclim_penalty"))
         crash_track_acclim(1);
+    if (argc > 1 && !strcmp(argv[1], "ers_mode"))
+        crash_ers_mode();
     if (argc > 1 && !strcmp(argv[1], "heap")) {
         SetErrorMode(SEM_NOGPFAULTERRORBOX);
         for (int i = 0; i < 3; i++)

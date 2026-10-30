@@ -325,6 +325,9 @@ EOF
     trigger)
         once "ers: the new-lap guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(ers new lap guard\)': 1 mixin"
         once "ers: the new-lap guard is armed" '\[ers\] new-lap guard armed'
+        once "ers mode: the guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(ers mode guard\)': 1 mixin"
+        once "ers mode: the guard is armed" '\[ers\] mode guard armed'
+        count "ers mode: each car whose ERS mode is out of range is set to Medium and logged once" 2 '\[ers\] car (8: ERS mode -2142976684|9: ERS mode 4) out of range; set to 1 \(Medium\)'
         count "ers: each participant without a vehicle is skipped and logged" 4 '\[ers\] vehicle_newlap for vehicle (9|24): participant [01] of 4 has no vehicle'
         once "acclim: the track acclimatisation guard is a core mixin set of its own" "core mixin set 'swofty_core\.dll \(track acclimatisation guard\)': 1 mixin"
         once "acclim: the track acclimatisation guard is armed" '\[acclim\] track acclimatisation guard armed'
@@ -639,6 +642,26 @@ for guard in on off; do
         check "acclim_penalty off: faulting access" '\[crash\]   reading 0xc4'
         parse_report "F1_25.exe+0x$fault" "reading 0xc4" || status=1
         [[ $code != 0 ]] && echo "ok  : acclim_penalty off: process ended with $code" || { echo "FAIL: acclim_penalty off: process exited 0"; status=1; }
+    fi
+done
+for guard in on off; do
+    echo "==== ers_mode ($guard)"
+    code=0
+    rm -f "$SW"/crash-*.txt "$SW"/crash-*.dmp
+    SWOFTY_ERS_MODE_GUARD=$([[ $guard == off ]] && echo 0) timeout 120 "${PIN[@]}" xvfb-run -a wine "$OUT/game/F1_25.exe" ers_mode >"$OUT/ers_mode.out" 2>&1 || code=$?
+    grep -E '\[ers\] (mode|car)|\[crash\] (unhandled |crash report [^:]*crash-[0-9])' "$LOG" || true
+    if [[ $guard == on ]]; then
+        once "ers_mode on: the car's ERS mode is set to Medium before the load" '\[ers\] car 7: ERS mode -2142976684 out of range; set to 1 \(Medium\)'
+        grep -q 'ers mode: the step returned 0.50' "$OUT/ers_mode.out" && echo "ok  : ers_mode on: the step loaded the Medium gear modifier" ||
+            { echo "FAIL: ers_mode on: the step did not load the Medium gear modifier"; status=1; }
+        count "ers_mode on: no unhandled fault" 0 '\[crash\] unhandled '
+        compgen -G "$SW/crash-*.txt" >/dev/null && { echo "FAIL: ers_mode on: a crash report was written"; status=1; } ||
+            echo "ok  : ers_mode on: no crash report"
+    else
+        once "ers_mode off: the guard is off" '\[ers\] mode guard off \(SWOFTY_ERS_MODE_GUARD=0\)'
+        check "ers_mode off: the step faults where the game does" '\[crash\] unhandled ACCESS_VIOLATION .*Car_Powertrain_Step\+0x20'
+        parse_report "Car_Powertrain_Step+0x20" "" || status=1
+        [[ $code != 0 ]] && echo "ok  : ers_mode off: process ended with $code" || { echo "FAIL: ers_mode off: process exited 0"; status=1; }
     fi
 done
 echo "==== ntpage"
