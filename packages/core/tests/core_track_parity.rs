@@ -90,7 +90,9 @@ fn track_lowering_parity() {
             .iter()
             .map(|r| json!({ "key": format!("{:016x}", r.key), "tag": r.tag, "text": r.text() }))
             .collect();
-        let doc = json!({ "track": code, "from": from, "slot": slot, "records": out });
+        // Keys go in sorted order: a workspace build turns on serde_json's preserve_order (through gpui) and a
+        // swofty-core build alone does not, and the text must be the same under both.
+        let doc = json!({ "from": from, "records": out, "slot": slot, "track": code });
         let text = serde_json::to_string_pretty(&doc).unwrap() + "\n";
         let path = fixture_dir().join("expected").join(format!("{code}.json"));
         if std::env::var_os("SWOFTY_WRITE_PARITY").is_some() || !path.exists() {
