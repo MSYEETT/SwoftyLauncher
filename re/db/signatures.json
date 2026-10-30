@@ -12100,6 +12100,12 @@
      "date": "2026-10-22",
      "by": "vmknolle",
      "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
+     "how": "static"
     }
    ],
    "used_by": []
@@ -16323,6 +16329,12 @@
      "build": "d873a1c8d2044cef",
      "date": "2026-10-22",
      "by": "vmknolle",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
      "how": "static"
     }
    ],
@@ -38581,6 +38593,12 @@
      "build": "d873a1c8d2044cef",
      "date": "2026-10-22",
      "by": "vmknolle",
+     "how": "static"
+    },
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
      "how": "static"
     }
    ],
@@ -77247,6 +77265,99 @@
      "build": "d873a1c8d2044cef",
      "date": "2026-10-29",
      "by": "fb-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.update",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 56 57 53 48 81 EC A0 00 00 00 C5 78 29 A4 24 90 00 00 00",
+   "match": "0x14473fd80",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14473fd80",
+   "kind": "func_start",
+   "names": [],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.gearbox_update",
+   "section": ".xtls",
+   "pattern": "56 48 83 EC 30 C5 F8 29 74 24 20 C5 F8 28 F1 48 89 CE E8",
+   "match": "0x1446a6b60",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1446a6b60",
+   "kind": "func_start",
+   "names": [
+    "Car_GearBox_Update"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.body_damage_impulse_scale_site",
+   "section": ".xtls",
+   "pattern": "C5 F2 59 0D ?? ?? ?? ?? C5 F8 28 E2",
+   "match": "0x14465162e",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x14465162e",
+   "kind": "mid",
+   "expect": "C5 F2 59 0D",
+   "names": [
+    "site_Car_BodyDamage_ImpulseScaleRead"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "car.susp_damage_on_collision",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 C5 F8 29 74 24 30 48 8B 41 08",
+   "match": "0x144654d10",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x144654d10",
+   "kind": "func_start",
+   "names": [],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-29",
+     "by": "carlive-verify",
      "how": "static"
     }
    ],

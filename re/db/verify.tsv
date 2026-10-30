@@ -1796,3 +1796,9 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	fb-verify	func	Sess_Restart_SessionSystems	L2	partial	xref:0x142d892d0	V1804 C6 behaviour agree, class name not provable
 2026-10-29	fb-verify	global	vt_Game_MessageFlashbackUsed	L1	agree	xref:0x142da2a3a	V1805 C5 getName 0x142c88930
 2026-10-29	fb-verify	func	Sess_Register_RaceRecordables	L2	agree	xref:0x1407f7320	V1806 C1 94 registrations (hub_names.txt)
+2026-10-29	carlive-verify	func	Car_Physics_AdvanceCar	L2	partial	xref:0x144740b60;xref:0x144740783	V1807 C1 substep loop call confirmed; clamp only on the speed branch (jbe 0x14474053a/0x14474056f skips it); per-frame per-car unproven statically
+2026-10-29	carlive-verify	func	Car_GearBox_Update	L1	agree	xref:0x1446a6c46	V1808 C3 gb+0x698 formula; gb+0xe8 plain (not XOR); car+0x1c0 clutch label unproven
+2026-10-29	carlive-verify	func	Car_Powertrain_Step	L1	partial	xref:0x1446e3a27;xref:0x1446e3e3d	V1809 C4/C5 turbo MaxBoost read only in mode 2; diff multiples read plain; every substep unproven
+2026-10-29	carlive-verify	global	k_Car_BodyDamage_ImpulseScale	L1	agree	xref:0x14465162e	V1810 C6 value 0.0003f, sole reference
+2026-10-29	carlive-verify	func	Car_SuspensionDamage_OnCollision	L1	partial	xref:0x144654e98	V1811 C6 +0x128 read; class name by adjacency only
+2026-10-29	carlive-verify	func	Car_SuspDamage_UpdateJointLimits	L1	partial	xref:0x144656442	V1812 C6 +0x128 reads; registered only from .data1
