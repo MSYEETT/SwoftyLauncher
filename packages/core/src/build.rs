@@ -9,7 +9,8 @@ use crate::activation::db::{Registry, TrackHost, activate};
 use crate::activation::ers::{self, ErsMap, build_ers};
 use crate::activation::grid::grid_size;
 use crate::activation::place::{
-    PlaceInput, SLOTS, place, slot_asset_group, slot_asset_root, slot_file, track_group,
+    PlaceInput, SLOTS, layer_worlds, missing_worlds, place, slot_asset_group, slot_asset_root, slot_file,
+    track_group,
 };
 use crate::activation::ui::{Kept, MapUi, build_ui, plan_lists, stamp as ui_stamp};
 use crate::asset::{
@@ -1227,6 +1228,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             session.owned_items = found.items;
         }
         let cars = grid_size(&db);
+        let worlds = layer_worlds(&db);
         let mut on_file = true;
         if let Some(staged) = staged {
             let loaded = runtime_loaded_estimate(staged.records.len());
@@ -1273,6 +1275,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
         for ((dir, pkg, origin), slot) in tracks.iter().zip(&slots) {
             let slot_original = slot.map(|s| original(&store.root, game, &slot_file(s)));
+            let track_worlds = missing_worlds(&worlds, &pkg.track_code, |group| {
+                planner.last_writer(&[Target::Group(group.to_owned())]).is_some()
+            });
             let placement = place(
                 &PlaceInput {
                     pkg,
@@ -1280,6 +1285,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                     game: &game.dir,
                     slot: slot.zip(slot_original.as_deref()),
                     cars,
+                    worlds: &track_worlds,
                 },
                 &store.root.join("cache/maps").join(&pkg.track_code),
             )?;
