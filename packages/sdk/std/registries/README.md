@@ -18,7 +18,7 @@ Launcher 1.6.2 adds `team.identity` 1.1: `team_boss` (the team principal, an `en
 
 Launcher 1.6.4 adds `rules.drs` (DRS rules a Grand Prix or Time Trial box names in `content.package` `rules.drs`).
 
-Launcher 1.6.4 also adds `career.rnd.tree` and `career.market`, which write R&D tree rows and driver market rows at boot.
+Launcher 1.6.4 also adds `career.rnd.tree` and `career.market` (both experimental), which write R&D tree rows and driver market rows at boot, in every game mode's group unless a record names one.
 
 Launcher 1.6.5 adds the four tracks registries, experimental (`"feature": "registry_tracks"`): `track` (tracks; stock rows are `game/<code>`), `track.venue` (core-owned shared ids `venue/<key>`, provided by `track` records), `track.data` (a track's block in one data set, `<track id>/<data set>`) and `track.per_package` (one box's data for one track or venue, `<package id>/<key>`). `PackageTrack::world` names `track.layer`, which has no schema in 1.6.5.
 

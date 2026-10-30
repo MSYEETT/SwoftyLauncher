@@ -76873,6 +76873,62 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "game.acclim_penalty_entry",
+   "section": ".xtls",
+   "pattern": "8B 91 28 03 00 00 48 8B 81 50 03 00 00 48 69 CA 70 03 00 00 83 BC 08 C4 00 00 00 00 74 08 C6 84 08 62 03 00 00 01 C3",
+   "match": "0x1429a0620",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1429a0620",
+   "kind": "mid",
+   "names": [
+    "site_Game_AcclimPenalty_Entry"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "acclimpenalty",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/track_acclim.cpp"
+   ],
+   "expect": "8B 91 28 03 00 00",
+   "func_start": "0x1429a0620"
+  },
+  {
+   "id": "game.acclim_penalty_return",
+   "section": ".xtls",
+   "pattern": "8B 91 28 03 00 00 48 8B 81 50 03 00 00 48 69 CA 70 03 00 00 83 BC 08 C4 00 00 00 00 74 08 C6 84 08 62 03 00 00 01 C3",
+   "match": "0x1429a0620",
+   "anchor": "0x26",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1429a0646",
+   "kind": "mid",
+   "names": [
+    "site_Game_AcclimPenalty_Return"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "acclimpenalty",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/track_acclim.cpp"
+   ],
+   "expect": "C3",
+   "func_start": "0x1429a0620"
   }
  ]
 }
