@@ -83,6 +83,51 @@ SWOFTY_REGISTER
 </template>
 </Split>
 
+### With no DLL
+
+The tile needs no code. A `career.content` record in a data file makes the same tile as `SWOFTY_REGISTER` above. The content names its `suffix`, and its mode gives the data group, save container and title:
+
+```text
+mod.decades/
+├── swofty.json
+├── registry/career.json
+└── db/career.json
+```
+
+```json
+// registry/career.json
+{
+  "career.mode": {
+    "decades": { "data_group": "f1_career_decades", "save_container": "driver_career_decades",
+                 "title": "lng_decades_title" }
+  },
+  "career.content": {
+    "f1_career_decades": { "mode": "mod.decades/decades", "suffix": "DEC", "description": "lng_decades_description",
+                           "after_last": "end" }
+  }
+}
+```
+
+The 1.6 core has no stock `career.mode` records to extend: the JSON-only mode is a record of its own. The game data behind the tile comes from [database operations](/reference/ops/database) in `db/career.json`:
+
+- a `game_modes.ModeChampionship` row whose `save_data.name` is `driver_career_decades`;
+- an `entrants.entrant_lists` row named `f1_career_decades`, with a `stat_id` below 256, which the mode's championship names in `ComCareerSetup_0.entrant_list`;
+- the official entrant list `F1CAREER_DEC` in a content set, and `F2CAREER_DEC` and `ICONS_DEC` for the F2 and Icons tabs of Choose Driver.
+
+Progressive's `db/career.json` and `db/grid.json` add these rows for its own tile. `swofty.json` lists the operations and no DLL:
+
+```json
+"operations": { "database": [ "db/career.json" ] }
+```
+
+```text
+[career] content 'f1_career_decades' from mod.decades (career.content record mod.decades/f1_career_decades, no call)
+         registered (tile 1 after the stock ones, 2026 model, data group f1_career_decades, suffix DEC, mode
+         driver_career_decades): queued for the next mixin commit
+```
+
+[Career contents](/std/systems/career#career-contents) lists every field and its default.
+
 ## 2. Five seasons from five packs
 
 <Split>

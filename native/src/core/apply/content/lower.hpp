@@ -33,6 +33,7 @@ struct Stock {
 using Source = std::function<std::optional<Stock>(const std::string &key)>;
 using Lookup = std::function<const Value *(const std::string &registry, const std::string &id)>;
 using StatIds = std::function<int64_t(const std::string &registry, const std::string &id, int64_t pin)>;
+using Read = std::function<std::optional<std::string>(const std::string &path)>;
 
 inline constexpr const char *SCENARIO_IDS = "content.package.scenario";
 
@@ -58,6 +59,7 @@ struct Owned {
 struct Box {
     std::string id, entrant_list, title, image, literal;
     int order = 0;
+    std::string time_trial;
 };
 
 struct LogoImage {
@@ -123,6 +125,7 @@ inline std::size_t row_keys(const std::string &table)
         {"entrants.vehicles.vehicle_packages", 30}, {"car_setup.presets", 421},
         {"entrants.entrant_lists.entrants", 12},    {"entrants.standings", 23},
         {"entrants.entrant_lists", 190},            {"game_setup.scenarios", 7},
+        {"drs.drs_allowed_lap", 8},
         {"options_system.options.multiplayer.options_folder_2.option[_metadata_=category]", 8}};
     auto it = sizes.find(table);
     return it == sizes.end() ? 16 : it->second;
@@ -403,8 +406,24 @@ inline std::string title_tag(const std::string &entrant_list)
     return "lng_swofty_era_" + entrant_list;
 }
 
+// The rows of a child table that a row the package copies holds (its _<child>_instancecount_), when a Read sees the
+// database; without one the count is unknown and the copy keeps the source's children only.
+inline std::optional<std::size_t> child_rows(const Read &read, const std::string &row, const char *child)
+{
+    if (!read)
+        return std::nullopt;
+    auto n = read(row + "._" + child + "_instancecount_");
+    if (!n || n->empty())
+        return std::nullopt;
+    char *end = nullptr;
+    unsigned long long v = std::strtoull(n->c_str(), &end, 10);
+    if (!end || *end)
+        return std::nullopt;
+    return static_cast<std::size_t>(v);
+}
+
 inline void lower_package(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
-                          const StatIds &stat = {}, const PersonMap *wear = nullptr)
+                          const StatIds &stat = {}, const PersonMap *wear = nullptr, const Read &read = {})
 {
     plan.owner = addon_of(id);
     const Value &db = rec["database"];
@@ -453,10 +472,21 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     }
     push_row(plan, "entrants.standings", std::string(STANDINGS) + "[_metadata_=" + standings_from + "]",
              Value::object({{"_metadata_", standings}}));
-    for (std::size_t t = 0; t < teams.size(); t++)
-        push_op(plan, set_op(std::string(STANDINGS) + "[_metadata_=" + standings + "].team_reference_" +
-                                 std::to_string(t),
-                             "team", vehicle_label(teams[t], lookup)));
+    std::string own_standings = std::string(STANDINGS) + "[_metadata_=" + standings + "]";
+    auto standing_rows = child_rows(read, std::string(STANDINGS) + "[_metadata_=" + standings_from + "]", "team_reference");
+    for (std::size_t t = 0; t < teams.size(); t++) {
+        std::string label = vehicle_label(teams[t], lookup);
+        if (standing_rows && *standing_rows && t >= *standing_rows) {
+            plan.keys += 2;
+            push_op(plan, add_row(own_standings, own_standings + ".team_reference_0",
+                                  Value::object({{"_metadata_", std::string(teams[t]["key"].as_string())}, {"team", label}})));
+            continue;
+        }
+        push_op(plan, set_op(own_standings + ".team_reference_" + std::to_string(t), "team", label));
+    }
+    if (standing_rows && *standing_rows && teams.size() > *standing_rows)
+        plan.lines.push_back("content.package " + id + ": standings " + standings + " has " + std::to_string(teams.size()) +
+                             " teams; " + standings_from + " holds " + std::to_string(*standing_rows) + ", the rest are added");
     Value row = Value::object({{"_metadata_", list},
                                {"display_name", title},
                                {"previous_season_team_standings", standings},
@@ -470,27 +500,41 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
     if (wide)
         push_op(plan, set_op(std::string(SETUP_ROW) + "[_metadata_=" + mode + "]", "max_entrants", std::to_string(seats)));
     push_row(plan, "entrants.entrant_lists", std::string(LISTS) + "[_metadata_=" + list_from + "]", std::move(row));
+    std::string own_list = std::string(LISTS) + "[_metadata_=" + list + "]";
+    auto list_rows = child_rows(read, std::string(LISTS) + "[_metadata_=" + list_from + "]", "entrant");
     std::size_t slot = 0;
     for (std::size_t t = 0; t < teams.size(); t++) {
         const Value &team = teams[t];
         std::string label = vehicle_label(team, lookup);
         for (std::size_t s = 0; s < team["drivers"].size(); s++, slot++) {
             std::string driver = package_driver(lookup, team["drivers"][s]["driver"].as_string(), wear);
-            std::string at = std::string(LISTS) + "[_metadata_=" + list + "].entrant_" + std::to_string(slot);
+            std::string at = own_list + ".entrant_" + std::to_string(slot);
             char pos[16];
             std::snprintf(pos, sizeof pos, "_driver_0%zu", s + 1);
-            for (auto &[field, value] : std::initializer_list<std::pair<const char *, std::string>>{
-                     {"_metadata_", label + pos},
-                     {"team", label},
-                     {"vehicle", label},
-                     {"entrant_reference", prefix + driver},
-                     {"team_position", std::to_string(s)},
-                     {"car_number", "255"},
-                     {"driver", ""},
-                     {"driver_customisation", ""}})
+            std::initializer_list<std::pair<const char *, std::string>> fields = {
+                {"_metadata_", label + pos},
+                {"team", label},
+                {"vehicle", label},
+                {"entrant_reference", prefix + driver},
+                {"team_position", std::to_string(s)},
+                {"car_number", "255"},
+                {"driver", ""},
+                {"driver_customisation", ""}};
+            if (list_rows && *list_rows && slot >= *list_rows) {
+                Value set = Value::object();
+                for (auto &[field, value] : fields)
+                    set[field] = value;
+                plan.keys += 10;
+                push_op(plan, add_row(own_list, own_list + ".entrant_0", std::move(set)));
+                continue;
+            }
+            for (auto &[field, value] : fields)
                 push_op(plan, set_op(at, field, value));
         }
     }
+    if (list_rows && *list_rows && slot > *list_rows)
+        plan.lines.push_back("content.package " + id + ": entrant list " + list + " has " + std::to_string(slot) +
+                             " entrants; " + list_from + " holds " + std::to_string(*list_rows) + ", the rest are added");
     Value scenario = Value::object({{"_metadata_", list},
                                     {"display_name", title},
                                     {"entrant_list", list},
@@ -527,6 +571,8 @@ inline void lower_package(const std::string &id, const Value &rec, const Lookup 
 
 using BaseImage = std::function<std::string(const std::string &package)>;
 
+inline constexpr std::size_t BOX_TIME_TRIAL_CARS = 23;
+
 inline void lower_box(const std::string &id, const Value &rec, const Lookup &lookup, Plan &plan,
                       const BaseImage &base_image = {})
 {
@@ -555,6 +601,16 @@ inline void lower_box(const std::string &id, const Value &rec, const Lookup &loo
     if (box.image.empty() && base_image)
         box.image = base_image(package);
     box.order = int(rec["order"].as_int());
+    const Value &tt = rec["time_trial"]["entrant_list"];
+    if (tt.is_string() && tt.as_string() != box.entrant_list)
+        box.time_trial = std::string(tt.as_string());
+    std::size_t seats = 0;
+    for (std::size_t t = 0; t < (*pkg)["teams"].size(); t++)
+        seats += (*pkg)["teams"][t]["drivers"].size();
+    if (box.time_trial.empty() && seats > BOX_TIME_TRIAL_CARS)
+        plan.lines.push_back("era.box " + id + ": its package's " + std::to_string(seats) +
+                             " cars are more than a Time Trial session holds (" + std::to_string(BOX_TIME_TRIAL_CARS) +
+                             "); the Time Trial picker leaves the box off until it names a time_trial entrant_list");
     plan.boxes.push_back(box);
 }
 
@@ -565,11 +621,12 @@ struct PoolSpec {
     int64_t cap;
 };
 
+// vehicle.package and scenario ids stop at 254: the game keeps them in a byte, and the launcher stops 1.5 operations there too.
 inline constexpr PoolSpec POOLS[] = {
     {"vehicle", "entrants.vehicles", "vehicle", "stat_id", 1023},
-    {"vehicle.package", "entrants.vehicles.vehicle_packages", "vehicle_package", "stat_id", 255},
+    {"vehicle.package", "entrants.vehicles.vehicle_packages", "vehicle_package", "stat_id", 254},
     {"content.package", "entrants.entrant_lists", "entrant_list", "stat_id", 255},
-    {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 255},
+    {SCENARIO_IDS, "game_setup.scenarios", "scenario", "statId", 254},
     {"team.identity", "entrants.teams", "team", "stat_id", 1023},
 };
 

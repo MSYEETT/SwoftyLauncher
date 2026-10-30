@@ -19,6 +19,7 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/liveries.hpp>
+#include <swofty/systems/power.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/spectator.hpp>
@@ -463,6 +464,20 @@ static void schemas()
     CHECK(teams::identities.schema().find("\"x-ref\":\"team.logo\"") != std::string::npos);
     CHECK(teams::logos.schema().find("\"x-applies\":\"read\"") != std::string::npos);
     CHECK(teams::pit_times.schema().find("\"x-ref\":\"team.pit_times\"") != std::string::npos);
+    std::string tree = career::rnd_trees.schema();
+    CHECK(tree.find("\"x-applies\":\"boot\"") != std::string::npos && tree.find("\"x-key\":[\"label\"]") != std::string::npos);
+    CHECK(tree.find("\"enum\":[\"aerodynamics\",\"chassis\",\"durability\",\"engine\"]") != std::string::npos);
+    std::string market = career::markets.schema();
+    CHECK(market.find("\"x-applies\":\"boot\"") != std::string::npos && market.find("\"x-key\":[\"team\"]") != std::string::npos);
+    CHECK(market.find("\"x-ref\":\"team.identity\"") != std::string::npos && market.find("\"x-ref\":\"driver.identity\"") != std::string::npos);
+    career::Market m{.retirements = std::vector<career::Retirement>{{.driver = drivers::identities["game/fernando_alonso"],
+                                                                     .retire = std::chrono::year{2027} / 12 / 14,
+                                                                     .announce = std::chrono::year{2027} / 9 / 16}}};
+    m.team_ratings.items().push_back({.team = teams::identities["game/mclaren_26"], .rating = 97});
+    CHECK(to_json(m).find("\"retire\":\"2027-12-14\"") != std::string::npos);
+    career::RndTree rt{.token = "mercedes"};
+    rt.nodes.items().push_back({.label = "sw_wing_1", .type = "Drag", .size = career::UpgradeSize::major, .cost = 650, .after = {"default"}});
+    CHECK(to_json(rt).find("\"size\":\"major\"") != std::string::npos && to_json(rt).find("\"data_group\":\"\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.look\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.person\"") != std::string::npos);
     CHECK(drivers::looks.schema().find("\"x-ref\":\"helmet\"") != std::string::npos);
@@ -474,6 +489,76 @@ static void schemas()
     CHECK(l.find("\"x-registry\":\"livery\"") != std::string::npos && l.find("\"x-applies\":\"boot\"") != std::string::npos);
     CHECK(l.find("\"x-ref\":\"vehicle\"") != std::string::npos && l.find("\"enum\":[\"owned\",\"game\"]") != std::string::npos);
     CHECK(liveries::liveries.at_major() == "livery@1");
+    std::string d = power::drs_rules.schema();
+    CHECK(d.find("\"x-registry\":\"rules.drs\"") != std::string::npos && d.find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(d.find("\"race_start\":{\"type\":\"integer\"}") != std::string::npos && power::drs_rules.at_major() == "rules.drs@1");
+    CHECK(content::packages.schema().find("\"x-ref\":\"rules.drs\"") != std::string::npos);
+    power::DrsRule never{.race_start = 200, .red_flag_restart = 200, .safety_car_end = 200};
+    std::string never_json = swofty::to_json(never);
+    power::DrsRule back;
+    CHECK(never_json.find("\"race_start\":200") != std::string::npos && swofty::from_json(never_json, back) &&
+          back.safety_car_end == 200 && power::DrsRule{}.race_start == 1);
+    std::string trk = tracks::tracks.schema();
+    CHECK(trk.find("\"x-registry\":\"track\"") != std::string::npos && trk.find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(trk.find("\"x-ref\":\"track.venue\"") != std::string::npos && trk.find("\"x-ref\":\"track\"") != std::string::npos);
+    std::string ven = tracks::venues.schema();
+    CHECK(ven.find("\"x-shared\":{\"provider_registry\":\"track\",\"provides\":\"/provides\",\"resolved\":\"/track\"}") !=
+          std::string::npos);
+    std::string td = tracks::data.schema();
+    CHECK(td.find("\"x-applies\":\"session\"") != std::string::npos && td.find("\"x-ref\":\"tyre.class\"") != std::string::npos &&
+          td.find("\"x-ref\":\"vehicle\"") != std::string::npos);
+    std::string pp = tracks::per_package.schema();
+    CHECK(pp.find("\"x-applies\":\"content\"") != std::string::npos && pp.find("\"x-ref\":\"track.layer\"") != std::string::npos &&
+          pp.find("\"x-ref\":\"content.package\"") != std::string::npos);
+    CHECK(tracks::tracks.at_major() == "track@1" && tracks::per_package.at_major() == "track.per_package@1");
+}
+
+static void tracks_records()
+{
+    tracks::Track hock{.code = "hockenheim",
+                       .name = "Hockenheimring",
+                       .base = tracks::tracks["game/austria"],
+                       .provides = {tracks::venues["venue/hockenheimring"]},
+                       .names = {.title = Text::key("lng_hockenheim_title"), .gp = Text::key("lng_hockenheim_gp"), .acronym = "HOC"},
+                       .files = file("track/"),
+                       .length_metres = 4574,
+                       .corners = 17};
+    std::string ht = to_json(hock);
+    CHECK(ht.find("\"base\":\"game/austria\"") != std::string::npos && ht.find("\"slot\":null") != std::string::npos &&
+          ht.find("\"provides\":[\"venue/hockenheimring\"]") != std::string::npos && ht.find("\"time_trial\":false") != std::string::npos);
+    tracks::Track hb;
+    CHECK(from_json(ht, hb) && hb.code == "hockenheim" && hb.provides.size() == 1 && hb.stat_id.is_automatic() && !hb.time_trial);
+
+    tracks::TrackData d{.track = tracks::tracks["mod.hockenheim/hockenheim"], .data_set = "f1_2026", .laps = 67};
+    d.fuel.burn_per_lap = 1.62f;
+    d.tyres = {.softer = "C4", .medium = "C3", .harder = "C2"};
+    d.date = {.day = 21, .month = 7};
+    std::string dt = to_json(d);
+    CHECK(dt.find("\"data_set\":\"f1_2026\"") != std::string::npos && dt.find("\"softer\":\"C4\"") != std::string::npos &&
+          dt.find("\"month\":7") != std::string::npos && dt.find("\"tyre_class\":null") != std::string::npos);
+    tracks::TrackData db;
+    CHECK(from_json(dt, db) && db.laps == 67 && db.tyres.harder == "C2" && db.date.day == 21);
+
+    tracks::PackageTrack pt{.package = content::packages["swofty.classic-seasons-2016/f1_2016"],
+                            .venue = tracks::venues["venue/hockenheimring"],
+                            .laps = 67,
+                            .fuel = tracks::Fuel{.burn_per_lap = 1.71f}};
+    std::string pj = to_json(pt);
+    CHECK(pj.find("\"venue\":\"venue/hockenheimring\"") != std::string::npos && pj.find("\"track\":null") != std::string::npos &&
+          pj.find("\"offered\":true") != std::string::npos && pj.find("\"world\":null") != std::string::npos &&
+          pj.find("\"pit\":null") != std::string::npos);
+    tracks::PackageTrack pb;
+    CHECK(from_json(pj, pb) && pb.offered && pb.laps == 67 && pb.fuel && !pb.pit && !pb.names && pb.venue.id() == "venue/hockenheimring");
+
+    tracks::TrackList list{.calendar = {tracks::tracks["game/bahrain"]},
+                           .more = {tracks::tracks["mod.bahrain24/bahrain24"]},
+                           .left_out = {{tracks::tracks["mod.miami24/igora_drive"], "its swofty_f1 world has 10 garages; the box has 11 teams"}}};
+    std::string lj = to_json(list);
+    CHECK(lj.find("\"left_out\":[{\"track\":\"mod.miami24/igora_drive\",\"reason\":") != std::string::npos);
+
+    CHECK(tracks::tracks.add("hockenheim", hock).id().empty());
+    CHECK(tracks::venues.get(tracks::venues["venue/sochi"]) == std::nullopt);
+    CHECK(tracks::set_track_fuel(tracks::tracks["game/monaco"], {.burn_per_lap = 1.4f}) == tracks::Result::unavailable);
 }
 
 static void liveries_records()
@@ -560,6 +645,7 @@ int main()
     payload_accessors();
     round_trip();
     schemas();
+    tracks_records();
     if (failures) {
         std::printf("sdk_headers_test: %d failure(s)\n", failures);
         return 1;
