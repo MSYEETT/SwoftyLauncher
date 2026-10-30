@@ -1184,7 +1184,20 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let mut db_report = crate::ops::DbReport::default();
         planner.keep_entrant_lists(crate::entrant_lists::StockLists::new(&shipped_db));
+        let row_ids_lock = crate::row_ids::lock(&store.root)?;
+        let last = crate::row_ids::last_build(&store.overlays_dir(profile), &built.buildhash, GVDB);
+        let (row_ids, row_id_warnings) =
+            crate::row_ids::Store::load(&store.root, Some(&game.dir), profile, last);
+        built.warnings.extend(row_id_warnings);
+        planner.keep_row_ids(row_ids);
         let added = planner.apply_db_report(&mut db, &stock, &tracked, &mut db_report)?;
+        if let Some(ids) = planner.take_row_ids() {
+            built.lines.extend(ids.summary());
+            if !checking {
+                ids.save(&store.root)?;
+            }
+        }
+        drop(row_ids_lock);
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
         built.warnings.extend(planner.take_skipped());
@@ -3020,6 +3033,41 @@ mod tests {
             "{:?}",
             built.lines
         );
+        let ids = crate::row_ids::path(&store.root);
+        let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&ids).unwrap()).unwrap();
+        assert_eq!(kept["rows"]["t.rows/entrants.teams.team/team12_26"], 102);
+        std::fs::write(
+            &ids,
+            r#"{"version":1,"rows":{"t.rows/entrants.teams.team/team12_26":140}}"#,
+        )
+        .unwrap();
+        std::fs::remove_file(built.overlay.join(SAVED_FILE)).unwrap();
+        let again = build(&store, "default", &game).unwrap();
+        let db = Gvdb::parse(&std::fs::read(&again.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(
+            db.get_text("entrants.teams.team_2.stat_id").as_deref(),
+            Some("140")
+        );
+        assert!(
+            again
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 140 (the source's is 100; kept from row-ids.json)")),
+            "{:?}",
+            again.lines
+        );
+        std::fs::remove_file(&ids).unwrap();
+        std::fs::rename(&again.overlay, store.overlays_dir("default").join("older")).unwrap();
+        let seeded = build(&store, "default", &game).unwrap();
+        assert!(
+            seeded.lines.iter().any(
+                |l| l.ends_with("stat_id 140 (the source's is 100; as the profile's last build gave it)")
+            ),
+            "{:?}",
+            seeded.lines
+        );
+        let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&ids).unwrap()).unwrap();
+        assert_eq!(kept["rows"]["t.rows/entrants.teams.team/team12_26"], 140);
         std::fs::remove_dir_all(&root).ok();
     }
 

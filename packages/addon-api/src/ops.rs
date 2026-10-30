@@ -466,6 +466,39 @@ pub trait FieldNames {
         let _ = (table, row, id);
         false
     }
+
+    /// The install's kept ids for the rows `add-row` gives an id of its own; see [`RowIds`].
+    fn row_ids(&self) -> Option<&dyn RowIds> {
+        None
+    }
+}
+
+/// The ids the install keeps for the rows `add-row` gives an id of its own, so a row gets the same
+/// id at every build whatever else the build adds. A key names an addon's row: `<addon>/<table>.<row>/<label>`.
+pub trait RowIds {
+    /// The key of this addon's row labelled `label` in `table`'s rows named `row`, claimed for this
+    /// build, and the id kept for it.
+    fn claim(&self, table: &str, row: &str, label: &str) -> Claimed;
+
+    /// Whether `id` of `table`'s rows named `row` is kept for a row other than `key`, or held by a
+    /// record of the core's registry.
+    fn taken(&self, table: &str, row: &str, key: &str, id: i64) -> bool;
+
+    /// Keeps `id` for `key`.
+    fn keep(&self, table: &str, row: &str, key: &str, id: i64);
+
+    /// The lowest id kept for a row of an addon this build leaves out that no record of the core's registry
+    /// holds and `free` accepts, moved to `key`, and the key that held it.
+    fn reclaim(&self, table: &str, row: &str, key: &str, free: &dyn Fn(i64) -> bool)
+    -> Option<(i64, String)>;
+}
+
+/// A row's claimed key, its kept id, and the id the profile's last build gave a row with its label.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Claimed {
+    pub key: String,
+    pub kept: Option<i64>,
+    pub seed: Option<i64>,
 }
 
 /// Stock record keys and no field names.
@@ -525,6 +558,10 @@ impl FieldNames for Schema<'_> {
 
     fn reserved(&self, table: &str, row: &str, id: i64) -> bool {
         self.names.reserved(table, row, id)
+    }
+
+    fn row_ids(&self) -> Option<&dyn RowIds> {
+        self.names.row_ids()
     }
 }
 
@@ -1351,19 +1388,35 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
         }
     };
     let ceiling = stat_id_ceiling(&path, row).filter(|_| top_level);
+    let field = stat_id_field(&path, row);
+    let kept = names.row_ids().filter(|_| top_level);
+    let label = rows
+        .iter()
+        .find(|r| r.key == dst.field("_metadata_"))
+        .map(|r| r.text().into_owned());
+    let later = |id: i64| names.reserved(&path, row, id);
+    let held = |id: i64| {
+        (0..n).map(|i| format!("{path}.{row}_{i}")).find(|r| {
+            db.text(fnv1a64(format!("{r}.{field}")))
+                .and_then(|v| v.trim().parse::<i64>().ok())
+                == Some(id)
+        })
+    };
     // The next id above the table's highest, or the lowest free one when that passes the ceiling.
     // A moved id, and any id under the ceiling, passes over the ids later addons set on their rows.
-    let next = |moving: bool| -> Result<(i64, Option<String>)> {
-        let later = |id: i64| names.reserved(&path, row, id);
+    // Every id passes over the ids kept for other rows and the ids the core's registry holds.
+    let next = |moving: bool, key: Option<&str>| -> Result<(i64, Option<String>)> {
+        let elsewhere = |id: i64| kept.zip(key).is_some_and(|(k, key)| k.taken(&path, row, key, id));
         let mut top = stat_ids(db, &path, row, n, &HashSet::new())
             .into_iter()
             .max()
             .map_or(0, |m| m + 1);
-        while moving && later(top) {
+        while (moving && later(top)) || elsewhere(top) {
             top += 1;
         }
+        let skip = |id: i64| later(id) || elsewhere(id);
         match ceiling {
-            Some(c) if top > c.max => free_stat_id(db, names, &path, row, n, c, &later)
+            Some(c) if top > c.max => free_stat_id(db, names, &path, row, n, c, &skip)
                 .map(|id| {
                     (
                         id,
@@ -1380,16 +1433,73 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             _ => Ok((top, None)),
         }
     };
-    if fresh && let Some(r) = rows.iter_mut().find(|r| r.key == stat_key) {
-        let old = String::from_utf8_lossy(&r.value).into_owned();
-        let (next, passed) = next(false)?;
-        r.value = next.to_string().into_bytes();
+    // The id kept for the row when it's still free, else the id the profile's last build gave a row with
+    // its label, else the next id; a full table takes back an id kept for an addon the build leaves out.
+    let give = |moving: bool| -> Result<(i64, Option<String>)> {
+        let Some((k, label)) = kept.zip(label.as_deref()) else {
+            return next(moving, None);
+        };
+        let claimed = k.claim(&path, row, label);
+        let key = claimed.key.as_str();
+        let unfit = |id: i64| -> Option<String> {
+            if let Some(c) = ceiling.filter(|c| id > c.max || id < 0) {
+                return Some(format!("is above {}, the highest the game reads", c.max));
+            }
+            let r = held(id)?;
+            let label = db.text(fnv1a64(format!("{r}._metadata_")));
+            Some(format!(
+                "is held by {r} ({})",
+                label.as_deref().unwrap_or("no label")
+            ))
+        };
+        let blocked = |id: i64| -> Option<String> {
+            unfit(id).or_else(|| {
+                k.taken(&path, row, key, id)
+                    .then(|| "is kept for another row or held by a record of the core's registry".to_owned())
+            })
+        };
+        let mut notes = Vec::new();
+        match claimed.kept {
+            Some(id) => match blocked(id) {
+                None => return Ok((id, Some("kept from row-ids.json".to_owned()))),
+                Some(why) => notes.push(format!("{id}, kept for it, {why}")),
+            },
+            None => {
+                if let Some(id) = claimed.seed.filter(|id| blocked(*id).is_none()) {
+                    k.keep(&path, row, key, id);
+                    return Ok((id, Some("as the profile's last build gave it".to_owned())));
+                }
+            }
+        }
+        let (id, passed) = match next(moving, Some(key)) {
+            Ok(v) => v,
+            Err(e) => {
+                let free = |id: i64| unfit(id).is_none() && !later(id);
+                let Some((id, from)) = k.reclaim(&path, row, key, &free) else {
+                    return Err(e);
+                };
+                let max = ceiling.map_or(String::new(), |c| format!(" up to {}", c.max));
+                (
+                    id,
+                    Some(format!(
+                        "no other id{max} is free; reused from {from}, which this build leaves out"
+                    )),
+                )
+            }
+        };
+        k.keep(&path, row, key, id);
+        notes.extend(passed);
+        Ok((id, (!notes.is_empty()).then(|| notes.join("; "))))
+    };
+    if fresh && let Some(i) = rows.iter().position(|r| r.key == stat_key) {
+        let old = String::from_utf8_lossy(&rows[i].value).into_owned();
+        let (next, passed) = give(false)?;
+        rows[i].value = next.to_string().into_bytes();
         cx.report.lines.push(match passed {
             Some(why) => format!("{what}: stat_id {next} (the source's is {old}; {why})"),
             None => format!("{what}: stat_id {next} (the source's is {old})"),
         });
     }
-    let field = stat_id_field(&path, row);
     let id_key = dst.field(field);
     let asked = set.get(field).and_then(|v| v.trim().parse::<i64>().ok());
     let moved = match (asked, ceiling) {
@@ -1415,12 +1525,13 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
     if let Some((old, holder, holder_label, why)) = moved
         && let Some(r) = rows.iter_mut().find(|r| r.key == id_key)
     {
-        let (new, _) = next(true)?;
+        let (new, note) = give(true)?;
         r.value = new.to_string().into_bytes();
         let label = set.get("_metadata_").cloned();
-        cx.report
-            .lines
-            .push(format!("{what}: {field} {old} {why}; {field} {new}"));
+        cx.report.lines.push(match note {
+            Some(note) => format!("{what}: {field} {old} {why}; {field} {new} ({note})"),
+            None => format!("{what}: {field} {old} {why}; {field} {new}"),
+        });
         db.moved
             .insert((format!("{path}.{row}"), old.to_string()), new.to_string());
         cx.report.moved_stat_ids.push(MovedStatId {

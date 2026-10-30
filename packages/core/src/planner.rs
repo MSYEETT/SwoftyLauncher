@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 
@@ -10,7 +11,7 @@ use crate::conflicts::Changes;
 use crate::dbedit::deps::Copy;
 use crate::entrant_lists::StockLists;
 use crate::ops::{
-    DbOps, DbReport, ErpOp, FieldNames, MovedStatId, apply_db_ops_lenient, apply_db_ops_report,
+    DbOps, DbReport, ErpOp, FieldNames, MovedStatId, RowIds, apply_db_ops_lenient, apply_db_ops_report,
     explicit_stat_ids, stat_id_ceiling,
 };
 use crate::owned::{self, Added};
@@ -121,10 +122,11 @@ pub fn track_removals_line(name: &str, n: usize) -> String {
     )
 }
 
-// Field names, plus the ids that the addons after this one set on the rows they add.
+// Field names, the ids that the addons after this one set on the rows they add, and the install's kept row ids.
 struct Reserving<'a> {
     names: Names<'a>,
     later: &'a HashSet<(String, i64)>,
+    row_ids: Option<crate::row_ids::Scoped<'a>>,
 }
 
 impl FieldNames for Reserving<'_> {
@@ -146,6 +148,10 @@ impl FieldNames for Reserving<'_> {
 
     fn reserved(&self, table: &str, row: &str, id: i64) -> bool {
         self.later.contains(&(format!("{table}.{row}"), id))
+    }
+
+    fn row_ids(&self) -> Option<&dyn RowIds> {
+        self.row_ids.as_ref().map(|s| s as &dyn RowIds)
     }
 }
 
@@ -229,6 +235,7 @@ pub struct Planner<'a> {
     lenient: BTreeMap<String, String>,
     touched: BTreeMap<String, Touched>,
     overlays: Option<&'a OverlayNames<'a>>,
+    row_ids: Option<RefCell<crate::row_ids::Store>>,
 }
 
 /// The resource names in an `erp.overlay` op's archive.
@@ -320,6 +327,7 @@ impl<'a> Planner<'a> {
             lenient: BTreeMap::new(),
             touched: BTreeMap::new(),
             overlays: None,
+            row_ids: None,
         }
     }
 
@@ -683,6 +691,11 @@ impl<'a> Planner<'a> {
         let none = BTreeMap::new();
         let mut added = Vec::new();
         let pending = std::mem::take(&mut self.db);
+        let row_ids = self.row_ids.take();
+        if let Some(ids) = &row_ids {
+            ids.borrow_mut()
+                .building(pending.iter().map(|(o, _)| o.addon.clone()));
+        }
         let mut later = vec![HashSet::new(); pending.len()];
         for k in (1..pending.len()).rev() {
             let mut ids = later[k].clone();
@@ -699,6 +712,10 @@ impl<'a> Planner<'a> {
                     tracks: Some(tracks),
                 },
                 later: &later,
+                row_ids: row_ids.as_ref().map(|store| crate::row_ids::Scoped {
+                    addon: &origin.addon,
+                    store,
+                }),
             };
             let mut ours = DbReport::default();
             let lists = self.lists.as_ref().filter(|l| l.touched(&ops));
@@ -779,7 +796,18 @@ impl<'a> Planner<'a> {
             }
             added.extend(owned::added(db, &origin.addon, &before));
         }
+        self.row_ids = row_ids;
         Ok(added)
+    }
+
+    /// Gives the rows `add-row` gives an id of its own the ids `ids` keeps; see [`Planner::take_row_ids`].
+    pub fn keep_row_ids(&mut self, ids: crate::row_ids::Store) {
+        self.row_ids = Some(RefCell::new(ids));
+    }
+
+    /// The kept row ids, with the ids the last `apply_db` gave.
+    pub fn take_row_ids(&mut self) -> Option<crate::row_ids::Store> {
+        self.row_ids.take().map(RefCell::into_inner)
     }
 
     /// The addon whose write of the record `key` wins, the last in load order.
