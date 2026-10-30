@@ -18,7 +18,9 @@ const APP_START_TIMEOUT: Duration = Duration::from_secs(90);
 // A link handed over while the EA app is still starting can be dropped:
 // under Proton one sent a second after EADesktop.exe appeared never arrived.
 const APP_SETTLE: Duration = Duration::from_secs(10);
-const HANDOFF_TIMEOUT: Duration = Duration::from_secs(180);
+// The EA app syncs cloud saves before it starts the game, which took about
+// 170 s on a test copy, so the wait for the link outlasts that sync.
+const HANDOFF_TIMEOUT: Duration = Duration::from_secs(300);
 #[cfg(not(windows))]
 const SERVER_STOP_TIMEOUT: Duration = Duration::from_secs(30);
 const PRESS_PLAY_TIMEOUT: Duration = Duration::from_secs(600);
