@@ -315,6 +315,16 @@ inline size_t distinct_cars(const std::vector<uint32_t> &refs)
     return d.size();
 }
 
+// Leaderboard descriptor stat ids of the stock leaderboards.leaderboard_descriptor rows, for the log only.
+inline std::string leaderboard_text(unsigned id)
+{
+    static constexpr const char *STOCK[] = {"f1", "classic", "f1_26", "f2", nullptr, "f2_26"};
+    std::string out = std::to_string(id);
+    if (id < std::size(STOCK) && STOCK[id])
+        out += std::string(", ") + STOCK[id];
+    return out;
+}
+
 inline std::string time_trial_budget_line(const std::vector<TtList> &lists, const TtBudget &b, unsigned leaderboard)
 {
     std::string selected = "?";
@@ -327,7 +337,7 @@ inline std::string time_trial_budget_line(const std::vector<TtList> &lists, cons
         else if (std::find(b.dropped.begin(), b.dropped.end(), i) == b.dropped.end())
             kept++;
     }
-    std::string line = "the Time Trial session's list " + selected + " (leaderboard " + std::to_string(leaderboard) +
+    std::string line = "the Time Trial session's list " + selected + " (leaderboard " + leaderboard_text(leaderboard) +
                        ") draws " + std::to_string(b.cars) + " cars from " + std::to_string(kept) +
                        " list(s) of its leaderboard" +
                        (pool ? " and the entrants system pools (" + std::to_string(pool) + ")" : std::string()) +
@@ -441,14 +451,21 @@ struct SessionTrace {
     int64_t gm_session = -1, module_session = -1, module_next = -1;
     int64_t vehicles = -1;
     int64_t budget = -1;
+    int64_t previous = -1;
 };
 
 // The Time Trial budget's expected vehicles (its cars plus the game's 4 entries) against what the fill made: the
 // participants in the game manager's descriptor, or the vehicles at the session's vehicle setup.
+// The fill runs between StateLoadSession Updating and Exiting, so at Entering and Updating the descriptor may still
+// hold the previous session's participants: there a count is compared only when it changed since the previous
+// traced step (previous), which a fill before Entering would show.
 inline std::string budget_mismatch(const SessionTrace &t)
 {
     int64_t seen = t.vehicles >= 0 ? t.vehicles : t.gm_session;
     if (t.budget < 0 || seen <= 0 || seen == t.budget)
+        return {};
+    bool before_fill = t.where == "StateLoadSession Entering" || t.where == "StateLoadSession Updating";
+    if (before_fill && t.vehicles < 0 && t.gm_session == t.previous)
         return {};
     return "Time Trial fill at " + t.where + " made " + std::to_string(seen) + " vehicles where the budget expected " +
            std::to_string(t.budget);

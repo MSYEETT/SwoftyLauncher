@@ -422,8 +422,8 @@ int main()
         era::TtList empty_refs{"ex_empty", false, true, {0x3fff0000u, 0x3fff0000u}};
         expect(era::time_trial_budget({custom, empty_refs}).dropped.empty() && era::distinct_cars(empty_refs.refs) == 0,
                "entrants without a vehicle ref (0x3fff) take no slot");
-        std::string bl = era::time_trial_budget_line({custom, f1_2025, bdx}, with_2012, 3);
-        expect(bl == "the Time Trial session's list f1_custom_team (leaderboard 3) draws 11 cars from 2 list(s) of its leaderboard; "
+        std::string bl = era::time_trial_budget_line({custom, f1_2025, bdx}, with_2012, 0);
+        expect(bl == "the Time Trial session's list f1_custom_team (leaderboard 0, f1) draws 11 cars from 2 list(s) of its leaderboard; "
                      "with the game's 4 entries 15 of the 26-slot vehicle table; left out until the session unloads: bdx_s5_2012 (12 cars)",
                "the budget line names the list, leaderboard, cars, vehicles and what it left out (" + bl + ")");
         {
@@ -501,6 +501,36 @@ int main()
             bt.budget = -1;
             bt.gm_session = 27;
             expect(era::budget_mismatch(bt).empty(), "outside a budgeted Time Trial nothing is compared");
+
+            int64_t previous = 25;
+            bool any = false;
+            for (auto [where, seen] : {std::pair<const char *, int64_t>{"StateLoadSession Entering", 25},
+                                       {"StateLoadSession Updating", 25},
+                                       {"StateLoadSession Exiting", 15},
+                                       {"StateSession Entering", 15}}) {
+                era::SessionTrace st;
+                st.where = where;
+                st.budget = 15;
+                st.gm_session = seen;
+                st.previous = previous;
+                any = any || !era::budget_mismatch(st).empty();
+                previous = seen;
+            }
+            expect(!any, "a Time Trial after a 2012 GP (participants 25, 25, then the fill's 15, 15) logs no mismatch: "
+                         "the GP's 25 before the fill are not compared");
+            era::SessionTrace early;
+            early.where = "StateLoadSession Entering";
+            early.budget = 15;
+            early.gm_session = 27;
+            early.previous = 25;
+            expect(!era::budget_mismatch(early).empty(), "a count that changed before Entering (a fill there) is compared");
+            early.where = "StateLoadSession Exiting";
+            early.gm_session = 25;
+            early.previous = 25;
+            expect(!era::budget_mismatch(early).empty(), "from Exiting on, any count is compared, changed or not");
+            expect(era::leaderboard_text(0) == "0, f1" && era::leaderboard_text(1) == "1, classic" &&
+                       era::leaderboard_text(4) == "4" && era::leaderboard_text(40) == "40",
+                   "stock leaderboard ids print with their names (f1 is 0); others print as the id");
         }
         expect(era::vehicle_flags(era::TAKES_LIST, 0) == era::TAKES_LIST &&
                    era::vehicle_flags(0, era::TAKES_POOL_A) == era::TAKES_POOL_A && era::vehicle_flags(0, 0) == 0,

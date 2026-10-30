@@ -500,6 +500,8 @@ void session_trace(const std::string &where, int64_t vehicles)
         }
     }
     t.budget = tt_budget.load();
+    static int64_t last_participants = -1;
+    t.previous = last_participants;
     t.gm_session = descriptor_participants(gm, logic::GM_SESSION);
     if (mem::read(gm + logic::GM_MODULE, module) && module) {
         t.module_session = descriptor_participants(module, logic::MODULE_SESSION);
@@ -507,6 +509,7 @@ void session_trace(const std::string &where, int64_t vehicles)
     }
     trace_lines++;
     swofty::log("[era] %s", logic::session_trace_line(t).c_str());
+    last_participants = t.gm_session;
     std::string mismatch = logic::budget_mismatch(t);
     if (!mismatch.empty())
         swofty::log("[era] %s", mismatch.c_str());
