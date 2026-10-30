@@ -1644,3 +1644,12 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	dcso-verify	func	Car_Parse_SurfaceMaterial	L2	agree	decomp:re/decomp/14463d0d0.c;xref:0x14463b7b4	V1652 claim 8 defaults
 2026-10-28	dcso-verify	func	Game_TrackInfo_SampleWheelSurface	L2	agree	decomp:re/decomp/144792f50.c;xref:0x144793035	V1653 claim 9 2.5/3.5 ramp; d = TrackSpace distance not checked
 2026-10-28	gb-verify	func	Car_Parse_SurfaceMaterial	L2	partial	decomp:re/decomp/14463d0d0.c;xref:0x14463d5ba	V1654 claim 2; key is bumpsrealproportion; entry 0x14463d0d0 not 0x14463d580
+2026-10-28	fuel-verify	func	Game_Player_ApplyAssistsToVehicle	L1	agree	xref:0x142424606,0x142424611	V1655 recorded by engine-re from fuel-verify (blind capstone): cmp byte [rsi+0x84],0; setne byte [rax+rcx*4+0xd7] inside 0x142424060
+2026-10-28	fuel-verify	func	Game_Mfd_FuelMixUp	L1	agree	xref:0x141533398,0x14153355c	V1656 fuel-verify: cmp byte [rcx+rax*4+0xd7],0; jne -> return 0
+2026-10-28	fuel-verify	func	Game_Mfd_FuelMix_BuildOptions	L1	partial	xref:0x141788c9a,0x141788cc3	V1657 fuel-verify: add eax,-15; cmp eax,3; jb skips the max row; that 15..17 are race sessions not proven by these bytes
+2026-10-28	fuel-verify	func	Game_Mfd_FuelMix_Refresh	L1	agree	xref:0x1417885f2	V1658 fuel-verify: movzx eax,byte [rax+0x12]; shr al,2; and al,1 -> [rsp+0x2e]
+2026-10-28	fuel-verify	func	Sess_ControllerSystem_ApplyRecord	L1	agree	xref:0x14389b83c,0x14389bad4,0x14389bbf3	V1659 fuel-verify: table [0x14606ec28]+0x28+veh*0x20+mix*4 == 0 -> call 0x14468e6a0
+2026-10-28	fuel-verify	func	Car_FuelEcu_SetMode_Thunk	L1	agree	xref:0x14468e6a0,0x1553ff46b	V1660 fuel-verify: XOR-decoded writes ecu+0x130..0x160, calls 0x144689a70/0x1446a5130, mov [rsi+0x128],ebx
+2026-10-28	aaa-verify	func	Game_Player_ApplyAssistsToVehicle	L1	agree	xref:0x142424117,0x14242418e	V1661 aaa-verify: braking assist 0 / 0.61 / 0.91 / 1.0 -> record +0xd0
+2026-10-28	aaa-verify	func	Sess_ControllerSystem_ApplyRecord	L1	agree	xref:0x14389a5c8,0x14389a630,0x14389b146,0x14389b152	V1662 aaa-verify: brake blend in + (tgt-in)*level; steering assist +0x1a4/+0x1a8
+2026-10-28	dcso-verify	func	Sess_ControllerSystem_ApplyRecord	L2	agree	decomp:re/decomp/14389a2b0.c;xref:0x14389b656	V1663 claim 13; axis names inferred
