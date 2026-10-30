@@ -19,6 +19,7 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/liveries.hpp>
+#include <swofty/systems/power.hpp>
 #include <swofty/systems/sessions.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/spectator.hpp>
@@ -463,6 +464,20 @@ static void schemas()
     CHECK(teams::identities.schema().find("\"x-ref\":\"team.logo\"") != std::string::npos);
     CHECK(teams::logos.schema().find("\"x-applies\":\"read\"") != std::string::npos);
     CHECK(teams::pit_times.schema().find("\"x-ref\":\"team.pit_times\"") != std::string::npos);
+    std::string tree = career::rnd_trees.schema();
+    CHECK(tree.find("\"x-applies\":\"boot\"") != std::string::npos && tree.find("\"x-key\":[\"label\"]") != std::string::npos);
+    CHECK(tree.find("\"enum\":[\"aerodynamics\",\"chassis\",\"durability\",\"engine\"]") != std::string::npos);
+    std::string market = career::markets.schema();
+    CHECK(market.find("\"x-applies\":\"boot\"") != std::string::npos && market.find("\"x-key\":[\"team\"]") != std::string::npos);
+    CHECK(market.find("\"x-ref\":\"team.identity\"") != std::string::npos && market.find("\"x-ref\":\"driver.identity\"") != std::string::npos);
+    career::Market m{.retirements = std::vector<career::Retirement>{{.driver = drivers::identities["game/fernando_alonso"],
+                                                                     .retire = std::chrono::year{2027} / 12 / 14,
+                                                                     .announce = std::chrono::year{2027} / 9 / 16}}};
+    m.team_ratings.items().push_back({.team = teams::identities["game/mclaren_26"], .rating = 97});
+    CHECK(to_json(m).find("\"retire\":\"2027-12-14\"") != std::string::npos);
+    career::RndTree rt{.token = "mercedes"};
+    rt.nodes.items().push_back({.label = "sw_wing_1", .type = "Drag", .size = career::UpgradeSize::major, .cost = 650, .after = {"default"}});
+    CHECK(to_json(rt).find("\"size\":\"major\"") != std::string::npos && to_json(rt).find("\"data_group\":\"\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.look\"") != std::string::npos);
     CHECK(drivers::identities.schema().find("\"x-ref\":\"driver.person\"") != std::string::npos);
     CHECK(drivers::looks.schema().find("\"x-ref\":\"helmet\"") != std::string::npos);
@@ -474,6 +489,15 @@ static void schemas()
     CHECK(l.find("\"x-registry\":\"livery\"") != std::string::npos && l.find("\"x-applies\":\"boot\"") != std::string::npos);
     CHECK(l.find("\"x-ref\":\"vehicle\"") != std::string::npos && l.find("\"enum\":[\"owned\",\"game\"]") != std::string::npos);
     CHECK(liveries::liveries.at_major() == "livery@1");
+    std::string d = power::drs_rules.schema();
+    CHECK(d.find("\"x-registry\":\"rules.drs\"") != std::string::npos && d.find("\"x-applies\":\"boot\"") != std::string::npos);
+    CHECK(d.find("\"race_start\":{\"type\":\"integer\"}") != std::string::npos && power::drs_rules.at_major() == "rules.drs@1");
+    CHECK(content::packages.schema().find("\"x-ref\":\"rules.drs\"") != std::string::npos);
+    power::DrsRule never{.race_start = 200, .red_flag_restart = 200, .safety_car_end = 200};
+    std::string never_json = swofty::to_json(never);
+    power::DrsRule back;
+    CHECK(never_json.find("\"race_start\":200") != std::string::npos && swofty::from_json(never_json, back) &&
+          back.safety_car_end == 200 && power::DrsRule{}.race_start == 1);
 }
 
 static void liveries_records()

@@ -47,4 +47,14 @@ GAMEDB="/mnt/gaming/SteamLibrary/steamapps/common/F1 25/game_package/gamedatabas
 if [[ -f $GAMEDB ]]; then
     "$OUT/rows_tool" --registries ../../packages/sdk/std/registries --db "$GAMEDB" --out "$OUT/f2012_edits.json" --summary "$OUT/f2012_summary.json" \
         swofty.f2012 content/wear/f2012.json
+    "$OUT/rows_tool" --registries ../../packages/sdk/std/registries --db "$GAMEDB" --out "$OUT/drs_edits.json" --summary "$OUT/drs_summary.json" \
+        test.drs content/drs/drs.json
+    python3 - "$OUT/drs_summary.json" <<'EOF'
+import json, sys
+s = json.load(open(sys.argv[1]))
+lines = s["lines"]["rules.drs"]
+assert s["records"].get("rules.drs") == 2 and s["boot_fresh"].get("rules.drs") == 16, s["records"]
+assert any("test.drs/never: group swofty_drs_never_" in l and "race start lap 200" in l for l in lines), lines
+print("rules.drs on the game database: 2 groups, 16 new keys")
+EOF
 fi

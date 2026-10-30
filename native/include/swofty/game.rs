@@ -193,11 +193,6 @@ pub struct EntrantSetupMode {
 }
 
 #[repr(C)]
-pub struct EntrantsManager {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct FEHomeViewModel {
     _opaque: [u8; 0],
 }
@@ -1136,6 +1131,13 @@ const _: () = assert!(core::mem::offset_of!(EntrantWriteData, seat_value) == 0x2
 const _: () = assert!(core::mem::size_of::<EntrantWriteData>() == 0x2c);
 
 #[repr(C)]
+pub struct EntrantsManager {
+    _pad_0x0: [u8; 0x2b0],
+    pub game_setup_mode: *mut GameSetupMode,
+}
+const _: () = assert!(core::mem::offset_of!(EntrantsManager, game_setup_mode) == 0x2b0);
+
+#[repr(C)]
 pub struct F1SeasonStandings {
     pub vtable: *mut *mut c_void,
     _pad_0x8: [u8; 0x18],
@@ -1265,6 +1267,13 @@ pub struct GameModeContext {
     pub championship_holder: *mut ChampionshipHolder,
 }
 const _: () = assert!(core::mem::offset_of!(GameModeContext, championship_holder) == 0x88);
+
+#[repr(C)]
+pub struct GameSetupMode {
+    _pad_0x0: [u8; 0x1e0],
+    pub drs_allowed_lap_group: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(GameSetupMode, drs_allowed_lap_group) == 0x1e0);
 
 #[repr(C)]
 pub struct GameWeatherSystem {
@@ -2524,6 +2533,8 @@ pub type Ne_SaveSystem2Win_Mount_t = unsafe extern "C" fn(
 pub type Ne_SaveSystem2Win_Start_t = unsafe extern "C" fn(device: *mut c_void) -> u64;
 pub type Ne_SaveSystem_InitDevice_t = unsafe extern "C" fn(save_system: *mut c_void) -> c_int;
 pub type Ne_StringTable_Lookup_t = unsafe extern "C" fn(table: *mut c_void, hash: u64) -> *const c_char;
+pub type Sess_Apply_ContentAvailability_t =
+    unsafe extern "C" fn(self_: *mut c_void, availability: *mut c_void);
 pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
 pub type Sess_Find_GroupRowPosition_t =
@@ -3383,6 +3394,11 @@ pub mod bindings {
         id: "Ne_StringTable_Lookup",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Sess_Apply_ContentAvailability: Binding = Binding {
+        id: "Sess_Apply_ContentAvailability",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Sess_Build_GroupResult: Binding = Binding {
         id: "Sess_Build_GroupResult",

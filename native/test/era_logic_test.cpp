@@ -1,5 +1,6 @@
 // Host unit test for the era picker logic (era_logic.hpp): the box check, the default title and image,
-// the box order, the Time Trial list and car limit, the press guard and the addon row's handle links. run_events_test.sh builds and runs it.
+// the box order, the Time Trial list and car limit, the press guard, the addon row's handle links and the DRS
+// group swap. run_events_test.sh builds and runs it.
 #include "../src/core/era_logic.hpp"
 
 #include <cstdio>
@@ -19,6 +20,82 @@ static void expect(bool ok, const std::string &what)
 static era::Box box(const char *list, const char *title = "", const char *image = "", int32_t order = 0)
 {
     return era::Box{list, title, image, order, "test", 0, {}};
+}
+
+// A game setup mode object as Sess_Parse_GameSetupMode builds it: string fields are holders whose +0x10 is the label.
+struct Mode {
+    alignas(8) uint8_t mem[0x200] = {};
+    era::DrsHolder own;
+    explicit Mode(const char *group)
+    {
+        own.text = group;
+        *reinterpret_cast<void **>(mem + era::MODE_DRS_GROUP) = &own;
+    }
+    void *field() const { return *reinterpret_cast<void *const *>(mem + era::MODE_DRS_GROUP); }
+    std::string group() const { return era::holder_text(field()) ? era::holder_text(field()) : ""; }
+};
+
+static void drs_swap_tests()
+{
+    era::DrsSwaps swaps;
+    Mode a("f1_2024"), b("f1_2024");
+    era::DrsHolder *never = swaps.holder("swofty_drs_never_1a2b3c4d");
+    expect(never && era::holder_text(never) == std::string("swofty_drs_never_1a2b3c4d") &&
+               swaps.holder("swofty_drs_never_1a2b3c4d") == never,
+           "one holder per label, at a stable address, its +0x10 the label");
+    expect(!swaps.holder("") && !swaps.holder(std::string(64, 'x')), "an empty label or one past 63 characters has no holder");
+
+    swaps.swap(a.mem, never);
+    swaps.swap(b.mem, never);
+    expect(a.group() == "swofty_drs_never_1a2b3c4d" && b.group() == "swofty_drs_never_1a2b3c4d" && swaps.active() == 2,
+           "a press points every host mode's DRS group at the rule's group");
+
+    era::DrsHolder *late = swaps.holder("swofty_drs_late_00ff00ff");
+    swaps.swap(a.mem, late);
+    expect(a.group() == "swofty_drs_late_00ff00ff" && swaps.active() == 2, "a second swap without a put back keeps the game's holder once");
+    expect(swaps.put_back() == 2 && a.field() == &a.own && b.field() == &b.own && swaps.active() == 0,
+           "put back restores the game's holder in every swapped mode");
+    expect(swaps.put_back() == 0 && a.group() == "f1_2024", "a second put back changes nothing");
+
+    swaps.swap(a.mem, never);
+    era::DrsHolder other;
+    other.text = "f2_2023";
+    *reinterpret_cast<void **>(a.mem + era::MODE_DRS_GROUP) = &other;
+    expect(swaps.put_back() == 0 && a.group() == "f2_2023", "put back leaves a field the game changed since the swap");
+
+    swaps.swap(nullptr, never);
+    swaps.swap(b.mem, nullptr);
+    expect(swaps.active() == 0 && b.field() == &b.own, "no mode or no holder: nothing is swapped");
+    expect(era::MODE_DRS_GROUP == 0x1e0 && era::MODE_NAME == 0xd8 && era::HOLDER_TEXT == 0x10,
+           "GameSetupMode +0x1e0 DRS group and +0xd8 name holders, text at holder +0x10 (re/db structs/GameSetupMode.h)");
+}
+
+static void setup_guard_tests()
+{
+    era::DrsSwaps swaps;
+    Mode a("f1_2024"), b("f1_2024");
+    era::DrsHolder *never = swaps.holder("swofty_drs_never_1a2b3c4d");
+    swaps.swap(a.mem, never);
+    swaps.swap(b.mem, never);
+    void *reused = reinterpret_cast<void *>(uintptr_t(0x5eed5eed5eed));
+    *reinterpret_cast<void **>(a.mem + era::MODE_DRS_GROUP) = reused;
+    *reinterpret_cast<void **>(b.mem + era::MODE_DRS_GROUP) = never;
+    expect(swaps.forget() == 2 && swaps.active() == 0 && a.field() == reused && b.field() == never,
+           "forget drops every swap and writes nothing into the modes, even one that still holds the rule's holder");
+    expect(swaps.put_back() == 0 && b.field() == never, "a put back after forget has nothing to write back");
+    expect(swaps.holder("swofty_drs_never_1a2b3c4d") == never, "forget keeps the holders at their addresses");
+    swaps.swap(a.mem, never);
+    expect(swaps.active() == 1 && a.field() == never, "a press after a rebuild swaps the new mode again");
+
+    expect(era::availability_drop_line({}).empty(), "a rebuild with nothing kept logs nothing");
+    std::string line = era::availability_drop_line({2, 3, true});
+    expect(line.find("2 narrowed entrant setup mode(s)") != std::string::npos &&
+               line.find("3 DRS group swap(s)") != std::string::npos && line.find("the Time Trial hold") != std::string::npos &&
+               line.find("without writing them back") != std::string::npos,
+           "the drop line names the narrowing, the DRS swaps and the Time Trial hold: " + line);
+    std::string drs_only = era::availability_drop_line({0, 1, false});
+    expect(drs_only.find("1 DRS group swap(s) without") != std::string::npos && drs_only.find("narrowed") == std::string::npos,
+           "the drop line names only what was kept: " + drs_only);
 }
 
 // A VM node as the game constructs a reference node (0x14083c570): its own handle at +0x8 heads its holder list.
@@ -307,6 +384,9 @@ int main()
 
     expect(era::ADDON_PRESS == 0x8fb68dffu && era::SELECT_PRESS == 0x2b0357au && era::ADDON_TILES == 0xf2614e2bu,
            "djb2 of addon_select_pressed, select_pressed and addon_tiles");
+
+    drs_swap_tests();
+    setup_guard_tests();
 
     printf("%s\n", fails ? "era_logic_test: FAILED" : "era_logic_test: all passed");
     return fails ? 1 : 0;

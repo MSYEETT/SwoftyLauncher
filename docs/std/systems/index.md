@@ -44,7 +44,7 @@ Shipped in 1.6.0:
 - **[Drivers](./drivers)** `swofty/systems/drivers.hpp`: `drivers::people`, `identities`, `heads`, `looks`, `stats`.
 - **[Helmets, suits and gloves](./wearables)** `swofty/systems/wearables.hpp`: `wearables::helmets`, `suits`, `gloves`, `season_sets`.
 - **[Sounds](./sounds)** `swofty/systems/sounds.hpp`: `sounds::engine_sounds`.
-- **[Career](./career)** `swofty/systems/career.hpp`: `career::modes`, `contents`, `seasons`, `calendars`, `ratings`, `characters`, `wizards`, `hub_tabs`.
+- **[Career](./career)** `swofty/systems/career.hpp`: `career::modes`, `contents`, `seasons`, `calendars`, `ratings`, `characters`, `wizards`, `hub_tabs`, `rnd_trees`, `markets`.
 - **[UI and strings](./ui)** `swofty/systems/ui.hpp`: `ui::strings`, `addon_options`.
 - **[Sessions](./sessions)** `swofty/systems/sessions.hpp`: `sessions::Rules`, `set_control`.
 - **[Tracks](./tracks)** `swofty/systems/tracks.hpp`: `tracks::set_track_fuel`, `copy_track_fuel`, `restore_track_fuel`.
@@ -56,7 +56,7 @@ Described on their pages, in headers that come later:
 
 - **[Cars](./cars)**: `vehicle.damage_model`, `vehicle.parts`.
 - **[Sounds](./sounds)**: `audio.car`.
-- **[Career](./career)**: `career.market`, `career.contract_rules`, `career.rnd.department`, `career.rnd.tree`, `career.facility`, `career.economy`, `career.sponsor`.
+- **[Career](./career)**: `career.contract_rules`, `career.rnd.department`, `career.facility`, `career.economy`, `career.sponsor`.
 - **[Tracks](./tracks)**: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines` (1.6.x).
 - **[Tyres](./tyres)** `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
 - **[Power units, ERS and DRS](./power-units)** `power::units`, `suppliers`, `drs_rules`, `component_rules`.
@@ -112,6 +112,7 @@ drivers::identities.variant("alain_prost", drivers::identities["game/jarno_opmee
 - **One store per install.** The core keeps the ids it allocates in the launcher's data folder, at `$DATA/registry/ids.json`, keyed by record id. A record gets the same id at every later start.
 - **Ids are reused only when no career uses them.** An id stays taken while any career's save refers to it.
 - **Each career carries its own id map** in its save entry (`swofty_registry`): every record it uses, with the stat id it was saved with. A save synced to another PC can't swap a track or a driver.
+- **Rows already in the database keep their ids.** When a stock row, or a row an older addon's database operations add, holds a record's id under another label, the record takes the next free id of its pool (see [Stat ids](/std/registry#stat-ids)).
 
 The pools are small and differ per table:
 
@@ -178,4 +179,4 @@ Systems move into the core in this order. It follows readiness, how many addons 
 4. **Tyres:** the custom tyre systems.
 5. **Session rules:** grid size, weekend formats, points.
 6. **UI and strings.**
-7. **Later:** AI, power unit and DRS at run time, weather, graphics, telemetry, replays. The reverse engineering they need is scheduled now: the AI difficulty application, the DRS decision, the engine component selector, the attribute map, a single team-logo resolver and the per-box track list builder.
+7. **Later:** AI, power unit and the per-car DRS decision at run time, weather, graphics, telemetry, replays (a box's DRS rule, `rules.drs`, applies from 1.6.4). The reverse engineering they need is scheduled now: the AI difficulty application, the per-car DRS decision, the engine component selector, the attribute map, a single team-logo resolver and the per-box track list builder.

@@ -40,8 +40,16 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/career.driver_ratings/1.0.json"),
     ),
     (
+        "career.market",
+        include_str!("../../../sdk/std/registries/career.market/1.0.json"),
+    ),
+    (
         "career.mode",
         include_str!("../../../sdk/std/registries/career.mode/1.0.json"),
+    ),
+    (
+        "career.rnd.tree",
+        include_str!("../../../sdk/std/registries/career.rnd.tree/1.0.json"),
     ),
     (
         "career.season",
@@ -102,6 +110,10 @@ const SCHEMAS: &[(&str, &str)] = &[
     (
         "livery",
         include_str!("../../../sdk/std/registries/livery/1.0.json"),
+    ),
+    (
+        "rules.drs",
+        include_str!("../../../sdk/std/registries/rules.drs/1.0.json"),
     ),
     ("suit", include_str!("../../../sdk/std/registries/suit/1.0.json")),
     (
