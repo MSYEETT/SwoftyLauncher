@@ -45,11 +45,16 @@ struct Package {                                   // a GP/TT season build: an e
     StatId stat_id = StatId::automatic;            // the entrant list's id
 };
 
+struct TimeTrial {
+    std::string entrant_list;                      // the list the box selects in Time Trial (default: the package's)
+};
+
 struct EraBox {                                    // an entry in the GP/TT era picker
     Ref<Package> package;                          // the package it opens
     Text title;                                    // its title (default: the package's)
     std::string image;                             // "#overrides.home_screen.tiles_solo_6x6[cs_f1_2017]"
     int order = 0;                                 // its place in the Addons row
+    TimeTrial time_trial;                          // since 1.1: its Time Trial list
 };
 
 inline Registry<Package> packages{"content.package", { .applies = Applies::content }};   // its entrant list rows are added at boot
@@ -106,7 +111,7 @@ SWOFTY_REGISTER
         .title = "lng_cs_f1_2017",
         .entrant_list = "cs_f1_2017",
         .season = 2017,
-        .calendar = career::calendars["swofty.classic-seasons-2017/f1_2017"],   // the real 2017 calendar (calendar.cpp)
+        .calendar = career::calendars["swofty.classic-seasons-2017/f1_2017"].optional(),   // the real 2017 calendar (calendar.cpp)
         .teams = {
             { .key = "ferrari", .team = teams::identities["swofty.classic-seasons-2017/ferrari"], .vehicle = ferrari,
               .drivers = { { .driver = drivers::identities["game/sebastian_vettel"], .number = 5 },
@@ -141,7 +146,7 @@ SWOFTY_ADDON()
   "content.package": {
     "f1_2017": {
       "title": "lng_cs_f1_2017", "entrant_list": "cs_f1_2017", "season": 2017,
-      "calendar": "swofty.classic-seasons-2017/f1_2017",
+      "calendar": "swofty.classic-seasons-2017/f1_2017?",
       "teams": [
         { "key": "ferrari", "team": "swofty.classic-seasons-2017/ferrari", "vehicle": "swofty.classic-seasons-2017/ferrari",
           "drivers": [ { "driver": "game/sebastian_vettel", "number": 5 }, { "driver": "game/kimi_raikkonen", "number": 7 } ] }
@@ -367,7 +372,9 @@ The box's track list shows the season's real calendar first, in round order: the
 
 A track that doesn't fit is left out of that box. The track select screen's list builder needs reverse engineering. Until it's understood, the screen shows every track in the base in the game's own order, and a guard stops a track that doesn't fit before the session loads.
 
-Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data.
+Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data. In 1.6.5 the core applies a box's `fuel`; its other fields are stored. `fuel.burn_per_lap` is the track's fuel-per-lap figure for the MFD fuel delta, the fuel strategy and refuelling; the car's real burn comes from its power unit (see [What `burn_per_lap` changes](/std/systems/tracks#what-burn-per-lap-changes)).
+
+Classic Seasons 2016 to 2024 each register the season's real calendar and name it in the package, optionally: a round at a venue no stock track provides, such as Sochi in 2017, is dropped until a track addon provides it (see [A calendar that uses it](/std/systems/tracks#a-calendar-that-uses-it-optionally)).
 
 When the box is picked, or a career season that races in the box starts, the core applies its view to the track data the game reads. It puts the view back when that content ends. See [Tracks](/std/systems/tracks).
 
@@ -381,9 +388,9 @@ SWOFTY_REGISTER
     // the package names its calendar (content.cpp), and that calendar comes first in the box's list
     auto box = content::packages["swofty.classic-seasons-2017/f1_2017"];
 
-    // 2017 data at two tracks; every other track keeps its base data
-    tracks::per_package.add("f1_2017/monaco", { .package = box, .laps = 78 });
-    tracks::per_package.add("f1_2017/sochi",  { .package = box, .laps = 52 });
+    // 2017 fuel at two tracks; every other track keeps its base data
+    tracks::per_package.add("f1_2017/monaco", { .package = box, .fuel = tracks::Fuel{ .burn_per_lap = 1.45f } });
+    tracks::per_package.add("f1_2017/spa_francorchamps", { .package = box, .fuel = tracks::Fuel{ .burn_per_lap = 1.80f } });
 }
 ```
 
@@ -393,8 +400,8 @@ SWOFTY_REGISTER
 ```json
 {
   "track.per_package": {
-    "f1_2017/monaco": { "package": "swofty.classic-seasons-2017/f1_2017", "laps": 78 },
-    "f1_2017/sochi":  { "package": "swofty.classic-seasons-2017/f1_2017", "laps": 52 }
+    "f1_2017/monaco":            { "package": "swofty.classic-seasons-2017/f1_2017", "fuel": { "burn_per_lap": 1.45 } },
+    "f1_2017/spa_francorchamps": { "package": "swofty.classic-seasons-2017/f1_2017", "fuel": { "burn_per_lap": 1.80 } }
   }
 }
 ```
@@ -405,8 +412,8 @@ SWOFTY_REGISTER
 </Split>
 
 ```text
-[tracks] box swofty.classic-seasons-2017/f1_2017 (grand_prix): calendar 20 rounds, more tracks 3 (mod.hockenheim/hockenheim, ...)
-[registry] content swofty.classic-seasons-2017/f1_2017 active: 2 scoped changes applied (track data: monaco laps 78, sochi laps 52)
+[tracks] box swofty.classic-seasons-2017/f1_2017 (grand_prix): calendar 18 of 20 rounds (venue/sochi: no track; venue/sepang: no track), more tracks 10
+[registry] content swofty.classic-seasons-2017/f1_2017 active: 2 scoped changes applied (track data: monaco fuel 1.45, spa_francorchamps fuel 1.80)
 [registry] content mod.esp/f1_2017_v10 active: calendar and track data inherited from swofty.classic-seasons-2017/f1_2017
 [registry] content swofty.classic-seasons-2017/f1_2017 ended: 2 scoped changes put back
 ```
@@ -422,11 +429,64 @@ tracks::per_package.layer(where<tracks::PackageTrack>([=](const tracks::PackageT
 
 ## Rules per box
 
-Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. A **setup mode** is the game's rule set a weekend runs under, and the core narrows `swofty_f1` to the box the player pressed. Each box's points, DRS, tyre classes and rules (`content::Package::rules`) apply when a session loads in that box, and every other box keeps its own. See [Sessions](/std/systems/sessions).
+Every Grand Prix and Time Trial box shares the `swofty_f1` setup mode. A **setup mode** is the game's rule set a weekend runs under, and the core narrows `swofty_f1` to the box the player pressed. Each box's points, DRS, tyre classes and rules (`content::Package::rules`) apply when a session loads in that box, and every other box keeps its own. See [Sessions](/std/systems/sessions). A box's DRS rule (`rules.drs`) applies from 1.6.4: [DRS per box](/std/systems/power-units#drs-per-box).
 
 Only a box that needs a different shape at boot gets its own setup mode. F1 1990's box has its own mode for its two qualifying sessions.
 
 Grid size is one boot setting per install, and each box is clamped to it.
+
+## Time Trial
+
+A box can select a different entrant list in Time Trial with `time_trial.entrant_list` (`era.box` 1.1). This 2012 box races 24 cars in a Grand Prix and 12 in Time Trial:
+
+```json
+// registry/content.json
+{
+  "content.package": {
+    "f1_2012":    { "title": { "literal": "F1 2012" }, "entrant_list": "ex_f1_2012",    "season": 2012, "teams": [ ... ] },
+    "f1_2012_tt": { "title": { "literal": "F1 2012" }, "entrant_list": "ex_f1_2012_tt", "season": 2012, "teams": [ ... ] }
+  },
+  "era.box": {
+    "f1_2012": {
+      "package": "mod.example/f1_2012",
+      "order": 2012,
+      "time_trial": { "entrant_list": "ex_f1_2012_tt" }
+    }
+  }
+}
+```
+
+The same box from code, with `swofty::era::add_box` (`swofty/era.hpp`):
+
+```cpp
+swofty::era::add_box({
+    .entrant_list = "ex_f1_2012",
+    .title = "lng_ex_f1_2012",
+    .order = 2012,
+    .time_trial = "ex_f1_2012_tt",                 // empty: entrant_list
+});
+```
+
+- **The car limit.** A Time Trial session holds at most **23** cars of the list it was picked with. The game adds three cars of its own to a table of 26. A 24-car list crashes Time Trial when the session loads.
+- **On the Time Trial picker** the box selects its Time Trial list, and the core narrows `swofty_f1` to it. On the Grand Prix picker the box selects its package's list.
+- **The list** is set up like the package's: a second package's list, or a list your database operations add to `swofty_f1`'s entrant lists.
+- **No Time Trial list** means the package's list, under the same limit.
+- **The check.** Each time the Time Trial picker is built, the core leaves a box off it, with one log line, when its list isn't offered under `swofty_f1` or holds more than 23 cars. At boot, the core's `era.box` report also names a box whose package has more than 23 cars and no Time Trial list.
+- **The guard.** The core keeps a list of more than 23 cars out of every Time Trial session, whichever box or addon selected it:
+  - A press on a stock box in Time Trial leaves `swofty_f1` offering only its lists of at most 23 cars until the next press. A list whose car count can't be read stays offered.
+  - When a Time Trial session loads, the core logs the list the game resolved. When that list, or the first list of its entrant setup mode, holds more than 23 cars, the core loads a list of at most 23 cars from the same entrant setup mode instead. It tries the box pressed first, then that box's Time Trial list, then the first list that fits.
+  - The session's entrant setup mode draws at most 23 cars (`max_entrants` above 23, or unset, is held at 23) until the session ends. With no list that fits, this keeps the session at 23 cars of the list.
+  - Everything the guard changed is put back when the session ends or a box is pressed.
+- A core before launcher 1.6.2 ignores `time_trial` and has no guard.
+
+```text
+[era]      box ex_f1_2012 from mod.example registered (title lng_ex_f1_2012, image #overrides.home_screen.tiles_solo_6x6[ex_f1_2012], order 2012, Time Trial list ex_f1_2012_tt): live from the next build of the picker
+[era]      box ex_f1_2016 from mod.other skipped in Time Trial: its Time Trial list ex_f1_2016 holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26). Give the box a Time Trial entrant list of at most 23 cars
+[era]      swofty_f1 keeps ex_f1_2016 out of Time Trial while a stock box is picked: it holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26)
+[era]      Time Trial session loads list f1_2025 (20 cars) of setup mode f1 (box pressed: f1_2025)
+[era]      the Time Trial session's list ex_f1_2016 (setup mode swofty_f1) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); loading ex_f1_2017 instead
+[era]      the Time Trial session's list ex_2012 (setup mode ex_2012_mode) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); its entrant setup mode offers no list of at most 23 cars; the session draws at most 23 cars (max_entrants 24 -> 23 until the session ends)
+```
 
 ## Career seasons race in boxes
 
@@ -455,7 +515,7 @@ See [Career snapshots](/std/scopes#career-snapshots) and [Career](/std/systems/c
 - `engine_sound`: [Sounds](/std/systems/sounds).
 - `livery`: [Liveries](/std/systems/liveries).
 - `helmet`, `suit`, `gloves`, `wearable.season_set`: [Helmets, suits and gloves](/std/systems/wearables).
-- `track`, `track.data`, `track.per_package`: [Tracks](/std/systems/tracks).
+- `track`, `track.venue`, `track.data`, `track.per_package`: [Tracks](/std/systems/tracks).
 - `team.identity`: [Teams](/std/systems/teams). `driver.identity`: [Drivers](/std/systems/drivers).
 - `career.content`, `career.season`, `career.driver_ratings`: [Career](/std/systems/career).
 

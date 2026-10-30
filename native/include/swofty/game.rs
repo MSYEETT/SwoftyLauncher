@@ -193,11 +193,6 @@ pub struct EntrantSetupMode {
 }
 
 #[repr(C)]
-pub struct EntrantsManager {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct FEHomeViewModel {
     _opaque: [u8; 0],
 }
@@ -1136,6 +1131,13 @@ const _: () = assert!(core::mem::offset_of!(EntrantWriteData, seat_value) == 0x2
 const _: () = assert!(core::mem::size_of::<EntrantWriteData>() == 0x2c);
 
 #[repr(C)]
+pub struct EntrantsManager {
+    _pad_0x0: [u8; 0x2b0],
+    pub game_setup_mode: *mut GameSetupMode,
+}
+const _: () = assert!(core::mem::offset_of!(EntrantsManager, game_setup_mode) == 0x2b0);
+
+#[repr(C)]
 pub struct F1SeasonStandings {
     pub vtable: *mut *mut c_void,
     _pad_0x8: [u8; 0x18],
@@ -1265,6 +1267,13 @@ pub struct GameModeContext {
     pub championship_holder: *mut ChampionshipHolder,
 }
 const _: () = assert!(core::mem::offset_of!(GameModeContext, championship_holder) == 0x88);
+
+#[repr(C)]
+pub struct GameSetupMode {
+    _pad_0x0: [u8; 0x1e0],
+    pub drs_allowed_lap_group: *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(GameSetupMode, drs_allowed_lap_group) == 0x1e0);
 
 #[repr(C)]
 pub struct GameWeatherSystem {
@@ -2524,6 +2533,8 @@ pub type Ne_SaveSystem2Win_Mount_t = unsafe extern "C" fn(
 pub type Ne_SaveSystem2Win_Start_t = unsafe extern "C" fn(device: *mut c_void) -> u64;
 pub type Ne_SaveSystem_InitDevice_t = unsafe extern "C" fn(save_system: *mut c_void) -> c_int;
 pub type Ne_StringTable_Lookup_t = unsafe extern "C" fn(table: *mut c_void, hash: u64) -> *const c_char;
+pub type Sess_Apply_ContentAvailability_t =
+    unsafe extern "C" fn(self_: *mut c_void, availability: *mut c_void);
 pub type Sess_Build_GroupResult_t =
     unsafe extern "C" fn(weekend: *mut c_void, group: u8, result: *mut c_void);
 pub type Sess_Find_GroupRowPosition_t =
@@ -2555,11 +2566,16 @@ pub type Sess_Record_GroupTimes_t =
 pub type Sess_RedFlagRaceStrategy_Enter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
 pub type Sess_RedFlagRaceStrategy_Update_t =
     unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_RuleManager_Initialise_t =
+    unsafe extern "C" fn(self_: *mut c_void, systems: *mut c_void, components: *mut c_void) -> u32;
+pub type Sess_Rules_IsPracticeQualifying_t =
+    unsafe extern "C" fn(owner_with_session_at_0x1b8: *mut c_void) -> bool;
 pub type Sess_SafetyCarTether_UpdateProgress_t = unsafe extern "C" fn(tether_entry: *mut c_void);
 pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry: *mut c_void, gap: f32);
 pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
 pub type Sess_Set_SafetyCarDeploymentType_t =
     unsafe extern "C" fn(sc_state: *mut c_void, sc_deployment_msg: *const c_void);
+pub type Sess_Setup_VehicleComponents_t = unsafe extern "C" fn(module: *mut c_void);
 pub type Sess_Tod_BuildSessionDataset_Thunk_t = unsafe extern "C" fn(
     tod_owner: *mut c_void,
     types: *const u8,
@@ -2583,6 +2599,10 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
+pub type Trk_GrandPrixTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> *mut *mut c_void;
+pub type Trk_TimeTrialTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> u64;
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
 pub type Vm_List_AppendChild_t = unsafe extern "C" fn(list: *mut c_void) -> *mut *mut c_void;
@@ -3348,6 +3368,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Player_SetFFBInputDeviceId: Binding = Binding {
+        id: "Ne_Player_SetFFBInputDeviceId",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Post_BusMessage: Binding = Binding {
         id: "Ne_Post_BusMessage",
         kind: "func",
@@ -3382,6 +3407,11 @@ pub mod bindings {
         id: "Ne_StringTable_Lookup",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Sess_Apply_ContentAvailability: Binding = Binding {
+        id: "Sess_Apply_ContentAvailability",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Sess_Build_GroupResult: Binding = Binding {
         id: "Sess_Build_GroupResult",
@@ -3493,8 +3523,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RuleManager_Initialise: Binding = Binding {
+        id: "Sess_RuleManager_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Rules_Disqualify: Binding = Binding {
         id: "Sess_Rules_Disqualify",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_IsPracticeQualifying: Binding = Binding {
+        id: "Sess_Rules_IsPracticeQualifying",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3515,6 +3555,11 @@ pub mod bindings {
     };
     pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
         id: "Sess_Set_SafetyCarDeploymentType",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Setup_VehicleComponents: Binding = Binding {
+        id: "Sess_Setup_VehicleComponents",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3560,6 +3605,16 @@ pub mod bindings {
     };
     pub const Sess_Weekend_Start: Binding = Binding {
         id: "Sess_Weekend_Start",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_GrandPrixTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_GrandPrixTrackSelectVm_OnCommandRaised",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_TimeTrialTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_TimeTrialTrackSelectVm_OnCommandRaised",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4723,6 +4778,16 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Game_AcclimPenalty_Entry: Binding = Binding {
+        id: "site_Game_AcclimPenalty_Entry",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_AcclimPenalty_Return: Binding = Binding {
+        id: "site_Game_AcclimPenalty_Return",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_CareerContinue_DriverSlotTitle: Binding = Binding {
         id: "site_Game_CareerContinue_DriverSlotTitle",
         kind: "call",
@@ -5025,6 +5090,11 @@ pub mod bindings {
     };
     pub const site_Team_TimingPillBadgeLabel: Binding = Binding {
         id: "site_Team_TimingPillBadgeLabel",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Trk_TrackData_SetMatched: Binding = Binding {
+        id: "site_Trk_TrackData_SetMatched",
         kind: "site",
         status: Status::Experimental,
     };

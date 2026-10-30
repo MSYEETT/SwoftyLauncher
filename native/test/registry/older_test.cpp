@@ -1,3 +1,4 @@
+#include "../../src/core/career_content_logic.hpp"
 #include "../../src/core/registry/older.hpp"
 #include "../../src/core/registry/table.hpp"
 
@@ -65,6 +66,106 @@ int main()
               "career.content: the 1.5 behaviour reads the layered record");
         check(older::drop(st, "ex.addon", older::CONTENT, d.id) == SWOFTY_ASSET_OK, "career.content: drop");
         check(older::effective(st, older::CONTENT, "ex.addon/f1_1990").is_null(), "career.content: dropped record is gone");
+    }
+
+    {
+        older::ContentDesc call;
+        call.id = "f1_1990";
+        call.title = "lng_f1_1990_title";
+        call.description = "lng_f1_1990_desc";
+        call.data_group = "f1_career_1990";
+        call.suffix = "90";
+        call.mode = "driver_career_1990";
+        call.model = runtime::content::MODEL_2025;
+        call.car_group = 2;
+        call.badge = 1;
+        call.entitlement = "ent";
+        call.careers = runtime::content::CAREER_ALL;
+        swofty::json::Value rec = older::content_record(call);
+        check(rec["model"].as_string() == "game/f1_career_2025",
+              "career.content: a 2025-model call records game/f1_career_2025");
+        older::ContentDesc back;
+        std::string why;
+        check(older::content_from("ex.addon/f1_1990", rec, swofty::json::Value(), back, why) && why.empty(),
+              "career.content: the record a call gives reads back as a descriptor");
+        check(back.id == call.id && back.title == call.title && back.description == call.description &&
+                  back.data_group == call.data_group && back.suffix == call.suffix && back.mode == call.mode &&
+                  back.model == call.model && back.car_group == call.car_group && back.badge == call.badge &&
+                  back.entitlement == call.entitlement && back.careers == call.careers,
+              "career.content: a record with the call's fields gives the call's descriptor, field for field");
+    }
+
+    {
+        swofty::json::Value open = swofty::json::parse(
+            R"({"type":"object","additionalProperties":true,"x-registry":"career.mode","x-version":"1.0","x-applies":"boot"})");
+        check(st.declare(older::MODE, open, true) == SWOFTY_ASSET_OK, "career.mode declared for the data-file cases");
+        st.set_order({"ex.data", "other.addon"});
+        const char *file = R"({
+            "career.mode": {
+                "f1_2012": { "data_group": "f1_career_2012", "save_container": "driver_career_2012",
+                             "title": "lng_f1_2012_title" }
+            },
+            "career.content": {
+                "f1_2012": { "mode": "ex.data/f1_2012", "suffix": "12", "careers": "both", "badge": 3 },
+                "f1_2012_short": { "mode": "f1_2012", "data_group": "f1_career_2012b", "suffix": "12B",
+                                   "title": { "literal": "F1 2012" }, "description": "lng_f1_2012b_desc",
+                                   "model": "game/f1_career_2025", "save_container": "driver_career_2012b" },
+                "f1-1990": { "mode": null, "tile": null, "model": "game/f1_career_2026", "calendar": null,
+                             "after_last": "market", "title": "lng_f1_1990_title", "description": "lng_f1_1990_desc",
+                             "data_group": "f1_career_1990", "suffix": "90", "save_container": "driver_career_1990",
+                             "car_group": 2, "badge": 0, "entitlement": "", "careers": "driver" },
+                "bare": { "data_group": "f1_career_bare" },
+                "lost_mode": { "mode": "ex.data/nothing", "suffix": "LM" },
+                "odd_model": { "data_group": "f1_career_odd", "suffix": "OD", "save_container": "odd", "title": "t",
+                               "model": "other.addon/f1_career_odd" }
+            }
+        })";
+        check(load_data_file("ex.data", "registry/career.json", file) == SWOFTY_ASSET_OK,
+              "career.content: a data file adds career.mode and career.content records");
+        auto from = [&](const char *id, older::ContentDesc &d, std::string &why) {
+            swofty::json::Value rec = older::effective(st, older::CONTENT, id);
+            std::string mode = older::content_mode_id(id, rec);
+            return older::content_from(id, rec, mode.empty() ? swofty::json::Value() : older::effective(st, older::MODE, mode),
+                                       d, why);
+        };
+        auto passes = [](const older::ContentDesc &d) {
+            runtime::content::Desc c{d.id,    d.title,     d.description, d.data_group, d.suffix, d.mode,
+                                     d.entitlement, d.model, d.car_group, d.badge,     d.careers};
+            return runtime::content::check(c, [](const char *, const std::string &) { return false; });
+        };
+        bool listed = false;
+        for (auto &id : older::in_load_order(st, older::CONTENT))
+            listed = listed || id == "ex.data/f1_2012";
+        check(listed, "career.content: a data-file record is listed with the call's records");
+        older::ContentDesc d;
+        std::string why;
+        check(from("ex.data/f1_2012", d, why), "career.content: a data-file record with a mode makes a tile");
+        check(d.id == "f1_2012" && d.data_group == "f1_career_2012" && d.mode == "driver_career_2012" &&
+                  d.title == "lng_f1_2012_title" && d.description == "lng_f1_2012_title" && d.suffix == "12" &&
+                  d.model == runtime::content::MODEL_2026 && d.careers == runtime::content::CAREER_ALL && d.badge == 3 &&
+                  d.car_group == -1,
+              "career.content: data group, save container and title come from the career.mode record, the description "
+              "from the title, the model defaults to 2026");
+        check(passes(d).empty(), "career.content: the data-file descriptor passes the call's check");
+        check(from("ex.data/f1_2012_short", d, why) && d.title == "F1 2012" && d.data_group == "f1_career_2012b" &&
+                  d.mode == "driver_career_2012b" && d.model == runtime::content::MODEL_2025 &&
+                  d.description == "lng_f1_2012b_desc" && passes(d).empty(),
+              "career.content: a bare mode key names the record's own addon's mode; the record's fields win over it");
+        check(from("ex.data/f1-1990", d, why) && d.id == "f1-1990" && d.car_group == 2 && d.mode == "driver_career_1990" &&
+                  passes(d).empty(),
+              "career.content: the full schema example makes a tile with no mode record");
+        check(!from("ex.data/bare", d, why) && why.find("save_container") != std::string::npos,
+              "career.content: a record with only a data group makes no tile and says what is missing");
+        check(!from("ex.data/lost_mode", d, why) && why.find("ex.data/nothing is no career.mode record") != std::string::npos,
+              "career.content: a mode that names no career.mode record is named");
+        check(!from("ex.data/odd_model", d, why) && why.find("model other.addon/f1_career_odd") != std::string::npos,
+              "career.content: a model other than the two stock careers makes no tile");
+        check(layer_patch(st, "other.addon", older::CONTENT, "ex.data/f1_2012", R"({"title":"lng_retitled","badge":9})") ==
+                  SWOFTY_ASSET_OK,
+              "career.content: another addon layers a data-file record");
+        check(from("ex.data/f1_2012", d, why) && d.title == "lng_retitled" && d.description == "lng_retitled" &&
+                  d.badge == 9,
+              "career.content: the tile reads the layered data-file record");
     }
 
     {

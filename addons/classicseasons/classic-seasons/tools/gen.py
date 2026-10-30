@@ -64,6 +64,7 @@ Each season also registers its engine sounds, vehicle packages, vehicles, packag
 registry/content.json. db/records.json holds the operations those records cover, which launchers before 1.6 build;
 registry.json names it in replaced_operations, and a 1.6 launcher leaves it to the core. A record's stat_id is the id
 its row had in 0.6.4 (data/stat_ids.json, tools/stat_ids.py), and a package's database.scenario_stat_id its scenario's.
+Each season's real calendar is a career.calendar record its package names (calendars.py).
 """
 
 import json
@@ -73,6 +74,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import aislots
+import calendars
 import heads
 import ratings
 import suit_sources
@@ -107,7 +109,7 @@ HOST_MODE = "swofty_f1"
 SETUP_ROW = "entrants.entrant_setup_modes.entrant_setup_mode"
 SETUP_PRESETS = "car_setup.presets.vehicle_package_setups"
 SEASON_LAUNCHER = ">=1.5.1"
-SEASON_VERSION = "0.6.4"
+SEASON_VERSION = "0.6.6"
 SEASON_CORE = "0.6.1"
 DIRECT_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" not in suit_sources.REAL["mods"][e["mod"]]]
 TRANSFERRED_SUITS = [e for e in suit_sources.REAL["suits"] if "transfer" in suit_sources.REAL["mods"][e["mod"]]]
@@ -369,7 +371,8 @@ def package_record(own, season, year, list_label, standings, wide, index):
     rows = {"leaderboard": "classic", "previous_season_driver_standings": ""}
     if wide:
         rows.update(season="season_2025", ui_path="f1_2023")
-    return {"title": f"lng_cs_f1_{year}", "entrant_list": list_label, "season": year, "teams": teams,
+    return {"title": f"lng_cs_f1_{year}", "entrant_list": list_label, "season": year,
+            "calendar": calendars.package_ref(year), "teams": teams,
             "stat_id": stat_id("content.package", list_label),
             "database": {"entrant_list": list_label, "scenario_stat_id": SCENARIO_STAT_BASE + index,
                          "entrant_list_from": "f1_2026" if wide else "f1_2025", "entrant_list_set": rows,
@@ -456,7 +459,8 @@ def build():
         standings = f"cs_f1_teams_{year}"
         ops, text, covered = [], [], []
         own = f"swofty.classic-seasons-{year}"
-        records = {"engine_sound": {}, "vehicle.package": {}, "vehicle": {}, "livery": {}, "content.package": {}, "era.box": {}}
+        records = {"engine_sound": {}, "vehicle.package": {}, "vehicle": {}, "livery": {},
+                   "career.calendar": {calendars.key(year): calendars.record(year)}, "content.package": {}, "era.box": {}}
         seasons.append((year, ops, text, covered, records))
         text.append(lang(f"lng_cs_f1_{year}", f"F1 {year}"))
         for m in sounds(year):
