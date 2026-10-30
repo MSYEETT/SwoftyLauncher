@@ -2559,6 +2559,7 @@ pub type Sess_Issue_DriveThrough_t = unsafe extern "C" fn(rules: *mut c_void, in
 pub type Sess_Issue_TimePenalty_t =
     unsafe extern "C" fn(rules: *mut c_void, incident: *mut u8, reason: u32, seconds: u32);
 pub type Sess_Issue_Warning_t = unsafe extern "C" fn(rules: *mut c_void, incident: *mut u8, reason: u32);
+pub type Sess_Load_Teams_t = unsafe extern "C" fn(entrants_system: *mut c_void, set: u8);
 pub type Sess_PreRaceToRace_Update_t = unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
 pub type Sess_PreRace_Update_t =
     unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
@@ -2601,6 +2602,8 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
+pub type Sess_WinnerSequence_Update_t =
+    unsafe extern "C" fn(state: *mut c_void, route: *mut u32, dt: f64) -> *mut u32;
 pub type Trk_GrandPrixTrackSelectVm_OnCommandRaised_t =
     unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> *mut *mut c_void;
 pub type Trk_TimeTrialTrackSelectVm_OnCommandRaised_t =
@@ -3440,6 +3443,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_CopyOptionsToState: Binding = Binding {
+        id: "Sess_CopyOptionsToState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_DoughnutSequence_Enter: Binding = Binding {
+        id: "Sess_DoughnutSequence_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Find_GroupRowPosition: Binding = Binding {
         id: "Sess_Find_GroupRowPosition",
         kind: "func",
@@ -3460,8 +3473,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_FormationLapType_Update: Binding = Binding {
+        id: "Sess_FormationLapType_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_FormationLap_Update: Binding = Binding {
         id: "Sess_FormationLap_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FreezeAllVehicles: Binding = Binding {
+        id: "Sess_FreezeAllVehicles",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3515,6 +3538,56 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Load_Teams: Binding = Binding {
+        id: "Sess_Load_Teams",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestCareerHubLoad: Binding = Binding {
+        id: "Sess_Loader_RequestCareerHubLoad",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestCareerHubUnload: Binding = Binding {
+        id: "Sess_Loader_RequestCareerHubUnload",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestSessionLoad: Binding = Binding {
+        id: "Sess_Loader_RequestSessionLoad",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestSessionUnload: Binding = Binding {
+        id: "Sess_Loader_RequestSessionUnload",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestTrackLoad: Binding = Binding {
+        id: "Sess_Loader_RequestTrackLoad",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestTrackUnload: Binding = Binding {
+        id: "Sess_Loader_RequestTrackUnload",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_SetupTrackAssets: Binding = Binding {
+        id: "Sess_Loader_SetupTrackAssets",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MarshalLights_Set: Binding = Binding {
+        id: "Sess_MarshalLights_Set",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MarshalLights_UpdateZoneShader: Binding = Binding {
+        id: "Sess_MarshalLights_UpdateZoneShader",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_MisconductManager_Ctor: Binding = Binding {
         id: "Sess_MisconductManager_Ctor",
         kind: "func",
@@ -3527,6 +3600,21 @@ pub mod bindings {
     };
     pub const Sess_MultipleWarningsPenalty_SendData: Binding = Binding {
         id: "Sess_MultipleWarningsPenalty_SendData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_OsqTeleportToStart: Binding = Binding {
+        id: "Sess_OsqTeleportToStart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PlayerTerminalDamage_Enter: Binding = Binding {
+        id: "Sess_PlayerTerminalDamage_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreLights_Update: Binding = Binding {
+        id: "Sess_PreLights_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3600,8 +3688,43 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Register_EntrantSetupMode: Binding = Binding {
+        id: "Sess_Register_EntrantSetupMode",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Register_RaceRecordables: Binding = Binding {
         id: "Sess_Register_RaceRecordables",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ResetReplay_Update: Binding = Binding {
+        id: "Sess_ResetReplay_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Result_ChangeVehicleStatus: Binding = Binding {
+        id: "Sess_Result_ChangeVehicleStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Result_DecodeVehicleResult: Binding = Binding {
+        id: "Sess_Result_DecodeVehicleResult",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Result_RequestVehicleStatus: Binding = Binding {
+        id: "Sess_Result_RequestVehicleStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RetirementSequence_PlayTerminalDamage: Binding = Binding {
+        id: "Sess_RetirementSequence_PlayTerminalDamage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RetirementSequence_Update: Binding = Binding {
+        id: "Sess_RetirementSequence_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3690,6 +3813,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Ruleset_FinaliseResults: Binding = Binding {
+        id: "Sess_Ruleset_FinaliseResults",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_SafetyCarTether_UpdateProgress: Binding = Binding {
         id: "Sess_SafetyCarTether_UpdateProgress",
         kind: "func",
@@ -3745,6 +3873,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Set_RowsAvailable: Binding = Binding {
+        id: "Sess_Set_RowsAvailable",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Set_SafetyCarDeploymentType: Binding = Binding {
         id: "Sess_Set_SafetyCarDeploymentType",
         kind: "func",
@@ -3767,6 +3900,21 @@ pub mod bindings {
     };
     pub const Sess_SpectatorHud_Hide: Binding = Binding {
         id: "Sess_SpectatorHud_Hide",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StartLights_Enter: Binding = Binding {
+        id: "Sess_StartLights_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StartLights_Init: Binding = Binding {
+        id: "Sess_StartLights_Init",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Start_VehiclesInGarages: Binding = Binding {
+        id: "Sess_Start_VehiclesInGarages",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3797,6 +3945,11 @@ pub mod bindings {
     };
     pub const Sess_Weekend_Start: Binding = Binding {
         id: "Sess_Weekend_Start",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_WinnerSequence_Update: Binding = Binding {
+        id: "Sess_WinnerSequence_Update",
         kind: "func",
         status: Status::Experimental,
     };
