@@ -165,7 +165,7 @@ The registry's owner sets what may happen when a referenced record isn't there. 
 In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and `.or_else()`. In a data file it's a string with two modifiers:
 
 ```cpp
-// swofty.classic-seasons-2016's calendar
+// a 2016 calendar with a stand-in for Sepang
 .rounds = {
     { .round = 4,  .race = Text::key("lng_gp_russia"),   .venue = tracks::venues["venue/sochi"].optional() },
     { .round = 12, .race = Text::key("lng_gp_germany"),  .venue = tracks::venues["venue/hockenheimring"].optional() },
@@ -188,7 +188,7 @@ In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and 
 Readers get the resolved value, never the modifiers. `career::calendars.status(id)` lists what was dropped or replaced:
 
 ```text
-[registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 12 dropped (venue/hockenheimring: no
+[registry] career.calendar mod.example/f1_2016: round 12 dropped (venue/hockenheimring: no
            enabled track provides it; optional); round 16 races at mod.bahrain24/sepang
 ```
 

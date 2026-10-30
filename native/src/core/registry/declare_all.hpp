@@ -8,6 +8,7 @@
 #include <swofty/systems/power.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
+#include <swofty/systems/tracks.hpp>
 #include <swofty/systems/wearables.hpp>
 
 #include <cstddef>
@@ -51,6 +52,10 @@ template <class Declare> std::size_t declare_system_registries(Declare &&declare
     one(career::ratings);
     one(career::rnd_trees);
     one(career::markets);
+    one(tracks::tracks);
+    one(tracks::venues);
+    one(tracks::data);
+    one(tracks::per_package);
     return count;
 }
 
