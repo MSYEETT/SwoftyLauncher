@@ -28,19 +28,9 @@
 // list or the entrant setup mode's first list holds more than 23 cars, selects a list of at most 23 cars
 // from the same entrant setup mode instead (the box pressed, then its Time Trial list, then the first that
 // fits) and holds the entrant setup mode's max_entrants (+0x268, the selector's limit, research grid24-cap
-// §2 step 6) at 23 until the session ends or a box is pressed.
-//
-// The session's cars are the entrants manager's session entrants (+0x2e0..+0x2e8, Sess_Select_Entrants'
-// output), which a Time Trial load does not select again: after a Grand Prix on the F1 2012 box
-// (bdx_2012_mode, max_entrants 24) they still hold that race's 24 cars while the setup already names the
-// stock f1_custom_team (max_entrants 22), and the Time Trial spawns 27 vehicles. So the Time Trial load
-// also keeps at most 23 of them (every human, then the first AI entrants).
-//
-// As the last net, a wrap of 0x142f45960 (Sess_Setup_VehicleComponents) that sees more vehicles than the
-// table's 26 sets up the first 26 and leaves the session module's vehicle vector at 26 until the session
-// unloads: 0x1436ad6c0 (called by the tyre module's session enter 0x142e91cb0 > 0x142e93a70 and by about
-// fifteen per-frame readers) bounds a vehicle index by that vector and then reads the table at +0xb0
-// through 0x1436ae470, so a 27th vehicle read the count at +0x180 as a pointer (F1_25.exe+0x36ae495).
+// §2 step 6) at 23 until the session ends or a box is pressed. As the last net, a wrap of 0x142f45960
+// (Sess_Setup_VehicleComponents) that sees more vehicles than the table's 26 hands the game a vector of the
+// first 26 for that call and logs the list, so the table is never written past its end.
 
 namespace runtime::era {
 
@@ -170,6 +160,19 @@ inline std::vector<size_t> time_trial_keep(const std::vector<ListCars> &lists)
     return keep;
 }
 
+// A Time Trial session's cars come from more than its own list: the Time Trial mode's descriptor fill
+// (0x142936760, vtable 0x1457b13d0 slot 0x80) walks every game setup mode of the mode (EntrantsManager slot
+// 0x1d0), each one's entrant setup modes (slot 0x1d8) and their selectable lists (+0x130, count +0x230), and
+// takes the teams of every list whose optional byte +0xe0 (engaged +0xf0) matches the selected list's. A list an
+// addon copies from f1_2025 keeps f1_2025's value, so a stock F1 2025 Time Trial takes all of swofty_f1's
+// offered lists of that season: F1 2012 Season's 24-car bdx_s5_2012 made it 27 vehicles. So a stock press in Time
+// Trial narrows swofty_f1 whenever one of its lists is oversized, to no list at all when none fits; the picker
+// build and the next press put every list back.
+inline bool time_trial_narrows(const std::vector<ListCars> &lists, const std::vector<size_t> &keep)
+{
+    return !lists.empty() && keep.size() != lists.size();
+}
+
 inline int64_t time_trial_fallback(const std::vector<ListCars> &lists, const std::vector<std::string> &prefer)
 {
     auto fits = [&](size_t i) { return lists[i].cars >= 0 && !oversized(lists[i].cars); };
@@ -217,51 +220,63 @@ inline uintptr_t vehicles_end_within_table(uintptr_t begin, uintptr_t end)
     return session_vehicles(begin, end) > TT_TABLE ? begin + TT_TABLE * VEHICLE_SLOT : end;
 }
 
-// The vehicle vector stays at the table's 26 for the whole session; the unload gets the full vector back
-// only while the vector still ends where the guard left it and its 27th slot still holds the same entity.
-inline bool vehicles_put_back(uintptr_t end_now, uintptr_t clamped, uintptr_t slot_now, uintptr_t slot_held)
-{
-    return clamped && end_now == clamped && slot_now == slot_held;
-}
-
-// The entrants manager's session entrants (EntrantsManager +0x2e0..+0x2e8, Sess_Select_Entrants' output,
-// 0x88-byte EntrantRecords) are the cars a Time Trial session spawns besides its own 3. A selection clears and
-// refills them; a Time Trial load does not, so after a Grand Prix on a 24-car box they still hold its 24.
-// Flags byte +0x4b bit 0x10 marks an entrant left out of the AI count (a human).
+// Session trace (diagnostic, read only). A Time Trial after a Grand Prix on a 24-car box spawns 27 vehicles
+// while the entrants manager's session entrants (EntrantsManager +0x2e0..+0x2e8, 0x88-byte records, team stat
+// id u16 at +0x5a) hold at most 23 at StateLoadSession Entering. The Time Trial mode's descriptor fill
+// (0x142936760, vtable 0x1457b13d0 slot 0x80) clears those entrants, pushes its own and builds one 0x6780-byte
+// session participant per entrant with a vehicle into the descriptor (+0xad0 vector, begin +0xad8, end +0xae0).
+// The trace logs, at each StateLoadSession step, at StateSession Entering and at the session vehicle setup,
+// the manager's entrant count and team ids, its list and setup mode, the participant counts of the session
+// descriptors the game manager (+0x1a8) and game module (game manager +0x140, its +0x1a8 and +0x198) hold, and
+// the session module's vehicle count, so one run shows which of them holds the 27 and when it fills.
 constexpr size_t MGR_SESSION_BEGIN = 0x2e0;
 constexpr size_t MGR_SESSION_END = 0x2e8;
-constexpr size_t ENTRANT_FLAGS = 0x4b;
-constexpr uint8_t ENTRANT_HUMAN = 0x10;
+constexpr size_t ENTRANT_TEAM = 0x5a;
+constexpr size_t PARTICIPANT = 0x6780;
+constexpr size_t DESC_PARTICIPANTS_BEGIN = 0xad8;
+constexpr size_t DESC_PARTICIPANTS_END = 0xae0;
+constexpr size_t GM_SESSION = 0x1a8;
+constexpr size_t GM_MODULE = 0x140;
+constexpr size_t MODULE_SESSION = 0x1a8;
+constexpr size_t MODULE_SESSION_NEXT = 0x198;
+constexpr size_t MAX_PARTICIPANTS = 64;
+constexpr uint32_t TRACE_LINES = 40;
 
-// Which records a Time Trial session keeps: every human and the first AI entrants in order, at most
-// TT_MAX_CARS in all, in their order. A vector that fits is kept whole.
-inline std::vector<size_t> time_trial_entrants_keep(const std::vector<uint8_t> &flags)
+inline bool trace_flow(std::string_view state, int to)
 {
-    std::vector<size_t> keep;
-    size_t humans = size_t(std::count_if(flags.begin(), flags.end(), [](uint8_t f) { return (f & ENTRANT_HUMAN) != 0; }));
-    size_t ai = flags.size() <= TT_MAX_CARS ? flags.size() : humans >= TT_MAX_CARS ? 0 : TT_MAX_CARS - humans;
-    for (size_t i = 0; i < flags.size(); ++i)
-        if ((flags[i] & ENTRANT_HUMAN) || (ai && ai--))
-            keep.push_back(i);
-    return keep;
+    return (state == "StateLoadSession" && to >= 1 && to <= 3) || (state == "StateSession" && to == 1);
 }
 
-// Moves the kept records to the front in their order and returns the vector's new end.
-inline uintptr_t keep_entrant_records(uintptr_t begin, const std::vector<size_t> &keep)
+inline int64_t participant_count(uintptr_t begin, uintptr_t end)
 {
-    for (size_t j = 0; j < keep.size(); ++j)
-        if (keep[j] != j)
-            std::memmove(reinterpret_cast<void *>(begin + j * ENTRANT_RECORD),
-                         reinterpret_cast<const void *>(begin + keep[j] * ENTRANT_RECORD), ENTRANT_RECORD);
-    return begin + keep.size() * ENTRANT_RECORD;
+    if (!begin || end < begin || (end - begin) % PARTICIPANT || (end - begin) / PARTICIPANT > MAX_PARTICIPANTS)
+        return -1;
+    return int64_t((end - begin) / PARTICIPANT);
 }
 
-inline std::string time_trial_entrants_line(size_t held, size_t kept, size_t humans, const std::string &list)
+struct SessionTrace {
+    std::string where, mode, list, setup_mode;
+    int64_t entrants = -1, list_cars = -1;
+    std::vector<uint16_t> teams;
+    int64_t gm_session = -1, module_session = -1, module_next = -1;
+    int64_t vehicles = -1;
+};
+
+inline std::string count_text(int64_t n)
 {
-    return "the Time Trial session's entrants hold " + std::to_string(held) + " cars (left from the last selection; " +
-           "the session's list is " + list + "); Time Trial holds at most " + std::to_string(TT_MAX_CARS) +
-           " (the game adds " + std::to_string(TT_EXTRA_CARS) + " cars of its own to a table of " + std::to_string(TT_TABLE) +
-           "): kept " + std::to_string(kept) + " (" + std::to_string(humans) + " human)";
+    return n < 0 ? std::string("-") : std::to_string(n);
+}
+
+inline std::string session_trace_line(const SessionTrace &t)
+{
+    std::string teams;
+    for (size_t i = 0; i < t.teams.size(); ++i)
+        teams += (i ? "," : "") + std::to_string(t.teams[i]);
+    return "session trace " + t.where + " (" + (t.mode.empty() ? "?" : t.mode) + "): entrants " + count_text(t.entrants) +
+           (teams.empty() ? "" : " (teams " + teams + ")") + ", list " + (t.list.empty() ? "?" : t.list) + " (" +
+           count_text(t.list_cars) + " cars) of setup mode " + (t.setup_mode.empty() ? "?" : t.setup_mode) +
+           "; participants: game manager " + count_text(t.gm_session) + ", game module " + count_text(t.module_session) +
+           " (next " + count_text(t.module_next) + "); session vehicles " + count_text(t.vehicles);
 }
 
 inline std::vector<Box> ordered(std::vector<Box> boxes)

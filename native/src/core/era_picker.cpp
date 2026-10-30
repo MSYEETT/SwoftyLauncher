@@ -74,12 +74,11 @@ std::string settings_addon(const void *from, std::string &dll);
 // so a game without registered boxes runs none of them.
 //
 // Time Trial guard (era_logic.hpp): a stock box pressed on a Time Trial picker leaves swofty_f1 offering
-// only its lists of at most 23 cars; era_session_load (StateLoadSession, any mode) puts back what it held
-// and, in Time Trial, logs the setup's resolved list, keeps a list past 23 cars out of the session and keeps
-// at most 23 of the cars the last selection left in the entrants manager (a Time Trial load does not select
-// again); era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
-// separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered; it keeps
-// the session module's vehicle vector at 26 until era_session_end gives the unload the full vector back.
+// only its lists of at most 23 cars, none when no list fits (the Time Trial takes the teams of every offered
+// list of the stock list's season); era_session_load (StateLoadSession, any mode) puts back what it held
+// and, in Time Trial, logs the setup's resolved list and keeps a list past 23 cars out of the session;
+// era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
+// separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered.
 //
 // Setup mode guard: Sess_Apply_ContentAvailability rebuilds the game setup modes (it frees the old objects), so a
 // set wrapping its entry drops the narrowing, DRS swaps and Time Trial hold the core keeps without writing them back.
@@ -432,68 +431,78 @@ std::string session_list(uintptr_t ctx)
            " cars) of setup mode " + mode;
 }
 
-struct VehicleHold {
-    uint8_t *module;
-    uintptr_t clamped, original, slot;
-};
-std::mutex vehicle_hold_lock;
-VehicleHold vehicle_hold;
-uint32_t logged_vehicle_put_back;
+uint32_t trace_lines;
+
+int64_t descriptor_participants(uintptr_t holder, size_t off)
+{
+    uintptr_t desc = 0, begin = 0, end = 0;
+    if (!holder || !mem::read(holder + off, desc) || !desc || !mem::read(desc + logic::DESC_PARTICIPANTS_BEGIN, begin) ||
+        !mem::read(desc + logic::DESC_PARTICIPANTS_END, end))
+        return -1;
+    return logic::participant_count(begin, end);
+}
+
+void session_trace(const std::string &where, int64_t vehicles)
+{
+    if (trace_lines >= logic::TRACE_LINES)
+        return;
+    uintptr_t slot = swofty::api ? swofty::api->resolve("g_Game_Manager") : 0, gm = 0, ctx = 0, holder = 0, setup = 0;
+    if (!slot || !mem::read(slot, gm) || !gm)
+        return;
+    logic::SessionTrace t;
+    t.where = where;
+    t.vehicles = vehicles;
+    uintptr_t name = 0, module = 0;
+    if (mem::read(gm + offsetof(swofty::game::GameManager, mode_context), ctx) && ctx && mem::read(ctx + MODE_SETUP, holder) &&
+        holder) {
+        if (mem::read(holder + MODE_NAME, name) && name)
+            mem::c_string(name, t.mode, 64);
+        if (mem::read(holder + SETUP_MODES, setup) && setup) {
+            uintptr_t begin = 0, end = 0, list = 0, gsm = 0, gsm_holder = 0, gsm_name = 0;
+            if (mem::read(setup + logic::MGR_SESSION_BEGIN, begin) && mem::read(setup + logic::MGR_SESSION_END, end)) {
+                t.entrants = logic::entrant_count(begin, end);
+                for (int64_t i = 0; i < t.entrants && i < int64_t(logic::MAX_PARTICIPANTS); ++i) {
+                    uint16_t team = 0;
+                    mem::read(begin + size_t(i) * logic::ENTRANT_RECORD + logic::ENTRANT_TEAM, team);
+                    t.teams.push_back(team);
+                }
+            }
+            if (mem::read(setup + SELECTED_LIST, list) && list) {
+                logic::ListCars cars = list_cars(reinterpret_cast<void *>(list));
+                t.list = cars.name;
+                t.list_cars = cars.cars;
+            }
+            if (mem::read(setup + SETUP_GAME_SETUP_MODE, gsm) && gsm && mem::read(gsm + SETUP_MODE_NAME, gsm_holder) &&
+                gsm_holder && mem::read(gsm_holder + 0x10, gsm_name) && gsm_name)
+                mem::c_string(gsm_name, t.setup_mode, 64);
+        }
+    }
+    t.gm_session = descriptor_participants(gm, logic::GM_SESSION);
+    if (mem::read(gm + logic::GM_MODULE, module) && module) {
+        t.module_session = descriptor_participants(module, logic::MODULE_SESSION);
+        t.module_next = descriptor_participants(module, logic::MODULE_SESSION_NEXT);
+    }
+    trace_lines++;
+    swofty::log("[era] %s", logic::session_trace_line(t).c_str());
+}
 
 void vehicles_entry(void *module)
 {
     auto *m = static_cast<uint8_t *>(module);
     uintptr_t begin = at<uintptr_t>(m, MODULE_VEHICLES_BEGIN), end = at<uintptr_t>(m, MODULE_VEHICLES_END);
+    session_trace("Sess_Setup_VehicleComponents", int64_t(logic::session_vehicles(begin, end)));
     uintptr_t within = logic::vehicles_end_within_table(begin, end);
     if (within == end)
         return vehicles_orig(module);
     if (logged_vehicles++ < LOG_FIRST)
-        swofty::log("[era] the session holds %zu vehicles and its vehicle table %zu; setting up the first %zu and keeping "
-                    "the session's vehicle vector at %zu until it unloads (the session's %s)",
-                    logic::session_vehicles(begin, end), logic::TT_TABLE, logic::TT_TABLE, logic::TT_TABLE,
+        swofty::log("[era] the session holds %zu vehicles and its vehicle table %zu; setting up the first %zu (the "
+                    "session's %s)",
+                    logic::session_vehicles(begin, end), logic::TT_TABLE, logic::TT_TABLE,
                     session_list(at<uintptr_t>(m, MODULE_MODE_CONTEXT)).c_str());
-    uintptr_t slot = at<uintptr_t>(reinterpret_cast<void *>(within), 0);
     ref<uintptr_t>(m, MODULE_VEHICLES_END) = within;
     vehicles_orig(module);
-    std::lock_guard<std::mutex> g(vehicle_hold_lock);
     if (at<uintptr_t>(m, MODULE_VEHICLES_END) == within)
-        vehicle_hold = {m, within, end, slot};
-}
-
-void vehicles_put_back()
-{
-    std::lock_guard<std::mutex> g(vehicle_hold_lock);
-    VehicleHold h = vehicle_hold;
-    vehicle_hold = {};
-    uintptr_t end_now = 0, slot_now = 0;
-    if (!h.module || !mem::read(reinterpret_cast<uintptr_t>(h.module) + MODULE_VEHICLES_END, end_now) ||
-        !mem::read(h.clamped, slot_now) || !logic::vehicles_put_back(end_now, h.clamped, slot_now, h.slot))
-        return;
-    ref<uintptr_t>(h.module, MODULE_VEHICLES_END) = h.original;
-    if (logged_vehicle_put_back++ < LOG_FIRST)
-        swofty::log("[era] the session unloads: its vehicle vector holds its %zu vehicles again",
-                    logic::session_vehicles(at<uintptr_t>(h.module, MODULE_VEHICLES_BEGIN), h.original));
-}
-
-void keep_time_trial_entrants(uintptr_t setup, const char *list)
-{
-    static uint32_t logged;
-    uintptr_t begin = 0, end = 0;
-    if (!mem::read(setup + logic::MGR_SESSION_BEGIN, begin) || !mem::read(setup + logic::MGR_SESSION_END, end))
-        return;
-    int64_t n = logic::entrant_count(begin, end);
-    if (n <= int64_t(logic::TT_MAX_CARS) || !mem::readable(reinterpret_cast<void *>(begin), size_t(n) * logic::ENTRANT_RECORD))
-        return;
-    std::vector<uint8_t> flags(static_cast<size_t>(n));
-    for (int64_t i = 0; i < n; ++i)
-        flags[size_t(i)] = at<uint8_t>(reinterpret_cast<void *>(begin + size_t(i) * logic::ENTRANT_RECORD), logic::ENTRANT_FLAGS);
-    auto keep = logic::time_trial_entrants_keep(flags);
-    size_t humans = 0;
-    for (size_t i : keep)
-        humans += (flags[i] & logic::ENTRANT_HUMAN) != 0;
-    ref<uintptr_t>(reinterpret_cast<void *>(setup), logic::MGR_SESSION_END) = logic::keep_entrant_records(begin, keep);
-    if (logged++ < LOG_FIRST * 2)
-        swofty::log("[era] %s", logic::time_trial_entrants_line(size_t(n), keep.size(), humans, list && *list ? list : "?").c_str());
+        ref<uintptr_t>(m, MODULE_VEHICLES_END) = end;
 }
 
 std::vector<std::string> kept_out;
@@ -506,7 +515,7 @@ bool keep_time_trial_lists(void *mode)
         std::vector<void *> ptrs;
         auto info = lists_of(setup, ptrs);
         auto keep = logic::time_trial_keep(info);
-        if (info.empty() || keep.size() == info.size() || keep.empty() || narrowed_count == std::size(narrowed))
+        if (!logic::time_trial_narrows(info, keep) || narrowed_count == std::size(narrowed))
             return;
         Narrowed &n = narrowed[narrowed_count++];
         n.setup = setup;
@@ -525,9 +534,10 @@ bool keep_time_trial_lists(void *mode)
             kept_out.push_back(info[i].name);
             if (logged_kept++ < LOG_FIRST * 4)
                 swofty::log("[era] %s keeps %s out of Time Trial while a stock box is picked: it holds %lld cars; Time "
-                            "Trial holds at most %zu (the game adds %zu cars of its own to a table of %zu)",
+                            "Trial holds at most %zu (the game adds %zu cars of its own to a table of %zu)%s",
                             logic::HOST, info[i].name.c_str(), (long long)info[i].cars, logic::TT_MAX_CARS,
-                            logic::TT_EXTRA_CARS, logic::TT_TABLE);
+                            logic::TT_EXTRA_CARS, logic::TT_TABLE,
+                            keep.empty() ? "; no list of it fits, so it offers none until the next press" : "");
         }
     });
     return any;
@@ -863,7 +873,6 @@ void era_session_load()
                     selected.name.empty() ? "?" : selected.name.c_str(), (long long)selected.cars, setup_mode.c_str(),
                     last_press.empty() ? "none" : last_press.c_str());
     last_seen = seen;
-    keep_time_trial_entrants(setup, selected.name.c_str());
     if (!logic::oversized(selected.cars) && !logic::oversized(first.cars))
         return;
     logic::ListCars bad = logic::oversized(selected.cars) ? selected : first;
@@ -970,9 +979,16 @@ void tt_guard_commit()
                         : "did not install (see the [core] lines)");
 }
 
+void era_session_trace(const char *state, int to)
+{
+    static constexpr const char *STEP[4] = {"None", "Entering", "Updating", "Exiting"};
+    if (!state || !logic::trace_flow(state, to))
+        return;
+    session_trace(std::string(state) + " " + STEP[to & 3], -1);
+}
+
 void era_session_end()
 {
-    vehicles_put_back();
     std::lock_guard<std::mutex> g(held_lock);
     put_back();
 }

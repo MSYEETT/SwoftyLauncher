@@ -341,7 +341,15 @@ int main()
         std::vector<era::ListCars> fine = {{"cs_f1_2016", 22}, {"cs_f1_2017", 20}};
         expect(era::time_trial_keep(fine).size() == fine.size(), "lists that all fit are all kept");
         std::vector<era::ListCars> big = {{"a", 24}, {"b", 30}};
-        expect(era::time_trial_keep(big).empty(), "lists that all overflow keep nothing (the core then leaves them offered)");
+        expect(era::time_trial_keep(big).empty(), "lists that all overflow keep nothing");
+        expect(era::time_trial_narrows(big, era::time_trial_keep(big)),
+               "lists that all overflow still narrow swofty_f1, to no list at all, so a stock Time Trial takes none of their teams");
+        std::vector<era::ListCars> only_2012 = {{"bdx_s5_2012", 24}};
+        expect(era::time_trial_narrows(only_2012, era::time_trial_keep(only_2012)) && era::time_trial_keep(only_2012).empty(),
+               "F1 2012 Season alone (swofty_f1 offers only bdx_s5_2012, 24 cars) leaves swofty_f1 offering nothing in Time Trial");
+        expect(era::time_trial_narrows(host, keep) && !era::time_trial_narrows(fine, era::time_trial_keep(fine)) &&
+                   !era::time_trial_narrows({}, {}),
+               "a mix narrows to the lists that fit; lists that all fit, or none at all, are left as they are");
 
         std::vector<era::ListCars> esm = {{"bdx_s5_2012", 24}, {"cs_f1_2016", 22}, {"f1_2025", 20}, {"tt_list", 12}};
         expect(era::time_trial_fallback(esm, {"f1_2025"}) == 2, "an oversized session list falls back to the box pressed");
@@ -375,58 +383,40 @@ int main()
                "27 vehicles (a 24-car list plus the game's 3) are handed over as the first 26, the table's size");
         expect(era::vehicles_end_within_table(b, b + 26 * 8) == b + 26 * 8 && era::vehicles_end_within_table(b, b + 25 * 8) == b + 25 * 8,
                "26 vehicles or fewer are handed over as they are");
-        uintptr_t clamped = b + 26 * 8;
-        expect(era::vehicles_put_back(clamped, clamped, 0xabc0, 0xabc0),
-               "at the unload, a vector the guard left at 26 with the same 27th entity gets its full length back");
-        expect(!era::vehicles_put_back(b, clamped, 0xabc0, 0xabc0) && !era::vehicles_put_back(clamped + 8, clamped, 0xabc0, 0xabc0),
-               "a vector the game cleared or grew since is left as the game has it");
-        expect(!era::vehicles_put_back(clamped, clamped, 0xdef0, 0xabc0), "a 27th slot the game wrote since is left as it is");
-        expect(!era::vehicles_put_back(0, 0, 0, 0), "no hold, nothing to put back");
 
-        std::vector<uint8_t> gp24(24, 0);
-        auto kept = era::time_trial_entrants_keep(gp24);
-        expect(kept.size() == 23 && kept.front() == 0 && kept.back() == 22,
-               "a Grand Prix's 24 AI entrants left for a Time Trial keep the first 23");
-        std::vector<uint8_t> human_last(24, 0);
-        human_last[23] = era::ENTRANT_HUMAN | 0x01;
-        kept = era::time_trial_entrants_keep(human_last);
-        expect(kept.size() == 23 && kept.back() == 23 && kept[21] == 21,
-               "a human entrant past the 23rd stays, with the first 22 AI entrants before it");
-        std::vector<uint8_t> three_humans(27, 0);
-        three_humans[0] = three_humans[13] = three_humans[26] = era::ENTRANT_HUMAN;
-        kept = era::time_trial_entrants_keep(three_humans);
-        size_t humans_kept = 0;
-        for (size_t i : kept)
-            humans_kept += (three_humans[i] & era::ENTRANT_HUMAN) != 0;
-        expect(kept.size() == 23 && humans_kept == 3 && kept.back() == 26 && std::is_sorted(kept.begin(), kept.end()),
-               "27 entrants with 3 humans keep the 3 and the first 20 AI entrants, in their order");
-        std::vector<uint8_t> fits(22, 0);
-        expect(era::time_trial_entrants_keep(fits).size() == 22 && era::time_trial_entrants_keep({}).empty(),
-               "22 entrants (f1_custom_team) are kept whole, none stay none");
-        std::vector<uint8_t> records(24 * era::ENTRANT_RECORD);
-        for (size_t i = 0; i < 24; ++i) {
-            std::fill_n(records.begin() + i * era::ENTRANT_RECORD, era::ENTRANT_RECORD, uint8_t(0x40 + i));
-            records[i * era::ENTRANT_RECORD + era::ENTRANT_FLAGS] = i == 23 ? era::ENTRANT_HUMAN : 0;
-        }
-        std::vector<uint8_t> rec_flags(24);
-        for (size_t i = 0; i < 24; ++i)
-            rec_flags[i] = records[i * era::ENTRANT_RECORD + era::ENTRANT_FLAGS];
-        auto rb = reinterpret_cast<uintptr_t>(records.data());
-        uintptr_t new_end = era::keep_entrant_records(rb, era::time_trial_entrants_keep(rec_flags));
-        bool moved = new_end == rb + 23 * era::ENTRANT_RECORD && records[22 * era::ENTRANT_RECORD] == 0x40 + 23 &&
-                     records[22 * era::ENTRANT_RECORD + era::ENTRANT_FLAGS] == era::ENTRANT_HUMAN &&
-                     records[22 * era::ENTRANT_RECORD + era::ENTRANT_RECORD - 1] == 0x40 + 23 &&
-                     records[21 * era::ENTRANT_RECORD + 5] == 0x40 + 21 && records[0] == 0x40;
-        expect(moved, "the 24th entrant, a human, moves whole into the 23rd record and the vector ends after 23 records");
-        std::vector<uint8_t> untouched(records.begin(), records.end());
-        expect(era::keep_entrant_records(rb, {0, 1, 2}) == rb + 3 * era::ENTRANT_RECORD && records == untouched,
-               "records already in place are not moved");
-        std::string line = era::time_trial_entrants_line(24, 23, 0, "f1_custom_team");
-        expect(line.find("hold 24 cars") != std::string::npos && line.find("f1_custom_team") != std::string::npos &&
-                   line.find("kept 23 (0 human)") != std::string::npos && line.find("at most 23") != std::string::npos,
-               "the trim line names the count, the session's list and what it kept (" + line + ")");
-        expect(era::MGR_SESSION_BEGIN == 0x2e0 && era::MGR_SESSION_END == 0x2e8 && era::ENTRANT_FLAGS == 0x4b,
-               "the session entrants are EntrantsManager +0x2e0..+0x2e8 and an entrant's flags byte is +0x4b");
+        expect(era::trace_flow("StateLoadSession", 1) && era::trace_flow("StateLoadSession", 2) &&
+                   era::trace_flow("StateLoadSession", 3) && era::trace_flow("StateSession", 1),
+               "the session trace runs at StateLoadSession Entering, Updating and Exiting and at StateSession Entering");
+        expect(!era::trace_flow("StateLoadSession", 0) && !era::trace_flow("StateSession", 2) &&
+                   !era::trace_flow("StateSession", 3) && !era::trace_flow("StateUnloadSession", 1) &&
+                   !era::trace_flow("#957880c6", 1) && !era::trace_flow("", 1),
+               "no trace when a state leaves, on a session's later steps, at unload or on menu flows");
+        uintptr_t d = 0x200000;
+        expect(era::participant_count(d, d + 27 * era::PARTICIPANT) == 27 && era::participant_count(d, d) == 0,
+               "a descriptor's participants count in 0x6780-byte steps");
+        expect(era::participant_count(0, 0x6780) < 0 && era::participant_count(d, d + 0x6781) < 0 &&
+                   era::participant_count(d + 8, d) < 0 && era::participant_count(d, d + 65 * era::PARTICIPANT) < 0,
+               "a null, misaligned, reversed or over-long participant vector is unread");
+        era::SessionTrace tr;
+        tr.where = "StateLoadSession Exiting";
+        tr.mode = "time_trial";
+        tr.entrants = 3;
+        tr.teams = {700, 701, 1};
+        tr.list = "f1_custom_team";
+        tr.list_cars = 22;
+        tr.setup_mode = "f1";
+        tr.gm_session = 27;
+        tr.module_session = 27;
+        std::string tl = era::session_trace_line(tr);
+        expect(tl == "session trace StateLoadSession Exiting (time_trial): entrants 3 (teams 700,701,1), list f1_custom_team "
+                     "(22 cars) of setup mode f1; participants: game manager 27, game module 27 (next -); session vehicles -",
+               "the trace line names the step, mode, entrants with their teams, list, setup mode and participant counts (" +
+                   tl + ")");
+        expect(era::session_trace_line(era::SessionTrace{}).find("(?): entrants -, list ? (- cars)") != std::string::npos,
+               "unread values print as - and ?");
+        expect(era::MGR_SESSION_BEGIN == 0x2e0 && era::ENTRANT_TEAM == 0x5a && era::DESC_PARTICIPANTS_BEGIN == 0xad8 &&
+                   era::GM_SESSION == 0x1a8 && era::GM_MODULE == 0x140,
+               "the trace reads EntrantsManager +0x2e0, an entrant's team at +0x5a and descriptor participants at +0xad8");
 
         for (const char *m : {"time_trial", "solo_testing"})
             expect(era::time_trial_mode(m), std::string(m) + " is a Time Trial picker");
