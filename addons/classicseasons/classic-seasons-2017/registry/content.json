@@ -300,11 +300,178 @@
    "archive": "cars/teams/haas/wep/haas.erp"
   }
  },
+ "career.calendar": {
+  "f1_2017": {
+   "rounds": [
+    {
+     "round": 1,
+     "race": {
+      "literal": "Australian Grand Prix"
+     },
+     "venue": "venue/albert_park",
+     "date": "2017-03-26"
+    },
+    {
+     "round": 2,
+     "race": {
+      "literal": "Chinese Grand Prix"
+     },
+     "venue": "venue/shanghai",
+     "date": "2017-04-09"
+    },
+    {
+     "round": 3,
+     "race": {
+      "literal": "Bahrain Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2017-04-16"
+    },
+    {
+     "round": 4,
+     "race": {
+      "literal": "Russian Grand Prix"
+     },
+     "venue": "venue/sochi?",
+     "date": "2017-04-30"
+    },
+    {
+     "round": 5,
+     "race": {
+      "literal": "Spanish Grand Prix"
+     },
+     "venue": "venue/catalunya",
+     "date": "2017-05-14"
+    },
+    {
+     "round": 6,
+     "race": {
+      "literal": "Monaco Grand Prix"
+     },
+     "venue": "venue/monaco",
+     "date": "2017-05-28"
+    },
+    {
+     "round": 7,
+     "race": {
+      "literal": "Canadian Grand Prix"
+     },
+     "venue": "venue/villeneuve",
+     "date": "2017-06-11"
+    },
+    {
+     "round": 8,
+     "race": {
+      "literal": "Azerbaijan Grand Prix"
+     },
+     "venue": "venue/baku",
+     "date": "2017-06-25"
+    },
+    {
+     "round": 9,
+     "race": {
+      "literal": "Austrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2017-07-09"
+    },
+    {
+     "round": 10,
+     "race": {
+      "literal": "British Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2017-07-16"
+    },
+    {
+     "round": 11,
+     "race": {
+      "literal": "Hungarian Grand Prix"
+     },
+     "venue": "venue/hungaroring",
+     "date": "2017-07-30"
+    },
+    {
+     "round": 12,
+     "race": {
+      "literal": "Belgian Grand Prix"
+     },
+     "venue": "venue/spa",
+     "date": "2017-08-27"
+    },
+    {
+     "round": 13,
+     "race": {
+      "literal": "Italian Grand Prix"
+     },
+     "venue": "venue/monza",
+     "date": "2017-09-03"
+    },
+    {
+     "round": 14,
+     "race": {
+      "literal": "Singapore Grand Prix"
+     },
+     "venue": "venue/marina_bay",
+     "date": "2017-09-17"
+    },
+    {
+     "round": 15,
+     "race": {
+      "literal": "Malaysian Grand Prix"
+     },
+     "venue": "venue/sepang?",
+     "date": "2017-10-01"
+    },
+    {
+     "round": 16,
+     "race": {
+      "literal": "Japanese Grand Prix"
+     },
+     "venue": "venue/suzuka",
+     "date": "2017-10-08"
+    },
+    {
+     "round": 17,
+     "race": {
+      "literal": "United States Grand Prix"
+     },
+     "venue": "venue/americas",
+     "date": "2017-10-22"
+    },
+    {
+     "round": 18,
+     "race": {
+      "literal": "Mexican Grand Prix"
+     },
+     "venue": "venue/rodriguez",
+     "date": "2017-10-29"
+    },
+    {
+     "round": 19,
+     "race": {
+      "literal": "Brazilian Grand Prix"
+     },
+     "venue": "venue/interlagos",
+     "date": "2017-11-12"
+    },
+    {
+     "round": 20,
+     "race": {
+      "literal": "Abu Dhabi Grand Prix"
+     },
+     "venue": "venue/yas_marina",
+     "date": "2017-11-26"
+    }
+   ]
+  }
+ },
  "content.package": {
   "f1_2017": {
    "title": "lng_cs_f1_2017",
    "entrant_list": "cs_f1_2017",
    "season": 2017,
+   "calendar": "swofty.classic-seasons-2017/f1_2017?",
    "teams": [
     {
      "key": "mercedes",

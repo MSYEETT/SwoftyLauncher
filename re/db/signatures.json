@@ -76726,6 +76726,157 @@
    ]
   },
   {
+   "id": "tracks.time_trial_track_select_vm_on_command_raised",
+   "section": ".xtls",
+   "pattern": "56 57 53 48 83 EC 40 48 8B 02 48 85 C0 0F 84 ?? ?? ?? ?? 48 89 CE 8B 00 3D 79 35 B0 02",
+   "match": "0x141f28410",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141f28410",
+   "kind": "func_start",
+   "names": [
+    "Trk_TimeTrialTrackSelectVm_OnCommandRaised"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/track_select.cpp"
+   ]
+  },
+  {
+   "id": "tracks.grand_prix_track_select_vm_on_command_raised",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 18 01 00 00 C5 F8 29 B4 24 00 01 00 00 48 8B 02 48 85 C0",
+   "match": "0x141c06dc0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141c06dc0",
+   "kind": "func_start",
+   "names": [
+    "Trk_GrandPrixTrackSelectVm_OnCommandRaised"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/track_select.cpp"
+   ]
+  },
+  {
+   "id": "tracks.career_wizard_track_select_vm_on_command_raised",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 48 01 00 00 C5 F8 29 B4 24 30 01 00 00 48 89 D7 48 89 CE E8 ?? ?? ?? ?? 48 8B 07",
+   "match": "0x141a325e0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141a325e0",
+   "kind": "func_start",
+   "names": [
+    "Trk_CareerWizardTrackSelectVm_OnCommandRaised"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/track_select.cpp"
+   ]
+  },
+  {
+   "id": "tracks.settings_select_track_tab_vm_on_command_raised",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 81 EC 48 01 00 00 C5 F8 29 B4 24 30 01 00 00 48 89 D7 48 89 CE 48 8B 02",
+   "match": "0x141de93b0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x141de93b0",
+   "kind": "func_start",
+   "names": [
+    "Trk_SettingsSelectTrackTabVm_OnCommandRaised"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "tracks.track_data_add_record",
+   "section": ".xtls",
+   "pattern": "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC 48 C5 F8 29 74 24 30 48 89 CE 48 89 54 24 20",
+   "match": "0x142e57740",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e57740",
+   "kind": "func_start",
+   "names": [
+    "Trk_TrackData_AddRecord"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
+   "id": "tracks.track_data_set_matched",
+   "section": ".xtls",
+   "pattern": "0F B6 42 01 49 8B 4B 08 4D 8B 43 10",
+   "match": "0x142e60eb1",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x142e60eb1",
+   "kind": "mid",
+   "expect": "0F B6 42 01 49 8B 4B 08",
+   "names": [
+    "site_Trk_TrackData_SetMatched"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "trk-t5",
+     "how": "static"
+    }
+   ],
+   "used_by": []
+  },
+  {
    "id": "game.acclim_penalty_entry",
    "section": ".xtls",
    "pattern": "8B 91 28 03 00 00 48 8B 81 50 03 00 00 48 69 CA 70 03 00 00 83 BC 08 C4 00 00 00 00 74 08 C6 84 08 62 03 00 00 01 C3",
