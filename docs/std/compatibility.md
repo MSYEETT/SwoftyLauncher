@@ -76,7 +76,7 @@ When two addons set the same string key, load order decides, and the core's conf
 
 **The other libraries:**
 
-- **Career contents:** registering a content provides a `career::contents` record.
+- **Career contents:** registering a content provides a `career::contents` record. A `career::contents` record from a data file or `SWOFTY_REGISTER` makes a tile too (see [Career contents](/std/systems/career#career-contents)).
 - **Team HQ tabs:** the `hub_tab` manifest field provides a `hub.tab` record.
 - **Career wizard:** each call writes the addon's global layer of its data group's `career::wizards` record.
 - **Characters:** each call writes a layer of the character's `career::characters` record.

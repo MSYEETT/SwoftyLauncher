@@ -612,14 +612,18 @@ typedef struct SwoftyCareerWizard {
    line, a box whose list the screen's mode does not offer there. title is a lng_* key (NULL or "" for
    lng_<entrant_list>), image a texture path (NULL or "" for
    #overrides.home_screen.tiles_solo_6x6[<entrant_list>]), order sorts the boxes (then registration
-   order). Strings are copied. */
-#define SWOFTY_API_ERA 1
+   order). time_trial_entrant_list (since SWOFTY_API_ERA 2; NULL or "" for entrant_list) is the list the
+   box selects on a Time Trial picker; it must be in swofty_f1's entrant lists too. On a Time Trial
+   picker the core skips a box whose list holds more than 23 cars. A descriptor that ends before
+   time_trial_entrant_list (size 0x28) is read without it. Strings are copied. */
+#define SWOFTY_API_ERA 2
 typedef struct SwoftyEraBox {
     uint32_t size;
     const char *entrant_list;
     const char *title;
     const char *image;
     int32_t order;
+    const char *time_trial_entrant_list;
 } SwoftyEraBox;
 
 typedef struct SwoftyEra {
