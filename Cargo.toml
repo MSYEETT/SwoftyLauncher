@@ -50,3 +50,19 @@ all = { level = "warn", priority = -1 }
 [profile.release]
 lto = "thin"
 strip = true
+
+# keep native UI optimized on dev profile
+[profile.dev.package.gpui-pre]
+opt-level = 2
+
+[profile.dev.package.gpui-base]
+opt-level = 2
+
+[profile.dev.package.gpui-component]
+opt-level = 2
+
+[profile.dev.package.taffy]
+opt-level = 3
+
+[profile.dev.package.swofty-launcher]
+opt-level = 1
