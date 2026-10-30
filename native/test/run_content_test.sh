@@ -32,12 +32,15 @@ done
 for p in $(jobs -p); do wait "$p"; done
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -o "$OUT/bc7_test" content/bc7_test.cpp & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness \
+    -o "$OUT/logo_cache_test" content/logo_cache_test.cpp & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off -I$ZS \
     -o "$OUT/logo_build_test" content/logo_build_test.cpp "${zobjs[@]}" & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -c content/bc7_test.cpp -o "$OUT/bc7_test.windows.o" & pids+=($!)
 for p in "${pids[@]}"; do wait "$p"; done
 "$OUT/bc7_test" content/bc7
+"$OUT/logo_cache_test"
 "$OUT/logo_build_test" content/bc7 "$OUT/logo_out"
 python3 content/check_logo_build.py content/bc7 "$OUT/logo_out"
 "$OUT/rows_test" ../../packages/sdk/std/registries
