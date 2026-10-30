@@ -81155,7 +81155,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/audio_queue.cpp"
+   ]
   },
   {
    "id": "audio.job_worker_lock",
@@ -81181,7 +81183,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/audio_queue.cpp"
+   ]
   },
   {
    "id": "audio.job_worker_overflow",
@@ -81207,7 +81211,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/audio_queue.cpp"
+   ]
   },
   {
    "id": "audio.job_worker_pending",
