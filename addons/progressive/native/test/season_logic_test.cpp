@@ -630,6 +630,64 @@ void added_team_names_leave_the_dressed_slot_alone()
     EXPECT(season::added_team_logo(layered, 2017, g_data.slots[10].team).empty());
 }
 
+// swofty's 2026-10-30 17:46 session: the tile press sets the 2026 names, career.starting files the wizard's new career
+// under f1_career_progressive, the setup page moves the start season to 2018, and the wizard step after it must set
+// the 2018 names (1.2.5 refused it for the wizard's own career, so Team Select and Insights kept 2026's).
+void wizard_names_follow_the_start_season()
+{
+    using season::NamesOwner;
+    EXPECT(season::names_owner(false, false) == NamesOwner::none);
+    EXPECT(season::names_owner(false, true) == NamesOwner::wizard);
+    EXPECT(season::names_owner(true, true) == NamesOwner::career);
+    EXPECT(season::names_owner(true, false) == NamesOwner::career);
+
+    EXPECT(season::wizard_names_year(2026, 0, NamesOwner::none) == 2026);
+    NamesOwner wizard = season::names_owner(false, true);
+    EXPECT(season::wizard_names_year(2018, 2026, wizard) == 2018);
+    EXPECT(season::wizard_names_year(2018, 2018, wizard) == 0);
+    EXPECT(season::wizard_names_year(2020, 2018, wizard) == 2020);
+    EXPECT(season::wizard_names_year(2026, 2020, wizard) == 2026);
+    EXPECT(season::wizard_names_year(2018, 0, NamesOwner::none) == 2018);
+    EXPECT(season::wizard_names_year(2031, 2026, wizard) == 0);
+    EXPECT(season::wizard_names_year(2010, 2026, wizard) == 2016);
+
+    NamesOwner loaded = season::names_owner(true, true);
+    EXPECT(season::wizard_names_year(2018, 2020, loaded) == 0);
+    EXPECT(season::wizard_names_year(2018, 0, loaded) == 0);
+
+    EXPECT(season::tile_press_clears_names(2018, wizard));
+    EXPECT(season::tile_press_clears_names(2018, NamesOwner::none));
+    EXPECT(!season::tile_press_clears_names(2018, loaded));
+    EXPECT(!season::tile_press_clears_names(0, wizard));
+
+    auto keys_of = [](const std::vector<season::NameWrite> &v) {
+        std::map<std::string, const season::NameWrite *> m;
+        for (auto &w : v)
+            m[w.key] = &w;
+        return m;
+    };
+    std::vector<season::NameWrite> v26 = season::team_name_writes(g_data, 2026, nullptr),
+                                   v18 = season::team_name_writes(g_data, 2018, nullptr),
+                                   v20 = season::team_name_writes(g_data, 2020, nullptr);
+    auto w26 = keys_of(v26), w18 = keys_of(v18), w20 = keys_of(v20);
+    EXPECT(!w18.empty());
+    EXPECT(w18.size() == w26.size() && w18.size() == w20.size());
+    size_t set18 = 0;
+    for (auto &[key, w] : w18) {
+        set18 += !w->clear;
+        EXPECT(w26.count(key) && w26.at(key)->clear);
+        EXPECT(w20.count(key));
+    }
+    EXPECT(set18 >= 20);
+    const season::Year *y18 = g_data.year(2018);
+    EXPECT(y18 != nullptr);
+    if (y18)
+        for (int i = 0; i < season::kSlots; ++i)
+            for (auto &key : g_data.slots[i].name_keys)
+                if (!key.empty() && !y18->teams[i].name.empty())
+                    EXPECT(w18.count(key) && !w18.at(key)->clear && w18.at(key)->text == y18->teams[i].name);
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -664,6 +722,7 @@ int main(int argc, char **argv)
     season_start_standings_follow_the_previous_year();
     season_start_standings_skip_a_closed_slot();
     added_team_names_leave_the_dressed_slot_alone();
+    wizard_names_follow_the_start_season();
     if (failures) {
         std::printf("season_logic_test: %d failure(s)\n", failures);
         return EXIT_FAILURE;

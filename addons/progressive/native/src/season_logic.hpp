@@ -470,6 +470,35 @@ inline std::vector<NameWrite> added_team_name_writes(const Data &d, int year, co
     return out;
 }
 
+// Who the team names and event titles belong to when the new-career wizard sets its start season's
+// (ProgressiveWizardNames, at the tile press and every wizard step) or another career tile is pressed. A loaded
+// Progressive career with a live store entry (Team HQ, or its load matched an entry) owns them: its season apply
+// and Team HQ set its own year. A championship entity filed under f1_career_progressive without one is the wizard's
+// own new career: the game makes it at career.starting, before the setup page, so it never stops the wizard.
+enum class NamesOwner { none, wizard, career };
+
+inline NamesOwner names_owner(bool career_entry, bool progressive_entity)
+{
+    return career_entry ? NamesOwner::career : progressive_entity ? NamesOwner::wizard : NamesOwner::none;
+}
+
+// The year whose names the wizard sets for start season `start` while `names_year` is set (0: none yet), or 0 to
+// leave them: a step after the setup page moved the start season sets the new season's names (its writes put every
+// key of the previous season's back), the same season again writes nothing.
+inline int wizard_names_year(int start, int names_year, NamesOwner owner)
+{
+    if (owner == NamesOwner::career)
+        return 0;
+    int year = clamp_year(start);
+    return year == names_year ? 0 : year;
+}
+
+// Another career tile was pressed: the 2026 names come back unless a Progressive career owns them.
+inline bool tile_press_clears_names(int names_year, NamesOwner owner)
+{
+    return names_year && owner != NamesOwner::career;
+}
+
 // The logo key of an added team in a start season's slot whose career team row is `label`: the row label the core
 // gives the team's own row (its record key), whose logo slices the core's team applier built; empty when the slot
 // holds no added team that year.

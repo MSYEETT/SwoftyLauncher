@@ -1732,6 +1732,11 @@ store::Career *live_entry()
     return k.empty() ? nullptr : store::find(k);
 }
 
+season::NamesOwner names_owner()
+{
+    return season::names_owner(!g_current.empty() || !g_entry.empty(), progressive_career());
+}
+
 int live_year(const store::Career *c)
 {
     SeasonInfo s;
@@ -1860,7 +1865,7 @@ void wizard_left(const char *group)
     if (g_new_career.exchange(false))
         swofty::log("[progressive] store: the %s tile was pressed; the pending new Progressive career is dropped",
                     group ? group : "?");
-    if (g_current.empty() && g_names_year && !progressive_career()) {
+    if (season::tile_press_clears_names(g_names_year, names_owner())) {
         swofty::log("[progressive] team names: the %s tile was pressed; the 2026 names are back", group ? group : "?");
         clear_names();
     }
@@ -2523,11 +2528,18 @@ extern "C" __declspec(dllexport) int ProgressiveCardTeam(uint32_t driver, int te
 
 extern "C" __declspec(dllexport) void ProgressiveWizardNames(int year)
 {
-    if (!pg::g_current.empty() || pg::progressive_career())
+    progressive::season::NamesOwner owner = pg::names_owner();
+    int want = progressive::season::wizard_names_year(year, pg::g_names_year, owner);
+    if (want) {
+        pg::set_names(want, "new-career wizard");
         return;
-    year = progressive::season::clamp_year(year);
-    if (pg::g_names_year != year)
-        pg::set_names(year, "new-career wizard");
+    }
+    static int refused = 0;
+    if (owner == progressive::season::NamesOwner::career && pg::g_names_year != progressive::season::clamp_year(year) &&
+        refused++ < 4)
+        swofty::log("[progressive] team names: the wizard's start season %d is left alone; the loaded career %s keeps "
+                    "%d",
+                    year, pg::live_entry() ? pg::live_entry()->key.c_str() : "?", pg::g_names_year);
 }
 
 SWOFTY_ON_CHANGE(rnd_mode, std::string_view)
