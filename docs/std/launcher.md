@@ -121,7 +121,7 @@ $DATA/
     tails.whatif-history/profile/whatif.json   that addon's per-profile data, put there by its build step
 ```
 
-The archives the core builds for team logos stay under `<game>/swofty/addons/swofty.logos/`: the game's file system reaches only files under the game folder.
+The archives the core builds for team logos stay under `<game>/swofty/addons/swofty.logos/`: the game's file system reaches only files under the game folder. A session end leaves them there for the next boot; a restore removes them.
 
 ```json
 // index.json
