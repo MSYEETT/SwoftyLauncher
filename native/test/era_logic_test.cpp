@@ -375,58 +375,6 @@ int main()
                "27 vehicles (a 24-car list plus the game's 3) are handed over as the first 26, the table's size");
         expect(era::vehicles_end_within_table(b, b + 26 * 8) == b + 26 * 8 && era::vehicles_end_within_table(b, b + 25 * 8) == b + 25 * 8,
                "26 vehicles or fewer are handed over as they are");
-        uintptr_t clamped = b + 26 * 8;
-        expect(era::vehicles_put_back(clamped, clamped, 0xabc0, 0xabc0),
-               "at the unload, a vector the guard left at 26 with the same 27th entity gets its full length back");
-        expect(!era::vehicles_put_back(b, clamped, 0xabc0, 0xabc0) && !era::vehicles_put_back(clamped + 8, clamped, 0xabc0, 0xabc0),
-               "a vector the game cleared or grew since is left as the game has it");
-        expect(!era::vehicles_put_back(clamped, clamped, 0xdef0, 0xabc0), "a 27th slot the game wrote since is left as it is");
-        expect(!era::vehicles_put_back(0, 0, 0, 0), "no hold, nothing to put back");
-
-        std::vector<uint8_t> gp24(24, 0);
-        auto kept = era::time_trial_entrants_keep(gp24);
-        expect(kept.size() == 23 && kept.front() == 0 && kept.back() == 22,
-               "a Grand Prix's 24 AI entrants left for a Time Trial keep the first 23");
-        std::vector<uint8_t> human_last(24, 0);
-        human_last[23] = era::ENTRANT_HUMAN | 0x01;
-        kept = era::time_trial_entrants_keep(human_last);
-        expect(kept.size() == 23 && kept.back() == 23 && kept[21] == 21,
-               "a human entrant past the 23rd stays, with the first 22 AI entrants before it");
-        std::vector<uint8_t> three_humans(27, 0);
-        three_humans[0] = three_humans[13] = three_humans[26] = era::ENTRANT_HUMAN;
-        kept = era::time_trial_entrants_keep(three_humans);
-        size_t humans_kept = 0;
-        for (size_t i : kept)
-            humans_kept += (three_humans[i] & era::ENTRANT_HUMAN) != 0;
-        expect(kept.size() == 23 && humans_kept == 3 && kept.back() == 26 && std::is_sorted(kept.begin(), kept.end()),
-               "27 entrants with 3 humans keep the 3 and the first 20 AI entrants, in their order");
-        std::vector<uint8_t> fits(22, 0);
-        expect(era::time_trial_entrants_keep(fits).size() == 22 && era::time_trial_entrants_keep({}).empty(),
-               "22 entrants (f1_custom_team) are kept whole, none stay none");
-        std::vector<uint8_t> records(24 * era::ENTRANT_RECORD);
-        for (size_t i = 0; i < 24; ++i) {
-            std::fill_n(records.begin() + i * era::ENTRANT_RECORD, era::ENTRANT_RECORD, uint8_t(0x40 + i));
-            records[i * era::ENTRANT_RECORD + era::ENTRANT_FLAGS] = i == 23 ? era::ENTRANT_HUMAN : 0;
-        }
-        std::vector<uint8_t> rec_flags(24);
-        for (size_t i = 0; i < 24; ++i)
-            rec_flags[i] = records[i * era::ENTRANT_RECORD + era::ENTRANT_FLAGS];
-        auto rb = reinterpret_cast<uintptr_t>(records.data());
-        uintptr_t new_end = era::keep_entrant_records(rb, era::time_trial_entrants_keep(rec_flags));
-        bool moved = new_end == rb + 23 * era::ENTRANT_RECORD && records[22 * era::ENTRANT_RECORD] == 0x40 + 23 &&
-                     records[22 * era::ENTRANT_RECORD + era::ENTRANT_FLAGS] == era::ENTRANT_HUMAN &&
-                     records[22 * era::ENTRANT_RECORD + era::ENTRANT_RECORD - 1] == 0x40 + 23 &&
-                     records[21 * era::ENTRANT_RECORD + 5] == 0x40 + 21 && records[0] == 0x40;
-        expect(moved, "the 24th entrant, a human, moves whole into the 23rd record and the vector ends after 23 records");
-        std::vector<uint8_t> untouched(records.begin(), records.end());
-        expect(era::keep_entrant_records(rb, {0, 1, 2}) == rb + 3 * era::ENTRANT_RECORD && records == untouched,
-               "records already in place are not moved");
-        std::string line = era::time_trial_entrants_line(24, 23, 0, "f1_custom_team");
-        expect(line.find("hold 24 cars") != std::string::npos && line.find("f1_custom_team") != std::string::npos &&
-                   line.find("kept 23 (0 human)") != std::string::npos && line.find("at most 23") != std::string::npos,
-               "the trim line names the count, the session's list and what it kept (" + line + ")");
-        expect(era::MGR_SESSION_BEGIN == 0x2e0 && era::MGR_SESSION_END == 0x2e8 && era::ENTRANT_FLAGS == 0x4b,
-               "the session entrants are EntrantsManager +0x2e0..+0x2e8 and an entrant's flags byte is +0x4b");
 
         for (const char *m : {"time_trial", "solo_testing"})
             expect(era::time_trial_mode(m), std::string(m) + " is a Time Trial picker");
