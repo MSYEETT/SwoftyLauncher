@@ -7,7 +7,6 @@
 
 #include <swofty/mixin.hpp>
 
-#include <cstdlib>
 #include <map>
 #include <mutex>
 
@@ -44,6 +43,21 @@ TextRead db_read()
     };
 }
 
+CellRead db_cell_read()
+{
+    const SwoftyDb *db = runtime::db_table();
+    if (!db || !db->available || !db->row || !db->cell || !db->available())
+        return {};
+    return [db](const std::string &table, const std::string &label, const std::string &field) -> std::optional<int64_t> {
+        SwoftyDbCursor c{};
+        SwoftyDbValue v{};
+        if (db->row(table.c_str(), label.c_str(), &c) != SWOFTY_ASSET_OK ||
+            db->cell(&c, field.c_str(), &v) != SWOFTY_ASSET_OK || v.tag == SWOFTY_DB_STRING || v.tag == SWOFTY_DB_FLOAT)
+            return std::nullopt;
+        return v.i;
+    };
+}
+
 }
 
 const Facts &facts()
@@ -77,10 +91,7 @@ const Facts &facts()
 
 int setup_mode_stat(const std::string &setup_mode)
 {
-    std::string text = db_text(db_read(), "game_setup.game_setup_modes.game_setup_mode[_metadata_=" + setup_mode + "].stat_id");
-    char *end = nullptr;
-    long v = std::strtol(text.c_str(), &end, 10);
-    return text.empty() || !end || *end ? -1 : int(v);
+    return setup_mode_stat_of(db_cell_read(), setup_mode);
 }
 
 BoxInfo box_info(registry::Store &store, const std::string &package, const std::string &entrant_list)

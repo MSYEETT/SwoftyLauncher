@@ -216,13 +216,20 @@ public:
                 session_query_read = true;
                 std::vector<const pf::Set *> into = box_sets(sets, q.mode, &q);
                 std::vector<FuelWrite> plan = plan_box_fuel(base(), a.entries, into, code);
+                size_t held = 0;
+                for (auto &w : plan)
+                    for (auto &k : box_writes)
+                        if (k.object == w.object) {
+                            ++held;
+                            break;
+                        }
                 int n = apply_writes(plan, box_writes);
                 report.applied += n;
                 std::vector<const pf::Set *> read = query_sets(sets, q);
-                swofty::log("[tracks] box %s: %s fuel written in %d of %zu set(s) (query mode %u, season %u%s; it reads "
-                            "%s); put back when the box is left",
-                            a.package.c_str(), code.c_str(), n, into.size(), q.mode, q.season, q.season_used ? "" : " unused",
-                            read.empty() ? "no set" : set_masks({read.front()}).c_str());
+                swofty::log("[tracks] box %s: %s fuel written in %d of %zu set(s), %zu already written at the box press "
+                            "(query mode %u, season %u%s; it reads %s); put back when the box is left",
+                            a.package.c_str(), code.c_str(), n, into.size(), held, q.mode, q.season,
+                            q.season_used ? "" : " unused", read.empty() ? "no set" : set_masks({read.front()}).c_str());
             }
             return;
         }
@@ -281,13 +288,18 @@ private:
 
 int write_box_fuel_now(const Active &a, int mode_stat)
 {
-    if (!a.set || a.mode != Mode::grand_prix || mode_stat < 0 || mode_stat >= 32)
+    if (!a.set || a.mode != Mode::grand_prix)
         return 0;
     bool any = false;
     for (auto &[id, en] : a.entries.by_track)
         any = any || (en.burn && base().by_id(id));
     if (!any)
         return 0;
+    if (mode_stat < 0 || mode_stat >= 32) {
+        swofty::log("[tracks] box %s: fuel waits for the session load: setup mode %s has no stat id below 32 (%d)",
+                    a.package.c_str(), a.box.setup_mode.c_str(), mode_stat);
+        return 0;
+    }
     std::vector<pf::Set> sets;
     std::string why;
     if (!read_sets(entity(), sets, why)) {
