@@ -1802,3 +1802,10 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	carlive-verify	global	k_Car_BodyDamage_ImpulseScale	L1	agree	xref:0x14465162e	V1810 C6 value 0.0003f, sole reference
 2026-10-29	carlive-verify	func	Car_SuspensionDamage_OnCollision	L1	partial	xref:0x144654e98	V1811 C6 +0x128 read; class name by adjacency only
 2026-10-29	carlive-verify	func	Car_SuspDamage_UpdateJointLimits	L1	partial	xref:0x144656442	V1812 C6 +0x128 reads; registered only from .data1
+2026-10-29	tl-verify	func	Sess_MultipleWarningsPenalty_SendData	L2	agree	xref:0x1435b6d57	V1813 L4
+2026-10-30	sl-verify	func	Sess_RaceRuleset_GetTimeLimit	L1	agree	decomp:re/decomp/142ccef30.c;xref:0x1457dc840+0xc8	V1814 FLT_MAX 0x145382128 verified; 0<val test
+2026-10-30	sl-verify	func	Sess_RaceRuleset_SetTimeLimit	L1	agree	decomp:re/decomp/14e6dcca0.c;decomp:re/decomp/143584240.c;xref:0x1457dc840+0xd0	V1815 thunk ok; caller passes min(limit_min*60, cur+suspension*60) only if >0
+2026-10-30	sl-verify	func	Sess_RaceRuleset_GetTimeRemaining	L1	partial	decomp:re/decomp/142ccef80.c;xref:0x1457dc840+0xd8	V1816 limit<=0 and vfunc+0xf8 false returns FLT_MAX (not tail-call); tail-call +0x100 only when +0xf8 true; else max(limit-elapsed,0)
+2026-10-30	sl-verify	func	Sess_SessionClock_SetTime	L1	agree	decomp:re/decomp/14e70b9f0.c;xref:0x142ceaa70	V1817 +0x60,+0x68=t,+0x70=0; rebase +0x78=now-t when +0x28==1
+2026-10-30	sl-verify	func	Sess_MisconductManager_Ctor	L1	agree	decomp:re/decomp/143589fb0.c;xref:0x142f24ab7	V1818 vt 0x1458035f0; obj 0xb0 vt 0x14584d1f0 (stored in this+0x160 line 893, subscribe line 984); the +0x178 slot is param_1[0x2f]=puVar6; lea rcx,[reg+0x410] confirmed; string penalty_issued_message at 0x145670fd9
+2026-10-30	sl-verify	func	Sess_MultipleWarningsPenalty_ReceiveData	L1	agree	decomp:re/decomp/1435b6780.c;decomp:re/decomp/1435b5bc0.c	V1819 bounds-checked 12-byte record at vec+0x68; also mirrors into second vector at +0x88; %0x145f965b0 (file value 3)

@@ -3505,6 +3505,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_MisconductManager_Ctor: Binding = Binding {
+        id: "Sess_MisconductManager_Ctor",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MultipleWarningsPenalty_ReceiveData: Binding = Binding {
+        id: "Sess_MultipleWarningsPenalty_ReceiveData",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_MultipleWarningsPenalty_SendData: Binding = Binding {
         id: "Sess_MultipleWarningsPenalty_SendData",
         kind: "func",
@@ -3517,6 +3527,11 @@ pub mod bindings {
     };
     pub const Sess_PreRace_Update: Binding = Binding {
         id: "Sess_PreRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RaceRuleset_SetTimeLimit: Binding = Binding {
+        id: "Sess_RaceRuleset_SetTimeLimit",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3582,6 +3597,11 @@ pub mod bindings {
     };
     pub const Sess_ScDebrisAccumulator_Update: Binding = Binding {
         id: "Sess_ScDebrisAccumulator_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SessionClock_SetTime: Binding = Binding {
+        id: "Sess_SessionClock_SetTime",
         kind: "func",
         status: Status::Experimental,
     };
