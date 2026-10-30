@@ -3320,6 +3320,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_ActorSceneDataResourceFactory_DestroyResource: Binding = Binding {
+        id: "Ne_ActorSceneDataResourceFactory_DestroyResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ActorSceneDataResource_DestroyScenes: Binding = Binding {
+        id: "Ne_ActorSceneDataResource_DestroyScenes",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups: Binding = Binding {
+        id: "Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_CloudUploader_Upload: Binding = Binding {
         id: "Ne_CloudUploader_Upload",
         kind: "func",
@@ -3327,6 +3342,21 @@ pub mod bindings {
     };
     pub const Ne_Compare_StringNoCase: Binding = Binding {
         id: "Ne_Compare_StringNoCase",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CutsceneScriptResourceFactory_CreateResourceFinished: Binding = Binding {
+        id: "Ne_CutsceneScriptResourceFactory_CreateResourceFinished",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CutsceneScriptResourceFactory_DestroyResource: Binding = Binding {
+        id: "Ne_CutsceneScriptResourceFactory_DestroyResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CutsceneScriptResourceFactory_StartDestroyResource: Binding = Binding {
+        id: "Ne_CutsceneScriptResourceFactory_StartDestroyResource",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3355,6 +3385,41 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_InputDevicePadPS_Cleanup: Binding = Binding {
+        id: "Ne_InputDevicePadPS_Cleanup",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputDevicePadPS_Initialise: Binding = Binding {
+        id: "Ne_InputDevicePadPS_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputLibraryDirectInput_EnumDevicesCallback: Binding = Binding {
+        id: "Ne_InputLibraryDirectInput_EnumDevicesCallback",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputSystem_DeviceConnection: Binding = Binding {
+        id: "Ne_InputSystem_DeviceConnection",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputSystem_MergePreset: Binding = Binding {
+        id: "Ne_InputSystem_MergePreset",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputSystem_UnbindDevice: Binding = Binding {
+        id: "Ne_InputSystem_UnbindDevice",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_LinkResolver_ResolveLinks: Binding = Binding {
+        id: "Ne_LinkResolver_ResolveLinks",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Log_Thunk: Binding = Binding {
         id: "Ne_Log_Thunk",
         kind: "func",
@@ -3364,6 +3429,16 @@ pub mod bindings {
         id: "Ne_Make_StrFromCStr",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_Network_Init: Binding = Binding {
+        id: "Ne_Network_Init",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Network_StartAsync: Binding = Binding {
+        id: "Ne_Network_StartAsync",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_Parse_Long: Binding = Binding {
         id: "Ne_Parse_Long",
@@ -3415,10 +3490,85 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_SequenceAudioStreamPacket_PreloadAudioStream: Binding = Binding {
+        id: "Ne_SequenceAudioStreamPacket_PreloadAudioStream",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SequenceClipInstance_BindOptional: Binding = Binding {
+        id: "Ne_SequenceClipInstance_BindOptional",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SequenceResource_CreateResource: Binding = Binding {
+        id: "Ne_SequenceResource_CreateResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_StringTable_Lookup: Binding = Binding {
         id: "Ne_StringTable_Lookup",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_Thread_Destroy: Binding = Binding {
+        id: "Ne_Thread_Destroy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_UICrashDumpInfo_SettingsScreenClearSelectedCategory: Binding = Binding {
+        id: "Ne_UICrashDumpInfo_SettingsScreenClearSelectedCategory",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_UIPCOptions_PopulateOutputMonitors: Binding = Binding {
+        id: "Ne_UIPCOptions_PopulateOutputMonitors",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_MonitorEnumProc: Binding = Binding {
+        id: "Ne_WindowWin_MonitorEnumProc",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_ResizeTarget: Binding = Binding {
+        id: "Ne_WindowWin_ResizeTarget",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_SaveWindowPosition: Binding = Binding {
+        id: "Ne_WindowWin_SaveWindowPosition",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_SetAspectRatio: Binding = Binding {
+        id: "Ne_WindowWin_SetAspectRatio",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_SetOnMinimised: Binding = Binding {
+        id: "Ne_WindowWin_SetOnMinimised",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_Startup: Binding = Binding {
+        id: "Ne_WindowWin_Startup",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_ToggleFullScreen: Binding = Binding {
+        id: "Ne_WindowWin_ToggleFullScreen",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_Update: Binding = Binding {
+        id: "Ne_WindowWin_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WindowWin_WinProc: Binding = Binding {
+        id: "Ne_WindowWin_WinProc",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Sess_Apply_ContentAvailability: Binding = Binding {
         id: "Sess_Apply_ContentAvailability",

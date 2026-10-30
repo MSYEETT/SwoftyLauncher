@@ -1976,3 +1976,35 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-30	sb5-verify	func	Sess_Tod_RandomiseTransitions	L1	agree	decomp:re/decomp/14461ea90.c;xref:0x1552606d7,0x155260803	V1984 lea 0x14461eb79 -> generateRandomStartDelay... string
 2026-10-30	sb5-verify	func	Sess_TimeOfDayOwner_BindRainCurves	L1	partial	decomp:re/decomp/14479b950.c;xref:0x14479c417,0x151a358d7	V1985 ten datasets, not four: owner +0xd0..+0x2ac stride 0x30 from TOD +0x2c8 + n*0x288 up to +0x1990; sun +0x20, sheet_tint +0x50, wind_scale +0xa0 hold (first loops use TOD+0x1c18 table / +0x2c8+[0x26c4]*0x288)
 2026-10-30	sb5-verify	func	Sess_TimeOfDayOwner_EvalRainIntensity	L1	agree	decomp:re/decomp/14479ca80.c;xref:0x140f62185,0x141bc95a0,0x141f82397,0x14479c461	V1986 curve owner+0xd0+slot*0x30 (0x140b12c10), NaN->0, soft clamp state TOD+0x26d8+slot*0xe00 (+0x40/+0x44), knee owner+0x314; caller 0x14479c3f0 stores owner+0x318 and [owner+0x2c8]+0x75ca4. 0x143386e50 >0.01 not located
+2026-10-30	cb1-verify	func	Ne_Get_FeatureFlags	L1	partial	decomp:re/decomp/1413ca0d0.c;xref:0x140152e45	V1987 thunk to FUN_14aaaef80; lazy-inits static (DAT_146064618 flag) from 'content_sets' after log 'Loading feature list - Content set'; returns &DAT_146064620 (16-byte struct pointer), not words; rsi use unchecked
+2026-10-30	cb1-verify	func	Ne_Set_FixedString	L1	partial	decomp:re/decomp/141600d80.c;xref:0x140c72417	V1988 buffer 0x100 bytes, max 0xff chars copied, length u64 at +0x100 correct; obfuscation is per-byte XOR with (index+1) (byte0 ^1, byte1 ^2...), not a single key; callers incl 0x140c71e80, 0x14148a320
+2026-10-30	cb1-verify	func	Ne_ActorSceneDataResourceFactory_DestroyResource	L1	agree	decomp:re/decomp/1401f1b80.c;xref:total	V1989 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_CutsceneScriptResourceFactory_CreateResourceFinished	L1	agree	decomp:re/decomp/14024e910.c;xref:total	V1990 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_CutsceneScriptResourceFactory_StartDestroyResource	L1	agree	decomp:re/decomp/14024e9a0.c;xref:total	V1991 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_CutsceneScriptResourceFactory_DestroyResource	L1	agree	decomp:re/decomp/14024ea50.c;xref:0x1402429bb	V1992 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_ActorSceneDataResource_DestroyScenes	L1	agree	decomp:re/decomp/1402918b0.c;xref:0x142762f9f	V1993 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_UICrashDumpInfo_SettingsScreenClearSelectedCategory	L1	agree	decomp:re/decomp/141dae380.c;xref:0x141daea8e	V1994 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_UIPCOptions_PopulateOutputMonitors	L1	agree	decomp:re/decomp/142c970c0.c;xref:0x150482819	V1995 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_SequenceResource_CreateResource	L1	agree	decomp:re/decomp/143662660.c;xref:total	V1996 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_SequenceAudioStreamPacket_PreloadAudioStream	L1	agree	decomp:re/decomp/143668770.c;xref:0x154ad464e	V1997 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_SequenceClipInstance_BindOptional	L1	agree	decomp:re/decomp/143669690.c;xref:0x14018e308	V1998 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_Thread_Destroy	L1	agree	decomp:re/decomp/14391d550.c;xref:0x140b072ec	V1999 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_Network_Init	L1	agree	decomp:re/decomp/143985c10.c;xref:0x1541ade85	V2000 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_Network_StartAsync	L1	agree	decomp:re/decomp/143986470.c;xref:0x15230e9cf	V2001 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_LinkResolver_ResolveLinks	L1	agree	decomp:re/decomp/1439926e0.c;xref:0x1439930f3	V2002 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_Startup	L1	agree	decomp:re/decomp/1439efdb0.c;xref:0x1439dbcf3	V2003 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_WinProc	L1	agree	decomp:re/decomp/1439f1d20.c;xref:0x1439efff8	V2004 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_Update	L1	agree	decomp:re/decomp/1439f3330.c;xref:total	V2005 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_SaveWindowPosition	L1	agree	decomp:re/decomp/1439f3c70.c;xref:0x1439f1e01	V2006 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_ToggleFullScreen	L1	agree	decomp:re/decomp/1439f7b80.c;xref:0x1439f27df	V2007 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_ResizeTarget	L1	agree	decomp:re/decomp/1439f9ff0.c;xref:0x1439f78e1	V2008 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_SetAspectRatio	L1	agree	decomp:re/decomp/1439fc830.c;xref:0x1439f978f	V2009 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_MonitorEnumProc	L1	agree	decomp:re/decomp/1439fd4d0.c;xref:0x1439efd74	V2010 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_WindowWin_SetOnMinimised	L1	agree	decomp:re/decomp/1439fd850.c;xref:0x1439f2ca0	V2011 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups	L1	agree	decomp:re/decomp/143a60200.c;xref:total	V2012 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputSystem_DeviceConnection	L1	agree	decomp:re/decomp/143a87ab0.c;xref:0x143a877ca	V2013 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputSystem_MergePreset	L1	agree	decomp:re/decomp/143a8a5e0.c;xref:0x1444308e8	V2014 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputSystem_UnbindDevice	L1	agree	decomp:re/decomp/143a8f3d0.c;xref:0x143a880e9	V2015 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputDevicePadPS_Cleanup	L1	agree	decomp:re/decomp/143a9bdc0.c;xref:0x143a9c03c	V2016 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputDevicePadPS_Initialise	L1	agree	decomp:re/decomp/143a9c030.c;xref:0x1441f099e	V2017 log strings and role confirmed in decomp
+2026-10-30	cb1-verify	func	Ne_InputLibraryDirectInput_EnumDevicesCallback	L1	agree	decomp:re/decomp/143aa4240.c;xref:0x143aa1605	V2018 log strings and role confirmed in decomp
