@@ -1,12 +1,14 @@
 //! `swofty registry` and `swofty careers`: the 1.6 standard library's
-//! dependency check, the core's last conflicts report and status lines, and
-//! the career index.
+//! dependency check, the core's last conflicts report and status lines, the
+//! stat ids an addon's added rows keep, and the career index.
 
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 
 use anyhow::Result;
 use clap::Subcommand;
+use swofty_core::ops::IdFrom;
+use swofty_core::row_ids;
 use swofty_core::stdlib::deps::{self, Level};
 use swofty_core::stdlib::{careers, reports};
 use swofty_core::store::Store;
@@ -21,6 +23,11 @@ pub enum RegistryCommand {
     Conflicts,
     #[command(about = "Show what didn't apply for each addon in your last session")]
     Status,
+    #[command(about = "List the stat ids an addon's added rows keep for careers, and where each came from")]
+    RowIds {
+        #[arg(help = "The addon's id")]
+        addon: String,
+    },
 }
 
 fn game_dir(store: &Store) -> Option<std::path::PathBuf> {
@@ -48,7 +55,40 @@ pub fn command(store: &Store, profile: &str, cmd: RegistryCommand) -> Result<Exi
             }
             Ok(ExitCode::SUCCESS)
         }
+        RegistryCommand::RowIds { addon } => {
+            for line in row_id_lines(&store.root, &addon)? {
+                println!("{line}");
+            }
+            Ok(ExitCode::SUCCESS)
+        }
     }
+}
+
+/// Each row of `addon` with a stat id kept in `data`'s row-ids.json: its table and label, its id,
+/// and where the id came from.
+pub fn row_id_lines(data: &std::path::Path, addon: &str) -> Result<Vec<String>> {
+    let rows = row_ids::kept_rows(data, addon)?;
+    if rows.is_empty() {
+        return Ok(vec![format!(
+            "{addon}: no added rows with a kept stat id; build a profile with it first"
+        )]);
+    }
+    let names: Vec<String> = rows.iter().map(|r| format!("{}/{}", r.table, r.label)).collect();
+    let width = names.iter().map(String::len).max().unwrap_or(0);
+    let mut out = vec![format!(
+        "{addon}: {} added row(s) keep these stat ids",
+        rows.len()
+    )];
+    for (name, r) in names.iter().zip(&rows) {
+        let from = match r.from {
+            IdFrom::Seeded => "seeded from a profile's last build",
+            IdFrom::Hashed => "hashed from the row's key",
+            IdFrom::Moved => "hashed after its kept id was taken",
+            IdFrom::Reused => "reused from an addon that was off or removed",
+        };
+        out.push(format!("  {name:width$}  {:>5}  kept, {from}", r.id));
+    }
+    Ok(out)
 }
 
 /// The profile's dependency check, as the build runs it before Play.
@@ -159,4 +199,38 @@ pub fn careers_needing(store: &Store, id: &str) -> Vec<careers::Career> {
         .into_iter()
         .filter(|c| c.addons.iter().any(|a| a.id == id))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn row_ids_lists_each_row_with_its_id_and_where_it_came_from() {
+        let data = std::env::temp_dir().join(format!("swofty-cli-row-ids-{}", std::process::id()));
+        std::fs::remove_dir_all(&data).ok();
+        let path = row_ids::path(&data);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"version":1,"rows":{
+                "mod.cars/entrants.vehicles.vehicle/car_a":{"id":512,"from":"seeded"},
+                "mod.cars/entrants.vehicles.vehicle/car_b":{"id":77,"from":"hashed"},
+                "mod.other/entrants.vehicles.vehicle/car_c":{"id":600,"from":"hashed"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            row_id_lines(&data, "mod.cars").unwrap(),
+            [
+                "mod.cars: 2 added row(s) keep these stat ids",
+                "  entrants.vehicles.vehicle/car_a    512  kept, seeded from a profile's last build",
+                "  entrants.vehicles.vehicle/car_b     77  kept, hashed from the row's key",
+            ]
+        );
+        assert_eq!(
+            row_id_lines(&data, "mod.none").unwrap(),
+            ["mod.none: no added rows with a kept stat id; build a profile with it first"]
+        );
+        std::fs::remove_dir_all(&data).ok();
+    }
 }
