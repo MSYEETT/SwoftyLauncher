@@ -476,6 +476,8 @@ swofty::era::add_box({
   - A press on a stock box in Time Trial leaves `swofty_f1` offering only its lists of at most 23 cars until the next press. A list whose car count can't be read stays offered.
   - When a Time Trial session loads, the core logs the list the game resolved. When that list, or the first list of its entrant setup mode, holds more than 23 cars, the core loads a list of at most 23 cars from the same entrant setup mode instead. It tries the box pressed first, then that box's Time Trial list, then the first list that fits.
   - The session's entrant setup mode draws at most 23 cars (`max_entrants` above 23, or unset, is held at 23) until the session ends. With no list that fits, this keeps the session at 23 cars of the list.
+  - A Time Trial load does not pick its cars again: it takes the cars the last selection left, so after a Grand Prix on a 24-car box it still holds that race's 24. When a Time Trial session loads with more than 23 cars left, the core keeps every human and the first AI cars, 23 in all.
+  - When a session still holds more than 26 vehicles, the core sets up the first 26 and keeps the session at 26 until it unloads, so nothing in the game reads past its 26-slot vehicle table.
   - Everything the guard changed is put back when the session ends or a box is pressed.
 - A core before launcher 1.6.2 ignores `time_trial` and has no guard.
 
@@ -486,6 +488,9 @@ swofty::era::add_box({
 [era]      Time Trial session loads list f1_2025 (20 cars) of setup mode f1 (box pressed: f1_2025)
 [era]      the Time Trial session's list ex_f1_2016 (setup mode swofty_f1) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); loading ex_f1_2017 instead
 [era]      the Time Trial session's list ex_2012 (setup mode ex_2012_mode) holds 24 cars; Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26); its entrant setup mode offers no list of at most 23 cars; the session draws at most 23 cars (max_entrants 24 -> 23 until the session ends)
+[era]      the Time Trial session's entrants hold 24 cars (left from the last selection; the session's list is f1_custom_team); Time Trial holds at most 23 (the game adds 3 cars of its own to a table of 26): kept 23 (1 human)
+[era]      the session holds 27 vehicles and its vehicle table 26; setting up the first 26 and keeping the session's vehicle vector at 26 until it unloads (the session's list f1_custom_team (22 cars) of setup mode f1)
+[era]      the session unloads: its vehicle vector holds its 27 vehicles again
 ```
 
 ## Career seasons race in boxes
