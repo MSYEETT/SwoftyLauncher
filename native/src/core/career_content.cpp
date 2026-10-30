@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstring>
 #include <mutex>
+#include <set>
 #include <string>
 
 #include "career_content_logic.hpp"
@@ -105,6 +106,7 @@ struct Slot {
     content::Retry retry;
     content::Desc given;
     std::string record;
+    bool from_record = false;
 };
 
 void shown_from_records();
@@ -126,6 +128,7 @@ struct Row {
 
 std::mutex lock;
 Slot slots[content::MAX_CONTENTS];
+std::set<std::string> records_tried;
 std::atomic<size_t> count{0};
 std::atomic<bool> offered{false}, live{false}, settled{false}, off{false};
 std::atomic<bool> route_wanted{false}, route_offered{false}, route_settled{false}, route_live{false};
@@ -743,7 +746,17 @@ void shown_from_records()
         if (s.record.empty())
             continue;
         older::ContentDesc d = to_older(s.given);
-        older::content_shown(older::effective(st, older::CONTENT, s.record), d);
+        swofty::json::Value rec = older::effective(st, older::CONTENT, s.record);
+        if (s.from_record) {
+            std::string why, mode_id = older::content_mode_id(s.record, rec);
+            older::ContentDesc fresh;
+            if (older::content_from(s.record, rec,
+                                    mode_id.empty() ? swofty::json::Value() : older::effective(st, older::MODE, mode_id),
+                                    fresh, why))
+                d = fresh;
+        } else {
+            older::content_shown(rec, d);
+        }
         s.desc.title = d.title;
         s.desc.description = d.description;
         s.desc.badge = d.badge;
@@ -756,6 +769,109 @@ void shown_from_records()
 int api_available()
 {
     return runtime::enabled("career", nullptr) && !off.load();
+}
+
+int add_slot(const content::Desc &desc, const std::string &who, const std::string &addon, const std::string *record)
+{
+    std::lock_guard<std::mutex> g(lock);
+    size_t n = used();
+    std::string own = addon + "/" + desc.id;
+    size_t at = n;
+    if (!record)
+        for (size_t i = 0; i < n; i++)
+            if (slots[i].from_record && slots[i].record == own && !slots[i].vt &&
+                (!offered || slots[i].desc.model == desc.model))
+                at = i;
+    std::string why = content::check(desc, [&](const char *field, const std::string &v) {
+        for (size_t i = 0; i < n; i++) {
+            const content::Desc &o = slots[i].desc;
+            if (i != at && ((!strcmp(field, "id") && o.id == v) || (!strcmp(field, "data_group") && o.data_group == v) ||
+                            (!strcmp(field, "suffix") && o.suffix == v)))
+                return true;
+        }
+        return false;
+    });
+    if (why.empty() && at == n && n >= content::MAX_CONTENTS)
+        why = "the core holds at most 8 contents";
+    if (!why.empty()) {
+        if (record)
+            swofty::log("[career] career.content record %s from %s makes no tile: %s", record->c_str(), who.c_str(),
+                        why.c_str());
+        else
+            swofty::log("[career] content '%s' from %s refused: %s", desc.id.c_str(), who.c_str(), why.c_str());
+        return SWOFTY_ASSET_INVALID;
+    }
+    Slot &s = slots[at];
+    bool took_over = at < n;
+    s.desc = desc;
+    s.given = desc;
+    s.owner = who;
+    s.from_record = record != nullptr;
+    if (record)
+        s.record = *record;
+    else if (older::put(runtime::older_store(), addon, older::CONTENT, desc.id, older::content_record(to_older(desc)),
+                        "career::content::add") == SWOFTY_ASSET_OK || took_over)
+        s.record = own;
+    else
+        s.record.clear();
+    if (took_over) {
+        s.resolved = false;
+        s.retry = {};
+        s.why.clear();
+    }
+    uint32_t state = off ? SWOFTY_CAREER_CONTENT_OFF : live ? SWOFTY_CAREER_CONTENT_LIVE : SWOFTY_CAREER_CONTENT_QUEUED;
+    if (off)
+        s.why = off_why;
+    s.state = state;
+    if (!took_over)
+        count.store(n + 1, std::memory_order_release);
+    std::string from = record ? who + " (career.content record " + *record + ", no call)"
+                       : took_over ? who + " (the call replaces the tile its career.content record " + own + " made)"
+                                   : who;
+    swofty::log("[career] content '%s' from %s registered (tile %zu after the stock ones, %s model, data group %s, suffix "
+                "%s, mode %s): %s",
+                desc.id.c_str(), from.c_str(), at + 1, desc.model == content::MODEL_2025 ? "2025" : "2026",
+                desc.data_group.c_str(), desc.suffix.c_str(), desc.mode.c_str(),
+                state == SWOFTY_CAREER_CONTENT_LIVE ? "live (hooks already installed)"
+                : state == SWOFTY_CAREER_CONTENT_OFF ? ("off: " + off_why).c_str()
+                                                     : "queued for the next mixin commit");
+    return off ? SWOFTY_ASSET_UNAVAILABLE : SWOFTY_ASSET_OK;
+}
+
+void from_records()
+{
+    auto &st = runtime::older_store();
+    for (auto &id : older::in_load_order(st, older::CONTENT)) {
+        std::string addon = older::addon_of(id);
+        if (addon.empty() || addon == "game" || addon == "swofty.core")
+            continue;
+        {
+            std::lock_guard<std::mutex> g(lock);
+            bool made = false;
+            for (size_t i = 0; i < used(); i++)
+                made = made || slots[i].record == id;
+            if (made || !records_tried.insert(id).second)
+                continue;
+        }
+        if (!runtime::enabled("career", nullptr)) {
+            swofty::log("[career] career.content record %s from %s makes no tile: the career feature is off", id.c_str(),
+                        addon.c_str());
+            continue;
+        }
+        swofty::json::Value rec = older::effective(st, older::CONTENT, id);
+        std::string mode_id = older::content_mode_id(id, rec);
+        swofty::json::Value mode = mode_id.empty() ? swofty::json::Value() : older::effective(st, older::MODE, mode_id);
+        older::ContentDesc d;
+        std::string why;
+        if (!older::content_from(id, rec, mode, d, why)) {
+            swofty::log("[career] career.content record %s from %s makes no tile: %s", id.c_str(), addon.c_str(),
+                        why.c_str());
+            continue;
+        }
+        content::Desc desc{d.id,   d.title, d.description, d.data_group, d.suffix, d.mode, d.entitlement,
+                           d.model, d.car_group, d.badge, d.careers};
+        add_slot(desc, addon, addon, &id);
+    }
 }
 
 int api_add(const SwoftyCareerContentDesc *d)
@@ -774,44 +890,7 @@ int api_add(const SwoftyCareerContentDesc *d)
     content::Desc desc{text(d->id),   text(d->title), text(d->description), text(d->data_group),
                        text(d->suffix), text(d->mode), text(d->entitlement), d->model, d->car_group, d->badge,
                        d->size >= careers_end ? d->careers : content::CAREER_DRIVER};
-    std::lock_guard<std::mutex> g(lock);
-    size_t n = used();
-    std::string why = content::check(desc, [&](const char *field, const std::string &v) {
-        for (size_t i = 0; i < n; i++) {
-            const content::Desc &o = slots[i].desc;
-            if ((!strcmp(field, "id") && o.id == v) || (!strcmp(field, "data_group") && o.data_group == v) ||
-                (!strcmp(field, "suffix") && o.suffix == v))
-                return true;
-        }
-        return false;
-    });
-    if (why.empty() && n >= content::MAX_CONTENTS)
-        why = "the core holds at most 8 contents";
-    if (!why.empty()) {
-        swofty::log("[career] content '%s' from %s refused: %s", desc.id.c_str(), who.c_str(), why.c_str());
-        return SWOFTY_ASSET_INVALID;
-    }
-    Slot &s = slots[n];
-    s.desc = desc;
-    s.given = desc;
-    s.owner = who;
-    std::string addon = runtime::older_addon(__builtin_return_address(0));
-    if (older::put(runtime::older_store(), addon, older::CONTENT, desc.id, older::content_record(to_older(desc)),
-                   "career::content::add") == SWOFTY_ASSET_OK)
-        s.record = addon + "/" + desc.id;
-    uint32_t state = off ? SWOFTY_CAREER_CONTENT_OFF : live ? SWOFTY_CAREER_CONTENT_LIVE : SWOFTY_CAREER_CONTENT_QUEUED;
-    if (off)
-        s.why = off_why;
-    s.state = state;
-    count.store(n + 1, std::memory_order_release);
-    swofty::log("[career] content '%s' from %s registered (tile %zu after the stock ones, %s model, data group %s, suffix "
-                "%s, mode %s): %s",
-                desc.id.c_str(), who.c_str(), n + 1, desc.model == content::MODEL_2025 ? "2025" : "2026",
-                desc.data_group.c_str(), desc.suffix.c_str(), desc.mode.c_str(),
-                state == SWOFTY_CAREER_CONTENT_LIVE ? "live (hooks already installed)"
-                : state == SWOFTY_CAREER_CONTENT_OFF ? ("off: " + off_why).c_str()
-                                                     : "queued for the next mixin commit");
-    return off ? SWOFTY_ASSET_UNAVAILABLE : SWOFTY_ASSET_OK;
+    return add_slot(desc, who, runtime::older_addon(__builtin_return_address(0)), nullptr);
 }
 
 int api_info(const char *id, SwoftyCareerContentInfo *out)
@@ -908,6 +987,7 @@ const SwoftyCareerContent *career_content_table()
 std::vector<CoreMixins> career_content_mixins()
 {
     std::vector<CoreMixins> out;
+    from_records();
     if (offered || !used() || off || !code_ready())
         return out;
     offered = true;
