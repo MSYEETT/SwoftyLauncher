@@ -494,3 +494,20 @@ sessions::issue_penalty(car, sessions::PenaltyKind::grid, 3.0f);
 - **Points** are whole numbers in arrays of 23, padded to the grid size. 1990's half points are rounded.
 - **Setup modes** take stat ids of 31 or lower. 18 are free (5, 7, 16 to 31), and F1 1990 uses 16. A mode needs the content set and an available mode row.
 - **Option restrictions** are tags shared across modes (`gamesetup_f1`).
+- **Pit lane bindings: experimental, no std operation yet.** `swofty/game.hpp` has `Game_Pitlane_SetVehicleStatus(pit_lane, car, status)`, which sets a car's pit status (0 to 16: 1 OnTrack, 4 InPitBox, 9 InGarage, 13 LeavingGarage), and `Game_PitLane_PutVehicleInPitBox(pit_lane, car)`, which puts a car in its pit box from any status the way the red flag does for every car. Both take the session's `PitLaneSystem`, the first argument of every pit status change. `Sess_PitStopUpdateJob_Update` (the per-frame pit stop update, which scales the crew sequence by the stop's rate) and `g_Ne_NameTable` (the engine's interned names, where a sequence's name hash resolves) are there too. F1 1990 uses them for its qualifying lap limit and its pit stop phases.
+
+```cpp
+#include <swofty/game.hpp>
+#include <swofty/mixin.hpp>
+
+void *pit_lane;
+
+SWOFTY_WRAP(Game_Pitlane_SetVehicleStatus, void, void *self, uint8_t car, uint32_t status)
+{
+    pit_lane = self;                           // the session's PitLaneSystem
+    orig(self, car, status);
+}
+
+// later, on the game thread: send car 5 back to its pit box
+swofty::game::Game_PitLane_PutVehicleInPitBox(pit_lane, 5);
+```
