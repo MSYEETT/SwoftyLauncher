@@ -4,6 +4,7 @@
 #include "apply/moments.hpp"
 #include "apply/room.hpp"
 #include "apply/scheduler.hpp"
+#include "apply/tracks/keys.hpp"
 #include "dbread_logic.hpp"
 #include "perf.hpp"
 #include "registry/table.hpp"
@@ -477,7 +478,7 @@ void late_inplace(uint8_t *db)
 bool row_edit(const swofty_core::apply::db::Row &row, Edit &e, std::string &why)
 {
     e.path = row.path;
-    e.key = row.path.empty() ? 0 : runtime::fnv64(row.path);
+    e.key = row.path.empty() ? 0 : swofty_core::apply::tracks::path_key(row.path);
     e.value = row.text;
     e.kind = json::Value::Str;
     e.tag = -1;

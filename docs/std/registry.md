@@ -197,12 +197,13 @@ swofty/systems/content.hpp     swofty::content   packages (Grand Prix and Time T
 swofty/systems/power.hpp       swofty::power     drs_rules (the units, suppliers and component rules come later)
 swofty/systems/ui.hpp          swofty::ui        strings, addon_options
 swofty/systems/sessions.hpp    swofty::sessions  Rules, set_control (the registries come later)
-swofty/systems/tracks.hpp      swofty::tracks    set_track_fuel, copy_track_fuel, restore_track_fuel (the registries come in 1.6.x)
+swofty/systems/tracks.hpp      swofty::tracks    tracks, venues, data, per_package (experimental); set_track_fuel,
+                                                 copy_track_fuel, restore_track_fuel
 swofty/systems/ai.hpp          swofty::ai        the ai.controller.update payload
 swofty/systems/spectator.hpp   swofty::spectator set_active, follow, set_camera, current
 ```
 
-Thirty-three registries are in the headers, each with a schema. The core applies most of them. For `career.calendar`, `career.mode` and `vehicle.handling` it stores the records and applies nothing; at boot it logs `[registry] <name>: N record(s); this core applies nothing from it` for any registry that has records and no applier. The contract, R&D department, facility, economy, sponsor, car audio, damage model and car parts registries, and the tracks, tyres, power (apart from `rules.drs`), session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/), come in later headers; their pages describe the design.
+Thirty-seven registries are in the headers, each with a schema. The four tracks registries (`track`, `track.venue`, `track.data`, `track.per_package`) came in 1.6.5 and are experimental. The core applies most of them. For `career.mode` and `vehicle.handling` it stores the records and applies nothing, and it reads `career.calendar` only for the calendar a box's package names; at boot it logs `[registry] <name>: N record(s); this core applies nothing from it` for any registry that has records and no applier. The contract, R&D department, facility, economy, sponsor, car audio, damage model and car parts registries, and the track layer, slots and AI line, tyres, power (apart from `rules.drs`), session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/), come in later headers; their pages describe the design.
 
 The system headers sit under `swofty/systems/`, apart from the headers older addons use, such as `swofty/career.hpp`, and their names never clash. A handle's `name()` is the registry name the logs, origins and data files use: `cars::vehicles` is `vehicle`, `career::seasons` is `career.season`. Every system has a page in the [Systems catalogue](/std/systems/).
 
@@ -465,4 +466,4 @@ The SDK ships a JSON Schema for each core registry and version, for checking dat
 - `type`, `enum` and `required` come from the struct's field types.
 - `minimum`, `maximum` and `pattern` come from the owner's `check`.
 
-The core declares every registry the SDK headers define (30) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.
+The core declares every registry the SDK headers define (37) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.
