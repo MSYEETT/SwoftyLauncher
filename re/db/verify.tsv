@@ -1653,3 +1653,10 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	aaa-verify	func	Game_Player_ApplyAssistsToVehicle	L1	agree	xref:0x142424117,0x14242418e	V1661 aaa-verify: braking assist 0 / 0.61 / 0.91 / 1.0 -> record +0xd0
 2026-10-28	aaa-verify	func	Sess_ControllerSystem_ApplyRecord	L1	agree	xref:0x14389a5c8,0x14389a630,0x14389b146,0x14389b152	V1662 aaa-verify: brake blend in + (tgt-in)*level; steering assist +0x1a4/+0x1a8
 2026-10-28	dcso-verify	func	Sess_ControllerSystem_ApplyRecord	L2	agree	decomp:re/decomp/14389a2b0.c;xref:0x14389b656	V1663 claim 13; axis names inferred
+2026-10-28	ap-verify	func	Car_F1Aero_UpdateWingOpen	L1	agree	xref:0x1446cb65f,0x1446cb6d0,0x1446cb709	V1664 recorded by engine-re from ap-verify (blind capstone): brake > 0.05 / throttle < 0.9 clear +0x1988 bit0; +0x19a8 moves at rate, clamped 0..1
+2026-10-28	ap-verify	func	Game_DRS_UpdateCars	L1	agree	xref:0x142bea69d	V1665 ap-verify: mov byte [r13+0x19ac],cl with r13 = [r12+0x80]
+2026-10-28	ap-verify	func	Game_DRS_UpdateZoneTracker	L1	agree	xref:0x142be75e8,0x142be76a0	V1666 ap-verify: zone type cmp 0x30 setne vs car byte +0xa7
+2026-10-28	ap-verify	func	Car_Diff_SetupDrivenWheels	L1	agree	xref:0x14467e7c0	V1667 ap-verify: FL/FR added for DriveType 1/2, shares d0..dc as claimed
+2026-10-28	ap-verify	func	Car_Read_Differential_Thunk	L1	agree	xref:0x1553d2759	V1668 ap-verify: FWD/4WD/RWD -> 1/2/3 else 0
+2026-10-28	ap-verify	func	Car_Solver_PrepareWheel	L1	agree	xref:0x1446dbce3,0x1446dbced	V1669 ap-verify: diff+0xd0[i] -> solver+0x440[i]
+2026-10-28	ap-verify	func	Car_Engine_ComputeDerived_Thunk	L1	agree	xref:0x1553f9a6a	V1670 ap-verify: engine+0x2528 plain = limiter XOR * revs scale XOR; names not string-checked
