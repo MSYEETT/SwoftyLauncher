@@ -192,16 +192,18 @@ swofty/systems/drivers.hpp     swofty::drivers   people, identities, heads, look
 swofty/systems/wearables.hpp   swofty::wearables helmets, suits, gloves, season_sets
 swofty/systems/sounds.hpp      swofty::sounds    engine_sounds
 swofty/systems/career.hpp      swofty::career    modes, contents, seasons, calendars, ratings, characters, wizards,
-                                                 hub_tabs
+                                                 hub_tabs, rnd_trees, markets
 swofty/systems/content.hpp     swofty::content   packages (Grand Prix and Time Trial seasons), era_boxes
+swofty/systems/power.hpp       swofty::power     drs_rules (the units, suppliers and component rules come later)
 swofty/systems/ui.hpp          swofty::ui        strings, addon_options
 swofty/systems/sessions.hpp    swofty::sessions  Rules, set_control (the registries come later)
-swofty/systems/tracks.hpp      swofty::tracks    set_track_fuel, copy_track_fuel, restore_track_fuel (the registries come in 1.6.x)
+swofty/systems/tracks.hpp      swofty::tracks    tracks, venues, data, per_package (experimental); set_track_fuel,
+                                                 copy_track_fuel, restore_track_fuel
 swofty/systems/ai.hpp          swofty::ai        the ai.controller.update payload
 swofty/systems/spectator.hpp   swofty::spectator set_active, follow, set_camera, current
 ```
 
-Thirty registries are in the headers, each with a schema. The core applies most of them. For `career.calendar`, `career.mode` and `vehicle.handling` it stores the records and applies nothing; at boot it logs `[registry] <name>: N record(s); this core applies nothing from it` for any registry that has records and no applier. The market, contract, R&D, facility, economy, sponsor, car audio, damage model and car parts registries, and the tracks, tyres, power, session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/), come in later headers; their pages describe the design.
+Thirty-seven registries are in the headers, each with a schema. The four tracks registries (`track`, `track.venue`, `track.data`, `track.per_package`) came in 1.6.5 and are experimental. The core applies most of them. For `career.mode` and `vehicle.handling` it stores the records and applies nothing, and it reads `career.calendar` only for the calendar a box's package names; at boot it logs `[registry] <name>: N record(s); this core applies nothing from it` for any registry that has records and no applier. The contract, R&D department, facility, economy, sponsor, car audio, damage model and car parts registries, and the track layer, slots and AI line, tyres, power (apart from `rules.drs`), session, weather, AI, UI-screen and graphics registries of the [Systems catalogue](/std/systems/), come in later headers; their pages describe the design.
 
 The system headers sit under `swofty/systems/`, apart from the headers older addons use, such as `swofty/career.hpp`, and their names never clash. A handle's `name()` is the registry name the logs, origins and data files use: `cars::vehicles` is `vehicle`, `career::seasons` is `career.season`. Every system has a page in the [Systems catalogue](/std/systems/).
 
@@ -367,6 +369,17 @@ An explicit `stat_id` you ship stays your record's id from then on. Other addons
 [registry] stat ids: track mod.sochi/sochi -> 18 (kept from ids.json)
 ```
 
+A row already in the database the game loads keeps its id. That is a stock row, or a row an older addon's database operations add with an explicit `stat_id`. This covers the records the core writes rows for at boot: cars, vehicle packages, packages' entrant lists and scenarios, teams, drivers, heads, looks, helmets, suits, gloves and team kits:
+
+- **The record moves.** When such a row holds your record's `stat_id`, or the id `ids.json` kept for it, under another label, your record takes the next free id of its pool. The core logs it once per game start.
+- **The new id is kept.** The record keeps it at every start while the row is there, and gets its own `stat_id` back when the row is gone.
+- **A career saved before the move** still holds the old id in its map. At `career.load`, the guard names the row that holds it (see [Dependencies and guards](/std/dependencies)).
+- **Stock rows and the older addon's rows are never changed.**
+
+```text
+[registry] ids: swofty.classic-seasons-2017/ferrari pinned vehicle stat id 509 is held by bdx_s5_car_mclaren_3 from the database; uses 600
+```
+
 ## Tags
 
 A **tag** is a shared, named set of records in one registry. The core defines the shared tags, such as `c/f1_cars` on `vehicle` (and on `vehicle.handling`, for the same cars' handling) and `c/street_circuits` on `track`. Any addon can add its records to one. Selectors, event scopes and a box's track list can target a tag, and they reach records that addons add later.
@@ -451,4 +464,4 @@ The SDK ships a JSON Schema for each core registry and version, for checking dat
 - `type`, `enum` and `required` come from the struct's field types.
 - `minimum`, `maximum` and `pattern` come from the owner's `check`.
 
-The core declares every registry the SDK headers define (30) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.
+The core declares every registry the SDK headers define (37) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.
