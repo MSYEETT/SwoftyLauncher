@@ -218,6 +218,9 @@ inline constexpr address<"Sess_ControllerSystem_BuildSets"> Sess_ControllerSyste
 inline constexpr address<"Sess_ControllerSystem_DestroySets"> Sess_ControllerSystem_DestroySets{}; // L2 experimental
 inline constexpr address<"Sess_CopyOptionsToState"> Sess_CopyOptionsToState{}; // L2 experimental
 inline constexpr address<"Sess_DoughnutSequence_Enter"> Sess_DoughnutSequence_Enter{}; // L2 experimental
+inline constexpr address<"Sess_DriveThroughPenalty_ReceiveData"> Sess_DriveThroughPenalty_ReceiveData{}; // L2 experimental
+inline constexpr address<"Sess_DriveThroughPenalty_SendData"> Sess_DriveThroughPenalty_SendData{}; // L2 experimental
+inline constexpr address<"Sess_DriveThroughPenalty_SendData_2"> Sess_DriveThroughPenalty_SendData_2{}; // L2 experimental
 using Sess_Find_GroupRowPosition_t = int32_t *(void *weekend, void *result, uint32_t driver_key);
 inline constexpr fn<"Sess_Find_GroupRowPosition", Sess_Find_GroupRowPosition_t> Sess_Find_GroupRowPosition{}; // L2 experimental
 inline constexpr address<"Sess_Flow_ParseXml"> Sess_Flow_ParseXml{}; // L2 experimental
@@ -243,10 +246,15 @@ using Sess_Invalidate_Lap_Thunk_t = void(void *rules, uint32_t vehicle, uint32_t
 inline constexpr fn<"Sess_Invalidate_Lap_Thunk", Sess_Invalidate_Lap_Thunk_t> Sess_Invalidate_Lap_Thunk{}; // L2 experimental
 using Sess_Issue_DriveThrough_t = void(void *rules, uint8_t *incident, uint32_t reason);
 inline constexpr fn<"Sess_Issue_DriveThrough", Sess_Issue_DriveThrough_t> Sess_Issue_DriveThrough{}; // L2 experimental
+inline constexpr address<"Sess_Issue_GridPlacePenalty"> Sess_Issue_GridPlacePenalty{}; // L2 experimental
+inline constexpr address<"Sess_Issue_PostRaceTimePenalty"> Sess_Issue_PostRaceTimePenalty{}; // L2 experimental
 using Sess_Issue_TimePenalty_t = void(void *rules, uint8_t *incident, uint32_t reason, uint32_t seconds);
 inline constexpr fn<"Sess_Issue_TimePenalty", Sess_Issue_TimePenalty_t> Sess_Issue_TimePenalty{}; // L2 experimental
 using Sess_Issue_Warning_t = void(void *rules, uint8_t *incident, uint32_t reason);
 inline constexpr fn<"Sess_Issue_Warning", Sess_Issue_Warning_t> Sess_Issue_Warning{}; // L2 experimental
+inline constexpr address<"Sess_LapTimes_OnNewSector"> Sess_LapTimes_OnNewSector{}; // L2 experimental
+inline constexpr address<"Sess_LapTimes_ReportSplit"> Sess_LapTimes_ReportSplit{}; // L2 experimental
+inline constexpr address<"Sess_LapTimes_SendLapHistory"> Sess_LapTimes_SendLapHistory{}; // L2 experimental
 using Sess_Load_Teams_t = void(void *entrants_system, uint8_t set);
 inline constexpr fn<"Sess_Load_Teams", Sess_Load_Teams_t> Sess_Load_Teams{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestCareerHubLoad"> Sess_Loader_RequestCareerHubLoad{}; // L2 experimental
@@ -258,10 +266,22 @@ inline constexpr address<"Sess_Loader_RequestTrackUnload"> Sess_Loader_RequestTr
 inline constexpr address<"Sess_Loader_SetupTrackAssets"> Sess_Loader_SetupTrackAssets{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_Set"> Sess_MarshalLights_Set{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_UpdateZoneShader"> Sess_MarshalLights_UpdateZoneShader{}; // L2 experimental
+inline constexpr address<"Sess_MarshalZoneMonitor_Init"> Sess_MarshalZoneMonitor_Init{}; // L2 experimental
+inline constexpr address<"Sess_MarshalZone_CheckFlags"> Sess_MarshalZone_CheckFlags{}; // L2 experimental
 inline constexpr address<"Sess_MisconductManager_Ctor"> Sess_MisconductManager_Ctor{}; // L2 experimental
+inline constexpr address<"Sess_Misconduct_DumpTable"> Sess_Misconduct_DumpTable{}; // L2 experimental
+inline constexpr address<"Sess_Misconduct_HandBackIllegalOvertake"> Sess_Misconduct_HandBackIllegalOvertake{}; // L2 experimental
+inline constexpr address<"Sess_Misconduct_OnCarToCarCollision"> Sess_Misconduct_OnCarToCarCollision{}; // L2 experimental
 inline constexpr address<"Sess_MultipleWarningsPenalty_ReceiveData"> Sess_MultipleWarningsPenalty_ReceiveData{}; // L2 experimental
 inline constexpr address<"Sess_MultipleWarningsPenalty_SendData"> Sess_MultipleWarningsPenalty_SendData{}; // L2 experimental
 inline constexpr address<"Sess_OsqTeleportToStart"> Sess_OsqTeleportToStart{}; // L2 experimental
+inline constexpr address<"Sess_OvertakeLog_SendAllRecords"> Sess_OvertakeLog_SendAllRecords{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_Print"> Sess_PenaltyLog_Print{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_ReceiveAddRecord"> Sess_PenaltyLog_ReceiveAddRecord{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_RemoveVehicle"> Sess_PenaltyLog_RemoveVehicle{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_SendAllRecords"> Sess_PenaltyLog_SendAllRecords{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_SendRecord"> Sess_PenaltyLog_SendRecord{}; // L2 experimental
+inline constexpr address<"Sess_PenaltyLog_SendRecord_2"> Sess_PenaltyLog_SendRecord_2{}; // L2 experimental
 inline constexpr address<"Sess_PlayerTerminalDamage_Enter"> Sess_PlayerTerminalDamage_Enter{}; // L2 experimental
 inline constexpr address<"Sess_PreLights_Update"> Sess_PreLights_Update{}; // L2 experimental
 using Sess_PreRaceToRace_Update_t = uint32_t *(void *state, uint32_t *route);
@@ -270,9 +290,12 @@ using Sess_PreRace_Update_t = uint32_t *(void *state, uint32_t *route, double dt
 inline constexpr fn<"Sess_PreRace_Update", Sess_PreRace_Update_t> Sess_PreRace_Update{}; // L2 experimental
 inline constexpr address<"Sess_RaceRuleset_OnLapCompleted"> Sess_RaceRuleset_OnLapCompleted{}; // L2 experimental
 inline constexpr address<"Sess_RaceRuleset_SetTimeLimit"> Sess_RaceRuleset_SetTimeLimit{}; // L2 experimental
+inline constexpr address<"Sess_Read_LoosePartsRules"> Sess_Read_LoosePartsRules{}; // L2 experimental
 using Sess_Record_GroupTimes_t = void(void *weekend, uint8_t group, void *entries);
 inline constexpr fn<"Sess_Record_GroupTimes", Sess_Record_GroupTimes_t> Sess_Record_GroupTimes{}; // L2 experimental
 inline constexpr address<"Sess_Recordable_Register"> Sess_Recordable_Register{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagFreezeVehicles_Enter"> Sess_RedFlagFreezeVehicles_Enter{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagPerformRepairs_Update"> Sess_RedFlagPerformRepairs_Update{}; // L2 experimental
 using Sess_RedFlagRaceStrategy_Enter_t = uint64_t(void *state);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Enter", Sess_RedFlagRaceStrategy_Enter_t> Sess_RedFlagRaceStrategy_Enter{}; // L2 experimental
 using Sess_RedFlagRaceStrategy_Update_t = uint32_t *(void *state, uint32_t *route);
@@ -283,6 +306,9 @@ inline constexpr address<"Sess_RedFlagSystem_OnStartLightsBegin"> Sess_RedFlagSy
 inline constexpr address<"Sess_RedFlagSystem_ResetCarStatus"> Sess_RedFlagSystem_ResetCarStatus{}; // L2 experimental
 inline constexpr address<"Sess_RedFlagSystem_SimulateSessionTime"> Sess_RedFlagSystem_SimulateSessionTime{}; // L2 experimental
 inline constexpr address<"Sess_RedFlagSystem_SnapshotDamage"> Sess_RedFlagSystem_SnapshotDamage{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagToRestart_Exit"> Sess_RedFlagToRestart_Exit{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagToRestart_Update"> Sess_RedFlagToRestart_Update{}; // L2 experimental
+inline constexpr address<"Sess_RedFlag_SimulateUnlapLaps"> Sess_RedFlag_SimulateUnlapLaps{}; // L2 experimental
 inline constexpr address<"Sess_Register_EntrantSetupMode"> Sess_Register_EntrantSetupMode{}; // L2 experimental
 using Sess_Register_RaceRecordables_t = void(void *game);
 inline constexpr fn<"Sess_Register_RaceRecordables", Sess_Register_RaceRecordables_t> Sess_Register_RaceRecordables{}; // L2 experimental
@@ -292,6 +318,7 @@ inline constexpr address<"Sess_Result_DecodeVehicleResult"> Sess_Result_DecodeVe
 inline constexpr address<"Sess_Result_RequestVehicleStatus"> Sess_Result_RequestVehicleStatus{}; // L2 experimental
 inline constexpr address<"Sess_RetirementSequence_PlayTerminalDamage"> Sess_RetirementSequence_PlayTerminalDamage{}; // L2 experimental
 inline constexpr address<"Sess_RetirementSequence_Update"> Sess_RetirementSequence_Update{}; // L2 experimental
+inline constexpr address<"Sess_RuleManager_HandleSessionEvents"> Sess_RuleManager_HandleSessionEvents{}; // L2 experimental
 using Sess_RuleManager_Initialise_t = uint32_t(void *self, void *systems, void *components);
 inline constexpr fn<"Sess_RuleManager_Initialise", Sess_RuleManager_Initialise_t> Sess_RuleManager_Initialise{}; // L2 experimental
 inline constexpr address<"Sess_Rules_ApplyPostSessionPenalties"> Sess_Rules_ApplyPostSessionPenalties{}; // L2 experimental
@@ -337,6 +364,7 @@ inline constexpr address<"Sess_SpectatorHud_Hide"> Sess_SpectatorHud_Hide{}; // 
 inline constexpr address<"Sess_StartLights_Enter"> Sess_StartLights_Enter{}; // L2 experimental
 inline constexpr address<"Sess_StartLights_Init"> Sess_StartLights_Init{}; // L2 experimental
 inline constexpr address<"Sess_Start_VehiclesInGarages"> Sess_Start_VehiclesInGarages{}; // L2 experimental
+inline constexpr address<"Sess_StoryPreLights_Update"> Sess_StoryPreLights_Update{}; // L2 experimental
 using Sess_Tod_BuildSessionDataset_Thunk_t = void(void *tod_owner, const uint8_t *types, const float *hold_s, const float *trans_s, const uint8_t *random, uint32_t count, float len_s, uint16_t session, uint8_t use_count);
 inline constexpr fn<"Sess_Tod_BuildSessionDataset_Thunk", Sess_Tod_BuildSessionDataset_Thunk_t> Sess_Tod_BuildSessionDataset_Thunk{}; // L2 experimental
 using Sess_TyreAllocation_OnSessionStart_t = void(void *component);
@@ -345,6 +373,10 @@ using Sess_TyreClass_FromName_t = void *(void *classes, const void *name, uint8_
 inline constexpr fn<"Sess_TyreClass_FromName", Sess_TyreClass_FromName_t> Sess_TyreClass_FromName{}; // L2 experimental
 using Sess_Tyres_ClosestAvailableCompound_t = uint32_t(void *tyre_rules, uint8_t vehicle, const uint32_t *preference, float wear_scale);
 inline constexpr fn<"Sess_Tyres_ClosestAvailableCompound", Sess_Tyres_ClosestAvailableCompound_t> Sess_Tyres_ClosestAvailableCompound{}; // L2 experimental
+inline constexpr address<"Sess_Veh_UpdateWheelMap"> Sess_Veh_UpdateWheelMap{}; // L2 experimental
+inline constexpr address<"Sess_VehiclePlacement_BroadcastGrid"> Sess_VehiclePlacement_BroadcastGrid{}; // L2 experimental
+inline constexpr address<"Sess_VehiclePlacement_HandleGridRequest"> Sess_VehiclePlacement_HandleGridRequest{}; // L2 experimental
+inline constexpr address<"Sess_VehiclePlacement_PlaceOnSlot"> Sess_VehiclePlacement_PlaceOnSlot{}; // L2 experimental
 using Sess_WeatherComponent_SetSystemRandomSeed_t = void(void *component);
 inline constexpr fn<"Sess_WeatherComponent_SetSystemRandomSeed", Sess_WeatherComponent_SetSystemRandomSeed_t> Sess_WeatherComponent_SetSystemRandomSeed{}; // L2 experimental, WeatherAndTimeOfDayComponent::setWeatherSystemRandomSeed
 using Sess_Weekend_Start_t = void(void *weekend, const void *entrants, bool begin);

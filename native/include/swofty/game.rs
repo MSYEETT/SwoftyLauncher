@@ -3453,6 +3453,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_DriveThroughPenalty_ReceiveData: Binding = Binding {
+        id: "Sess_DriveThroughPenalty_ReceiveData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_DriveThroughPenalty_SendData: Binding = Binding {
+        id: "Sess_DriveThroughPenalty_SendData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_DriveThroughPenalty_SendData_2: Binding = Binding {
+        id: "Sess_DriveThroughPenalty_SendData_2",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Find_GroupRowPosition: Binding = Binding {
         id: "Sess_Find_GroupRowPosition",
         kind: "func",
@@ -3528,6 +3543,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Issue_GridPlacePenalty: Binding = Binding {
+        id: "Sess_Issue_GridPlacePenalty",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Issue_PostRaceTimePenalty: Binding = Binding {
+        id: "Sess_Issue_PostRaceTimePenalty",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Issue_TimePenalty: Binding = Binding {
         id: "Sess_Issue_TimePenalty",
         kind: "func",
@@ -3535,6 +3560,21 @@ pub mod bindings {
     };
     pub const Sess_Issue_Warning: Binding = Binding {
         id: "Sess_Issue_Warning",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_LapTimes_OnNewSector: Binding = Binding {
+        id: "Sess_LapTimes_OnNewSector",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_LapTimes_ReportSplit: Binding = Binding {
+        id: "Sess_LapTimes_ReportSplit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_LapTimes_SendLapHistory: Binding = Binding {
+        id: "Sess_LapTimes_SendLapHistory",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3588,8 +3628,33 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_MarshalZoneMonitor_Init: Binding = Binding {
+        id: "Sess_MarshalZoneMonitor_Init",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MarshalZone_CheckFlags: Binding = Binding {
+        id: "Sess_MarshalZone_CheckFlags",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_MisconductManager_Ctor: Binding = Binding {
         id: "Sess_MisconductManager_Ctor",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Misconduct_DumpTable: Binding = Binding {
+        id: "Sess_Misconduct_DumpTable",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Misconduct_HandBackIllegalOvertake: Binding = Binding {
+        id: "Sess_Misconduct_HandBackIllegalOvertake",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Misconduct_OnCarToCarCollision: Binding = Binding {
+        id: "Sess_Misconduct_OnCarToCarCollision",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3605,6 +3670,41 @@ pub mod bindings {
     };
     pub const Sess_OsqTeleportToStart: Binding = Binding {
         id: "Sess_OsqTeleportToStart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_OvertakeLog_SendAllRecords: Binding = Binding {
+        id: "Sess_OvertakeLog_SendAllRecords",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_Print: Binding = Binding {
+        id: "Sess_PenaltyLog_Print",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_ReceiveAddRecord: Binding = Binding {
+        id: "Sess_PenaltyLog_ReceiveAddRecord",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_RemoveVehicle: Binding = Binding {
+        id: "Sess_PenaltyLog_RemoveVehicle",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_SendAllRecords: Binding = Binding {
+        id: "Sess_PenaltyLog_SendAllRecords",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_SendRecord: Binding = Binding {
+        id: "Sess_PenaltyLog_SendRecord",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PenaltyLog_SendRecord_2: Binding = Binding {
+        id: "Sess_PenaltyLog_SendRecord_2",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3638,6 +3738,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Read_LoosePartsRules: Binding = Binding {
+        id: "Sess_Read_LoosePartsRules",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Record_GroupTimes: Binding = Binding {
         id: "Sess_Record_GroupTimes",
         kind: "func",
@@ -3645,6 +3750,16 @@ pub mod bindings {
     };
     pub const Sess_Recordable_Register: Binding = Binding {
         id: "Sess_Recordable_Register",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagFreezeVehicles_Enter: Binding = Binding {
+        id: "Sess_RedFlagFreezeVehicles_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagPerformRepairs_Update: Binding = Binding {
+        id: "Sess_RedFlagPerformRepairs_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3688,6 +3803,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RedFlagToRestart_Exit: Binding = Binding {
+        id: "Sess_RedFlagToRestart_Exit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagToRestart_Update: Binding = Binding {
+        id: "Sess_RedFlagToRestart_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlag_SimulateUnlapLaps: Binding = Binding {
+        id: "Sess_RedFlag_SimulateUnlapLaps",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Register_EntrantSetupMode: Binding = Binding {
         id: "Sess_Register_EntrantSetupMode",
         kind: "func",
@@ -3725,6 +3855,11 @@ pub mod bindings {
     };
     pub const Sess_RetirementSequence_Update: Binding = Binding {
         id: "Sess_RetirementSequence_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RuleManager_HandleSessionEvents: Binding = Binding {
+        id: "Sess_RuleManager_HandleSessionEvents",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3918,6 +4053,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_StoryPreLights_Update: Binding = Binding {
+        id: "Sess_StoryPreLights_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Tod_BuildSessionDataset_Thunk: Binding = Binding {
         id: "Sess_Tod_BuildSessionDataset_Thunk",
         kind: "func",
@@ -3935,6 +4075,26 @@ pub mod bindings {
     };
     pub const Sess_Tyres_ClosestAvailableCompound: Binding = Binding {
         id: "Sess_Tyres_ClosestAvailableCompound",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Veh_UpdateWheelMap: Binding = Binding {
+        id: "Sess_Veh_UpdateWheelMap",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_VehiclePlacement_BroadcastGrid: Binding = Binding {
+        id: "Sess_VehiclePlacement_BroadcastGrid",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_VehiclePlacement_HandleGridRequest: Binding = Binding {
+        id: "Sess_VehiclePlacement_HandleGridRequest",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_VehiclePlacement_PlaceOnSlot: Binding = Binding {
+        id: "Sess_VehiclePlacement_PlaceOnSlot",
         kind: "func",
         status: Status::Experimental,
     };
