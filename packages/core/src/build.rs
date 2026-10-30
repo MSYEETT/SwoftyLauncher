@@ -568,6 +568,35 @@ pub fn named(store: &Store, game: &Path, e: Error) -> Error {
     e
 }
 
+/// What to do when Windows refused Swofty a file in the game folder `game` or
+/// in its data folder `data`; None for any other error.
+pub fn refused_fix(data: &Path, game: &Path, e: &Error) -> Option<String> {
+    let (Error::Io { path, source } | Error::Formats(swofty_formats::Error::IoAt { path, source })) = e
+    else {
+        return None;
+    };
+    let refused = source.kind() == std::io::ErrorKind::PermissionDenied
+        || (cfg!(windows) && source.raw_os_error() == Some(32));
+    if !refused {
+        return None;
+    }
+    if path.starts_with(game) {
+        return Some(format!(
+            "Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, or move F1 25 \
+             to a folder outside Program Files",
+            game.display()
+        ));
+    }
+    path.starts_with(data).then(|| {
+        format!(
+            "Windows refused to let Swofty change its own files in {data}, which an antivirus does while it scans \
+             them; add {data} and the F1 25 folder {game} as exclusions in your antivirus, then try again",
+            data = data.display(),
+            game = game.display()
+        )
+    })
+}
+
 /// The names of the addons in `order` the core has registry records of to apply at boot (data
 /// files or `SWOFTY_REGISTER` registrations), whatever route the database takes.
 fn registering_addons<'a>(
