@@ -46,7 +46,7 @@ The launcher doesn't start Steam for a game folder outside a Steam library, or i
 
 From 1.3.1, **Play** on an [EA app copy](/using/game-copies) runs in this order:
 
-1. The launcher starts the EA app when it's closed, waits up to 90 seconds for `EADesktop.exe`, then waits 10 seconds more. On Windows it runs `EALauncher.exe`. On Linux it runs `ea_launch_command` without the link. The status line reads **Starting the EA app…**.
+1. The launcher starts the EA app when it's closed, waits up to 90 seconds for `EADesktop.exe`, then waits 10 seconds more. On Windows it runs `EALauncher.exe`; when the launcher runs as administrator, `explorer.exe` starts it, and the EA app runs with your own rights, not as administrator. On Linux it runs `ea_launch_command` without the link. The status line reads **Starting the EA app…**.
 2. It installs your profile and offline play into the game folder. With the vanilla profile, offline play stays out: `EAAntiCheat.GameServiceLauncher.exe` stays as the EA app installed it, and EA AntiCheat runs.
 3. It hands the EA app the launch link `origin2://game/launch?offerIds=<ids>&autoDownload=1`, with `&cmdParams=-vr` for **Play in VR**. The IDs are the `<contentID>` values in the game folder's `__Installer/installerdata.xml`. The status line reads **Starting F1 25 through the EA app…**.
 4. It waits for F1 25 to start and close, including a second copy the EA app starts, then rolls the game folder back.

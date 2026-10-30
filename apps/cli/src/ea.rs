@@ -59,6 +59,10 @@ fn handoff(store: &Store) -> Option<Handoff> {
     ea_app::handoff(store.config().launch.ea_launch_command.as_deref())
 }
 
+fn desktop_opener(h: &Handoff) -> Option<(std::process::Command, bool)> {
+    ea_app::desktop_opener(h, swofty_core::compat::elevated())
+}
+
 /// Whether a session puts offline play's file in EA AntiCheat's launcher's
 /// place. The EA app runs that launcher to start F1 25 and asks to repair
 /// F1 25 when another file is there, so a vanilla session through the EA
@@ -81,8 +85,8 @@ pub fn ensure(store: &Store, opted_out: bool) -> Result<()> {
             "the EA app is closed and starting it is turned off (launch.start_store or --no-start-store); \
              open the EA app and press Play again"
         ),
-        Policy::Start => match h.as_ref().and_then(ea_app::opener) {
-            Some(mut open) => {
+        Policy::Start => match h.as_ref().and_then(desktop_opener) {
+            Some((mut open, exit_tells)) => {
                 say("ea app", "detected: closed; starting the EA app");
                 let stage = StageFile(store.root.join(steam_client::STAGE_FILE));
                 stage.set("Starting the EA app…");
@@ -90,7 +94,7 @@ pub fn ensure(store: &Store, opted_out: bool) -> Result<()> {
                     anyhow!("could not start the EA app ({e}); open the EA app and press Play again")
                 })?;
                 let since = Instant::now();
-                match wait_for_app(&mut child, || since.elapsed() >= APP_START_TIMEOUT) {
+                match wait_for_app(&mut child, exit_tells, || since.elapsed() >= APP_START_TIMEOUT) {
                     AppStart::Running => {
                         say(
                             "ea app",
@@ -173,13 +177,15 @@ enum AppStart {
 }
 
 /// Wait for EADesktop.exe after `child` was asked to open the EA app. A
-/// command that exits with an error opened nothing, so waiting is pointless.
-fn wait_for_app(child: &mut Child, timed_out: impl Fn() -> bool) -> AppStart {
+/// command that exits with an error opened nothing, so waiting is pointless,
+/// unless its exit code says nothing about the EA app (`exit_tells` false).
+fn wait_for_app(child: &mut Child, exit_tells: bool, timed_out: impl Fn() -> bool) -> AppStart {
     loop {
         if ea_app::running() {
             return AppStart::Running;
         }
         if let Ok(Some(exit)) = child.try_wait()
+            && exit_tells
             && !exit.success()
         {
             return AppStart::CommandFailed(exit);
@@ -261,7 +267,7 @@ pub fn start(store: &Store, game: &Path, args: &[String], session: &Path, before
     let pid = match wait_for_game(game, before, HANDOFF_TIMEOUT, &mut handoff)? {
         Some(pid) => pid,
         None => {
-            if let Some(mut open) = ea_app::opener(&h) {
+            if let Some((mut open, _)) = desktop_opener(&h) {
                 detach(&mut open).ok();
             }
             match offline::slot(&offline::journal_path(&store.root)) {
@@ -450,9 +456,16 @@ mod tests {
         };
         let mut child = fail.spawn().unwrap();
         assert!(matches!(
-            wait_for_app(&mut child, || false),
+            wait_for_app(&mut child, true, || false),
             AppStart::CommandFailed(_)
         ));
+        let mut child = fail.spawn().unwrap();
+        let polls = std::cell::Cell::new(0);
+        let timed_out = || {
+            polls.set(polls.get() + 1);
+            polls.get() > 3
+        };
+        assert_eq!(wait_for_app(&mut child, false, timed_out), AppStart::TimedOut);
         let mut ok = if cfg!(windows) {
             let mut c = std::process::Command::new("cmd");
             c.args(["/c", "exit 0"]);
@@ -466,7 +479,7 @@ mod tests {
             polls.set(polls.get() + 1);
             polls.get() > 3
         };
-        assert_eq!(wait_for_app(&mut child, timed_out), AppStart::TimedOut);
+        assert_eq!(wait_for_app(&mut child, true, timed_out), AppStart::TimedOut);
     }
 
     #[test]
