@@ -1660,3 +1660,17 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	ap-verify	func	Car_Read_Differential_Thunk	L1	agree	xref:0x1553d2759	V1668 ap-verify: FWD/4WD/RWD -> 1/2/3 else 0
 2026-10-28	ap-verify	func	Car_Solver_PrepareWheel	L1	agree	xref:0x1446dbce3,0x1446dbced	V1669 ap-verify: diff+0xd0[i] -> solver+0x440[i]
 2026-10-28	ap-verify	func	Car_Engine_ComputeDerived_Thunk	L1	agree	xref:0x1553f9a6a	V1670 ap-verify: engine+0x2528 plain = limiter XOR * revs scale XOR; names not string-checked
+2026-10-28	cg-verify	func	Car_Build_VtfComponents	L1	agree	xref:0x14473c36e,0x14473c883	V1671 recorded by engine-re from cg-verify (blind capstone): 23 qword stores car+0x530..+0x5e0, names Engine .. F1BodyDamage
+2026-10-28	cg-verify	func	Car_BrakeEcu_ApplyBias	L1	agree	xref:0x144676289,0x14467637f	V1672 cg-verify: bias vs 0.5, xor eax,[rdx+0x100]; mov [rdx+0xf8],eax per wheel
+2026-10-28	cg-verify	func	Car_Setup_ApplyTuning	L1	partial	xref:0x140c11593,0x140c11596,0x140c11684	V1673 cg-verify: 64-bit mask; bits 0x1/0x2 skip wing blocks; polarity for 0x4..0x1000 not uniform/untraced
+2026-10-28	cg-verify	func	Game_Read_OverridesCarMonitorMaximisedConfig	L1	agree	xref:0x141f7222f,0x141f728cf,0x141f7274d,0x141f72254	V1674 cg-verify: tab templates + 7 calls to 0x1414bdac0 (= BuildTabs)
+2026-10-28	cg-verify	func	Game_Flow_SessionStatePause	L1	agree	xref:0x142d76cb2,0x142d76d0a,0x142d76e04	V1675 cg-verify: djb2 quit/retire compares + call 0x142cea5b0
+2026-10-28	cg-verify	func	Game_PauseAvailability_Rebuild	L1	partial	xref:0x142bb338f,0x142bbd14c	V1676 cg-verify: zeroes 24 bytes at rcx; VM+0x278 only for caller 0x142bbd14c
+2026-10-28	cg-verify	func	Hud_Bind_DynamicMfdViewModel	L1	agree	xref:0x1414f6759	V1677 cg-verify: mods_panel_enabled referenced inside the bind
+2026-10-28	cg-verify	func	Game_CarSetupVm_ShowParcFerme	L1	agree	xref:0x140c1c0df	V1678 cg-verify: lng_cs_parc_ferme_title referenced
+2026-10-28	car2-verify	func	Car_FuelTank_StepBurn	L1	partial	xref:0x14468f080,0x14468f0af	V1679 car2-verify: floor 0.1 when car+0x124 == 1, else 0.05; 'AI' meaning of +0x124 not proven
+2026-10-28	car2-verify	func	Car_Engine_UpdateTemperature	L1	agree	xref:0x144689754,0x1446897c1	V1680 car2-verify: [car+0x548]+0x160 XOR +0x168 read
+2026-10-28	car2-verify	func	Game_Failure_Apply	L1	agree	xref:0x1409b33bc,0x1409b349f	V1681 car2-verify: jump table 0x145671650; type 0 -> Engine+0x2534, type 5 -> F1Aero+0x1988 |= 2, +0x1994 = 1e9
+2026-10-28	dcso-verify	func	Car_PadAssist_DriftAssist	L2	agree	decomp:re/decomp/1447546c0.c;xref:0x1447552bc	V1682 claim 14 static scan, indirect writes not excluded
+2026-10-28	sp-verify	func	Car_Setup_ApplyTuning	L2	agree	decomp:re/decomp/140c11550.c;xref:0x140c12854	V1683 claim 2; bits 17/18 together
+2026-10-28	gb-verify	func	Car_Contact_QueryWheels	L2	agree	decomp:re/decomp/1446d8cf0.c;xref:0x1446daef4	V1684 claim 1 depth/bumps on wheel+0x254
