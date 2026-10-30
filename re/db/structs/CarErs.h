@@ -63,5 +63,5 @@ struct CarErs {
     /* 0x1a00 */ float harvest_power_mguk;                    // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d11b0,0x155479212 W (channel)
     /* 0x1a04 */ float harvest_power_mguh;                    // L2 decomp:re/decomp/1554791c0.c;xref:0x1446d11c0,0x155479212 W (channel)
     /* 0x1a14 */ float deploy_power;                          // L2 decomp:re/decomp/1446d1210.c;xref:0x1446d11d0 W (channel); MGU-K wear input
-    /* 0x1a68 */ int32_t ers_mode;                            // L3 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446e2290.c;xref:0x155479223;trace:T125/2026-10-28-gp:16;trace:T125/2026-10-28-gp:20 0 None, 1 Medium, 2 Overtake, 3 Hotlap (index into modes); Reset sets 1 Live: 1 (Medium) or 2 (Overtake) for AI cars on track; the MFD link (T125) still needs a driver. The factory does not write it (V1651): unset until a Reset with 0x10|0x200.
+    /* 0x1a68 */ int32_t ers_mode;                            // L3 decomp:re/decomp/1554791c0.c;decomp:re/decomp/1446e2290.c;xref:0x155479223;trace:T125/2026-10-28-gp:16;trace:T125/2026-10-28-gp:20 0 None, 1 Medium, 2 Overtake, 3 Hotlap (index into modes); Reset sets 1 Live: 1 (Medium) or 2 (Overtake) for AI cars on track; the MFD link (T125) still needs a driver. The factory does not write it (V2124): unset until a Reset with 0x10|0x200.
 };
