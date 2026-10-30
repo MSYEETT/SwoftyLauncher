@@ -116,7 +116,6 @@ def main():
 def build_game():
     import copy
     import hashlib
-    import subprocess
 
     import pkg
     import erpw
@@ -152,7 +151,7 @@ def build_game():
             for tag, data, comp in frags:
                 f = erpw.Frag()
                 f.name, f.size, f.flags, f.comp = tag, len(data), 0x10, comp
-                f.raw = subprocess.run(["zstd", "-c", "-3", "-q"], input=data, capture_output=True, check=True).stdout if comp == erpw.ZSTD else data
+                f.raw = erpw.zstd_c(data, level=3) if comp == erpw.ZSTD else data
                 f.packed, f.off = len(f.raw), 0
                 r.frags.append(f)
             r.hash = hashlib.md5(b"".join(d for _, d, _ in frags)).digest()
