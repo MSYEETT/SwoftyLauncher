@@ -154,12 +154,31 @@ const STAT_ID_CEILINGS: &[(&str, &str, StatIdCeiling)] = &[
         "scenario",
         StatIdCeiling { max: 254, from: None },
     ),
+    // The mask parser 0x142a0ddb0 sets bit `stat_id` of a u32 for each mode a row lists and throws
+    // 'invalid bitset position' at boot above 31.
+    (
+        "game_setup.game_setup_modes",
+        "game_setup_mode",
+        StatIdCeiling { max: 31, from: None },
+    ),
+    // The same parser's season mask, by `statId`.
+    (
+        "game_setup.seasons",
+        "season",
+        StatIdCeiling { max: 31, from: None },
+    ),
+    // Each game setup mode names its entrant setup mode; kept to the mode mask's range with it.
+    (
+        "entrants.entrant_setup_modes",
+        "entrant_setup_mode",
+        StatIdCeiling { max: 31, from: None },
+    ),
 ];
 
-/// The key that holds the id of `table`'s rows named `row`: `statId` for scenarios, else `stat_id`.
+/// The key that holds the id of `table`'s rows named `row`: `statId` for scenarios and seasons, else `stat_id`.
 pub fn stat_id_field(table: &str, row: &str) -> &'static str {
     match (table, row) {
-        ("game_setup.scenarios", "scenario") => "statId",
+        ("game_setup.scenarios", "scenario") | ("game_setup.seasons", "season") => "statId",
         _ => "stat_id",
     }
 }
@@ -466,6 +485,96 @@ pub trait FieldNames {
         let _ = (table, row, id);
         false
     }
+
+    /// The install's kept ids for the rows `add-row` gives an id of its own; see [`RowIds`].
+    fn row_ids(&self) -> Option<&dyn RowIds> {
+        None
+    }
+}
+
+/// The ids the install keeps for the rows `add-row` gives an id of its own, so a row gets the same
+/// id at every build whatever else the build adds. A key names an addon's row: `<addon>/<table>.<row>/<label>`.
+pub trait RowIds {
+    /// The key of this addon's row labelled `label` in `table`'s rows named `row`, claimed for this
+    /// build, and the id kept for it.
+    fn claim(&self, table: &str, row: &str, label: &str) -> Claimed;
+
+    /// Whether `id` of `table`'s rows named `row` is kept for a row other than `key`, or held by a
+    /// record of the core's registry.
+    fn taken(&self, table: &str, row: &str, key: &str, id: i64) -> bool;
+
+    /// Keeps `id` for `key`, which it got as `from` says.
+    fn keep(&self, table: &str, row: &str, key: &str, id: i64, from: IdFrom);
+
+    /// How many `add-row` ops into `table`'s rows named `row` the build has.
+    fn adds(&self, table: &str, row: &str) -> usize;
+
+    /// The lowest id kept for a row of an addon this build leaves out that no record of the core's registry
+    /// holds and `free` accepts, moved to `key`, and the key that held it.
+    fn reclaim(&self, table: &str, row: &str, key: &str, free: &dyn Fn(i64) -> bool)
+    -> Option<(i64, String)>;
+}
+
+/// A row's claimed key, its kept id, and the id the profile's last build gave a row with its label.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Claimed {
+    pub key: String,
+    pub kept: Option<i64>,
+    pub seed: Option<i64>,
+    /// The id the build planned for the key from its hash, rows with lower keys taking theirs first.
+    pub hashed: Option<i64>,
+}
+
+/// How a row got the id the install keeps for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IdFrom {
+    /// The profile's last build before the store gave its row that id.
+    Seeded,
+    /// The hash of its key, or the next id after it that was free.
+    Hashed,
+    /// The next free id above the table's rows, in load order, in a table with a pool of
+    /// [`ORDINAL_POOL`] ids or fewer.
+    Next,
+    /// The kept id was taken, and the row took a new one.
+    Moved,
+    /// The table was full, and the row took an id kept for an addon the build left out.
+    Reused,
+}
+
+/// The fewest ids above the stock rows' highest the hash of a row key spreads over.
+pub const HASH_WINDOW: u64 = 32;
+
+/// A table whose ceiling leaves this many ids above the stock rows or fewer gives a new row the
+/// next free id in load order, in place of a hashed one.
+pub const ORDINAL_POOL: i64 = 32;
+
+/// Whether [`hash_pool`]'s pool gives new rows the next free id rather than a hashed one.
+pub fn ordinal((lo, _, max): (i64, i64, Option<i64>)) -> bool {
+    max.is_some_and(|max| max - lo < ORDINAL_POOL)
+}
+
+/// The pool a row's hashed id comes from: its first id, how many ids the hash spreads over, and
+/// the highest id when the table has a [`StatIdCeiling`]. `stock` is the stock rows' highest id
+/// and `adds` the number of `add-row` ops into the table in the build; the hash spreads over the
+/// power of two at or above twice `adds`, at least [`HASH_WINDOW`], and no further than the ceiling.
+pub fn hash_pool(ceiling: Option<StatIdCeiling>, stock: i64, adds: usize) -> (i64, i64, Option<i64>) {
+    let lo = ceiling.and_then(|c| c.from).unwrap_or(stock + 1);
+    let window = (2 * adds as u64).max(HASH_WINDOW).next_power_of_two() as i64;
+    match ceiling {
+        Some(c) => (lo, window.min(c.max - lo + 1).max(1), Some(c.max)),
+        None => (lo, window, None),
+    }
+}
+
+/// The ids to try for `key` in the pool [`hash_pool`] gives: the hash of the key, then each id
+/// after it, wrapping round to the first at the ceiling.
+pub fn hash_probe(key: &str, (lo, span, max): (i64, i64, Option<i64>)) -> Box<dyn Iterator<Item = i64>> {
+    let start = lo + (fnv1a64(key) % span.max(1) as u64) as i64;
+    match max {
+        Some(max) => Box::new((start..=max).chain(lo..start)),
+        None => Box::new(start..),
+    }
 }
 
 /// Stock record keys and no field names.
@@ -525,6 +634,10 @@ impl FieldNames for Schema<'_> {
 
     fn reserved(&self, table: &str, row: &str, id: i64) -> bool {
         self.names.reserved(table, row, id)
+    }
+
+    fn row_ids(&self) -> Option<&dyn RowIds> {
+        self.names.row_ids()
     }
 }
 
@@ -1173,6 +1286,17 @@ fn stat_ids(db: &Db, table: &str, row: &str, rows: usize, skip: &HashSet<String>
         .collect()
 }
 
+// The highest id a stock row of the table holds, or a row a track added; -1 when none does.
+fn stock_top(db: &Db, names: &dyn FieldNames, table: &str, row: &str, rows: usize) -> i64 {
+    let field = stat_id_field(table, row);
+    (0..rows)
+        .map(|i| fnv1a64(format!("{table}.{row}_{i}.{field}")))
+        .filter(|k| names.stock(*k) || names.track(*k))
+        .filter_map(|k| db.text(k)?.trim().parse::<i64>().ok())
+        .max()
+        .unwrap_or(-1)
+}
+
 // The row added earlier that holds `id`, unless a stock row holds it too.
 fn added_holder(
     db: &Db,
@@ -1351,10 +1475,23 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
         }
     };
     let ceiling = stat_id_ceiling(&path, row).filter(|_| top_level);
+    let field = stat_id_field(&path, row);
+    let kept = names.row_ids().filter(|_| top_level);
+    let label = rows
+        .iter()
+        .find(|r| r.key == dst.field("_metadata_"))
+        .map(|r| r.text().into_owned());
+    let later = |id: i64| names.reserved(&path, row, id);
+    let held = |id: i64| {
+        (0..n).map(|i| format!("{path}.{row}_{i}")).find(|r| {
+            db.text(fnv1a64(format!("{r}.{field}")))
+                .and_then(|v| v.trim().parse::<i64>().ok())
+                == Some(id)
+        })
+    };
     // The next id above the table's highest, or the lowest free one when that passes the ceiling.
     // A moved id, and any id under the ceiling, passes over the ids later addons set on their rows.
     let next = |moving: bool| -> Result<(i64, Option<String>)> {
-        let later = |id: i64| names.reserved(&path, row, id);
         let mut top = stat_ids(db, &path, row, n, &HashSet::new())
             .into_iter()
             .max()
@@ -1380,16 +1517,107 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             _ => Ok((top, None)),
         }
     };
-    if fresh && let Some(r) = rows.iter_mut().find(|r| r.key == stat_key) {
-        let old = String::from_utf8_lossy(&r.value).into_owned();
-        let (next, passed) = next(false)?;
-        r.value = next.to_string().into_bytes();
+    // The id kept for the row when it's still free, else the id the profile's last build gave a row with
+    // its label, else the id the build planned from the row's key, else the first free one from its hash;
+    // a full table takes back an id kept for an addon the build leaves out.
+    let give = |moving: bool| -> Result<(i64, Option<String>)> {
+        let Some((k, label)) = kept.zip(label.as_deref()) else {
+            return next(moving);
+        };
+        let claimed = k.claim(&path, row, label);
+        let key = claimed.key.as_str();
+        let unfit = |id: i64| -> Option<String> {
+            if let Some(c) = ceiling.filter(|c| id > c.max || id < 0) {
+                return Some(format!("is above {}, the highest the game reads", c.max));
+            }
+            let r = held(id)?;
+            let label = db.text(fnv1a64(format!("{r}._metadata_")));
+            Some(format!(
+                "is held by {r} ({})",
+                label.as_deref().unwrap_or("no label")
+            ))
+        };
+        let blocked = |id: i64| -> Option<String> {
+            unfit(id).or_else(|| {
+                k.taken(&path, row, key, id)
+                    .then(|| "is kept for another row or held by a record of the core's registry".to_owned())
+            })
+        };
+        let mut notes = Vec::new();
+        let mut from = IdFrom::Hashed;
+        match claimed.kept {
+            Some(id) => match blocked(id) {
+                None => return Ok((id, Some("kept from row-ids.json".to_owned()))),
+                Some(why) => {
+                    notes.push(format!("{id}, kept for it, {why}"));
+                    from = IdFrom::Moved;
+                }
+            },
+            None => {
+                if let Some(id) = claimed.seed.filter(|id| blocked(*id).is_none()) {
+                    k.keep(&path, row, key, id, IdFrom::Seeded);
+                    return Ok((id, Some("as the last build gave it".to_owned())));
+                }
+            }
+        }
+        let free = |id: i64| blocked(id).is_none() && !later(id);
+        let pool = hash_pool(ceiling, stock_top(db, names, &path, row, n), k.adds(&path, row));
+        let picked = match pool.2.filter(|_| ordinal(pool)) {
+            Some(max) => {
+                let top = stat_ids(db, &path, row, n, &HashSet::new())
+                    .into_iter()
+                    .max()
+                    .map_or(0, |m| m + 1)
+                    .max(pool.0);
+                (top..=max)
+                    .chain(pool.0..top.min(max + 1))
+                    .find(|id| free(*id))
+                    .map(|id| (id, IdFrom::Next))
+            }
+            None => claimed
+                .hashed
+                .filter(|id| free(*id))
+                .or_else(|| hash_probe(key, pool).find(|id| free(*id)))
+                .map(|id| (id, IdFrom::Hashed)),
+        };
+        let id = match picked {
+            Some((id, how)) => {
+                if how == IdFrom::Hashed {
+                    notes.push("from the row's key".to_owned());
+                }
+                if from != IdFrom::Moved {
+                    from = how;
+                }
+                id
+            }
+            None => {
+                let free = |id: i64| unfit(id).is_none() && !later(id);
+                let Some((id, held_by)) = k.reclaim(&path, row, key, &free) else {
+                    return Err(Error::Resolve(format!(
+                        "{what}: {path} has no free {field} up to {}, the highest the game reads",
+                        pool.2.unwrap_or(i64::MAX)
+                    )));
+                };
+                let max = ceiling.map_or(String::new(), |c| format!(" up to {}", c.max));
+                notes.push(format!(
+                    "no other id{max} is free; reused from {held_by}, which this build leaves out"
+                ));
+                from = IdFrom::Reused;
+                id
+            }
+        };
+        k.keep(&path, row, key, id, from);
+        Ok((id, (!notes.is_empty()).then(|| notes.join("; "))))
+    };
+    if fresh && let Some(i) = rows.iter().position(|r| r.key == stat_key) {
+        let old = String::from_utf8_lossy(&rows[i].value).into_owned();
+        let (next, passed) = give(false)?;
+        rows[i].value = next.to_string().into_bytes();
         cx.report.lines.push(match passed {
             Some(why) => format!("{what}: stat_id {next} (the source's is {old}; {why})"),
             None => format!("{what}: stat_id {next} (the source's is {old})"),
         });
     }
-    let field = stat_id_field(&path, row);
     let id_key = dst.field(field);
     let asked = set.get(field).and_then(|v| v.trim().parse::<i64>().ok());
     let moved = match (asked, ceiling) {
@@ -1415,12 +1643,13 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
     if let Some((old, holder, holder_label, why)) = moved
         && let Some(r) = rows.iter_mut().find(|r| r.key == id_key)
     {
-        let (new, _) = next(true)?;
+        let (new, note) = give(true)?;
         r.value = new.to_string().into_bytes();
         let label = set.get("_metadata_").cloned();
-        cx.report
-            .lines
-            .push(format!("{what}: {field} {old} {why}; {field} {new}"));
+        cx.report.lines.push(match note {
+            Some(note) => format!("{what}: {field} {old} {why}; {field} {new} ({note})"),
+            None => format!("{what}: {field} {old} {why}; {field} {new}"),
+        });
         db.moved
             .insert((format!("{path}.{row}"), old.to_string()), new.to_string());
         cx.report.moved_stat_ids.push(MovedStatId {

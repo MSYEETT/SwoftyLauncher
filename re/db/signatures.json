@@ -74181,7 +74181,8 @@
     }
    ],
    "used_by": [
-    "addons/progressive/native/src/ui/logos.cpp"
+    "addons/progressive/native/src/ui/logos.cpp",
+    "native/src/core/netplay.cpp"
    ]
   },
   {
@@ -74725,7 +74726,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/ers_mode.cpp"
+   ]
   },
   {
    "id": "car.fuel_flow_store",

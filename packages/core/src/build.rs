@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -69,6 +69,8 @@ pub struct Built {
     pub conflicts: Vec<Conflict>,
     pub waiting: Vec<Op>,
     pub report: Report,
+    /// Each addon's added rows with a stat id, as `<table>.<row>/<label>` to the id the build gave.
+    pub row_ids: BTreeMap<String, BTreeMap<String, i64>>,
 }
 
 /// The recorded originals of the last baseline read, by its path and when it
@@ -388,6 +390,8 @@ struct Saved {
     waiting: Vec<Op>,
     #[serde(default)]
     report: Option<Report>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    row_ids: BTreeMap<String, BTreeMap<String, i64>>,
 }
 
 impl Saved {
@@ -414,6 +418,7 @@ impl Saved {
             conflicts: built.conflicts.clone(),
             waiting: built.waiting.clone(),
             report: Some(built.report.clone()),
+            row_ids: built.row_ids.clone(),
         })
     }
 
@@ -473,6 +478,7 @@ impl Saved {
         built.report.built_at = crate::conflicts::now();
         built.conflicts = self.conflicts;
         built.waiting = self.waiting;
+        built.row_ids = self.row_ids;
         Ok(())
     }
 }
@@ -1135,7 +1141,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         built.report.order = p.enabled().map(str::to_owned).collect();
         crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
         if !checking {
-            fingerprint::record_outputs(store, profile, outputs).ok();
+            fingerprint::record_outputs(store, profile, with_row_ids(outputs, &built.row_ids)).ok();
             track_files(store, game, &mut built, &tracks, &slots, &recorded, &record_ui);
         }
         return Ok(built);
@@ -1198,7 +1204,20 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         let staged = (planner.route(Kind::Db) == Route::Runtime && planner.has_db()).then(|| db.clone());
         let mut db_report = crate::ops::DbReport::default();
         planner.keep_entrant_lists(crate::entrant_lists::StockLists::new(&shipped_db));
+        let row_ids_lock = crate::row_ids::lock(&store.root)?;
+        let last = crate::row_ids::last_build(&store.overlays_dir(profile), &built.buildhash, GVDB);
+        let (row_ids, row_id_warnings) =
+            crate::row_ids::Store::load(&store.root, Some(&game.dir), profile, last);
+        built.warnings.extend(row_id_warnings);
+        planner.keep_row_ids(row_ids);
         let added = planner.apply_db_report(&mut db, &stock, &tracked, &mut db_report)?;
+        if let Some(ids) = planner.take_row_ids() {
+            built.lines.extend(ids.summary());
+            if !checking {
+                ids.save(&store.root)?;
+            }
+        }
+        drop(row_ids_lock);
         built.lines.extend(db_report.lines);
         built.warnings.extend(db_report.warnings);
         built.warnings.extend(planner.take_skipped());
@@ -1250,6 +1269,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         for c in &mut copies {
             c.quiet = c.addon == CORE_ID;
         }
+        built.row_ids = added_row_ids(&db, &copies);
         let addon_name = |id: &str| addons.get(id).map_or(id, |m| m.name.as_str()).to_owned();
         let side = crate::dbedit::deps::check(&db, &copies, &addon_name);
         built.warnings.extend(side.warnings);
@@ -1923,10 +1943,73 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     }
     crate::write_json(&crate::conflicts::path(store, profile), &built.report)?;
     if !checking {
-        fingerprint::record_outputs(store, profile, outputs).ok();
+        fingerprint::record_outputs(store, profile, with_row_ids(outputs, &built.row_ids)).ok();
         track_files(store, game, &mut built, &tracks, &slots, &recorded, &record_ui);
     }
     Ok(built)
+}
+
+// Each addon's added rows of top-level tables with a stat id, as `<table>.<row>/<label>` to its id.
+fn added_row_ids(db: &Gvdb, copies: &[crate::dbedit::deps::Copy]) -> BTreeMap<String, BTreeMap<String, i64>> {
+    let rows: HashSet<&str> = copies.iter().map(|c| c.row.as_str()).collect();
+    let mut wanted: HashMap<u64, (&str, &str, &str)> = HashMap::new();
+    for c in copies {
+        let Some((table, last)) = c.row.rsplit_once('.') else {
+            continue;
+        };
+        let Some((row, _)) = last.rsplit_once('_') else {
+            continue;
+        };
+        if crate::ops::row_shape(table).contains("_N") {
+            continue;
+        }
+        let field = crate::ops::stat_id_field(table, row);
+        wanted.insert(
+            swofty_formats::hash::fnv1a64(format!("{}.{field}", c.row)),
+            (&c.addon, &c.row, "id"),
+        );
+        wanted.insert(
+            swofty_formats::hash::fnv1a64(format!("{}._metadata_", c.row)),
+            (&c.addon, &c.row, "label"),
+        );
+    }
+    let mut found: BTreeMap<&str, (&str, Option<String>, Option<i64>)> = BTreeMap::new();
+    for r in &db.records {
+        let Some(&(addon, row, what)) = wanted.get(&r.key) else {
+            continue;
+        };
+        let e = found.entry(row).or_insert((addon, None, None));
+        match what {
+            "label" => e.1 = Some(r.text().into_owned()),
+            _ => e.2 = r.text().trim().parse().ok(),
+        }
+    }
+    let mut out: BTreeMap<String, BTreeMap<String, i64>> = BTreeMap::new();
+    for (row, (addon, label, id)) in found {
+        let (Some(label), Some(id)) = (label, id) else {
+            continue;
+        };
+        if !rows.contains(row) {
+            continue;
+        }
+        let table = row.rsplit_once('_').map_or(row, |(t, _)| t);
+        out.entry(addon.to_owned())
+            .or_default()
+            .insert(format!("{table}/{label}"), id);
+    }
+    out
+}
+
+fn with_row_ids(
+    mut outputs: BTreeMap<String, fingerprint::Output>,
+    row_ids: &BTreeMap<String, BTreeMap<String, i64>>,
+) -> BTreeMap<String, fingerprint::Output> {
+    for (addon, ids) in row_ids {
+        if let Some(o) = outputs.get_mut(addon) {
+            o.row_ids = ids.clone();
+        }
+    }
+    outputs
 }
 
 /// The menu UI lists the build makes a track record's pictures for: its rows come from the core
@@ -3152,17 +3235,66 @@ mod tests {
             db.get_text("entrants.teams.team_2._metadata_").as_deref(),
             Some("team12_26")
         );
+        let key = "t.rows/entrants.teams.team/team12_26";
+        let hashed = crate::ops::hash_probe(key, crate::ops::hash_pool(None, 101, 1))
+            .next()
+            .unwrap();
         assert_eq!(
-            db.get_text("entrants.teams.team_2.stat_id").as_deref(),
-            Some("102")
+            db.get_text("entrants.teams.team_2.stat_id"),
+            Some(hashed.to_string())
         );
         assert!(
-            built
-                .lines
-                .iter()
-                .any(|l| l.ends_with("stat_id 102 (the source's is 100)")),
+            built.lines.iter().any(|l| l.ends_with(&format!(
+                "stat_id {hashed} (the source's is 100; from the row's key)"
+            ))),
             "{:?}",
             built.lines
+        );
+        let outputs: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(store.root.join(fingerprint::OUTPUTS_FILE)).unwrap())
+                .unwrap();
+        assert_eq!(
+            outputs["default"]["t.rows"]["row_ids"]["entrants.teams.team/team12_26"],
+            hashed
+        );
+        let ids = crate::row_ids::path(&store.root);
+        let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&ids).unwrap()).unwrap();
+        assert_eq!(kept["rows"][key]["id"], hashed);
+        std::fs::write(
+            &ids,
+            format!(r#"{{"version":1,"rows":{{"{key}":{{"id":140,"from":"hashed"}}}}}}"#),
+        )
+        .unwrap();
+        std::fs::remove_file(built.overlay.join(SAVED_FILE)).unwrap();
+        let again = build(&store, "default", &game).unwrap();
+        let db = Gvdb::parse(&std::fs::read(&again.plan.data[GVDB]).unwrap()).unwrap();
+        assert_eq!(
+            db.get_text("entrants.teams.team_2.stat_id").as_deref(),
+            Some("140")
+        );
+        assert!(
+            again
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 140 (the source's is 100; kept from row-ids.json)")),
+            "{:?}",
+            again.lines
+        );
+        std::fs::remove_file(&ids).unwrap();
+        std::fs::rename(&again.overlay, store.overlays_dir("default").join("older")).unwrap();
+        let seeded = build(&store, "default", &game).unwrap();
+        assert!(
+            seeded
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 140 (the source's is 100; as the last build gave it)")),
+            "{:?}",
+            seeded.lines
+        );
+        let kept: serde_json::Value = serde_json::from_slice(&std::fs::read(&ids).unwrap()).unwrap();
+        assert_eq!(
+            kept["rows"][key],
+            serde_json::json!({ "id": 140, "from": "seeded" })
         );
         std::fs::remove_dir_all(&root).ok();
     }
