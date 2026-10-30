@@ -1781,3 +1781,10 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	v3-verify	func	Sess_Strategy_RedFlagRecomputeAll	L2	partial	xref:0x142dfd595	V1789 R2; argument dereferenced
 2026-10-29	v3-verify	func	Sess_RedFlagStrategyCalc_Update	L2	partial	xref:0x142dfd595	V1790 R2; vtable start unverifiable
 2026-10-29	pm-verify	func	Ne_Phys_ParseMaterials	L2	agree	decomp:re/decomp/1440bee90.c;xref:0x1440bef14	V1791 blind re-check of the corrected notes (layout, defaults, extension table, no readable caller)
+2026-10-29	sd-verify	func	Sess_ScStoppedCarAccumulator_Update	L2	partial	xref:0x14362f0c0	V1792 D1; base to both totals, +50 priority only
+2026-10-29	sd-verify	func	Sess_ScDebrisAccumulator_Update	L2	partial	xref:0x1436312d0	V1793 D2; 350 * detached volume fraction
+2026-10-29	sd-verify	func	Sess_ScCond_DeploymentPoints_Update	L2	agree	xref:0x14362f0c0	V1794 D3
+2026-10-29	sd-verify	func	Sess_ScCond_DeploymentFrequency_Update	L2	partial	xref:0x14362f0c0	V1795 D4; timer semantics, lap_threshold not here
+2026-10-29	sd-verify	func	Sess_ScCond_ReturnVsc_Update	L2	partial	xref:0x14363a4b0	V1796 D5; extra return conditions
+2026-10-29	sd-verify	func	Sess_ScCond_MaxLapsCompleted_Read	L2	agree	xref:0x145853c80	V1797 D6
+2026-10-29	sd-verify	func	Sess_ScCond_DynamicObstruction_Update	L2	agree	xref:0x143631bd0	V1798 D7
