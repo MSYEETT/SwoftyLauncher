@@ -64,9 +64,12 @@ std::string text_from(const Value &v, const std::string &fallback)
     return fallback;
 }
 
+constexpr uint32_t MODEL_2026 = 0;
+constexpr uint32_t MODEL_2025 = 1;
+
 std::string model_ref(uint32_t model)
 {
-    return model == 2 ? "game/f1_career_2025" : "game/f1_career_2026";
+    return model == MODEL_2025 ? "game/f1_career_2025" : "game/f1_career_2026";
 }
 
 }
@@ -169,6 +172,61 @@ void content_shown(const Value &rec, ContentDesc &d)
     for (uint32_t i = 1; i < 4; i++)
         if (c == CAREERS[i])
             d.careers = i;
+}
+
+std::string content_mode_id(const std::string &id, const Value &rec)
+{
+    std::string mode = str(rec, "mode");
+    if (mode.empty() || mode.find('/') != std::string::npos)
+        return mode;
+    std::string addon = addon_of(id);
+    return addon.empty() ? mode : addon + "/" + mode;
+}
+
+bool content_from(const std::string &id, const Value &rec, const Value &mode, ContentDesc &d, std::string &why)
+{
+    d = ContentDesc{};
+    why.clear();
+    if (!rec.is_object()) {
+        why = "the record is not an object";
+        return false;
+    }
+    bool has_mode = mode.is_object();
+    auto field = [&](const char *name) {
+        std::string v = str(rec, name);
+        return v.empty() && has_mode ? str(mode, name) : v;
+    };
+    d.id = key_of(id);
+    d.data_group = field("data_group");
+    d.suffix = str(rec, "suffix");
+    d.mode = field("save_container");
+    d.title = text_from(rec["title"], has_mode ? text_from(mode["title"], "") : "");
+    d.description = text_from(rec["description"], d.title);
+    std::string model = rec["model"].is_string() ? std::string(rec["model"].as_string()) : std::string();
+    if (model.empty() || model == model_ref(MODEL_2026))
+        d.model = MODEL_2026;
+    else if (model == model_ref(MODEL_2025))
+        d.model = MODEL_2025;
+    else {
+        why = "model " + model + " is not game/f1_career_2026 or game/f1_career_2025";
+        return false;
+    }
+    std::string mode_id = content_mode_id(id, rec);
+    std::string from_mode = has_mode ? ", and its career.mode record " + mode_id + " gives none"
+                            : mode_id.empty() ? std::string()
+                                              : ", and its mode " + mode_id + " is no career.mode record";
+    if (d.data_group.empty())
+        why = "it names no data_group" + from_mode;
+    else if (d.mode.empty())
+        why = "it names no save_container" + from_mode;
+    else if (d.title.empty())
+        why = "it names no title" + from_mode;
+    else if (d.suffix.empty())
+        why = "it names no suffix (Choose Driver lists F1CAREER_<suffix>)";
+    if (!why.empty())
+        return false;
+    content_shown(rec, d);
+    return true;
 }
 
 Value hub_record(const HubTab &t)
