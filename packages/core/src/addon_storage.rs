@@ -34,6 +34,11 @@ pub const PROFILES_DIR: &str = "addon-profiles";
 /// The loader's own folder under `swofty/addons/`.
 const CORE_DIR: &str = "core";
 
+/// The core's cache of the team logo archives it builds at boot (docs/std/systems/teams.md "Logos").
+/// It is no addon's storage: a session end leaves it in the game folder for the next boot, and a
+/// restore removes it with `swofty/`.
+pub const LOGO_CACHE: &str = "swofty.logos";
+
 pub fn dir(data: &Path) -> PathBuf {
     data.join(DIR)
 }
@@ -51,7 +56,7 @@ fn game_rel(id: &str, rel: &str) -> String {
 }
 
 fn valid(id: &str) -> bool {
-    !id.is_empty() && id != "." && id != ".." && id != CORE_DIR
+    !id.is_empty() && id != "." && id != ".." && id != CORE_DIR && id != LOGO_CACHE
 }
 
 /// The folder the game keeps the addon `id`'s files in: its storage in the
@@ -655,6 +660,7 @@ mod tests {
         assert_eq!(addon_of("swofty/addons/a.b/native/x.dll"), Some("a.b"));
         assert_eq!(addon_of("swofty\\addons\\a.b\\x.dll"), Some("a.b"));
         assert_eq!(addon_of("swofty/addons/core/swofty_core.dll"), None);
+        assert_eq!(addon_of("swofty/addons/swofty.logos/logos_1.manifest"), None);
         assert_eq!(addon_of("swofty/addons/a.b"), None);
         assert_eq!(addon_of("swofty/settings.json"), None);
         assert_eq!(addon_of("swofty/addons/../x"), None);

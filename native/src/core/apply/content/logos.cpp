@@ -3,6 +3,7 @@
 #include "../files_api.hpp"
 #include "../../runtime.hpp"
 #include "logo_build.hpp"
+#include "logo_cache.hpp"
 #include "png_straight.hpp"
 
 #include <swofty/mixin.hpp>
@@ -58,11 +59,34 @@ void list_erps(const std::wstring &dir, const std::string &rel, std::vector<std:
     std::sort(out.begin(), out.end());
 }
 
-uint64_t stamp(uint64_t h, const std::string &s)
+using logo_cache::stamp;
+
+bool stat_file(const std::string &rel, uint64_t &size, uint64_t &time)
 {
-    for (unsigned char c : s)
-        h = (h ^ c) * 0x100000001b3ull;
-    return h * 0x100000001b3ull + 0x9e3779b97f4a7c15ull;
+    WIN32_FILE_ATTRIBUTE_DATA a{};
+    if (!GetFileAttributesExW(game_file(rel).c_str(), GetFileExInfoStandard, &a))
+        return false;
+    size = (uint64_t(a.nFileSizeHigh) << 32) | a.nFileSizeLow;
+    time = (uint64_t(a.ftLastWriteTime.dwHighDateTime) << 32) | a.ftLastWriteTime.dwLowDateTime;
+    return true;
+}
+
+bool hash_file(const std::string &rel, uint64_t &hash)
+{
+    HANDLE h = CreateFileW(game_file(rel).c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                           FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (h == INVALID_HANDLE_VALUE)
+        return false;
+    std::vector<char> buf(size_t(1) << 20);
+    logo_cache::Bytes bytes;
+    DWORD got = 0;
+    bool ok = true;
+    while ((ok = ReadFile(h, buf.data(), DWORD(buf.size()), &got, nullptr)) && got)
+        bytes.add(buf.data(), got);
+    CloseHandle(h);
+    if (ok)
+        hash = bytes.done();
+    return ok;
 }
 
 std::string flat(const std::string &rel)
@@ -104,17 +128,22 @@ void deliver_logos(const std::vector<LogoImage> &logos, LogoReport &report)
         return;
     std::vector<std::string> files;
     list_erps(game_file(logo_build::UI_FOLDER), logo_build::UI_FOLDER, files, 0);
-    for (auto &rel : files) {
-        WIN32_FILE_ATTRIBUTE_DATA a{};
-        if (GetFileAttributesExW(game_file(rel).c_str(), GetFileExInfoStandard, &a))
-            key = stamp(key, rel + "|" + std::to_string(a.nFileSizeLow) + "|" + std::to_string(a.nFileSizeHigh) + "|" +
-                                 std::to_string(a.ftLastWriteTime.dwLowDateTime) + "|" + std::to_string(a.ftLastWriteTime.dwHighDateTime));
-    }
-    std::string id = runtime::hex16(key).substr(2);
     std::string dir = "addons/" + std::string(CACHE_ADDON) + "/";
     std::wstring dirw = runtime::under_swofty("addons");
     CreateDirectoryW(dirw.c_str(), nullptr);
     CreateDirectoryW(runtime::under_swofty(dir).c_str(), nullptr);
+    std::wstring stamps_path = runtime::under_swofty(dir + logo_cache::STAMPS);
+    std::string stamps_before = runtime::read_file(stamps_path, size_t(16) << 20);
+    DWORD hash_t0 = GetTickCount();
+    logo_cache::Keyed keyed = logo_cache::key_archives(key, files, {stat_file, hash_file}, logo_cache::parse(stamps_before));
+    if (keyed.hashed)
+        report.lines.push_back("team.logo: " + std::to_string(keyed.hashed) + " archive(s) (" +
+                               std::to_string(keyed.hashed_bytes >> 20) + " MB) hashed in " + std::to_string(GetTickCount() - hash_t0) +
+                               " ms");
+    std::string stamps_after = logo_cache::text(keyed.stamps);
+    if (stamps_after != stamps_before)
+        runtime::write_file(stamps_path, stamps_after);
+    std::string id = runtime::hex16(keyed.key).substr(2);
     std::string manifest_name = "logos_" + id + ".manifest";
     std::string manifest = runtime::read_file(runtime::under_swofty(dir + manifest_name), size_t(1) << 20);
     std::vector<std::pair<std::string, std::string>> routes;
