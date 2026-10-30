@@ -492,6 +492,23 @@ material_override
 name_loc_tag
 nb_colours
 outfit
+@driver_market.driver_market.DataGroup_N.driver_firings.DriverFiredSchedule_N.DriverFired_N
+_metadata_
+driver
+season_index
+@driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N
+_metadata_
+driver
++date_time
+@driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N.date_time_N
+_metadata_
+day
+daylight_saving
+hour
+minute
+month
+second
+year
 @driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements.TeamDriverRatingRangeRequirement_N
 _metadata_
 rating_range
@@ -513,6 +530,13 @@ weekend_formats
 _metadata_
 evolution
 info
+@drs.drs_allowed_lap.drs_allowed_lap_group_N
++drs_allowed_lap
+_drs_allowed_lap_instancecount_
+_metadata_
+@drs.drs_allowed_lap.drs_allowed_lap_group_N.drs_allowed_lap_N
+_metadata_
+lap_number
 @engine_management.driver_wear_rates.driver_wear_rate_N
 _metadata_
 component_percentage
@@ -669,7 +693,8 @@ ai_driver_config.space_seeking.total_queue_needed
 ai_driver_config.space_seeking.track_abort_distance
 ai_driver_config.space_seeking.track_distance_needed
 date_of_birth.day
-date_of_birth.daylight_saving
+date_of_birth.daylight_)keys",
+    R"keys(saving
 date_of_birth.hour
 date_of_birth.minute
 date_of_birth.month
@@ -695,8 +720,7 @@ restrict_custom_driver_numbers
 season
 stat_id
 ui_path
-@)keys",
-    R"keys(entrants.entrant_lists.entrant_list_N.entrant_N
+@entrants.entrant_lists.entrant_list_N.entrant_N
 _metadata_
 badge_customisation
 car_number
@@ -876,7 +900,8 @@ ai_vehicle_config.ers_use.xmode_passive.push_to_defend_battery_level
 ai_vehicle_config.ers_use.xmode_passive.push_to_overtake_battery_level
 ai_vehicle_config.ers_use.xmode_passive.switch_from_medium_to_none_in_race_battery_level
 ai_vehicle_config.ers_use.xmode_passive.switch_from_none_to_medium_in_race_battery_level
-ai_vehicle_config.exit_fallibility.max_throttle_error_by_grip_dry
+ai_vehicle_config.ex)keys",
+    R"keys(it_fallibility.max_throttle_error_by_grip_dry
 ai_vehicle_config.exit_fallibility.max_throttle_error_by_grip_wet
 ai_vehicle_config.exit_fallibility.max_throttle_error_by_mass
 ai_vehicle_config.exit_fallibility.max_yaw_angle_deg
@@ -884,8 +909,7 @@ ai_vehicle_config.formation_lap.parking_speed_limit
 ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_dry_tyres
 ai_vehicle_config.gearbox_controller.aggressive_downshift_grip_to_slip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_dry_tyres
-ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_we)keys",
-    R"keys(t_tyres
+ai_vehicle_config.gearbox_controller.normal_downshift_grip_to_slip_angle_for_wet_tyres
 ai_vehicle_config.gearbox_controller.use_physics_auto_gearbox_downshift_speed
 ai_vehicle_config.lost_control.angle
 ai_vehicle_config.lost_control.over_rotation_to_spin_time
@@ -1024,7 +1048,8 @@ hud_dial
 lcd_digit_name
 lcd_template_name
 performance_class
-performance_tier
+performance_tie)keys",
+    R"keys(r
 pitstop_tyre_set
 safety_car_type
 stat_id
@@ -1039,8 +1064,7 @@ ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.characterist
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.high_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_high_characteristic_mapping
-ai_vehicle_pack)keys",
-    R"keys(age_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
+ai_vehicle_package_config.driver_parameter_maps.alongside_awareness.low_difficulty_low_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.characteristic
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_high_characteristic_mapping
 ai_vehicle_package_config.driver_parameter_maps.alongside_space_factor.high_difficulty_low_characteristic_mapping

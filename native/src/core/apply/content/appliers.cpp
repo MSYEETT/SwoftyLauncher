@@ -8,6 +8,8 @@
 #include "gvdb.hpp"
 #include "logos.hpp"
 #include "teams.hpp"
+#include "../tracks/boot.hpp"
+#include "../tracks/box.hpp"
 #include "../../career_ops/teams_plan.hpp"
 #include "../../registry/older.hpp"
 #include "../../registry/table.hpp"
@@ -30,7 +32,8 @@
 // the row engine (rows.hpp) over the database the game loaded (the database file in the game folder under the older
 // addons' edits), and every record it writes is staged for gamedb.cpp, which applies them per addon in load order.
 // Before the load, the same expansion without stat ids counts the new keys for the value map's size. Stat ids:
-// explicit ones are pinned in the install's store, "auto" ones are allocated from the pools scan_pools finds. An
+// explicit ones are pinned in the install's store, "auto" ones are allocated from the pools scan_pools finds, and a
+// record whose id a row of the loaded database already holds takes the next free id (settle_ids). An
 // addon whose new keys don't fit the room left is left out whole before anything is staged, so the rows of the
 // addons after it stay contiguous. Era boxes go into the core's era picker at the window stage.
 
@@ -39,6 +42,23 @@ namespace swofty_core::apply::content {
 namespace {
 
 std::recursive_mutex mu;
+
+std::mutex drs_mu;
+std::map<std::string, DrsGroup> drs_groups;
+
+void publish_drs(Store &st, Expansion &x)
+{
+    std::map<std::string, DrsGroup> groups;
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    for (auto &id : x.applied["rules.drs"]) {
+        const Value *rec = lookup("rules.drs", id);
+        if (auto laps = rec ? drs_laps(*rec, nullptr) : std::nullopt)
+            groups[id] = {drs_label(id), *laps};
+    }
+    std::lock_guard g(drs_mu);
+    drs_groups = std::move(groups);
+}
 
 struct Database {
     gvdb::File file;
@@ -188,22 +208,10 @@ void define_pools(Database &d, std::vector<std::string> &lines, std::map<std::st
     }
 }
 
-void pin_all(Store &st, const std::map<std::string, PoolScan> &scans, std::vector<std::string> &lines)
+void pin_all(Store &st, const std::map<std::string, PoolScan> &scans)
 {
-    std::string day = today();
-    for (auto &p : pins(st)) {
-        ids::Result had = ids::store().get(p.registry, p.id);
-        ids::Result r = ids::store().pin(p.registry, p.id, p.stat_id, day);
-        if (had.id != p.stat_id || r.line.find("also holds") != std::string::npos)
-            swofty::log("%s", r.line.c_str());
-        auto scan = scans.find(p.registry);
-        if (scan == scans.end())
-            continue;
-        auto held = scan->second.used.find(p.stat_id);
-        if (held != scan->second.used.end())
-            lines.push_back(p.registry + " " + p.id + ": stat id " + std::to_string(p.stat_id) + " is also " +
-                            scan->second.table + " row " + held->second + "'s, which the game or an older addon added");
-    }
+    for (auto &line : settle_ids(ids::store(), st, scans, today()))
+        swofty::log("%s", line.c_str());
 }
 
 int64_t stat_id(const std::string &registry, const std::string &id, int64_t pin)
@@ -227,7 +235,7 @@ void run_boot(Store &st)
     read_edits(d);
     std::map<std::string, PoolScan> scans;
     define_pools(d, s.boot_lines, scans);
-    pin_all(st, scans, s.boot_lines);
+    pin_all(st, scans);
     Admission adm = admit(st.order(), plan.addon_fresh, db::staging().room());
     for (auto &[addon, keys] : adm.refused) {
         db::Refusal r{addon, {}, keys};
@@ -461,6 +469,15 @@ void set_up_dresser()
         return rec.status == registry::Status::ok && rec.value["stat_id"].is_int() ? rec.value["stat_id"].as_int() : -1;
     };
     l.record = &runtime::team_record_of;
+    l.character_stat = [](const std::string &label) -> int64_t {
+        const SwoftyDb *t = runtime::db_table();
+        SwoftyDbCursor c{};
+        SwoftyDbValue v{};
+        if (!t || !t->row || !t->cell || label.empty() || t->row("entrants.characters", label.c_str(), &c) != SWOFTY_ASSET_OK ||
+            t->cell(&c, "stat_id", &v) != SWOFTY_ASSET_OK)
+            return -1;
+        return v.i;
+    };
     runtime::team_record_inserted([](uint16_t stat, uint8_t *record) { redress(stat, record); });
     career_ops::teams::dresser() = &dress_slot;
 }
@@ -538,6 +555,8 @@ public:
         apply_texts(x, registry_, report);
         if (std::string_view(registry_) == "team.identity")
             apply_logos(x, report);
+        if (std::string_view(registry_) == "rules.drs")
+            publish_drs(st, x);
         if (staged) {
             std::string records = std::to_string(staged) + " database record" + (staged == 1 ? "" : "s");
             report.summary = report.summary.empty() ? records : report.summary + "; " + records;
@@ -624,13 +643,14 @@ public:
         for (auto &b : plan.boxes) {
             if (!b.literal.empty() && lang)
                 lang->override_set("*", b.title.c_str(), b.literal.c_str());
-            SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order};
+            SwoftyEraBox d{sizeof d, b.entrant_list.c_str(), b.title.c_str(), b.image.c_str(), b.order, b.time_trial.c_str()};
             int rc = era ? era->add_box(&d) : SWOFTY_ASSET_UNAVAILABLE;
             if (rc == SWOFTY_ASSET_OK)
                 report.applied++;
             else
                 report.refused++;
             report.lines.push_back("era.box " + b.id + ": " + b.entrant_list +
+                                   (b.time_trial.empty() ? std::string() : " (Time Trial " + b.time_trial + ")") +
                                    (rc == SWOFTY_ASSET_OK ? " registered"
                                                           : " not registered (a box for it exists or the picker is off)"));
         }
@@ -639,6 +659,30 @@ public:
     }
 };
 
+}
+
+void undress_teams(const char *why)
+{
+    std::size_t n = undress_all(why ? why : "");
+    if (n)
+        swofty::log("[teams] %zu dressed team record(s) back in their own names, colours, base and principal (%s)", n,
+                    why ? why : "");
+}
+
+DrsBox drs_for_box(const std::string &entrant_list)
+{
+    Store &st = registry::store();
+    std::map<std::string, Value> keep;
+    Lookup lookup = store_lookup(st, keep);
+    std::vector<std::pair<std::string, const Value *>> packages;
+    for (auto &id : in_load_order(st, "content.package"))
+        packages.push_back({id, lookup("content.package", id)});
+    DrsPick pick;
+    {
+        std::lock_guard g(drs_mu);
+        pick = drs_pick(entrant_list, packages, drs_groups);
+    }
+    return {pick.group ? pick.group->label : std::string(), pick.line};
 }
 
 void register_appliers()
@@ -650,6 +694,8 @@ void register_appliers()
         make<Boxes>();
         make<Constructors>();
         make<Logos>();
+        tracks::register_appliers();
+        tracks::register_box_appliers();
         set_up_dresser();
     });
 }

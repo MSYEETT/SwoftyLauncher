@@ -260,11 +260,194 @@
    "audio_from": "f1_m_williams"
   }
  },
+ "career.calendar": {
+  "f1_2022": {
+   "rounds": [
+    {
+     "round": 1,
+     "race": {
+      "literal": "Bahrain Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2022-03-20"
+    },
+    {
+     "round": 2,
+     "race": {
+      "literal": "Saudi Arabian Grand Prix"
+     },
+     "venue": "venue/jeddah",
+     "date": "2022-03-27"
+    },
+    {
+     "round": 3,
+     "race": {
+      "literal": "Australian Grand Prix"
+     },
+     "venue": "venue/albert_park",
+     "date": "2022-04-10"
+    },
+    {
+     "round": 4,
+     "race": {
+      "literal": "Emilia Romagna Grand Prix"
+     },
+     "venue": "venue/imola",
+     "date": "2022-04-24"
+    },
+    {
+     "round": 5,
+     "race": {
+      "literal": "Miami Grand Prix"
+     },
+     "venue": "venue/miami",
+     "date": "2022-05-08"
+    },
+    {
+     "round": 6,
+     "race": {
+      "literal": "Spanish Grand Prix"
+     },
+     "venue": "venue/catalunya",
+     "date": "2022-05-22"
+    },
+    {
+     "round": 7,
+     "race": {
+      "literal": "Monaco Grand Prix"
+     },
+     "venue": "venue/monaco",
+     "date": "2022-05-29"
+    },
+    {
+     "round": 8,
+     "race": {
+      "literal": "Azerbaijan Grand Prix"
+     },
+     "venue": "venue/baku",
+     "date": "2022-06-12"
+    },
+    {
+     "round": 9,
+     "race": {
+      "literal": "Canadian Grand Prix"
+     },
+     "venue": "venue/villeneuve",
+     "date": "2022-06-19"
+    },
+    {
+     "round": 10,
+     "race": {
+      "literal": "British Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2022-07-03"
+    },
+    {
+     "round": 11,
+     "race": {
+      "literal": "Austrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2022-07-10"
+    },
+    {
+     "round": 12,
+     "race": {
+      "literal": "French Grand Prix"
+     },
+     "venue": "venue/ricard?",
+     "date": "2022-07-24"
+    },
+    {
+     "round": 13,
+     "race": {
+      "literal": "Hungarian Grand Prix"
+     },
+     "venue": "venue/hungaroring",
+     "date": "2022-07-31"
+    },
+    {
+     "round": 14,
+     "race": {
+      "literal": "Belgian Grand Prix"
+     },
+     "venue": "venue/spa",
+     "date": "2022-08-28"
+    },
+    {
+     "round": 15,
+     "race": {
+      "literal": "Dutch Grand Prix"
+     },
+     "venue": "venue/zandvoort",
+     "date": "2022-09-04"
+    },
+    {
+     "round": 16,
+     "race": {
+      "literal": "Italian Grand Prix"
+     },
+     "venue": "venue/monza",
+     "date": "2022-09-11"
+    },
+    {
+     "round": 17,
+     "race": {
+      "literal": "Singapore Grand Prix"
+     },
+     "venue": "venue/marina_bay",
+     "date": "2022-10-02"
+    },
+    {
+     "round": 18,
+     "race": {
+      "literal": "Japanese Grand Prix"
+     },
+     "venue": "venue/suzuka",
+     "date": "2022-10-09"
+    },
+    {
+     "round": 19,
+     "race": {
+      "literal": "United States Grand Prix"
+     },
+     "venue": "venue/americas",
+     "date": "2022-10-23"
+    },
+    {
+     "round": 20,
+     "race": {
+      "literal": "Mexico City Grand Prix"
+     },
+     "venue": "venue/rodriguez",
+     "date": "2022-10-30"
+    },
+    {
+     "round": 21,
+     "race": {
+      "literal": "São Paulo Grand Prix"
+     },
+     "venue": "venue/interlagos",
+     "date": "2022-11-13"
+    },
+    {
+     "round": 22,
+     "race": {
+      "literal": "Abu Dhabi Grand Prix"
+     },
+     "venue": "venue/yas_marina",
+     "date": "2022-11-20"
+    }
+   ]
+  }
+ },
  "content.package": {
   "f1_2022": {
    "title": "lng_cs_f1_2022",
    "entrant_list": "cs_f1_2022",
    "season": 2022,
+   "calendar": "swofty.classic-seasons-2022/f1_2022?",
    "teams": [
     {
      "key": "redbull",

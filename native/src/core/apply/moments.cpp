@@ -511,6 +511,7 @@ void career_renamed(const char *from, const char *to)
 void career_unloaded()
 {
     attach();
+    content::undress_teams("the career unloaded");
     scheduler().career_unloaded();
 }
 
