@@ -219,6 +219,8 @@ inline constexpr address<"Sess_ControllerSystem_DestroySets"> Sess_ControllerSys
 using Sess_Find_GroupRowPosition_t = int32_t *(void *weekend, void *result, uint32_t driver_key);
 inline constexpr fn<"Sess_Find_GroupRowPosition", Sess_Find_GroupRowPosition_t> Sess_Find_GroupRowPosition{}; // L2 experimental
 inline constexpr address<"Sess_Flow_ParseXml"> Sess_Flow_ParseXml{}; // L2 experimental
+inline constexpr address<"Sess_FormationLapLogic_CheckAllParked"> Sess_FormationLapLogic_CheckAllParked{}; // L2 experimental
+inline constexpr address<"Sess_FormationLapLogic_Reset"> Sess_FormationLapLogic_Reset{}; // L2 experimental
 using Sess_FormationLap_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
 inline constexpr fn<"Sess_FormationLap_Update", Sess_FormationLap_Update_t> Sess_FormationLap_Update{}; // L2 experimental
 using Sess_GameWeatherSystem_SetupSession_t = void(void *ws, void *settings, void *config);
@@ -248,6 +250,7 @@ using Sess_PreRaceToRace_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_PreRaceToRace_Update", Sess_PreRaceToRace_Update_t> Sess_PreRaceToRace_Update{}; // L2 experimental
 using Sess_PreRace_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
 inline constexpr fn<"Sess_PreRace_Update", Sess_PreRace_Update_t> Sess_PreRace_Update{}; // L2 experimental
+inline constexpr address<"Sess_RaceRuleset_OnLapCompleted"> Sess_RaceRuleset_OnLapCompleted{}; // L2 experimental
 inline constexpr address<"Sess_RaceRuleset_SetTimeLimit"> Sess_RaceRuleset_SetTimeLimit{}; // L2 experimental
 using Sess_Record_GroupTimes_t = void(void *weekend, uint8_t group, void *entries);
 inline constexpr fn<"Sess_Record_GroupTimes", Sess_Record_GroupTimes_t> Sess_Record_GroupTimes{}; // L2 experimental
@@ -257,18 +260,43 @@ inline constexpr fn<"Sess_RedFlagRaceStrategy_Enter", Sess_RedFlagRaceStrategy_E
 using Sess_RedFlagRaceStrategy_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_RedFlagRaceStrategy_Update", Sess_RedFlagRaceStrategy_Update_t> Sess_RedFlagRaceStrategy_Update{}; // L2 experimental
 inline constexpr address<"Sess_RedFlagSystem_Deploy"> Sess_RedFlagSystem_Deploy{}; // L2 experimental, RedFlagSystem
+inline constexpr address<"Sess_RedFlagSystem_OnSessionBeginGameplay"> Sess_RedFlagSystem_OnSessionBeginGameplay{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagSystem_OnStartLightsBegin"> Sess_RedFlagSystem_OnStartLightsBegin{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagSystem_ResetCarStatus"> Sess_RedFlagSystem_ResetCarStatus{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagSystem_SimulateSessionTime"> Sess_RedFlagSystem_SimulateSessionTime{}; // L2 experimental
+inline constexpr address<"Sess_RedFlagSystem_SnapshotDamage"> Sess_RedFlagSystem_SnapshotDamage{}; // L2 experimental
 using Sess_Register_RaceRecordables_t = void(void *game);
 inline constexpr fn<"Sess_Register_RaceRecordables", Sess_Register_RaceRecordables_t> Sess_Register_RaceRecordables{}; // L2 experimental
 using Sess_RuleManager_Initialise_t = uint32_t(void *self, void *systems, void *components);
 inline constexpr fn<"Sess_RuleManager_Initialise", Sess_RuleManager_Initialise_t> Sess_RuleManager_Initialise{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ApplyPostSessionPenalties"> Sess_Rules_ApplyPostSessionPenalties{}; // L2 experimental
+inline constexpr address<"Sess_Rules_CornerCuttingTimeGained_2"> Sess_Rules_CornerCuttingTimeGained_2{}; // L2 experimental
 inline constexpr address<"Sess_Rules_Disqualify"> Sess_Rules_Disqualify{}; // L2 experimental
+inline constexpr address<"Sess_Rules_DisqualifyForPenaltyPoints"> Sess_Rules_DisqualifyForPenaltyPoints{}; // L2 experimental
 using Sess_Rules_IsPracticeQualifying_t = bool(void *owner_with_session_at_0x1b8);
 inline constexpr fn<"Sess_Rules_IsPracticeQualifying", Sess_Rules_IsPracticeQualifying_t> Sess_Rules_IsPracticeQualifying{}; // L2 experimental
+inline constexpr address<"Sess_Rules_PaceCarNewLap"> Sess_Rules_PaceCarNewLap{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadCollisionExpectedSpeed"> Sess_Rules_ReadCollisionExpectedSpeed{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadCollisionSettings"> Sess_Rules_ReadCollisionSettings{}; // L2 experimental
 inline constexpr address<"Sess_Rules_ReadCornerCuttingSettings"> Sess_Rules_ReadCornerCuttingSettings{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadFormationLapMiniGame"> Sess_Rules_ReadFormationLapMiniGame{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadPitWhiteLine"> Sess_Rules_ReadPitWhiteLine{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadRedFlagRepairTimes"> Sess_Rules_ReadRedFlagRepairTimes{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadSafetyCarPacePenalties"> Sess_Rules_ReadSafetyCarPacePenalties{}; // L2 experimental
+inline constexpr address<"Sess_Rules_ReadYellowFlagOvertaking"> Sess_Rules_ReadYellowFlagOvertaking{}; // L2 experimental
+inline constexpr address<"Sess_Rules_RemoveInvalidOvertake"> Sess_Rules_RemoveInvalidOvertake{}; // L2 experimental
+inline constexpr address<"Sess_Rules_SendBlackFlagTimerToOsd"> Sess_Rules_SendBlackFlagTimerToOsd{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateProgress_t = void(void *tether_entry);
 inline constexpr fn<"Sess_SafetyCarTether_UpdateProgress", Sess_SafetyCarTether_UpdateProgress_t> Sess_SafetyCarTether_UpdateProgress{}; // L2 experimental
 using Sess_SafetyCarTether_UpdateTarget_t = void(void *tether_entry, float gap);
 inline constexpr fn<"Sess_SafetyCarTether_UpdateTarget", Sess_SafetyCarTether_UpdateTarget_t> Sess_SafetyCarTether_UpdateTarget{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_ChangeState"> Sess_SafetyCar_ChangeState{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_IntersectionTime"> Sess_SafetyCar_IntersectionTime{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_OnLapChanged"> Sess_SafetyCar_OnLapChanged{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_ReadDynamicObstruction"> Sess_SafetyCar_ReadDynamicObstruction{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_ReadMaxRedFlags"> Sess_SafetyCar_ReadMaxRedFlags{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_UnlapGate"> Sess_SafetyCar_UnlapGate{}; // L2 experimental
+inline constexpr address<"Sess_SafetyCar_VehicleTransition"> Sess_SafetyCar_VehicleTransition{}; // L2 experimental
 using Sess_ScDebrisAccumulator_Update_t = void(void *acc);
 inline constexpr fn<"Sess_ScDebrisAccumulator_Update", Sess_ScDebrisAccumulator_Update_t> Sess_ScDebrisAccumulator_Update{}; // L2 experimental
 inline constexpr address<"Sess_SessionClock_SetTime"> Sess_SessionClock_SetTime{}; // L2 experimental

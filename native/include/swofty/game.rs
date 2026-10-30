@@ -3450,6 +3450,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_FormationLapLogic_CheckAllParked: Binding = Binding {
+        id: "Sess_FormationLapLogic_CheckAllParked",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FormationLapLogic_Reset: Binding = Binding {
+        id: "Sess_FormationLapLogic_Reset",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_FormationLap_Update: Binding = Binding {
         id: "Sess_FormationLap_Update",
         kind: "func",
@@ -3530,6 +3540,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RaceRuleset_OnLapCompleted: Binding = Binding {
+        id: "Sess_RaceRuleset_OnLapCompleted",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_RaceRuleset_SetTimeLimit: Binding = Binding {
         id: "Sess_RaceRuleset_SetTimeLimit",
         kind: "func",
@@ -3560,6 +3575,31 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RedFlagSystem_OnSessionBeginGameplay: Binding = Binding {
+        id: "Sess_RedFlagSystem_OnSessionBeginGameplay",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_OnStartLightsBegin: Binding = Binding {
+        id: "Sess_RedFlagSystem_OnStartLightsBegin",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_ResetCarStatus: Binding = Binding {
+        id: "Sess_RedFlagSystem_ResetCarStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_SimulateSessionTime: Binding = Binding {
+        id: "Sess_RedFlagSystem_SimulateSessionTime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_SnapshotDamage: Binding = Binding {
+        id: "Sess_RedFlagSystem_SnapshotDamage",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Register_RaceRecordables: Binding = Binding {
         id: "Sess_Register_RaceRecordables",
         kind: "func",
@@ -3570,8 +3610,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Rules_ApplyPostSessionPenalties: Binding = Binding {
+        id: "Sess_Rules_ApplyPostSessionPenalties",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_CornerCuttingTimeGained_2: Binding = Binding {
+        id: "Sess_Rules_CornerCuttingTimeGained_2",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Rules_Disqualify: Binding = Binding {
         id: "Sess_Rules_Disqualify",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_DisqualifyForPenaltyPoints: Binding = Binding {
+        id: "Sess_Rules_DisqualifyForPenaltyPoints",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3580,8 +3635,58 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Rules_PaceCarNewLap: Binding = Binding {
+        id: "Sess_Rules_PaceCarNewLap",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCollisionExpectedSpeed: Binding = Binding {
+        id: "Sess_Rules_ReadCollisionExpectedSpeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCollisionSettings: Binding = Binding {
+        id: "Sess_Rules_ReadCollisionSettings",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Rules_ReadCornerCuttingSettings: Binding = Binding {
         id: "Sess_Rules_ReadCornerCuttingSettings",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadFormationLapMiniGame: Binding = Binding {
+        id: "Sess_Rules_ReadFormationLapMiniGame",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadPitWhiteLine: Binding = Binding {
+        id: "Sess_Rules_ReadPitWhiteLine",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadRedFlagRepairTimes: Binding = Binding {
+        id: "Sess_Rules_ReadRedFlagRepairTimes",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadSafetyCarPacePenalties: Binding = Binding {
+        id: "Sess_Rules_ReadSafetyCarPacePenalties",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadYellowFlagOvertaking: Binding = Binding {
+        id: "Sess_Rules_ReadYellowFlagOvertaking",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_RemoveInvalidOvertake: Binding = Binding {
+        id: "Sess_Rules_RemoveInvalidOvertake",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_SendBlackFlagTimerToOsd: Binding = Binding {
+        id: "Sess_Rules_SendBlackFlagTimerToOsd",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3592,6 +3697,41 @@ pub mod bindings {
     };
     pub const Sess_SafetyCarTether_UpdateTarget: Binding = Binding {
         id: "Sess_SafetyCarTether_UpdateTarget",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_ChangeState: Binding = Binding {
+        id: "Sess_SafetyCar_ChangeState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_IntersectionTime: Binding = Binding {
+        id: "Sess_SafetyCar_IntersectionTime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_OnLapChanged: Binding = Binding {
+        id: "Sess_SafetyCar_OnLapChanged",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_ReadDynamicObstruction: Binding = Binding {
+        id: "Sess_SafetyCar_ReadDynamicObstruction",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_ReadMaxRedFlags: Binding = Binding {
+        id: "Sess_SafetyCar_ReadMaxRedFlags",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_UnlapGate: Binding = Binding {
+        id: "Sess_SafetyCar_UnlapGate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_VehicleTransition: Binding = Binding {
+        id: "Sess_SafetyCar_VehicleTransition",
         kind: "func",
         status: Status::Experimental,
     };
