@@ -6,6 +6,7 @@
 #include <swofty/json.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -215,8 +216,19 @@ inline Decision decide(const BaseTrack *track, const BoxInfo &box, Mode mode, co
 using Value = swofty::json::Value;
 using Lookup = std::function<const Value *(const std::string &registry, const std::string &id)>;
 using TextRead = std::function<std::optional<std::string>(const std::string &path)>;
+using IntRead = std::function<std::optional<int64_t>(const std::string &path)>;
 
 inline constexpr const char *DB_VEHICLES = "entrants.vehicles.vehicle";
+inline constexpr const char *DB_SETUP_MODES = "game_setup.game_setup_modes.game_setup_mode";
+
+// A setup mode's stat id, -1 when the database has no row for it. stat_id is an int record, so a text read misses it.
+inline int setup_mode_stat_of(const IntRead &read, const std::string &setup_mode)
+{
+    if (!read || setup_mode.empty())
+        return -1;
+    auto v = read(std::string(DB_SETUP_MODES) + "[_metadata_=" + setup_mode + "].stat_id");
+    return v && *v >= 0 && *v <= 255 ? int(*v) : -1;
+}
 inline constexpr const char *DB_PACKAGES = "entrants.vehicles.vehicle_packages.vehicle_package";
 inline constexpr const char *DB_LISTS = "entrants.entrant_lists.entrant_list";
 

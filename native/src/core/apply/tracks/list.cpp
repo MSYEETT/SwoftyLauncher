@@ -7,7 +7,6 @@
 
 #include <swofty/mixin.hpp>
 
-#include <cstdlib>
 #include <map>
 #include <mutex>
 
@@ -44,6 +43,19 @@ TextRead db_read()
     };
 }
 
+IntRead db_int_read()
+{
+    const SwoftyDb *db = runtime::db_table();
+    if (!db || !db->available || !db->int_at || !db->available())
+        return {};
+    return [db](const std::string &path) -> std::optional<int64_t> {
+        int64_t v = 0;
+        if (db->int_at(path.c_str(), &v) != SWOFTY_ASSET_OK)
+            return std::nullopt;
+        return v;
+    };
+}
+
 }
 
 const Facts &facts()
@@ -77,10 +89,7 @@ const Facts &facts()
 
 int setup_mode_stat(const std::string &setup_mode)
 {
-    std::string text = db_text(db_read(), "game_setup.game_setup_modes.game_setup_mode[_metadata_=" + setup_mode + "].stat_id");
-    char *end = nullptr;
-    long v = std::strtol(text.c_str(), &end, 10);
-    return text.empty() || !end || *end ? -1 : int(v);
+    return setup_mode_stat_of(db_int_read(), setup_mode);
 }
 
 BoxInfo box_info(registry::Store &store, const std::string &package, const std::string &entrant_list)
