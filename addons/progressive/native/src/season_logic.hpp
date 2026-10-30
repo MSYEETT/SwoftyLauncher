@@ -696,6 +696,51 @@ inline VehicleSet vehicle_for(const Data &d, const Resolve &r, int year, int slo
     return out;
 }
 
+// A seat whose car (vehicle_ref, the vehicle row's stat id in the high word) names no vehicle row of the loaded
+// database. Before 1.6.6 an addon's add-row ids were numbered afresh by every build, so an update moved Classic
+// Seasons' cars (cs16_mercedes 534 -> 725 for vanderlinde0401) and a save's seats kept the old ids: entering a
+// session, Sess_Build_AiSystem read a null vehicle (0xce8). The seat gets its team slot's season car back, by
+// label (vehicle_for, the season apply's car). A seat with no car, or whose car exists, is left alone; `left`
+// says why a seat with a missing car cannot be repaired.
+struct CarRepair {
+    int old_stat = -1;
+    int slot = -1;
+    VehicleSet car;
+    const char *left = nullptr;
+};
+
+inline bool empty_key(uint32_t key)
+{
+    return (key & 0xffff0000u) == 0x3fff0000u;
+}
+
+inline std::optional<CarRepair> car_repair(const Data &d, const Resolve &r, int year, uint32_t team_key,
+                                           uint32_t vehicle_ref, const std::function<bool(int)> &vehicle_known)
+{
+    if (empty_key(vehicle_ref) || vehicle_known(static_cast<int>(vehicle_ref >> 16)))
+        return std::nullopt;
+    CarRepair out;
+    out.old_stat = static_cast<int>(vehicle_ref >> 16);
+    if (empty_key(team_key)) {
+        out.left = "the seat has no team";
+        return out;
+    }
+    out.slot = slot_of_team(d, static_cast<int>(team_key >> 16));
+    if (out.slot < 0) {
+        out.left = "its team is none of Progressive's slots";
+        return out;
+    }
+    out.car = vehicle_for(d, r, year, out.slot);
+    if (out.car.stat < 0 || !vehicle_known(out.car.stat))
+        out.left = "no vehicle row resolves for the slot";
+    return out;
+}
+
+inline uint32_t repaired_ref(uint32_t vehicle_ref, int stat)
+{
+    return (static_cast<uint32_t>(stat) << 16) | (vehicle_ref & 0xffffu);
+}
+
 // move_player (follow mode): when the player raced in the year (at the career's round, with `at`)
 // for another slot, he moves to his real seat and the real line-ups stand around him.
 // at: the year's line-up at the career's round (midseason_logic.hpp); the season's own otherwise.
