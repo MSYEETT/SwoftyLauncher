@@ -3335,6 +3335,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_CloudGenerator_Destroy: Binding = Binding {
+        id: "Ne_CloudGenerator_Destroy",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_CloudUploader_Upload: Binding = Binding {
         id: "Ne_CloudUploader_Upload",
         kind: "func",
@@ -3342,6 +3347,41 @@ pub mod bindings {
     };
     pub const Ne_Compare_StringNoCase: Binding = Binding {
         id: "Ne_Compare_StringNoCase",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CrowdAnimationLoader_LoadBehavioursInStage: Binding = Binding {
+        id: "Ne_CrowdAnimationLoader_LoadBehavioursInStage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CrowdAnimationLoader_OnAnimClipChanged: Binding = Binding {
+        id: "Ne_CrowdAnimationLoader_OnAnimClipChanged",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CrowdPluginConnection_ProcessMessage: Binding = Binding {
+        id: "Ne_CrowdPluginConnection_ProcessMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CrowdPlugin_LoadXml: Binding = Binding {
+        id: "Ne_CrowdPlugin_LoadXml",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CustomisationDecalRenderer_Render: Binding = Binding {
+        id: "Ne_CustomisationDecalRenderer_Render",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CustomisationDecalsProjectionAreasSetPlugin_CloseConnection: Binding = Binding {
+        id: "Ne_CustomisationDecalsProjectionAreasSetPlugin_CloseConnection",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_CustomisationDecalsSetPlugin_CloseConnection: Binding = Binding {
+        id: "Ne_CustomisationDecalsSetPlugin_CloseConnection",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3365,8 +3405,43 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_EadpErrorsDataService_UninstallExceptionHandler: Binding = Binding {
+        id: "Ne_EadpErrorsDataService_UninstallExceptionHandler",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_EadpGameInviteList_DeleteSessionInvite: Binding = Binding {
+        id: "Ne_EadpGameInviteList_DeleteSessionInvite",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_EadpGameInviteList_OnInviteValidated: Binding = Binding {
+        id: "Ne_EadpGameInviteList_OnInviteValidated",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_EadpGameInviteList_UpdateInviteLifetime: Binding = Binding {
+        id: "Ne_EadpGameInviteList_UpdateInviteLifetime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_EadpPresenceService_UnsubscribeFriends: Binding = Binding {
+        id: "Ne_EadpPresenceService_UnsubscribeFriends",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Entity_FindComponent: Binding = Binding {
         id: "Ne_Entity_FindComponent",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_EventDispatcher_SendEvent: Binding = Binding {
+        id: "Ne_EventDispatcher_SendEvent",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_FogSet_SetFogData: Binding = Binding {
+        id: "Ne_FogSet_SetFogData",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3385,6 +3460,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_IBLCubeProbe_FreeInterpolatedArrays: Binding = Binding {
+        id: "Ne_IBLCubeProbe_FreeInterpolatedArrays",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_InputDevicePadPS_Cleanup: Binding = Binding {
         id: "Ne_InputDevicePadPS_Cleanup",
         kind: "func",
@@ -3397,6 +3477,11 @@ pub mod bindings {
     };
     pub const Ne_InputLibraryDirectInput_EnumDevicesCallback: Binding = Binding {
         id: "Ne_InputLibraryDirectInput_EnumDevicesCallback",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_InputLibraryDirectInput_IsXInputDevice: Binding = Binding {
+        id: "Ne_InputLibraryDirectInput_IsXInputDevice",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3429,6 +3514,141 @@ pub mod bindings {
         id: "Ne_Make_StrFromCStr",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_MipTailGeneratorFactory_ObtainGeneratorResource: Binding = Binding {
+        id: "Ne_MipTailGeneratorFactory_ObtainGeneratorResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_MipTailGenerator_Construct: Binding = Binding {
+        id: "Ne_MipTailGenerator_Construct",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_MipTailGenerator_CreateResources: Binding = Binding {
+        id: "Ne_MipTailGenerator_CreateResources",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_MipTailGenerator_Destroy: Binding = Binding {
+        id: "Ne_MipTailGenerator_Destroy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_MipTailGenerator_Record: Binding = Binding {
+        id: "Ne_MipTailGenerator_Record",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ModuleSystem_CheckConfig: Binding = Binding {
+        id: "Ne_ModuleSystem_CheckConfig",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ModuleSystem_CheckPlatform: Binding = Binding {
+        id: "Ne_ModuleSystem_CheckPlatform",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_ConnectionArrived: Binding = Binding {
+        id: "Ne_NetConnectionQuality_ConnectionArrived",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_ConnectionLeft: Binding = Binding {
+        id: "Ne_NetConnectionQuality_ConnectionLeft",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthEvalPayload: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthEvalPayload",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthEvalResultMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthEvalResultMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthEvalStartMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthEvalStartMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthEvalStartReplyMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthEvalStartReplyMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthTesterStateRequestMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthTesterStateRequestMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnBandwidthTesterStateUpdateMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnBandwidthTesterStateUpdateMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_OnStatsUpdateMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_OnStatsUpdateMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_SendAllStatsUpdates: Binding = Binding {
+        id: "Ne_NetConnectionQuality_SendAllStatsUpdates",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_SendBandwidthTesterStateUpdateMessage: Binding = Binding {
+        id: "Ne_NetConnectionQuality_SendBandwidthTesterStateUpdateMessage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_SendSingleStatsUpdate: Binding = Binding {
+        id: "Ne_NetConnectionQuality_SendSingleStatsUpdate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionQuality_SetTesterState: Binding = Binding {
+        id: "Ne_NetConnectionQuality_SetTesterState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetHttpRequestHandler_CreateRequest: Binding = Binding {
+        id: "Ne_NetHttpRequestHandler_CreateRequest",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetNullSSLPeer_Update: Binding = Binding {
+        id: "Ne_NetNullSSLPeer_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetReliableAsyncSocket_OnHandshakeCompleted: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_OnHandshakeCompleted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetReliableAsyncSocket_OnMessageDecrypted: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_OnMessageDecrypted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetReliableAsyncSocket_OnMessageEncrypted: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_OnMessageEncrypted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetReliableAsyncSocket_Restart: Binding = Binding {
+        id: "Ne_NetReliableAsyncSocket_Restart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetVoiceNotificationClient_WaveInAddBuffer: Binding = Binding {
+        id: "Ne_NetVoiceNotificationClient_WaveInAddBuffer",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_Network_Init: Binding = Binding {
         id: "Ne_Network_Init",
@@ -3510,6 +3730,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const Ne_TerrainResource_GetMaterialResourcel: Binding = Binding {
+        id: "Ne_TerrainResource_GetMaterialResourcel",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_TextureDecompressionGeneratorFactory_ObtainGeneratorResource: Binding = Binding {
+        id: "Ne_TextureDecompressionGeneratorFactory_ObtainGeneratorResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Thread_Destroy: Binding = Binding {
         id: "Ne_Thread_Destroy",
         kind: "func",
@@ -3522,6 +3752,11 @@ pub mod bindings {
     };
     pub const Ne_UIPCOptions_PopulateOutputMonitors: Binding = Binding {
         id: "Ne_UIPCOptions_PopulateOutputMonitors",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoResource_Destroy: Binding = Binding {
+        id: "Ne_VideoResource_Destroy",
         kind: "func",
         status: Status::Experimental,
     };
