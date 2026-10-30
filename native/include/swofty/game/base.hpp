@@ -101,6 +101,7 @@ struct FlowState;
 struct GameManager;
 struct GameMessageBusHolder;
 struct GameModeContext;
+struct GameSetupMode;
 struct GameWeatherSystem;
 struct GdbDatabase;
 struct GdbStringRecord;
