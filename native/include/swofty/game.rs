@@ -3364,6 +3364,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Player_SetFFBInputDeviceId: Binding = Binding {
+        id: "Ne_Player_SetFFBInputDeviceId",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Post_BusMessage: Binding = Binding {
         id: "Ne_Post_BusMessage",
         kind: "func",

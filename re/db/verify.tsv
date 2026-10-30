@@ -1684,3 +1684,12 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	aaa-verify	func	Sess_Set_SessionDefaultFuelErs	L1	partial	xref:0x142f43b7b,0x142f43bbb	V1692 aaa-verify: 3 for 5..14 and 18, 1 for 15..17, none for 0..4/19; 'Controls' object name not provable
 2026-10-28	aaa-verify	func	Ai_Parse_DriverParameterMap	L1	partial	xref:0x14065af10,0x140683db9	V1693 aaa-verify: 10 calls + tail jmp, name table 0x145639210 idx 10 = wet_weather_ability
 2026-10-28	aaa-verify	func	Ai_Ers_DecidePushReasons	L1	agree	xref:0x145636d60	V1694 aaa-verify: vtable 0x145636d40 slot 4
+2026-10-28	dcso-verify	func	Ne_PhysMaterial_CombinePair	L2	agree	decomp:re/decomp/1440e7350.c;xref:0x1440f6e20	V1695 claim 3 sqrt(a*b) 9 floats; field names not checked
+2026-10-28	dcso-verify	func	Game_Breakable_ParseActivation	L2	agree	decomp:re/decomp/144588c90.c;xref:0x144588d60	V1696 claim 5 physical_tyres/tecpro -> 200
+2026-10-28	dcso-verify	func	Car_Surface_ApplySlowdown	L2	agree	decomp:re/decomp/1446b4f80.c;xref:0x1446b43b0	V1697 claim 7 + 95 % pull to wheel mean
+2026-10-28	dcso-verify	func	Car_Surface_SampleAt	L2	partial	decomp:re/decomp/142f478d0.c;xref:0x142f47f2e	V1698 claim 11: bit4 DOES select grip vs proGrip here (bump selection in 0x1446daccc too)
+2026-10-28	dcso-verify	func	Ne_Player_SetFFBInputDeviceId	L2	agree	decomp:re/decomp/1434d82d0.c;xref:0x1434d9647	V1699 claim 12 curve formula
+2026-10-28	gb-verify	func	Car_Surface_ApplySlowdown	L2	partial	decomp:re/decomp/1446b4f80.c;xref:0x1446b43b0	V1700 claim 3; impulse at contact point (mass*k*dt), 95 % mean, degenerate 0.11
+2026-10-28	gb-verify	func	Game_Breakable_ParseActivation	L2	agree	decomp:re/decomp/144588c90.c;xref:0x145bed943	V1701 claim 8; else max(v,1)
+2026-10-28	gb-verify	func	Ne_Phys_BuildContactRows	L2	agree	decomp:re/decomp/1440f6e20.c;xref:0x1440e7350	V1702 claim 11; K,S scaled by island s (CFM/s)
+2026-10-28	gb-verify	func	Ne_PhysMaterial_CombinePair	L2	agree	decomp:re/decomp/1440e7350.c;xref:0x1440f6e20	V1703 claim 12 stale cache
