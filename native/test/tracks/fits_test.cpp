@@ -200,17 +200,20 @@ int main()
                made.ai[1].folder == "f1_2025" && made.ai[1].asset == "mclaren_car" && made.ai[2].folder.empty(),
            "each car's AI folder from its package record or the database rows, its asset from the record or its row");
 
-    std::map<std::string, int64_t> ints = {{"game_setup.game_setup_modes.game_setup_mode[_metadata_=swofty_f1].stat_id", 20},
-                                           {"game_setup.game_setup_modes.game_setup_mode[_metadata_=f1].stat_id", 1},
-                                           {"game_setup.game_setup_modes.game_setup_mode[_metadata_=broken].stat_id", 300}};
-    trk::IntRead read_int = [&](const std::string &p) -> std::optional<int64_t> {
-        auto it = ints.find(p);
-        return it == ints.end() ? std::nullopt : std::optional<int64_t>(it->second);
+    std::map<std::string, int64_t> rows = {{"game_setup.game_setup_modes|swofty_f1|stat_id", 20},
+                                           {"game_setup.game_setup_modes|f1|stat_id", 1},
+                                           {"game_setup.game_setup_modes|broken|stat_id", 300}};
+    std::vector<std::string> asked;
+    trk::CellRead cell = [&](const std::string &t, const std::string &l, const std::string &f) -> std::optional<int64_t> {
+        asked.push_back(t + "|" + l + "|" + f);
+        auto it = rows.find(asked.back());
+        return it == rows.end() ? std::nullopt : std::optional<int64_t>(it->second);
     };
-    expect(trk::setup_mode_stat_of(read_int, "swofty_f1") == 20 && trk::setup_mode_stat_of(read_int, "f1") == 1,
-           "a setup mode's stat id is read as the int record it is (IG11: the text read always missed it)");
-    expect(trk::setup_mode_stat_of(read_int, "f1_26") == -1 && trk::setup_mode_stat_of(read_int, "broken") == -1 &&
-               trk::setup_mode_stat_of(read_int, "") == -1 && trk::setup_mode_stat_of({}, "swofty_f1") == -1,
+    expect(trk::setup_mode_stat_of(cell, "swofty_f1") == 20 && trk::setup_mode_stat_of(cell, "f1") == 1 &&
+               asked.front() == "game_setup.game_setup_modes|swofty_f1|stat_id",
+           "a setup mode's stat id comes from its row by label, as an int (IG11: the [_metadata_=] text read missed it)");
+    expect(trk::setup_mode_stat_of(cell, "f1_26") == -1 && trk::setup_mode_stat_of(cell, "broken") == -1 &&
+               trk::setup_mode_stat_of(cell, "") == -1 && trk::setup_mode_stat_of({}, "swofty_f1") == -1,
            "no row, an id past 255, no mode or no database: -1");
 
     printf("%s\n", fails ? "fits_test: FAILED" : "fits_test: all passed");

@@ -43,16 +43,18 @@ TextRead db_read()
     };
 }
 
-IntRead db_int_read()
+CellRead db_cell_read()
 {
     const SwoftyDb *db = runtime::db_table();
-    if (!db || !db->available || !db->int_at || !db->available())
+    if (!db || !db->available || !db->row || !db->cell || !db->available())
         return {};
-    return [db](const std::string &path) -> std::optional<int64_t> {
-        int64_t v = 0;
-        if (db->int_at(path.c_str(), &v) != SWOFTY_ASSET_OK)
+    return [db](const std::string &table, const std::string &label, const std::string &field) -> std::optional<int64_t> {
+        SwoftyDbCursor c{};
+        SwoftyDbValue v{};
+        if (db->row(table.c_str(), label.c_str(), &c) != SWOFTY_ASSET_OK ||
+            db->cell(&c, field.c_str(), &v) != SWOFTY_ASSET_OK || v.tag == SWOFTY_DB_STRING || v.tag == SWOFTY_DB_FLOAT)
             return std::nullopt;
-        return v;
+        return v.i;
     };
 }
 
@@ -89,7 +91,7 @@ const Facts &facts()
 
 int setup_mode_stat(const std::string &setup_mode)
 {
-    return setup_mode_stat_of(db_int_read(), setup_mode);
+    return setup_mode_stat_of(db_cell_read(), setup_mode);
 }
 
 BoxInfo box_info(registry::Store &store, const std::string &package, const std::string &entrant_list)

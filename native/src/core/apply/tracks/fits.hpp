@@ -216,19 +216,22 @@ inline Decision decide(const BaseTrack *track, const BoxInfo &box, Mode mode, co
 using Value = swofty::json::Value;
 using Lookup = std::function<const Value *(const std::string &registry, const std::string &id)>;
 using TextRead = std::function<std::optional<std::string>(const std::string &path)>;
-using IntRead = std::function<std::optional<int64_t>(const std::string &path)>;
+using CellRead =
+    std::function<std::optional<int64_t>(const std::string &table, const std::string &label, const std::string &field)>;
 
 inline constexpr const char *DB_VEHICLES = "entrants.vehicles.vehicle";
-inline constexpr const char *DB_SETUP_MODES = "game_setup.game_setup_modes.game_setup_mode";
+inline constexpr const char *DB_SETUP_MODES = "game_setup.game_setup_modes";
 
-// A setup mode's stat id, -1 when the database has no row for it. stat_id is an int record, so a text read misses it.
-inline int setup_mode_stat_of(const IntRead &read, const std::string &setup_mode)
+// A setup mode's stat id from its row, found by label, -1 when the database has none. stat_id is an int record, and
+// a row the core adds (swofty_f1) has no [_metadata_=...] key, so a text read of that path always missed it.
+inline int setup_mode_stat_of(const CellRead &read, const std::string &setup_mode)
 {
     if (!read || setup_mode.empty())
         return -1;
-    auto v = read(std::string(DB_SETUP_MODES) + "[_metadata_=" + setup_mode + "].stat_id");
+    auto v = read(DB_SETUP_MODES, setup_mode, "stat_id");
     return v && *v >= 0 && *v <= 255 ? int(*v) : -1;
 }
+
 inline constexpr const char *DB_PACKAGES = "entrants.vehicles.vehicle_packages.vehicle_package";
 inline constexpr const char *DB_LISTS = "entrants.entrant_lists.entrant_list";
 
