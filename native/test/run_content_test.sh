@@ -32,12 +32,15 @@ done
 for p in $(jobs -p); do wait "$p"; done
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -o "$OUT/bc7_test" content/bc7_test.cpp & pids+=($!)
+"${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness \
+    -o "$OUT/logo_cache_test" content/logo_cache_test.cpp & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-linux-musl -std=c++23 -O1 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off -I$ZS \
     -o "$OUT/logo_build_test" content/logo_build_test.cpp "${zobjs[@]}" & pids+=($!)
 "${PIN[@]}" zig c++ -target x86_64-windows-gnu -std=c++23 -O2 -Wall -Wextra -Wno-nullability-completeness -ffp-contract=off \
     -c content/bc7_test.cpp -o "$OUT/bc7_test.windows.o" & pids+=($!)
 for p in "${pids[@]}"; do wait "$p"; done
 "$OUT/bc7_test" content/bc7
+"$OUT/logo_cache_test"
 "$OUT/logo_build_test" content/bc7 "$OUT/logo_out"
 python3 content/check_logo_build.py content/bc7 "$OUT/logo_out"
 "$OUT/rows_test" ../../packages/sdk/std/registries
@@ -47,4 +50,14 @@ GAMEDB="/mnt/gaming/SteamLibrary/steamapps/common/F1 25/game_package/gamedatabas
 if [[ -f $GAMEDB ]]; then
     "$OUT/rows_tool" --registries ../../packages/sdk/std/registries --db "$GAMEDB" --out "$OUT/f2012_edits.json" --summary "$OUT/f2012_summary.json" \
         swofty.f2012 content/wear/f2012.json
+    "$OUT/rows_tool" --registries ../../packages/sdk/std/registries --db "$GAMEDB" --out "$OUT/drs_edits.json" --summary "$OUT/drs_summary.json" \
+        test.drs content/drs/drs.json
+    python3 - "$OUT/drs_summary.json" <<'EOF'
+import json, sys
+s = json.load(open(sys.argv[1]))
+lines = s["lines"]["rules.drs"]
+assert s["records"].get("rules.drs") == 2 and s["boot_fresh"].get("rules.drs") == 16, s["records"]
+assert any("test.drs/never: group swofty_drs_never_" in l and "race start lap 200" in l for l in lines), lines
+print("rules.drs on the game database: 2 groups, 16 new keys")
+EOF
 fi

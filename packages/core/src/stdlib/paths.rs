@@ -40,8 +40,16 @@ const SCHEMAS: &[(&str, &str)] = &[
         include_str!("../../../sdk/std/registries/career.driver_ratings/1.0.json"),
     ),
     (
+        "career.market",
+        include_str!("../../../sdk/std/registries/career.market/1.0.json"),
+    ),
+    (
         "career.mode",
         include_str!("../../../sdk/std/registries/career.mode/1.0.json"),
+    ),
+    (
+        "career.rnd.tree",
+        include_str!("../../../sdk/std/registries/career.rnd.tree/1.0.json"),
     ),
     (
         "career.season",
@@ -103,6 +111,10 @@ const SCHEMAS: &[(&str, &str)] = &[
         "livery",
         include_str!("../../../sdk/std/registries/livery/1.0.json"),
     ),
+    (
+        "rules.drs",
+        include_str!("../../../sdk/std/registries/rules.drs/1.0.json"),
+    ),
     ("suit", include_str!("../../../sdk/std/registries/suit/1.0.json")),
     (
         "team.constructor",
@@ -119,6 +131,22 @@ const SCHEMAS: &[(&str, &str)] = &[
     (
         "team.pit_times",
         include_str!("../../../sdk/std/registries/team.pit_times/1.0.json"),
+    ),
+    (
+        "track",
+        include_str!("../../../sdk/std/registries/track/1.0.json"),
+    ),
+    (
+        "track.data",
+        include_str!("../../../sdk/std/registries/track.data/1.0.json"),
+    ),
+    (
+        "track.per_package",
+        include_str!("../../../sdk/std/registries/track.per_package/1.0.json"),
+    ),
+    (
+        "track.venue",
+        include_str!("../../../sdk/std/registries/track.venue/1.0.json"),
     ),
     (
         "vehicle",

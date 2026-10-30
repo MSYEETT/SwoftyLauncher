@@ -125,6 +125,7 @@ inline std::size_t row_keys(const std::string &table)
         {"entrants.vehicles.vehicle_packages", 30}, {"car_setup.presets", 421},
         {"entrants.entrant_lists.entrants", 12},    {"entrants.standings", 23},
         {"entrants.entrant_lists", 190},            {"game_setup.scenarios", 7},
+        {"drs.drs_allowed_lap", 8},
         {"options_system.options.multiplayer.options_folder_2.option[_metadata_=category]", 8}};
     auto it = sizes.find(table);
     return it == sizes.end() ? 16 : it->second;
