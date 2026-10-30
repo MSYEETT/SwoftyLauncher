@@ -45,10 +45,12 @@
 //
 // Team choice: in the new-career wizard Team Select (+0xc68 set) lists only the picked driver's
 // team when his line-up row has one, and every team when it has none; its offer build
-// (Game_DriverContracts_BuildOffers) only runs outside the wizard. So right after the pick his row's
-// team is his start season team from the view with team_moves follow_driver (every team when the
-// view does not seat him) and none with choose, until Team Select is left. The BuildOffers wrap
-// keeps the same lock for a Team Select that does build offers.
+// (Game_DriverContracts_BuildOffers) only runs outside the wizard. So at the pick (the
+// driver_selected command, before and after the game's handler, which reads the row to route)
+// his row's team becomes his start season team from the view with team_moves follow_driver (every
+// team when the view does not seat him) and none with choose, until Team Select is left. Moving
+// the focus between cards changes no row (cards_logic.hpp gate()). The BuildOffers wrap keeps the
+// same lock for a Team Select that does build offers.
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -145,8 +147,7 @@ struct Swap {
 };
 std::mutex g_swap_lock;
 std::vector<Swap> g_swaps;
-std::vector<Swap> g_team_swaps;
-uint32_t g_gated_driver = pc::kNoKey;
+pc::TeamGate<EntrantRecord> g_gate;
 bool g_live = false;
 int g_offer_logged = 0;
 
@@ -190,6 +191,16 @@ std::string text_at(uintptr_t p)
 
 using Rows = pc::Rows<EntrantRecord>;
 
+bool read_row(const EntrantRecord *row, EntrantRecord &out)
+{
+    return swofty::mem::read(row, out);
+}
+
+bool put_team(EntrantRecord *row, uint32_t team)
+{
+    return put<uint32_t>(reinterpret_cast<uintptr_t>(row) + kRowTeam, team);
+}
+
 bool rows_of(uintptr_t list, Rows &out)
 {
     out = {};
@@ -216,15 +227,16 @@ uintptr_t list_at(uintptr_t entrants, unsigned stat)
 void restore_cars(const char *why, bool apply = true)
 {
     std::lock_guard<std::mutex> g(g_swap_lock);
-    g_gated_driver = pc::kNoKey;
-    if (g_swaps.empty() && g_team_swaps.empty())
+    if (g_swaps.empty() && g_gate.swaps.empty()) {
+        g_gate = {};
         return;
+    }
     if (!apply) {
         swofty::log("[progressive] cards: Team Select: %zu car change(s) and %zu team change(s) left on the line-up: the "
                     "career owns those rows now (%s)",
-                    g_swaps.size(), g_team_swaps.size(), why);
+                    g_swaps.size(), g_gate.swaps.size(), why);
         g_swaps.clear();
-        g_team_swaps.clear();
+        g_gate = {};
         return;
     }
     size_t back = 0;
@@ -238,14 +250,11 @@ void restore_cars(const char *why, bool apply = true)
         swofty::log("[progressive] cards: Team Select: %zu of %zu line-up row(s) back on their career cars (%s)", back,
                     g_swaps.size(), why);
     g_swaps.clear();
-    for (const Swap &w : g_team_swaps) {
-        EntrantRecord r{};
-        bool ok = swofty::mem::read(w.row, r) && r.id_lo == w.id_lo && r.id_hi == w.id_hi && r.team_stat_id == w.now &&
-                  put<uint32_t>(w.row + kRowTeam, w.was);
+    size_t teams = g_gate.swaps.size();
+    size_t teams_back = pc::ungate(g_gate, read_row, put_team);
+    if (teams)
         swofty::log("[progressive] cards: Team Select: the picked driver's line-up row is %s (%s)",
-                    ok ? "back on his career team" : "no longer the one the pick changed", why);
-    }
-    g_team_swaps.clear();
+                    teams_back == teams ? "back on his career team" : "no longer the one the pick changed", why);
 }
 
 void wizard_teams(int year);
@@ -517,10 +526,13 @@ void team_select(uintptr_t contracts, uint32_t driver)
 // Team Select in the new-career wizard (0x141873a30 with +0xc68 set, the driver from the Choose
 // Driver pick) lists only the picked driver's team when his line-up row (the game mode's +0x2e0,
 // matched by driver key) has one, and every team when it has none; Game_DriverContracts_BuildOffers
-// is not called there. So right after the pick his row's team (+0x58) becomes his start season
-// team from the view in follow_driver (open when the view does not seat him), and none in choose.
-void gate_team(uintptr_t vm)
+// is not called there. So at the pick his row's team (+0x58) becomes his start season team from the
+// view in follow_driver (open when the view does not seat him), and none in choose. Any other
+// command (a focus change) leaves every row alone.
+void gate_team(uintptr_t vm, uint32_t command)
 {
+    if (!pc::gates_team(command))
+        return;
     auto skip = [](const char *why) {
         if (g_offer_logged++ < 24)
             swofty::log("[progressive] cards: Team Select %d: team choice left to the game: %s", g_year, why);
@@ -532,37 +544,40 @@ void gate_team(uintptr_t vm)
     if (!b || e < b || (e - b) % sizeof(EntrantRecord) || (e - b) / sizeof(EntrantRecord) > kMaxRows ||
         !swofty::mem::readable(b, e - b))
         return skip("the game mode has no line-up");
-    uintptr_t row = 0;
-    for (uintptr_t p = b; p < e && !row; p += sizeof(EntrantRecord)) {
-        const auto &r = *reinterpret_cast<const EntrantRecord *>(p);
-        if (r.id_lo == (driver & 0xff) && r.id_hi == (driver >> 16))
-            row = p;
-    }
-    if (!row)
-        return skip("the picked driver has no line-up row");
-    const auto &r = *reinterpret_cast<const EntrantRecord *>(row);
     bool follow = std::string_view(team_moves.get()) == "follow_driver";
-    const EntrantRecord *v = view_row(driver);
-    uint32_t want = follow && v && pc::seated(*v) ? v->team_stat_id : pc::kNoKey;
+    uint32_t want = pc::team_select_team(follow, view_row(driver));
     const char *what = !follow                   ? "choose: every team open"
                        : pc::none(want)          ? "follow_driver: no start season seat, every team open"
                                                  : "follow_driver: only his start season team";
     std::lock_guard<std::mutex> g(g_swap_lock);
-    if (g_gated_driver == driver && r.team_stat_id == want)
+    uint32_t earlier = g_gate.driver;
+    size_t restored = 0;
+    pc::Gate r = pc::gate(g_gate, command, driver, reinterpret_cast<EntrantRecord *>(b), (e - b) / sizeof(EntrantRecord),
+                          want, read_row, put_team, &restored);
+    if (restored)
+        swofty::log("[progressive] cards: Team Select %d: driver 0x%08x's line-up row is back on his career team (driver "
+                    "0x%08x is picked now)",
+                    g_year, earlier, driver);
+    switch (r) {
+    case pc::Gate::not_pick:
+    case pc::Gate::kept:
         return;
-    g_gated_driver = driver;
-    if (r.team_stat_id == want) {
-        swofty::log("[progressive] cards: Team Select %d: driver 0x%08x, %s (his line-up team 0x%08x already is)", g_year,
-                    driver, what, want);
+    case pc::Gate::no_driver:
+        return skip("no picked driver at the view model");
+    case pc::Gate::no_row:
+        return skip("the picked driver has no line-up row");
+    case pc::Gate::write_failed:
+        return skip("the line-up row write failed");
+    case pc::Gate::already:
+        swofty::log("[progressive] cards: Team Select %d: picked driver 0x%08x, %s (his line-up team 0x%08x already is)",
+                    g_year, driver, what, want);
+        return;
+    case pc::Gate::changed:
+        swofty::log("[progressive] cards: Team Select %d: picked driver 0x%08x, %s (line-up team 0x%08x -> 0x%08x until "
+                    "Team Select is left)",
+                    g_year, driver, what, g_gate.swaps.back().was, want);
         return;
     }
-    Swap w{row, r.id_lo, r.id_hi, r.team_stat_id, want};
-    if (!put<uint32_t>(row + kRowTeam, want))
-        return skip("the line-up row write failed");
-    g_team_swaps.push_back(w);
-    swofty::log("[progressive] cards: Team Select %d: driver 0x%08x, %s (line-up team 0x%08x -> 0x%08x until Team Select "
-                "is left)",
-                g_year, driver, what, w.was, want);
 }
 
 // An added team of the start season (season_logic.hpp added_team, a career.season record naming a team an addon
@@ -670,6 +685,13 @@ struct Hidden {
     uintptr_t list = 0, end = 0;
 };
 
+uint32_t command_of(void *cmd)
+{
+    uintptr_t name = cmd ? rd<uintptr_t>(reinterpret_cast<uintptr_t>(cmd)) : 0;
+    uint32_t hash = 0;
+    return name && swofty::mem::read(name, hash) ? hash : 0;
+}
+
 } // namespace
 
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
@@ -750,17 +772,24 @@ SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 13, void *, void *vm)
 
 SWOFTY_VTABLE(vt_Game_DriverCareerDriverSelectViewModel, 10, void *, void *vm, void *cmd, void *data)
 {
-    if (g_mode && progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
+    auto at = reinterpret_cast<uintptr_t>(vm);
+    uint32_t command = 0;
+    if (g_mode && progressive_wizard(at)) {
         pg::wizard_ratings::show(g_year, "Choose Driver command");
+        command = command_of(cmd);
+        if (g_live)
+            gate_team(at, command);
+    }
     void *r = orig(vm, cmd, data);
-    if (!g_mode || !progressive_wizard(reinterpret_cast<uintptr_t>(vm)))
+    if (!g_mode || !progressive_wizard(at))
         return r;
     if (!g_live && swofty::career::component_by_desc(swofty::game::k_Career_CareerComponentDesc.get())) {
         g_live = true;
-        swofty::log("[progressive] cards: Team Select %d: the Choose Driver pick made the career component", g_year);
+        swofty::log("[progressive] cards: Team Select %d: the career component exists (Choose Driver command 0x%08x)",
+                    g_year, command);
     }
     if (g_live) {
-        gate_team(reinterpret_cast<uintptr_t>(vm));
+        gate_team(at, command);
         swap_cars("Choose Driver command", true);
     }
     return r;

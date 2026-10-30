@@ -98,6 +98,97 @@ template <class R> bool seated(const R &r)
     return !none(r.team_stat_id) && (r.team_position >> 8) && (r.team_position & 0xff) < 2;
 }
 
+// Choose Driver's commands (slot 10 0x141a5df70, the djb2 hash of the command's name):
+// driver_selected_changed moves the focus to another card (vm +0x480 becomes the focused driver),
+// driver_selected is the pick (the focused driver goes into the pick 0x146066bb0 and
+// open_team_select or open_confirm_selections fires).
+constexpr uint32_t kCommandFocus = 0x30aef1e2u;
+constexpr uint32_t kCommandPick = 0x09d96b39u;
+
+// Team choice (cards.cpp gate_team): the wizard's Team Select lists only the picked driver's team
+// when his line-up row has one and every team when it has none, and it makes one tile per team
+// from the line-up rows, so a team with no row left on it has no tile. Only the pick changes a
+// row: the picked driver's row gets team_select_team(), and a row an earlier pick changed for
+// another driver gets its team back first. A focus change writes nothing; up to 1.2.4 it set the
+// focused driver's row, so in choose every team whose drivers the player scrolled past (2018:
+// Ferrari, Force India) was missing from Team Select.
+inline bool gates_team(uint32_t command)
+{
+    return command == kCommandPick;
+}
+
+// The picked driver's line-up team for Team Select: his start season team from the view with
+// follow_driver (none when the view does not seat him), none with choose.
+template <class R> uint32_t team_select_team(bool follow, const R *view_row)
+{
+    return follow && view_row && seated(*view_row) ? view_row->team_stat_id : kNoKey;
+}
+
+template <class R> struct TeamGate {
+    struct Swap {
+        R *row;
+        uint8_t id_lo;
+        uint16_t id_hi;
+        uint32_t was, now;
+    };
+    uint32_t driver = kNoKey;
+    std::vector<Swap> swaps;
+};
+
+enum class Gate { not_pick, no_driver, no_row, kept, already, changed, write_failed };
+
+// Puts every row the gate changed back on its own team, newest first, when the row still holds the
+// same driver and the team the gate wrote. read(row, out) and put(row, team) return false when the
+// row can't be read or written. Returns the rows put back.
+template <class R, class Read, class Put> size_t ungate(TeamGate<R> &g, Read &&read, Put &&put)
+{
+    size_t back = 0;
+    for (auto w = g.swaps.rbegin(); w != g.swaps.rend(); ++w) {
+        R r{};
+        if (read(w->row, r) && r.id_lo == w->id_lo && r.id_hi == w->id_hi && r.team_stat_id == w->now &&
+            put(w->row, w->was))
+            ++back;
+    }
+    g.swaps.clear();
+    g.driver = kNoKey;
+    return back;
+}
+
+// One Choose Driver command for the line-up rows[0..n): the pick of driver puts his row on team;
+// any other command changes nothing. *restored counts the rows of an earlier pick put back.
+template <class R, class Read, class Put>
+Gate gate(TeamGate<R> &g, uint32_t command, uint32_t driver, R *rows, size_t n, uint32_t team, Read &&read, Put &&put,
+          size_t *restored = nullptr)
+{
+    if (restored)
+        *restored = 0;
+    if (!gates_team(command))
+        return Gate::not_pick;
+    if (none(driver))
+        return Gate::no_driver;
+    if (g.driver != driver) {
+        size_t back = ungate(g, read, put);
+        if (restored)
+            *restored = back;
+    }
+    R *row = nullptr;
+    for (size_t i = 0; i < n && !row; ++i)
+        if (rows[i].id_lo == (driver & 0xff) && rows[i].id_hi == (driver >> 16))
+            row = &rows[i];
+    if (!row)
+        return Gate::no_row;
+    if (g.driver == driver && row->team_stat_id == team)
+        return Gate::kept;
+    g.driver = driver;
+    if (row->team_stat_id == team)
+        return Gate::already;
+    typename TeamGate<R>::Swap w{row, row->id_lo, row->id_hi, row->team_stat_id, team};
+    if (!put(row, team))
+        return Gate::write_failed;
+    g.swaps.push_back(w);
+    return Gate::changed;
+}
+
 template <class R> struct Rows {
     const R *begin = nullptr;
     size_t count = 0;
