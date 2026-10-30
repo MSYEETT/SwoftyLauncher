@@ -46,7 +46,8 @@ How the build handles this depends on the in-game core. When its `features.json`
 - `wep/<code>_<variant>` for every world in the archive, stand-ins included;
 - the 2019 template groups `bake/<code>_ao.bake`, `bake/<code>_light_list.bake`, `bake/<code>_radiance.bake`, `probes/config.ddgi` and `probes/key_2019`;
 - `probes/probes_garage_<nn>` for every garage probe set in the archive;
-- `ai/<vehicle_package>/<team>/<team>` for every AI team folder in the archive.
+- `ai/<vehicle_package>/<team>/<team>` for every AI team folder in the archive;
+- the `worldAssetGroup` of every track layer row (`track_data.track_layers`) whose `[FILENAME]` world lies outside the game's own `environment_package` worlds, such as `<package>/tracks/<code>/wep/<code>_<variant>`, unless an addon registers that group itself.
 
 You can enable any number of tracks this way.
 
@@ -55,6 +56,7 @@ Otherwise, the build puts the package's whole `<code>.erp` into an existing invi
 The build also fills gaps in the archive:
 
 - For each variant world the package lacks (`classic`, `f2_previous`, ...), it copies the nearest world the package has as a stand-in.
+- For each such track layer world the archive lacks, it copies the archive's `f1_26_myteam` world (or the nearest world it has) under the layer's `worldEri` name, with `<code>` for `[FILENAME]`. An archive world of the same variant in the track's own `environment_package` folder comes first.
 - It points texture mip paths at `environment_package/tracks/<code>/mipmaps/<file>` and adds the files from the package's `mipmaps/` there.
 - It gives every route of the AI racing line (`<code>_ai_track.aispline`) a change of passing space. F1 25 sorts each gate of a route into space on the left, on the right or on both sides from its white lines and the stock `ai_track_config.space_lines` settings, and crashes when an AI car drives a route without a single change, such as a pit lane drawn at one width. On such a route the build moves one white line at a gate no other route uses.
 - It makes room for the F1 2026 grid if the built database's `f1_2026` grid list holds more cars than the `f1_26_myteam` world (with the common world) has grid slots, garages or pit boxes. The layer holding the last grid slot gets copies of the last slot, garage, in-garage spot and pit box. Each copy goes one row or bay beyond the two before it. Without two slots, garages or boxes to work out the spacing from, the build warns you that a Grand Prix there with that many cars crashes.

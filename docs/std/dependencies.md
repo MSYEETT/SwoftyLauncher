@@ -136,7 +136,7 @@ SWOFTY_REGISTER
 - **A `venue/…` reference** resolves to the last enabled track in load order that provides it, like every other contest. An exact id (`mod.sochi/sochi`) pins one addon. When two enabled tracks provide one venue, the conflicts view lists both.
 - **A track's venue comes from its record,** never from its code. `mod.bahrain24` uses the `bahrain24` slot and is Sepang.
 - **Stat ids are kept.** The core keeps one stat-id store per install, in the launcher's data folder, at `$DATA/registry/ids.json`. The first id a track, driver, team or vehicle gets stays with it. An id is given to another record only when no career uses it.
-- **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, the guard stops the load and names both records.
+- **Each career carries its own id map** in its save entry: `{record id: stat id}` for every track, driver, team and vehicle it uses. At `career.load` the core checks the map against this install's store, so a save synced to another PC can't race a different track or field a different driver. When the saved id is free, the core takes it. When another record holds it, or a row in the database the game loads does, the guard stops the load and names both.
 
 ```text
 [tracks] hockenheim: stat id 43 (kept since 2026-10-27)
@@ -165,7 +165,7 @@ The registry's owner sets what may happen when a referenced record isn't there. 
 In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and `.or_else()`. In a data file it's a string with two modifiers:
 
 ```cpp
-// swofty.classic-seasons-2016's calendar
+// a 2016 calendar with a stand-in for Sepang
 .rounds = {
     { .round = 4,  .race = Text::key("lng_gp_russia"),   .venue = tracks::venues["venue/sochi"].optional() },
     { .round = 12, .race = Text::key("lng_gp_germany"),  .venue = tracks::venues["venue/hockenheimring"].optional() },
@@ -188,7 +188,7 @@ In code, a reference is a `Ref<T>`, and the author picks with `.optional()` and 
 Readers get the resolved value, never the modifiers. `career::calendars.status(id)` lists what was dropped or replaced:
 
 ```text
-[registry] career.calendar swofty.classic-seasons-2016/f1_2016: round 12 dropped (venue/hockenheimring: no
+[registry] career.calendar mod.example/f1_2016: round 12 dropped (venue/hockenheimring: no
            enabled track provides it; optional); round 16 races at mod.bahrain24/sepang
 ```
 
