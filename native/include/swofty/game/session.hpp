@@ -31,11 +31,22 @@ static_assert(offsetof(ControllerSet, ai_controller) == 0x28);
 static_assert(offsetof(ControllerSet, flags) == 0x30);
 static_assert(offsetof(ControllerSet, vehicle) == 0x34);
 
+struct EntrantSetupMode {
+    uint8_t _pad_0x0[0x230];
+    uint64_t selectable_list_count; // L2 experimental
+};
+static_assert(offsetof(EntrantSetupMode, selectable_list_count) == 0x230);
+
 struct EntrantsManager {
     uint8_t _pad_0x0[0x2b0];
     GameSetupMode *game_setup_mode; // L2 experimental
+    uint8_t _pad_0x2b8[0x28];
+    EntrantRecord *session_begin; // L2 experimental
+    EntrantRecord *session_end; // L2 experimental
 };
 static_assert(offsetof(EntrantsManager, game_setup_mode) == 0x2b0);
+static_assert(offsetof(EntrantsManager, session_begin) == 0x2e0);
+static_assert(offsetof(EntrantsManager, session_end) == 0x2e8);
 
 struct GameSetupMode {
     uint8_t _pad_0x0[0x1e0];
