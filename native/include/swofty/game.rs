@@ -188,11 +188,6 @@ pub struct DepartmentData {
 }
 
 #[repr(C)]
-pub struct EntrantSetupMode {
-    _opaque: [u8; 0],
-}
-
-#[repr(C)]
 pub struct FEHomeViewModel {
     _opaque: [u8; 0],
 }
@@ -1109,6 +1104,13 @@ const _: () = assert!(core::mem::offset_of!(EntrantRecord, car_number) == 0x83);
 const _: () = assert!(core::mem::size_of::<EntrantRecord>() == 0x88);
 
 #[repr(C)]
+pub struct EntrantSetupMode {
+    _pad_0x0: [u8; 0x230],
+    pub selectable_list_count: u64,
+}
+const _: () = assert!(core::mem::offset_of!(EntrantSetupMode, selectable_list_count) == 0x230);
+
+#[repr(C)]
 pub struct EntrantWriteData {
     pub driver: u32,
     pub driver_customisation: u32,
@@ -1134,8 +1136,13 @@ const _: () = assert!(core::mem::size_of::<EntrantWriteData>() == 0x2c);
 pub struct EntrantsManager {
     _pad_0x0: [u8; 0x2b0],
     pub game_setup_mode: *mut GameSetupMode,
+    _pad_0x2b8: [u8; 0x28],
+    pub session_begin: *mut EntrantRecord,
+    pub session_end: *mut EntrantRecord,
 }
 const _: () = assert!(core::mem::offset_of!(EntrantsManager, game_setup_mode) == 0x2b0);
+const _: () = assert!(core::mem::offset_of!(EntrantsManager, session_begin) == 0x2e0);
+const _: () = assert!(core::mem::offset_of!(EntrantsManager, session_end) == 0x2e8);
 
 #[repr(C)]
 pub struct F1SeasonStandings {
