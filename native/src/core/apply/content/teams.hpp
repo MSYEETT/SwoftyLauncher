@@ -13,7 +13,7 @@
 // Lowers team.identity (a new entrants.teams row and the side rows found by its label), team.pit_times and
 // team.logo to the operations of the row engine, and dresses a loaded team record as another identity. A new team
 // copies its donor's row (every key, story_info included) and takes its names, colours (signed ARGB), livery
-// name, prestige, nationality, audio id and stat id from the record. The side rows (pit times, initial cash,
+// name, prestige, nationality, audio id, team principal (team_boss), base (team_base) and stat id from the record. The side rows (pit times, initial cash,
 // facilities, driver market, recognition, renown and form, primary sponsors, showroom history) are copies of the
 // donor's rows relabelled to the new team, in every data group that holds one. The wearables stream writes the
 // team customisation rows (suit, gloves), the vehicle's animation team data follows the car.
@@ -472,6 +472,8 @@ inline void lower_team(const std::string &id, const Value &rec, const Lookup &lo
     put("nationality", rec["nationality"].is_string() ? std::string(rec["nationality"].as_string()) : std::string());
     put("audio_id", rec["audio_id"].is_string() ? std::string(rec["audio_id"].as_string()) : std::string());
     put("prestige", rec["prestige"].is_int() ? std::to_string(rec["prestige"].as_int()) : std::string());
+    put("team_boss", rec["team_boss"].is_string() ? std::string(rec["team_boss"].as_string()) : std::string());
+    put("team_base", title_text(rec["team_base"]));
     const Value &c = rec["colours"];
     auto put_colour = [&](const char *field, const Value &v) {
         if (auto n = argb(v))
@@ -595,7 +597,7 @@ inline void lower_pit_times(const std::string &id, const Value &rec, const Looku
 }
 
 struct Dress {
-    std::string title, short_name, super_short, code;
+    std::string title, short_name, super_short, code, base, boss;
     std::optional<int32_t> primary, secondary, tertiary, wear_primary, wear_secondary, wear_tertiary, menu;
     std::string tower_key;
 };
@@ -608,6 +610,9 @@ inline Dress dress_of(const Value &rec)
     d.super_short = title_text(rec["names"]["super_short"]);
     if (rec["names"]["code"].is_string())
         d.code = std::string(rec["names"]["code"].as_string());
+    d.base = title_text(rec["team_base"]);
+    if (rec["team_boss"].is_string())
+        d.boss = std::string(rec["team_boss"].as_string());
     const Value &c = rec["colours"];
     d.menu = argb(c["menu"]);
     d.primary = argb(c["primary"]);
@@ -622,7 +627,7 @@ inline Dress dress_of(const Value &rec)
 
 namespace team_record {
 inline constexpr std::size_t DISPLAY_NAME = 0x0b0, CODE = 0x148, SHORT = 0x1e0, SUPER_SHORT = 0x278,
-                             PRIMARY = 0x564, SECONDARY = 0x568, TERTIARY = 0x56c, WEAR_PRIMARY = 0x570,
+                             TEAM_BASE = 0x3a8, TEAM_BOSS = 0x581, PRIMARY = 0x564, SECONDARY = 0x568, TERTIARY = 0x56c, WEAR_PRIMARY = 0x570,
                              WEAR_SECONDARY = 0x574, WEAR_TERTIARY = 0x578, MENU = 0x57c, HOLDER_CAPACITY = 0x80;
 }
 
@@ -645,13 +650,16 @@ inline void write_colour(uint8_t *record, std::size_t at, const std::optional<in
         std::memcpy(record + at, &*v, sizeof(int32_t));
 }
 
-inline void write_dress(uint8_t *record, const Dress &d)
+inline void write_dress(uint8_t *record, const Dress &d, int64_t boss = -1)
 {
     using namespace team_record;
     write_holder(record, DISPLAY_NAME, d.title);
     write_holder(record, SHORT, d.short_name);
     write_holder(record, SUPER_SHORT, d.super_short);
     write_holder(record, CODE, d.code);
+    write_holder(record, TEAM_BASE, d.base);
+    if (boss >= 0 && boss < 0xff)
+        record[TEAM_BOSS] = uint8_t(boss);
     write_colour(record, PRIMARY, d.primary);
     write_colour(record, SECONDARY, d.secondary);
     write_colour(record, TERTIARY, d.tertiary);
@@ -666,13 +674,44 @@ struct Pending {
     int slot = 0;
 };
 
+// What a loaded record held before its first dress that its own identity doesn't give back: the base text and
+// the principal's character stat id.
+struct Kept {
+    std::string row, base;
+    uint8_t boss = 0xff;
+};
+
+inline Kept keep_of(const uint8_t *record, const std::string &row)
+{
+    Kept k;
+    k.row = row;
+    const char *ptr;
+    std::memcpy(&ptr, record + team_record::TEAM_BASE, sizeof ptr);
+    if (ptr)
+        k.base = std::string(ptr, strnlen(ptr, team_record::HOLDER_CAPACITY));
+    k.boss = record[team_record::TEAM_BOSS];
+    return k;
+}
+
+inline void put_back(uint8_t *record, const Kept &k)
+{
+    char *ptr;
+    std::memcpy(&ptr, record + team_record::TEAM_BASE, sizeof ptr);
+    if (ptr && k.base.empty())
+        ptr[0] = 0;
+    write_holder(record, team_record::TEAM_BASE, k.base);
+    record[team_record::TEAM_BOSS] = k.boss;
+}
+
 struct Live {
     std::function<const Value *(const std::string &id)> identity;
     std::function<int64_t(const std::string &id)> stat_of;
     std::function<uint8_t *(uint16_t stat)> record;
+    std::function<int64_t(const std::string &label)> character_stat;
     std::function<void(const std::string &line)> log;
     std::vector<Pending> pending;
     std::map<uint16_t, std::string> wears;
+    std::map<uint16_t, Kept> kept;
     std::map<std::string, std::string> logo_override;
     std::vector<LogoImage> manifest;
 };
@@ -687,6 +726,20 @@ inline std::recursive_mutex &live_mutex()
 {
     static std::recursive_mutex m;
     return m;
+}
+
+inline std::string wear_dress(Live &l, uint8_t *record, const Value &rec)
+{
+    Dress d = dress_of(rec);
+    int64_t boss = -1;
+    std::string note;
+    if (!d.boss.empty()) {
+        boss = l.character_stat ? l.character_stat(d.boss) : -1;
+        if (boss < 0 || boss >= 0xff)
+            note = "; its team_boss " + d.boss + " is not an entrants.characters row, the principal stays";
+    }
+    write_dress(record, d, boss);
+    return note;
 }
 
 inline bool dress_slot(const char *group, int slot, const char *row, const char *team, int64_t row_stat)
@@ -729,10 +782,16 @@ inline bool dress_slot(const char *group, int slot, const char *row, const char 
         say(where + ": queued; the loaded team record (stat id " + std::to_string(stat) + ") is not reachable yet");
         return false;
     }
-    write_dress(record, dress_of(*rec));
+    if (!own && !l.kept.count(uint16_t(stat)))
+        l.kept[uint16_t(stat)] = keep_of(record, row);
+    std::string note = wear_dress(l, record, *rec);
+    if (auto k = l.kept.find(uint16_t(stat)); own && k != l.kept.end()) {
+        put_back(record, k->second);
+        l.kept.erase(k);
+    }
     say(where + (again ? ": already worn; names and colours written again to the loaded record of stat id "
                        : ": names and colours written to the loaded record of stat id ") +
-        std::to_string(stat));
+        std::to_string(stat) + note);
     return true;
 }
 
@@ -746,10 +805,39 @@ inline bool redress(uint16_t stat, uint8_t *record)
     const Value *rec = l.identity(it->second);
     if (!rec)
         return false;
-    write_dress(record, dress_of(*rec));
+    if (!l.kept.count(stat))
+        l.kept[stat] = keep_of(record, "");
+    wear_dress(l, record, *rec);
     if (l.log)
         l.log("redress stat id " + std::to_string(stat) + ": the loader stored its record again; dressed as " + it->second);
     return true;
+}
+
+// Every dressed loaded record back in its own identity, base and principal: the dress belongs to the career that
+// made it, and a loaded team record is shared by every career of the game session.
+inline std::size_t undress_all(const std::string &why)
+{
+    std::lock_guard g(live_mutex());
+    Live &l = live();
+    std::size_t n = 0;
+    for (auto &[stat, team] : l.wears) {
+        auto k = l.kept.find(stat);
+        uint8_t *record = l.record ? l.record(stat) : nullptr;
+        if (!record || k == l.kept.end())
+            continue;
+        const Value *own = l.identity && !k->second.row.empty() ? l.identity(k->second.row) : nullptr;
+        if (own)
+            write_dress(record, dress_of(*own));
+        put_back(record, k->second);
+        n++;
+        if (l.log)
+            l.log("undress stat id " + std::to_string(stat) + ": " + team + " taken off" +
+                  (own ? ", " + k->second.row + " back in its own names and colours" : std::string()) + " (" + why + ")");
+    }
+    l.wears.clear();
+    l.kept.clear();
+    l.pending.clear();
+    return n;
 }
 
 }
