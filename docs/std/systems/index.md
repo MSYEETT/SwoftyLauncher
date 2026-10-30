@@ -57,7 +57,7 @@ Described on their pages, in headers that come later:
 - **[Cars](./cars)**: `vehicle.damage_model`, `vehicle.parts`.
 - **[Sounds](./sounds)**: `audio.car`.
 - **[Career](./career)**: `career.contract_rules`, `career.rnd.department`, `career.facility`, `career.economy`, `career.sponsor`.
-- **[Tracks](./tracks)**: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines` (1.6.x).
+- **[Tracks](./tracks)**: `tracks::tracks`, `venues`, `data`, `per_package`, `layers`, `slots`, `ai_lines` (the first four in 1.6.5, experimental).
 - **[Tyres](./tyres)** `tyres::physical`, `visual`, `classes`, `per_event`, `allocations`, `wear_scales`, `rules`.
 - **[Power units, ERS and DRS](./power-units)** `power::units`, `suppliers`, `drs_rules`, `component_rules`.
 - **[Sessions and weekends](./sessions)** `sessions::modes`, `formats`, `lengths`, `points`, `rules_profiles`, `safety_car`, `grids`.

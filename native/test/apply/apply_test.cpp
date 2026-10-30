@@ -40,6 +40,7 @@ struct TestApplier : ap::Applier {
     TestApplier(std::string n, reg::Applies k, std::size_t keys_ = 0) : name(std::move(n)), kind(k), keys(keys_) {}
     const char *registry() const override { return name.c_str(); }
     reg::Applies applies() const override { return kind; }
+    void prepare(reg::Store &) override { calls.push_back(name + ".prepare"); }
     std::size_t database_keys(reg::Store &) override
     {
         calls.push_back(name + ".keys");
@@ -355,7 +356,9 @@ void test_scheduler()
     s.set_facts([&](const reg::Context &c) { facts.push_back(c); });
     calls.clear();
     check(s.plan_boot() == 7, "the plan sums database_keys of the boot appliers");
-    check(s.plan_boot() == 7 && joined(calls) == "t.boot1.keys | t.boot2.keys", "database_keys runs once per boot applier, in order: " + joined(calls));
+    check(s.plan_boot() == 7 && joined(calls) == "t.boot1.prepare | t.boot2.prepare | t.boot1.keys | t.boot2.keys",
+          "every boot applier prepares before any database_keys, then database_keys runs once per boot applier, in order: " +
+              joined(calls));
     check(s.boot_work(), "keys make boot work");
     calls.clear();
     ap::db::staging().open([](const std::string &p) { return p == "stock.row"; });
@@ -615,6 +618,33 @@ void test_file_route_boot()
     ap::Scheduler idle(bare);
     idle.plan_boot();
     check(!idle.boot_work(), "a profile without boot records has no boot work, so the core leaves the database load alone");
+
+    reg::reset_store();
+    reg::Store &seeded = reg::store();
+    declare(seeded, "t.track", reg::Applies::boot);
+    reg::Def venue;
+    venue.name = "t.venue";
+    venue.applies = reg::Applies::boot;
+    venue.shared = true;
+    venue.provider_registry = "t.track";
+    venue.provides = "/provides";
+    venue.resolved = "/track";
+    venue.shared_prefix = "venue";
+    seeded.declare_def(venue);
+    seeded.add_base("t.venue", "albert_park", Value::object({{"name", Value("Albert Park")}, {"track", Value()}}));
+    seeded.add_base("t.track", "melbourne", Value::object({{"provides", Value::array({Value("venue/albert_park")})}}));
+    seeded.end_register();
+    check(seeded.list("t.venue", "") == std::vector<std::string>{"venue/albert_park"},
+          "the core's venue resolves through its stock provider");
+    ap::clear_appliers();
+    ap::make<TestApplier>("t.track", reg::Applies::boot, 0);
+    ap::make<TestApplier>("t.venue", reg::Applies::boot, 0);
+    ap::Scheduler core_only(seeded);
+    core_only.set_log([](const std::string &l) { logs.push_back(l); });
+    logs.clear();
+    core_only.plan_boot();
+    check(!core_only.boot_work() && logged("[apply] t.venue boot: 0 new database key(s) planned; no addon records or layers"),
+          "the core's own records in a shared registry (venue/<key>) are not addon content and make no boot work");
     ap::clear_appliers();
 }
 

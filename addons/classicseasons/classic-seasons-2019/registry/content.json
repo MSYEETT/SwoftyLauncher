@@ -312,11 +312,186 @@
    "archive": "cars/teams/williams/wep/williams.erp"
   }
  },
+ "career.calendar": {
+  "f1_2019": {
+   "rounds": [
+    {
+     "round": 1,
+     "race": {
+      "literal": "Australian Grand Prix"
+     },
+     "venue": "venue/albert_park",
+     "date": "2019-03-17"
+    },
+    {
+     "round": 2,
+     "race": {
+      "literal": "Bahrain Grand Prix"
+     },
+     "venue": "venue/bahrain",
+     "date": "2019-03-31"
+    },
+    {
+     "round": 3,
+     "race": {
+      "literal": "Chinese Grand Prix"
+     },
+     "venue": "venue/shanghai",
+     "date": "2019-04-14"
+    },
+    {
+     "round": 4,
+     "race": {
+      "literal": "Azerbaijan Grand Prix"
+     },
+     "venue": "venue/baku",
+     "date": "2019-04-28"
+    },
+    {
+     "round": 5,
+     "race": {
+      "literal": "Spanish Grand Prix"
+     },
+     "venue": "venue/catalunya",
+     "date": "2019-05-12"
+    },
+    {
+     "round": 6,
+     "race": {
+      "literal": "Monaco Grand Prix"
+     },
+     "venue": "venue/monaco",
+     "date": "2019-05-26"
+    },
+    {
+     "round": 7,
+     "race": {
+      "literal": "Canadian Grand Prix"
+     },
+     "venue": "venue/villeneuve",
+     "date": "2019-06-09"
+    },
+    {
+     "round": 8,
+     "race": {
+      "literal": "French Grand Prix"
+     },
+     "venue": "venue/ricard?",
+     "date": "2019-06-23"
+    },
+    {
+     "round": 9,
+     "race": {
+      "literal": "Austrian Grand Prix"
+     },
+     "venue": "venue/red_bull_ring",
+     "date": "2019-06-30"
+    },
+    {
+     "round": 10,
+     "race": {
+      "literal": "British Grand Prix"
+     },
+     "venue": "venue/silverstone",
+     "date": "2019-07-14"
+    },
+    {
+     "round": 11,
+     "race": {
+      "literal": "German Grand Prix"
+     },
+     "venue": "venue/hockenheimring?",
+     "date": "2019-07-28"
+    },
+    {
+     "round": 12,
+     "race": {
+      "literal": "Hungarian Grand Prix"
+     },
+     "venue": "venue/hungaroring",
+     "date": "2019-08-04"
+    },
+    {
+     "round": 13,
+     "race": {
+      "literal": "Belgian Grand Prix"
+     },
+     "venue": "venue/spa",
+     "date": "2019-09-01"
+    },
+    {
+     "round": 14,
+     "race": {
+      "literal": "Italian Grand Prix"
+     },
+     "venue": "venue/monza",
+     "date": "2019-09-08"
+    },
+    {
+     "round": 15,
+     "race": {
+      "literal": "Singapore Grand Prix"
+     },
+     "venue": "venue/marina_bay",
+     "date": "2019-09-22"
+    },
+    {
+     "round": 16,
+     "race": {
+      "literal": "Russian Grand Prix"
+     },
+     "venue": "venue/sochi?",
+     "date": "2019-09-29"
+    },
+    {
+     "round": 17,
+     "race": {
+      "literal": "Japanese Grand Prix"
+     },
+     "venue": "venue/suzuka",
+     "date": "2019-10-13"
+    },
+    {
+     "round": 18,
+     "race": {
+      "literal": "Mexican Grand Prix"
+     },
+     "venue": "venue/rodriguez",
+     "date": "2019-10-27"
+    },
+    {
+     "round": 19,
+     "race": {
+      "literal": "United States Grand Prix"
+     },
+     "venue": "venue/americas",
+     "date": "2019-11-03"
+    },
+    {
+     "round": 20,
+     "race": {
+      "literal": "Brazilian Grand Prix"
+     },
+     "venue": "venue/interlagos",
+     "date": "2019-11-17"
+    },
+    {
+     "round": 21,
+     "race": {
+      "literal": "Abu Dhabi Grand Prix"
+     },
+     "venue": "venue/yas_marina",
+     "date": "2019-12-01"
+    }
+   ]
+  }
+ },
  "content.package": {
   "f1_2019": {
    "title": "lng_cs_f1_2019",
    "entrant_list": "cs_f1_2019",
    "season": 2019,
+   "calendar": "swofty.classic-seasons-2019/f1_2019?",
    "teams": [
     {
      "key": "mercedes",
