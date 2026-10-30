@@ -3092,7 +3092,7 @@ mod tests {
             Some("team12_26")
         );
         let key = "t.rows/entrants.teams.team/team12_26";
-        let hashed = crate::ops::hash_probe(key, crate::ops::hash_pool(None, 101))
+        let hashed = crate::ops::hash_probe(key, crate::ops::hash_pool(None, 101, 1))
             .next()
             .unwrap();
         assert_eq!(

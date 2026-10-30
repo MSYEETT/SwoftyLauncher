@@ -487,6 +487,9 @@ pub trait RowIds {
     /// Keeps `id` for `key`, which it got as `from` says.
     fn keep(&self, table: &str, row: &str, key: &str, id: i64, from: IdFrom);
 
+    /// How many `add-row` ops into `table`'s rows named `row` the build has.
+    fn adds(&self, table: &str, row: &str) -> usize;
+
     /// The lowest id kept for a row of an addon this build leaves out that no record of the core's registry
     /// holds and `free` accepts, moved to `key`, and the key that held it.
     fn reclaim(&self, table: &str, row: &str, key: &str, free: &dyn Fn(i64) -> bool)
@@ -517,17 +520,19 @@ pub enum IdFrom {
     Reused,
 }
 
-/// How many ids above the stock rows' highest the hash of a row key spreads over, in a table
-/// with no ceiling.
-pub const HASH_SPAN: i64 = 256;
+/// The fewest ids above the stock rows' highest the hash of a row key spreads over.
+pub const HASH_WINDOW: u64 = 32;
 
 /// The pool a row's hashed id comes from: its first id, how many ids the hash spreads over, and
-/// the highest id when the table has a [`StatIdCeiling`]; `stock` is the stock rows' highest id.
-pub fn hash_pool(ceiling: Option<StatIdCeiling>, stock: i64) -> (i64, i64, Option<i64>) {
+/// the highest id when the table has a [`StatIdCeiling`]. `stock` is the stock rows' highest id
+/// and `adds` the number of `add-row` ops into the table in the build; the hash spreads over the
+/// power of two at or above twice `adds`, at least [`HASH_WINDOW`], and no further than the ceiling.
+pub fn hash_pool(ceiling: Option<StatIdCeiling>, stock: i64, adds: usize) -> (i64, i64, Option<i64>) {
     let lo = ceiling.and_then(|c| c.from).unwrap_or(stock + 1);
+    let window = (2 * adds as u64).max(HASH_WINDOW).next_power_of_two() as i64;
     match ceiling {
-        Some(c) => (lo, (c.max - lo + 1).max(1), Some(c.max)),
-        None => (lo, HASH_SPAN, None),
+        Some(c) => (lo, window.min(c.max - lo + 1).max(1), Some(c.max)),
+        None => (lo, window, None),
     }
 }
 
@@ -1525,7 +1530,7 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             }
         }
         let free = |id: i64| blocked(id).is_none() && !later(id);
-        let pool = hash_pool(ceiling, stock_top(db, names, &path, row, n));
+        let pool = hash_pool(ceiling, stock_top(db, names, &path, row, n), k.adds(&path, row));
         let hashed = claimed
             .hashed
             .filter(|id| free(*id))

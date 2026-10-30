@@ -164,6 +164,7 @@ pub struct Store {
     rows: BTreeMap<String, i64>,
     from: HashMap<String, IdFrom>,
     planned: HashMap<String, i64>,
+    adds: HashMap<String, usize>,
     seeded: BTreeSet<String>,
     by_id: HashMap<String, BTreeMap<i64, String>>,
     pinned: HashMap<String, HashSet<i64>>,
@@ -266,6 +267,7 @@ impl Store {
         files: impl IntoIterator<Item = (&'a str, &'a DbOps)>,
     ) {
         self.planned.clear();
+        self.adds.clear();
         let mut keys: BTreeMap<(String, String), Vec<Planned>> = BTreeMap::new();
         let mut explicit: HashMap<String, HashSet<i64>> = HashMap::new();
         for (addon, ops) in files {
@@ -290,6 +292,7 @@ impl Store {
                 let Some(row) = add_row_name(table, from) else {
                     continue;
                 };
+                *self.adds.entry(format!("{table}.{row}")).or_default() += 1;
                 let Some(label) = set.get("_metadata_") else {
                     continue;
                 };
@@ -346,7 +349,8 @@ impl Store {
                     None => new.push(key),
                 }
             }
-            let pool = hash_pool(stat_id_ceiling(&table, &row), top);
+            let adds = self.adds.get(&name).copied().unwrap_or(0);
+            let pool = hash_pool(stat_id_ceiling(&table, &row), top, adds);
             for key in new {
                 if let Some(id) = hash_probe(&key, pool).find(|id| !fixed.contains(id)) {
                     fixed.insert(id);
@@ -477,6 +481,11 @@ impl RowIds for Scoped<'_> {
             .and_then(|ids| ids.get(&id))
             .is_some_and(|k| k != key)
             || s.pinned.get(&table).is_some_and(|ids| ids.contains(&id))
+    }
+
+    fn adds(&self, table: &str, row: &str) -> usize {
+        let s = self.store.borrow();
+        s.adds.get(&format!("{table}.{row}")).copied().unwrap_or(0)
     }
 
     fn keep(&self, _: &str, _: &str, key: &str, id: i64, from: IdFrom) {
@@ -614,7 +623,7 @@ mod tests {
         rows: &[(&str, &str)],
         fixed: &[i64],
     ) -> BTreeMap<String, i64> {
-        let pool = hash_pool(stat_id_ceiling(table.0, table.1), stock);
+        let pool = hash_pool(stat_id_ceiling(table.0, table.1), stock, rows.len());
         let mut fixed: HashSet<i64> = fixed.iter().copied().chain([stock]).collect();
         let mut keys: Vec<(String, &str)> = rows.iter().map(|(a, l)| (key(a, table, l), *l)).collect();
         keys.sort();
@@ -653,6 +662,24 @@ mod tests {
             Store::default(),
         );
         assert_eq!(other.ids, want);
+    }
+
+    #[test]
+    fn a_small_addon_lands_in_a_window_twice_the_rows_it_adds() {
+        let built = build(VEHICLES, 10, &[("a", &["a1", "a2", "a3"])], Store::default());
+        assert!(
+            built.ids.values().all(|id| (11..11 + 32).contains(id)),
+            "{:?}",
+            built.ids
+        );
+        assert_eq!(hash_pool(None, 10, 3), (11, 32, None));
+        assert_eq!(hash_pool(None, 10, 20), (11, 64, None));
+        assert_eq!(hash_pool(None, 10, 32), (11, 64, None));
+        assert_eq!(hash_pool(None, 10, 33), (11, 128, None));
+        let packages = stat_id_ceiling(PACKAGES.0, PACKAGES.1);
+        assert_eq!(hash_pool(packages, 250, 3), (251, 4, Some(254)));
+        assert_eq!(hash_pool(packages, 60, 50), (61, 128, Some(254)));
+        assert_eq!(hash_pool(packages, 200, 50), (201, 54, Some(254)));
     }
 
     #[test]
