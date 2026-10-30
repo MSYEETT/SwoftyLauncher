@@ -14,7 +14,7 @@ use swofty_formats::hash::fnv1a64;
 
 use crate::ops::{
     Claimed, DbOp, DbOps, IdFrom, RowIds, StatIdMode, add_row_name, explicit_stat_ids, hash_pool, hash_probe,
-    row_shape, stat_id_ceiling, stat_id_field,
+    ordinal, row_shape, stat_id_ceiling, stat_id_field,
 };
 use crate::stdlib::reports;
 use crate::{Loaded, Result, io_err};
@@ -107,16 +107,35 @@ pub fn lock(data: &Path) -> Result<std::fs::File> {
     Ok(file)
 }
 
-/// The database file `rel` of the profile's last build in `overlays`, other than the build `current`.
+/// The database file `rel` of the profile's last build in `overlays`, other than the build `current`;
+/// for a profile with none, the newest of every profile's builds beside it.
 pub fn last_build(overlays: &Path, current: &str, rel: &str) -> Option<PathBuf> {
-    std::fs::read_dir(overlays)
-        .ok()?
-        .flatten()
-        .filter(|e| e.file_name() != current)
-        .map(|e| e.path().join(rel))
-        .filter_map(|p| Some((std::fs::metadata(&p).ok()?.modified().ok()?, p)))
-        .max()
-        .map(|(_, p)| p)
+    let newest = |dirs: Vec<PathBuf>| {
+        dirs.into_iter()
+            .map(|d| d.join(rel))
+            .filter_map(|p| Some((std::fs::metadata(&p).ok()?.modified().ok()?, p)))
+            .max()
+            .map(|(_, p)| p)
+    };
+    let subdirs = |dir: &Path| -> Vec<PathBuf> {
+        std::fs::read_dir(dir)
+            .map(|rd| rd.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect())
+            .unwrap_or_default()
+    };
+    let own = subdirs(overlays)
+        .into_iter()
+        .filter(|d| d.file_name().is_some_and(|n| n != current))
+        .collect();
+    newest(own).or_else(|| {
+        let profiles = subdirs(overlays.parent()?);
+        newest(
+            profiles
+                .iter()
+                .filter(|p| p.as_path() != overlays)
+                .flat_map(|p| subdirs(p))
+                .collect(),
+        )
+    })
 }
 
 #[derive(Default)]
@@ -351,6 +370,9 @@ impl Store {
             }
             let adds = self.adds.get(&name).copied().unwrap_or(0);
             let pool = hash_pool(stat_id_ceiling(&table, &row), top, adds);
+            if ordinal(pool) {
+                continue;
+            }
             for key in new {
                 if let Some(id) = hash_probe(&key, pool).find(|id| !fixed.contains(id)) {
                     fixed.insert(id);
@@ -547,8 +569,17 @@ mod tests {
     }
 
     fn try_build(
-        (table, row): (&str, &str),
+        table: (&str, &str),
         stock: i64,
+        addons: &[(&str, &[&str])],
+        store: Store,
+    ) -> crate::Result<Built> {
+        try_build_on(db(table, stock), table, addons, store)
+    }
+
+    fn try_build_on(
+        mut gvdb: Gvdb,
+        (table, row): (&str, &str),
         addons: &[(&str, &[&str])],
         store: Store,
     ) -> crate::Result<Built> {
@@ -577,15 +608,16 @@ mod tests {
             }
         }
         p.keep_row_ids(store);
-        let mut gvdb = db((table, row), stock);
+        let first = gvdb.instance_count(table, row).unwrap();
         let stock_keys = gvdb.records.iter().map(|r| r.key).collect();
         let mut report = DbReport::default();
         p.apply_db_report(&mut gvdb, &stock_keys, &HashSet::new(), &mut report)?;
         let n = gvdb.instance_count(table, row).unwrap();
-        let ids = (1..n)
+        let field = stat_id_field(table, row);
+        let ids = (first..n)
             .map(|i| {
                 let label = gvdb.get_text(&format!("{table}.{row}_{i}._metadata_")).unwrap();
-                let id = gvdb.get_text(&format!("{table}.{row}_{i}.stat_id")).unwrap();
+                let id = gvdb.get_text(&format!("{table}.{row}_{i}.{field}")).unwrap();
                 (label, id.parse().unwrap())
             })
             .collect();
@@ -902,7 +934,7 @@ mod tests {
             first
                 .lines
                 .iter()
-                .any(|l| l.ends_with("stat_id 41 (the source's is 10; as the profile's last build gave it)")),
+                .any(|l| l.ends_with("stat_id 41 (the source's is 10; as the last build gave it)")),
             "{:?}",
             first.lines
         );
@@ -939,5 +971,130 @@ mod tests {
             again.store.get(&format!("{}#2", key("a", VEHICLES, "x"))),
             Some(x2)
         );
+    }
+
+    const MODES: (&str, &str) = ("game_setup.game_setup_modes", "game_setup_mode");
+    const ENTRANT_MODES: (&str, &str) = ("entrants.entrant_setup_modes", "entrant_setup_mode");
+
+    // A table of stock rows holding the ids 0 to `top`.
+    fn table_to((table, row): (&str, &str), top: i64) -> Gvdb {
+        let field = stat_id_field(table, row);
+        let mut records = vec![Record::new(
+            &format!("{table}._{row}_instancecount_"),
+            0,
+            (top + 1).to_string(),
+        )];
+        for i in 0..=top {
+            records.push(Record::new(
+                &format!("{table}.{row}_{i}._metadata_"),
+                4,
+                format!("stock_{i}"),
+            ));
+            records.push(Record::new(
+                &format!("{table}.{row}_{i}.{field}"),
+                0,
+                i.to_string(),
+            ));
+        }
+        Gvdb { records }
+    }
+
+    #[test]
+    fn mode_ids_stay_under_the_mask_and_take_the_next_free_id_in_load_order() {
+        let labels: Vec<String> = (0..10).map(|i| format!("mode_{i}")).collect();
+        let many: Vec<&str> = labels.iter().map(String::as_str).collect();
+        let addons: &[(&str, &[&str])] = &[("bydanix", &["bdx_2012_mode"]), ("many", &many)];
+        let built = try_build_on(table_to(MODES, 20), MODES, addons, Store::default()).unwrap();
+        assert_eq!(built.ids["bdx_2012_mode"], 21);
+        assert_eq!(built.ids["mode_9"], 31);
+        assert!(built.ids.values().all(|id| *id <= 31), "{:?}", built.ids);
+        assert_eq!(
+            built.store.from[&key("bydanix", MODES, "bdx_2012_mode")],
+            IdFrom::Next
+        );
+        let full: &[(&str, &[&str])] = &[
+            ("bydanix", &["bdx_2012_mode"]),
+            ("many", &many),
+            ("more", &["one"]),
+        ];
+        let e = try_build_on(table_to(MODES, 20), MODES, full, Store::default())
+            .err()
+            .unwrap();
+        assert!(e.to_string().contains("has no free stat_id up to 31"), "{e}");
+        let mut kept = Store::default();
+        kept.put(&key("bydanix", MODES, "bdx_2012_mode"), 44, IdFrom::Hashed);
+        let moved = try_build_on(
+            table_to(MODES, 20),
+            MODES,
+            &[("bydanix", &["bdx_2012_mode"])],
+            kept,
+        )
+        .unwrap();
+        assert_eq!(moved.ids["bdx_2012_mode"], 21);
+        assert!(
+            moved.lines.iter().any(|l| l.ends_with(
+                "stat_id 21 (the source's is 0; 44, kept for it, is above 31, the highest the game reads)"
+            )),
+            "{:?}",
+            moved.lines
+        );
+        let core_first: &[(&str, &[&str])] =
+            &[("swofty.core", &["swofty_f1"]), ("bydanix", &["bdx_2012_mode"])];
+        let entrants = try_build_on(
+            table_to(ENTRANT_MODES, 12),
+            ENTRANT_MODES,
+            core_first,
+            Store::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            (entrants.ids["swofty_f1"], entrants.ids["bdx_2012_mode"]),
+            (13, 14)
+        );
+        let seasons = ("game_setup.seasons", "season");
+        assert_eq!(stat_id_field(seasons.0, seasons.1), "statId");
+        assert_eq!(stat_id_ceiling(seasons.0, seasons.1).map(|c| c.max), Some(31));
+    }
+
+    #[test]
+    fn a_new_profile_seeds_from_another_profiles_last_build() {
+        let data = data_dir("other-profile");
+        let overlay = data.join("cache/overlay");
+        let mut old = table_to(MODES, 20);
+        let (table, row) = MODES;
+        old.set(&format!("{table}._{row}_instancecount_"), "22", None)
+            .unwrap();
+        old.set(&format!("{table}.{row}_21._metadata_"), "bdx_2012_mode", Some(4))
+            .unwrap();
+        old.set(&format!("{table}.{row}_21.stat_id"), "25", Some(0))
+            .unwrap();
+        let rel = "game_package/db.bin";
+        put(&overlay.join("ig10/older").join(rel), "");
+        std::fs::write(overlay.join("ig10/older").join(rel), old.to_bytes()).unwrap();
+        std::fs::create_dir_all(overlay.join("fresh")).unwrap();
+        let last = last_build(&overlay.join("fresh"), "new", rel);
+        assert_eq!(last, Some(overlay.join("ig10/older").join(rel)));
+        let (store, _) = Store::load(&data, None, "fresh", last);
+        let built = try_build_on(
+            table_to(MODES, 20),
+            MODES,
+            &[("bydanix", &["bdx_2012_mode"])],
+            store,
+        )
+        .unwrap();
+        assert_eq!(built.ids["bdx_2012_mode"], 25);
+        assert!(
+            built
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 25 (the source's is 0; as the last build gave it)")),
+            "{:?}",
+            built.lines
+        );
+        assert_eq!(
+            built.store.from[&key("bydanix", MODES, "bdx_2012_mode")],
+            IdFrom::Seeded
+        );
+        std::fs::remove_dir_all(&data).ok();
     }
 }

@@ -154,12 +154,31 @@ const STAT_ID_CEILINGS: &[(&str, &str, StatIdCeiling)] = &[
         "scenario",
         StatIdCeiling { max: 254, from: None },
     ),
+    // The mask parser 0x142a0ddb0 sets bit `stat_id` of a u32 for each mode a row lists and throws
+    // 'invalid bitset position' at boot above 31.
+    (
+        "game_setup.game_setup_modes",
+        "game_setup_mode",
+        StatIdCeiling { max: 31, from: None },
+    ),
+    // The same parser's season mask, by `statId`.
+    (
+        "game_setup.seasons",
+        "season",
+        StatIdCeiling { max: 31, from: None },
+    ),
+    // Each game setup mode names its entrant setup mode; kept to the mode mask's range with it.
+    (
+        "entrants.entrant_setup_modes",
+        "entrant_setup_mode",
+        StatIdCeiling { max: 31, from: None },
+    ),
 ];
 
-/// The key that holds the id of `table`'s rows named `row`: `statId` for scenarios, else `stat_id`.
+/// The key that holds the id of `table`'s rows named `row`: `statId` for scenarios and seasons, else `stat_id`.
 pub fn stat_id_field(table: &str, row: &str) -> &'static str {
     match (table, row) {
-        ("game_setup.scenarios", "scenario") => "statId",
+        ("game_setup.scenarios", "scenario") | ("game_setup.seasons", "season") => "statId",
         _ => "stat_id",
     }
 }
@@ -514,7 +533,10 @@ pub enum IdFrom {
     Seeded,
     /// The hash of its key, or the next id after it that was free.
     Hashed,
-    /// The kept id was taken, and the row took a hashed one.
+    /// The next free id above the table's rows, in load order, in a table with a pool of
+    /// [`ORDINAL_POOL`] ids or fewer.
+    Next,
+    /// The kept id was taken, and the row took a new one.
     Moved,
     /// The table was full, and the row took an id kept for an addon the build left out.
     Reused,
@@ -522,6 +544,15 @@ pub enum IdFrom {
 
 /// The fewest ids above the stock rows' highest the hash of a row key spreads over.
 pub const HASH_WINDOW: u64 = 32;
+
+/// A table whose ceiling leaves this many ids above the stock rows or fewer gives a new row the
+/// next free id in load order, in place of a hashed one.
+pub const ORDINAL_POOL: i64 = 32;
+
+/// Whether [`hash_pool`]'s pool gives new rows the next free id rather than a hashed one.
+pub fn ordinal((lo, _, max): (i64, i64, Option<i64>)) -> bool {
+    max.is_some_and(|max| max - lo < ORDINAL_POOL)
+}
 
 /// The pool a row's hashed id comes from: its first id, how many ids the hash spreads over, and
 /// the highest id when the table has a [`StatIdCeiling`]. `stock` is the stock rows' highest id
@@ -1525,19 +1556,38 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             None => {
                 if let Some(id) = claimed.seed.filter(|id| blocked(*id).is_none()) {
                     k.keep(&path, row, key, id, IdFrom::Seeded);
-                    return Ok((id, Some("as the profile's last build gave it".to_owned())));
+                    return Ok((id, Some("as the last build gave it".to_owned())));
                 }
             }
         }
         let free = |id: i64| blocked(id).is_none() && !later(id);
         let pool = hash_pool(ceiling, stock_top(db, names, &path, row, n), k.adds(&path, row));
-        let hashed = claimed
-            .hashed
-            .filter(|id| free(*id))
-            .or_else(|| hash_probe(key, pool).find(|id| free(*id)));
-        let id = match hashed {
-            Some(id) => {
-                notes.push("from the row's key".to_owned());
+        let picked = match pool.2.filter(|_| ordinal(pool)) {
+            Some(max) => {
+                let top = stat_ids(db, &path, row, n, &HashSet::new())
+                    .into_iter()
+                    .max()
+                    .map_or(0, |m| m + 1)
+                    .max(pool.0);
+                (top..=max)
+                    .chain(pool.0..top.min(max + 1))
+                    .find(|id| free(*id))
+                    .map(|id| (id, IdFrom::Next))
+            }
+            None => claimed
+                .hashed
+                .filter(|id| free(*id))
+                .or_else(|| hash_probe(key, pool).find(|id| free(*id)))
+                .map(|id| (id, IdFrom::Hashed)),
+        };
+        let id = match picked {
+            Some((id, how)) => {
+                if how == IdFrom::Hashed {
+                    notes.push("from the row's key".to_owned());
+                }
+                if from != IdFrom::Moved {
+                    from = how;
+                }
                 id
             }
             None => {
@@ -1557,7 +1607,7 @@ fn add_row(db: &mut Db, names: &dyn FieldNames, cx: &mut Cx, op: AddRow) -> Resu
             }
         };
         k.keep(&path, row, key, id, from);
-        Ok((id, Some(notes.join("; "))))
+        Ok((id, (!notes.is_empty()).then(|| notes.join("; "))))
     };
     if fresh && let Some(i) = rows.iter().position(|r| r.key == stat_key) {
         let old = String::from_utf8_lossy(&rows[i].value).into_owned();

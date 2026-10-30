@@ -93,6 +93,7 @@ pub fn row_id_lines(data: &std::path::Path, addon: &str) -> Result<Vec<String>> 
         let from = match r.from {
             IdFrom::Seeded => "seeded from a profile's last build",
             IdFrom::Hashed => "hashed from the row's key",
+            IdFrom::Next => "the next free id when it was added",
             IdFrom::Moved => "hashed after its kept id was taken",
             IdFrom::Reused => "reused from an addon that was off or removed",
         };

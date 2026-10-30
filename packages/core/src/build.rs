@@ -3284,9 +3284,10 @@ mod tests {
         std::fs::rename(&again.overlay, store.overlays_dir("default").join("older")).unwrap();
         let seeded = build(&store, "default", &game).unwrap();
         assert!(
-            seeded.lines.iter().any(
-                |l| l.ends_with("stat_id 140 (the source's is 100; as the profile's last build gave it)")
-            ),
+            seeded
+                .lines
+                .iter()
+                .any(|l| l.ends_with("stat_id 140 (the source's is 100; as the last build gave it)")),
             "{:?}",
             seeded.lines
         );
