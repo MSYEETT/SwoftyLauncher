@@ -1,5 +1,6 @@
 #include "box.hpp"
 
+#include "../content/gvdb.hpp"
 #include "../../registry/store.hpp"
 #include "../../registry/table.hpp"
 #include "../../runtime.hpp"
@@ -7,13 +8,14 @@
 
 #include <swofty/mixin.hpp>
 
+#include <cstdio>
 #include <map>
 #include <mutex>
 
 // The box track lists at runtime: track-facts.json (C2) read once from the core's registry folder, a box made from
 // its effective content.package record and the live database (box_from_package), its per_package entries along its
 // variant chain, its list against the effective base (C4), catalog.json's "tracks" object rewritten at each box
-// press, and the guard's decision for a confirmed track.
+// press (with the build's profile and an id of its registry/index.json), and the guard's decision for a confirmed track.
 
 namespace swofty_core::apply::tracks {
 
@@ -28,6 +30,29 @@ std::string registry_dir()
 {
     const std::wstring &state = runtime::state_root();
     return runtime::narrow((state.empty() ? runtime::swofty_root() : state) + L"registry");
+}
+
+struct Build {
+    std::string profile, id;
+};
+
+const Build &this_build()
+{
+    static Build b;
+    static std::once_flag once;
+    std::call_once(once, [] {
+        std::string text = runtime::read_file(runtime::under_swofty("registry/index.json"), size_t(16) << 20);
+        if (text.empty())
+            return;
+        swofty::json::Error e;
+        Value doc = swofty::json::parse(text, &e);
+        if (e.ok())
+            b.profile = std::string(doc["profile"].as_string());
+        char hex[17];
+        std::snprintf(hex, sizeof hex, "%016llx", static_cast<unsigned long long>(content::gvdb::fnv64(text)));
+        b.id = hex;
+    });
+    return b;
 }
 
 TextRead db_read()
@@ -150,13 +175,8 @@ void write_catalog(const std::string &package, Mode mode, const List &list)
     Value doc = text.empty() ? Value::object() : swofty::json::parse(text, &e);
     if (!e.ok() || !doc.is_object())
         doc = Value::object();
-    Value &tracks = doc["tracks"];
-    if (!tracks.is_object())
-        tracks = Value::object();
-    Value &box = tracks[package];
-    if (!box.is_object())
-        box = Value::object();
-    box[mode_name(mode)] = list_json(list);
+    const Build &b = this_build();
+    put_catalog(doc, b.profile, b.id, package, mode, list_json(list));
     std::string tmp = path + ".tmp";
     if (!runtime::write_file(runtime::wide(tmp), swofty::json::dump(doc, 1)) ||
         !MoveFileExW(runtime::wide(tmp).c_str(), runtime::wide(path).c_str(), MOVEFILE_REPLACE_EXISTING))

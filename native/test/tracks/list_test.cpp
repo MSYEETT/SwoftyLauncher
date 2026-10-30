@@ -90,6 +90,25 @@ int main()
     l = trk::build_list(base, &facts, box, trk::Mode::grand_prix, r, none);
     expect(l.missing == std::vector<std::string>{"round 1"}, "a round with no venue is dropped and named by its number");
 
+    Value doc = swofty::json::parse(R"({"tracks": {"game/bdx_s5_2012": {"grand_prix": {"calendar": ["game/monaco"]}},
+                                                   "mod.esp/f1_2017_v10": {"grand_prix": {}}}})");
+    trk::put_catalog(doc, "Classic Seasons", "a1", "swofty.classic-seasons-2016/f1_2016", trk::Mode::grand_prix, trk::list_json(l));
+    const Value &cat = doc;
+    expect(cat["profile"].as_string() == "Classic Seasons" && cat["build"].as_string() == "a1" && cat["tracks"].size() == 1 &&
+               cat["tracks"]["swofty.classic-seasons-2016/f1_2016"]["grand_prix"].is_object(),
+           "a catalog.json an older core wrote (no profile or build) starts again at the first box press");
+    trk::put_catalog(doc, "Classic Seasons", "a1", "swofty.classic-seasons-2017/f1_2017", trk::Mode::time_trial, trk::list_json(l));
+    trk::put_catalog(doc, "Classic Seasons", "a1", "swofty.classic-seasons-2016/f1_2016", trk::Mode::time_trial, trk::list_json(l));
+    expect(cat["tracks"].size() == 2 && cat["tracks"]["swofty.classic-seasons-2016/f1_2016"].size() == 2 &&
+               cat["tracks"]["swofty.classic-seasons-2017/f1_2017"]["time_trial"].is_object(),
+           "box presses of one build add boxes and modes");
+    trk::put_catalog(doc, "Tails what-if", "a1", "game/f1_2025", trk::Mode::grand_prix, trk::list_json(l));
+    expect(cat["profile"].as_string() == "Tails what-if" && cat["tracks"].size() == 1 && cat["tracks"]["game/f1_2025"].is_object(),
+           "a box press under another profile drops the other profile's boxes");
+    trk::put_catalog(doc, "Tails what-if", "b2", "game/bdx_s5_2012", trk::Mode::grand_prix, trk::list_json(l));
+    expect(cat["build"].as_string() == "b2" && cat["tracks"].size() == 1 && cat["tracks"]["game/bdx_s5_2012"].is_object(),
+           "a box press of a new build of the same profile drops the earlier build's boxes");
+
     printf("%s\n", fails ? "list_test: FAILED" : "list_test: all passed");
     return fails ? 1 : 0;
 }

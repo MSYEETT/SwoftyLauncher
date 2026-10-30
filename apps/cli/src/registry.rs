@@ -53,7 +53,7 @@ pub fn command(store: &Store, profile: &str, cmd: RegistryCommand) -> Result<Exi
             Ok(ExitCode::SUCCESS)
         }
         RegistryCommand::Tracks => {
-            for l in track_lines(store) {
+            for l in track_lines(store, profile) {
                 println!("{l}");
             }
             Ok(ExitCode::SUCCESS)
@@ -61,20 +61,35 @@ pub fn command(store: &Store, profile: &str, cmd: RegistryCommand) -> Result<Exi
     }
 }
 
-/// The box track lists of the core's last `catalog.json`, a few lines per box and mode.
-fn track_lines(store: &Store) -> Vec<String> {
+/// The box track lists of the core's last `catalog.json` for `profile`, a few lines per box and mode.
+fn track_lines(store: &Store, profile: &str) -> Vec<String> {
     let game = game_dir(store);
-    let Some(boxes) = reports::read_box_tracks(&store.root, game.as_deref()) else {
+    let Some(catalog) = reports::read_catalog(&store.root, game.as_deref()) else {
         return vec![format!(
             "no box track lists yet: the core writes them in {} when you pick a box",
             reports::path(&store.root, reports::CATALOG).display()
         )];
     };
-    box_lines(&boxes)
+    catalog_lines(&catalog, profile)
 }
 
-fn box_lines(boxes: &reports::BoxTracks) -> Vec<String> {
-    let mut out = vec!["as of your last session:".to_owned()];
+fn catalog_lines(catalog: &reports::Catalog, profile: &str) -> Vec<String> {
+    if !catalog.is_for(profile) {
+        return vec![format!(
+            "no box track lists for profile {profile} yet: catalog.json holds the boxes of profile {}; the core rewrites it when you pick a box in a session of {profile}",
+            catalog.profile.as_deref().unwrap_or_default()
+        )];
+    }
+    let header = match (&catalog.profile, &catalog.build) {
+        (Some(p), Some(b)) => format!("as of the last session of profile {p} (build {b}):"),
+        (Some(p), None) => format!("as of the last session of profile {p}:"),
+        _ => "as of your last session (an older core wrote these lists; they can include boxes from earlier sessions and other profiles):".to_owned(),
+    };
+    box_lines(header, &catalog.boxes)
+}
+
+fn box_lines(header: String, boxes: &reports::BoxTracks) -> Vec<String> {
+    let mut out = vec![header];
     for (id, modes) in boxes {
         for (mode, list) in modes {
             out.push(format!(
@@ -220,7 +235,7 @@ mod tests {
             "time_trial": { "calendar": [], "more": [], "left_out": [] } } } }"#;
         let boxes = reports::box_tracks(text).unwrap();
         assert_eq!(
-            box_lines(&boxes),
+            box_lines("as of your last session:".to_owned(), &boxes),
             [
                 "as of your last session:",
                 "box game/f1_2026 (grand prix): calendar 1, more tracks 1, left out 1",
@@ -229,6 +244,34 @@ mod tests {
                 "  left out mod.x/x: no Time Trial support",
                 "box game/f1_2026 (time trial): calendar 0, more tracks 0, left out 0",
             ]
+        );
+    }
+
+    #[test]
+    fn track_lines_show_only_the_profiles_build() {
+        let text = r#"{ "profile": "Classic Seasons", "build": "9d7a5f9177e1436d",
+            "tracks": { "swofty.classic-seasons-2017/f1_2017": { "time_trial": { "calendar": ["game/monaco"] } } } }"#;
+        let c = reports::catalog(text).unwrap();
+        assert_eq!(
+            catalog_lines(&c, "Classic Seasons"),
+            [
+                "as of the last session of profile Classic Seasons (build 9d7a5f9177e1436d):",
+                "box swofty.classic-seasons-2017/f1_2017 (time trial): calendar 1, more tracks 0, left out 0",
+                "  calendar: game/monaco",
+            ]
+        );
+        assert_eq!(
+            catalog_lines(&c, "Tails what-if"),
+            [
+                "no box track lists for profile Tails what-if yet: catalog.json holds the boxes of profile Classic Seasons; the core rewrites it when you pick a box in a session of Tails what-if"
+            ]
+        );
+        let old = reports::catalog(r#"{ "tracks": { "game/bdx_s5_2012": { "grand_prix": {} } } }"#).unwrap();
+        let lines = catalog_lines(&old, "Classic Seasons");
+        assert!(lines[0].starts_with("as of your last session (an older core wrote these lists"));
+        assert_eq!(
+            lines[1],
+            "box game/bdx_s5_2012 (grand prix): calendar 0, more tracks 0, left out 0"
         );
     }
 }
