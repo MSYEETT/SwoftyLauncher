@@ -555,6 +555,7 @@ pub struct SwoftyEraBox {
     pub title: *const c_char,
     pub image: *const c_char,
     pub order: i32,
+    pub time_trial_entrant_list: *const c_char,
 }
 
 pub const HUD_VERSION: u32 = 1;
@@ -704,8 +705,9 @@ mod tests {
         assert_eq!(std::mem::offset_of!(SwoftyApi, registry), 176);
         assert_eq!(std::mem::offset_of!(SwoftyApi, services), 192);
         assert_eq!(std::mem::offset_of!(SwoftyApi, era), 168);
-        assert_eq!(std::mem::size_of::<SwoftyEraBox>(), 40);
+        assert_eq!(std::mem::size_of::<SwoftyEraBox>(), 48);
         assert_eq!(std::mem::offset_of!(SwoftyEraBox, order), 32);
+        assert_eq!(std::mem::offset_of!(SwoftyEraBox, time_trial_entrant_list), 40);
         assert_eq!(std::mem::size_of::<SwoftyEra>(), 24);
         assert_eq!(std::mem::offset_of!(SwoftyApi, characters), 152);
         assert_eq!(std::mem::offset_of!(SwoftyApi, career_wizard), 160);
@@ -796,7 +798,7 @@ mod tests {
             "#define SWOFTY_API_CHARACTERS 1",
             "#define SWOFTY_API_CAREER_WIZARD 1",
             "const SwoftyEra *era;",
-            "#define SWOFTY_API_ERA 1",
+            "#define SWOFTY_API_ERA 2",
             "const SwoftyRegistry *registry;",
             "const SwoftyHooks *hooks;",
             "const SwoftyServices *services;",

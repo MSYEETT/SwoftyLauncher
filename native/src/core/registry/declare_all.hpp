@@ -5,8 +5,10 @@
 #include <swofty/systems/content.hpp>
 #include <swofty/systems/drivers.hpp>
 #include <swofty/systems/liveries.hpp>
+#include <swofty/systems/power.hpp>
 #include <swofty/systems/sounds.hpp>
 #include <swofty/systems/teams.hpp>
+#include <swofty/systems/tracks.hpp>
 #include <swofty/systems/wearables.hpp>
 
 #include <cstddef>
@@ -43,10 +45,17 @@ template <class Declare> std::size_t declare_system_registries(Declare &&declare
     one(sounds::engine_sounds);
     one(content::packages);
     one(content::era_boxes);
+    one(power::drs_rules);
     one(career::modes);
     one(career::seasons);
     one(career::calendars);
     one(career::ratings);
+    one(career::rnd_trees);
+    one(career::markets);
+    one(tracks::tracks);
+    one(tracks::venues);
+    one(tracks::data);
+    one(tracks::per_package);
     return count;
 }
 

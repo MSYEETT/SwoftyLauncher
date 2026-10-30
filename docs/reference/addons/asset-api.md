@@ -286,7 +286,11 @@ The game builds its database before the window opens. To get swofty_core in befo
 ```
 
 - swofty_core still runs its window-stage handlers at the window trigger.
-- The build sets `early_stage` whenever there are database edits. `SWOFTY_EARLY_STAGE=1` or `0` overrides it.
+- The build sets `early_stage` whenever there are database edits, and whenever an enabled addon has registry records: data files in `registry/`, or registrations its `registry.lock.json` lists from `SWOFTY_REGISTER`. That holds on both database routes, the runtime edits and the database file. `SWOFTY_EARLY_STAGE=1` or `0` overrides it.
+
+  ```text
+  registry: the core loads at the early stage for the registry records of 2012 Season, Classic Seasons 2016-2024
+  ```
 - `"early": true` on an `operations.native` entry loads that plugin with swofty_core at the early stage. The build lists these plugins in `early_plugins` in `swofty/settings.json`; a nonempty list turns the early stage on.
 - Every other plugin loads at the window trigger, with a second mixin commit. A window-stage mixin that overlaps one installed at the early stage drops its addon.
 - Without the early stage, addons load after the database is built. Then only in-place int, float and bool overwrites of existing keys apply. New keys, strings and type changes are skipped and logged.
