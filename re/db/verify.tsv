@@ -1693,3 +1693,14 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-28	gb-verify	func	Game_Breakable_ParseActivation	L2	agree	decomp:re/decomp/144588c90.c;xref:0x145bed943	V1701 claim 8; else max(v,1)
 2026-10-28	gb-verify	func	Ne_Phys_BuildContactRows	L2	agree	decomp:re/decomp/1440f6e20.c;xref:0x1440e7350	V1702 claim 11; K,S scaled by island s (CFM/s)
 2026-10-28	gb-verify	func	Ne_PhysMaterial_CombinePair	L2	agree	decomp:re/decomp/1440e7350.c;xref:0x1440f6e20	V1703 claim 12 stale cache
+2026-10-28	sp-verify	func	Car_Setup_SetSliderValue	L2	agree	decomp:re/decomp/140b782f0.c;xref:0x14975a4d7	V1704 claim 1; re-applies all items
+2026-10-28	sp-verify	func	Gdb_Load_SetupSliders_Body	L2	agree	decomp:re/decomp/149a29f90.c;xref:0x14605a428	V1705 claim 3 + reverse_direction
+2026-10-28	sp-verify	func	Game_CarSetupMgr_OnParcFermeStateChange	L2	agree	decomp:re/decomp/140c0abc0.c;xref:0x140c0ac15	V1706 claim 4; parc ferme naming not verified
+2026-10-28	sp-verify	func	Car_Setup_SetCustomSliderStep	L2	partial	decomp:re/decomp/140c112b0.c;xref:0x140c1137b	V1707 claim 5: skip mask ~(1<<i), 17/18 together, ORs binding+0x18
+2026-10-28	sp-verify	func	Game_PitLane_UpdateMovement	L2	partial	decomp:re/decomp/1434b83e0.c;xref:0x1434bb61b	V1708 claim 6: rec+0xe4 in states 3/4; box timer rec+0xf0; random release time branch
+2026-10-28	sp-verify	func	Game_PitLane_GenerateSplines	L2	agree	decomp:re/decomp/1434ca550.c;xref:0x1434ca67f	V1709 claim 7
+2026-10-28	sp-verify	func	Game_PitLane_UpdateLimitZones	L2	agree	decomp:re/decomp/1434cc6b0.c;xref:0x1434ccf72	V1710 claim 8; message identity not confirmed
+2026-10-28	sp-verify	func	Game_Read_PitCrewTrainingConfig	L2	agree	decomp:re/decomp/14102b110.c;xref:0x14102c6b1	V1711 claim 9
+2026-10-28	sp-verify	func	Game_Read_QualifyingConfig	L2	agree	decomp:re/decomp/142e44b50.c;xref:0x142e4782c	V1712 claim 10 TrackPitData offsets
+2026-10-28	sp-verify	func	Game_PitStopLogic_NeSequenceClipTargetImpl	L2	agree	decomp:re/decomp/1403bbda0.c;xref:0x1403bc081	V1713 claim 11; idx >= 27 writes 1.0
+2026-10-28	sp-verify	func	Sess_Read_StopGoPenaltyConfig_Body	L2	agree	decomp:re/decomp/1507566f0.c;xref:0x150756813	V1714 claim 12
