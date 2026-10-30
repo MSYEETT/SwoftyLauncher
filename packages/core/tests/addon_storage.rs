@@ -270,6 +270,56 @@ fn a_restore_after_a_crashed_session_keeps_what_the_addon_wrote() {
     });
 }
 
+const LOGOS: &str = "swofty/addons/swofty.logos/logos_0123456789abcdef.manifest";
+const LOGO_ARCHIVE: &str = "swofty/addons/swofty.logos/logos_0123456789abcdef_databases.erp";
+const LOGO_STAMPS: &str = "swofty/addons/swofty.logos/archives.stamps";
+
+fn builds_logos(f: &Fixture) {
+    f.put(LOGOS, "databases\tlogos_0123456789abcdef_databases.erp\n");
+    f.put(LOGO_ARCHIVE, "archive");
+    f.put(LOGO_STAMPS, "stamps");
+}
+
+#[test]
+fn a_session_end_leaves_the_logo_cache_for_the_next_boot() {
+    let f = Fixture::new("logo-cache");
+    f.session(&f.with_addon(), |f| {
+        plays(f);
+        builds_logos(f);
+    });
+    for rel in [LOGOS, LOGO_ARCHIVE, LOGO_STAMPS] {
+        assert!(f.game.join(rel).is_file(), "{rel}");
+    }
+    assert!(!addon_storage::addon_dir(&f.data, addon_storage::LOGO_CACHE).exists());
+    f.session(&f.with_addon(), |f| {
+        assert_eq!(f.read(LOGO_ARCHIVE).as_deref(), Some("archive"));
+        assert_eq!(f.read(CAREERS).as_deref(), Some("3 careers"));
+    });
+}
+
+#[test]
+fn a_restore_removes_the_logo_cache() {
+    let f = Fixture::new("logo-restore");
+    let original = f.snapshot();
+    let stranded = addon_storage::addon_dir(&f.data, addon_storage::LOGO_CACHE);
+    write(
+        &stranded.join("logos_feedfacefeedface.manifest"),
+        "an older launcher kept it",
+    );
+    let lock = f.start(&f.data, &f.with_addon());
+    plays(&f);
+    builds_logos(&f);
+    drop(lock);
+
+    recovery::restore(&f.data, &f.game()).unwrap();
+    assert_eq!(f.snapshot(), original);
+    assert!(!stranded.exists());
+    assert_eq!(
+        std::fs::read_to_string(addon_storage::addon_dir(&f.data, "t.store").join("careers.json")).unwrap(),
+        "3 careers"
+    );
+}
+
 #[test]
 fn a_crashed_session_whose_journal_is_lost_keeps_the_newest_storage() {
     let f = Fixture::new("lost");
