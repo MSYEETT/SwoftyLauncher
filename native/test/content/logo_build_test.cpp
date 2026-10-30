@@ -1,3 +1,4 @@
+#define ZSTD_STATIC_LINKING_ONLY
 #include "../../src/core/apply/content/logo_build.hpp"
 #include "../../src/core/apply/content/png_straight.hpp"
 
@@ -71,6 +72,30 @@ int main(int argc, char **argv)
         ef::Archive arc;
         bool ok = src && ef::open(*src, arc, why);
         check(ok && rewrite_to_string(*src, arc, {}, why) == slurp(game / rel), rel + ": rewriting with no change gives the same bytes");
+    }
+
+    {
+        uint64_t seed = 7;
+        auto noisy = [&](size_t n) {
+            std::string out(n, '\0');
+            for (size_t i = 0; i < n; i++) {
+                seed = seed * 6364136223846793005ull + 1442695040888963407ull;
+                out[i] = i % 4 ? "livery_"[i % 7] : char(seed >> 56);
+            }
+            return out;
+        };
+        for (size_t n : {size_t(0), size_t(300), size_t(70) << 10, size_t(1) << 20, (size_t(3) << 20) + 5}) {
+            for (int level : {3, ef::ZSTD_LEVEL, 19}) {
+                std::string data = noisy(n), z, back(n, '\0');
+                ZSTD_FrameHeader h{};
+                bool ok = swofty_core::erp_zstd::compress(data.data(), n, level, z) && ZSTD_getFrameHeader(&h, z.data(), z.size()) == 0;
+                size_t buffer = ok ? ZSTD_decodingBufferSize_min(h.windowSize, h.frameContentSize) + std::max<size_t>(h.blockSizeMax, 4) : 0;
+                ok = ok && h.frameContentSize == n && h.windowSize <= (1u << 20) && buffer <= 1441856 &&
+                     ZSTD_decompress(back.data(), n, z.data(), z.size()) == n && back == data;
+                check(ok, std::to_string(n) + " bytes at level " + std::to_string(level) + ": the frame names its size and a window of " +
+                              std::to_string(h.windowSize) + " bytes, a " + std::to_string(buffer) + "-byte decoder buffer");
+            }
+        }
     }
 
     std::string uidb = slurp(dir / "expect/overrides.uidb");

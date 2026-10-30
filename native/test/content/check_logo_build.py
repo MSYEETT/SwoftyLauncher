@@ -31,7 +31,11 @@ for name in ("flow_a.erp", "screens_b.erp"):
     check(e.frag_data(filler, 0) == bytes(range(256)) * 9, f"{name}: an unchanged resource is intact")
     import hashlib
     check(img.hash == hashlib.md5(e.frag_data(img, 0) + e.frag_data(img, 1)).digest(), f"{name}: the changed resource has its new hash")
+    frames = [fr.raw for r in (img, view) for fr in r.frags if fr.comp == erpw.ZSTD]
+    check(frames and all(erpw.frame_fits(raw) for raw in frames), f"{name}: the rewritten frames name their size and a window of at most 1 MiB")
 e = read("databases.erp")
+check(erpw.frame_fits(e.find("eaid://ui_package/databases/overrides.uidb").frags[0].raw),
+      "databases.erp: the rewritten overrides.uidb frame names its size and a window of at most 1 MiB")
 check(e.frag_data(e.find("eaid://ui_package/databases/overrides.uidb"), 0) == (fix / "expect/overrides.uidb").read_bytes(),
       "databases.erp: overrides.uidb equals the one tools/pkg.py builds with the two entries")
 check(e.frag_data(e.find("eaid://ui_package/databases/other.uidb"), 0) == b"zz" * 40, "databases.erp: the other database is intact")
