@@ -31,6 +31,18 @@ static_assert(offsetof(ControllerSet, ai_controller) == 0x28);
 static_assert(offsetof(ControllerSet, flags) == 0x30);
 static_assert(offsetof(ControllerSet, vehicle) == 0x34);
 
+struct EntrantsManager {
+    uint8_t _pad_0x0[0x2b0];
+    GameSetupMode *game_setup_mode; // L2 experimental
+};
+static_assert(offsetof(EntrantsManager, game_setup_mode) == 0x2b0);
+
+struct GameSetupMode {
+    uint8_t _pad_0x0[0x1e0];
+    void *drs_allowed_lap_group; // L2 experimental
+};
+static_assert(offsetof(GameSetupMode, drs_allowed_lap_group) == 0x1e0);
+
 struct GameWeatherSystem {
     uint8_t _pad_0x0[0x1d98];
     TimeOfDaySystem *tod; // L2 experimental
@@ -197,6 +209,8 @@ static_assert(offsetof(WeatherSessionSettings, session_type) == 0x4);
 static_assert(offsetof(WeatherSessionSettings, mode) == 0xb14);
 static_assert(offsetof(WeatherSessionSettings, exact_timing) == 0xb18);
 
+using Sess_Apply_ContentAvailability_t = void(void *self, void *availability);
+inline constexpr fn<"Sess_Apply_ContentAvailability", Sess_Apply_ContentAvailability_t> Sess_Apply_ContentAvailability{}; // L2 experimental
 using Sess_Build_GroupResult_t = void(void *weekend, uint8_t group, void *result);
 inline constexpr fn<"Sess_Build_GroupResult", Sess_Build_GroupResult_t> Sess_Build_GroupResult{}; // L2 experimental
 inline constexpr address<"Sess_ControllerSystem_ApplyInputs"> Sess_ControllerSystem_ApplyInputs{}; // L2 experimental
@@ -246,6 +260,8 @@ using Sess_ScDebrisAccumulator_Update_t = void(void *acc);
 inline constexpr fn<"Sess_ScDebrisAccumulator_Update", Sess_ScDebrisAccumulator_Update_t> Sess_ScDebrisAccumulator_Update{}; // L2 experimental
 using Sess_Set_SafetyCarDeploymentType_t = void(void *sc_state, const void *sc_deployment_msg);
 inline constexpr fn<"Sess_Set_SafetyCarDeploymentType", Sess_Set_SafetyCarDeploymentType_t> Sess_Set_SafetyCarDeploymentType{}; // L2 experimental
+using Sess_Setup_VehicleComponents_t = void(void *module);
+inline constexpr fn<"Sess_Setup_VehicleComponents", Sess_Setup_VehicleComponents_t> Sess_Setup_VehicleComponents{}; // L2 experimental
 inline constexpr address<"Sess_SpectatorDirector_SetActive"> Sess_SpectatorDirector_SetActive{}; // L2 experimental
 inline constexpr address<"Sess_SpectatorDirector_Update"> Sess_SpectatorDirector_Update{}; // L2 experimental
 inline constexpr address<"Sess_SpectatorHud_Hide"> Sess_SpectatorHud_Hide{}; // L2 experimental

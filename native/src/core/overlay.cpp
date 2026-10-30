@@ -565,9 +565,10 @@ bool runtime::file_route_target(const std::string &game_path, std::string &targe
     uint64_t h = runtime::fnv64(rel);
     bool found = false;
     AcquireSRWLockShared(&redirect_lock);
-    for (auto &e : routes)
-        if (e.first == h && e.second->rel == rel) {
-            target = e.second->target;
+    for (auto r = std::lower_bound(routes.begin(), routes.end(), std::make_pair(h, static_cast<Redirect *>(nullptr)));
+         r != routes.end() && r->first == h; ++r)
+        if (r->second->rel == rel) {
+            target = r->second->target;
             found = true;
         }
     ReleaseSRWLockShared(&redirect_lock);

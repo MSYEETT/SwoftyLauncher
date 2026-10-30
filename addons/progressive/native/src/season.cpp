@@ -2310,15 +2310,28 @@ bool start_order(uintptr_t season, NeOptionalVec &drivers, NeOptionalVec &teams,
         closed[i] = season::no_team(g_data, year, i) && !cars;
     }
     for (int slot : season::start_slot_order(*y, closed)) {
-        uint32_t key = static_cast<uint32_t>(g_data.slots[slot].team_stat) << 16;
+        std::string label = slot < season::kSlots ? g_data.slots[slot].team : season::extra_team_label(*y, slot + 1);
+        uint32_t stat = 0;
+        if (slot >= season::kSlots) {
+            bool known = names::stat(Kind::team, label, stat), races = false;
+            for (auto &r : rows)
+                races = races || (known && has_car(r.rec) && !teamless(r.rec) && stat_of(r.rec.team_stat_id) == stat);
+            if (!races) {
+                if (g_order_logs++ < 24)
+                    swofty::log("[progressive] standings: season %d slot %d (%s) is left out of the order: %s", year,
+                                slot + 1, label.c_str(), known ? "no row of the career races for it" : "no team row has that label");
+                continue;
+            }
+        }
+        uint32_t key = (slot < season::kSlots ? static_cast<uint32_t>(g_data.slots[slot].team_stat) : stat) << 16;
         for (auto &r : rows)
             if (!teamless(r.rec) && stat_of(r.rec.team_stat_id) == stat_of(key)) {
                 key = r.rec.team_stat_id;
                 break;
             }
         team_keys.push_back(key);
-        if (first.size() < 120)
-            first += (first.empty() ? "" : ", ") + g_data.slots[slot].team;
+        if (first.size() < 240)
+            first += (first.empty() ? "" : ", ") + label;
     }
     if (!fill(drivers, driver_keys) || !fill(teams, team_keys)) {
         release(&drivers);

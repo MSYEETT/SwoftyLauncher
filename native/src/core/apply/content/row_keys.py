@@ -10,6 +10,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SOURCE = HERE.parents[4] / "packages" / "core" / "src" / "activation" / "row_keys.txt.gz"
 ROOTS = ["audio.audio_bundle_settings.audio_bundle_settings_N", "car_setup.presets.vehicle_package_setups_N",
+         "drs.drs_allowed_lap.drs_allowed_lap_group_N",
          "entrants.entrant_lists.entrant_list_N", "entrants.entrant_lists.entrants.entrant_N",
          "entrants.standings.standings_N", "entrants.vehicles.vehicle_N",
          "entrants.vehicles.vehicle_packages.vehicle_package_N", "game_setup.scenarios.scenario_N",
@@ -25,6 +26,8 @@ CATALOG = HERE.parents[4] / "tools" / "gamedb" / "catalog" / "keys.tsv.gz"
 CATALOGUED = ["facilities.facilities.Facilities_N.team_developments.TeamDevelopment_N",
               "driver_market.driver_market.DataGroup_N.team_driver_rating_range_requirements."
               "TeamDriverRatingRangeRequirement_N",
+              "driver_market.driver_market.DataGroup_N.driver_retirements.DriverRetirementSchedule_N.DriverRetirement_N",
+              "driver_market.driver_market.DataGroup_N.driver_firings.DriverFiredSchedule_N.DriverFired_N",
               "recognition.RecognitionDataGroup_N.team_modifiers.TeamModifier_N",
               "career.my_team_renown_and_form.MyTeamRenownAndFormDataGroup_N.initial_renown_and_form."
               "InitialTeamRenownAndForm_N",

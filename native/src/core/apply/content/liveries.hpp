@@ -18,8 +18,6 @@
 
 namespace swofty_core::apply::content {
 
-using Read = std::function<std::optional<std::string>(const std::string &path)>;
-
 inline constexpr const char *SE_LIVERIES = "customisation.custom_se_liveries.se_liveries";
 inline constexpr const char *UNLOCK_IDS = "livery.unlock";
 inline constexpr const char *UNLOCK_FIELDS[] = {

@@ -190,6 +190,9 @@ def cmd_run(args):
     game = Path(args.game)
     if not (game / "F1_25.exe").is_file():
         raise runner.ToolError(f"{game}: no F1_25.exe; pass --game")
+    lone = [n for n in (runner.lone_cli_note(s.name, s.cli) for s in (a, b)) if n]
+    for n in lone:
+        print(f"note: {n}", file=sys.stderr, flush=True)
     launcher = args.launcher_version or a.version
     data = load_catalog(args)
     entries = catalog.entries(data)
@@ -202,7 +205,7 @@ def cmd_run(args):
         frozen = runner.cli_version(side.cli)
         if frozen != side.version:
             raise runner.ToolError(f"{side.source}: changed while it was copied ({side.version} -> {frozen})")
-    notes = [f"{s.name} runs a copy of {s.source}" for s in (a, b)]
+    notes = [f"{s.name} runs a copy of {s.source}" for s in (a, b)] + lone
     if dxc:
         notes.append(f"both sides compile shaders with {dxc}")
     seed = None
