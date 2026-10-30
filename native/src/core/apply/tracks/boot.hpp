@@ -31,6 +31,26 @@ inline std::string key_part(std::string_view id)
     return slash == std::string_view::npos ? std::string(id) : std::string(id.substr(slash + 1));
 }
 
+inline void declare_venues(registry::Store &st)
+{
+    for (auto &b : venue_bases())
+        st.add_base(b.registry, b.key, b.value);
+}
+
+inline bool has_track_records(registry::Store &st)
+{
+    static const char *const registries[] = {"track", "track.venue", "track.data", "track.per_package"};
+    std::vector<std::string> addons = st.order();
+    for (const char *reg : registries) {
+        if (!st.list(reg, "").empty())
+            return true;
+        for (auto &a : addons)
+            if (st.layer_count(a, reg))
+                return true;
+    }
+    return false;
+}
+
 inline void declare_seeds(registry::Store &st, const Seeds &s)
 {
     for (auto &b : s.base)

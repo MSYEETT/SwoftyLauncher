@@ -375,12 +375,42 @@ impl TrackList {
     }
 }
 
+/// `catalog.json`'s box track lists and the build they came from: the core keeps one build's boxes
+/// and starts again when a box is pressed under another profile or build. `profile` and `build` are
+/// `None` in a catalog an older core wrote, which can hold boxes from earlier sessions and profiles.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Catalog {
+    pub profile: Option<String>,
+    pub build: Option<String>,
+    pub boxes: BoxTracks,
+}
+
+impl Catalog {
+    /// The catalog's lists are the profile's: written for it, or by an older core that named none.
+    pub fn is_for(&self, profile: &str) -> bool {
+        self.profile.as_deref().is_none_or(|p| p == profile)
+    }
+}
+
 /// The box track lists of a `catalog.json`; `None` when it has none.
 pub fn box_tracks(text: &str) -> Option<BoxTracks> {
+    catalog(text).map(|c| c.boxes)
+}
+
+/// The box track lists of a `catalog.json` with the build they came from; `None` when it has none.
+pub fn catalog(text: &str) -> Option<Catalog> {
     let doc: Value = serde_json::from_str(text).ok()?;
     let boxes = doc.get("tracks")?.as_object()?;
-    Some(
-        boxes
+    let named = |key: &str| {
+        doc.get(key)
+            .and_then(Value::as_str)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    Some(Catalog {
+        profile: named("profile"),
+        build: named("build"),
+        boxes: boxes
             .iter()
             .filter_map(|(id, modes)| {
                 let modes: BTreeMap<String, TrackList> = modes
@@ -391,12 +421,17 @@ pub fn box_tracks(text: &str) -> Option<BoxTracks> {
                 Some((id.clone(), modes))
             })
             .collect(),
-    )
+    })
 }
 
 /// The box track lists the core wrote in `catalog.json` in your last session.
 pub fn read_box_tracks(data: &Path, game: Option<&Path>) -> Option<BoxTracks> {
-    box_tracks(&read_report(data, game, CATALOG)?)
+    read_catalog(data, game).map(|c| c.boxes)
+}
+
+/// The core's last `catalog.json` with the build its box lists came from.
+pub fn read_catalog(data: &Path, game: Option<&Path>) -> Option<Catalog> {
+    catalog(&read_report(data, game, CATALOG)?)
 }
 
 pub fn status_lines(conflicts: Option<&Conflicts>, room: Option<&Room>) -> BTreeMap<String, Vec<String>> {
@@ -510,6 +545,25 @@ mod tests {
         assert_eq!(cs["time_trial"].more, ["game/melbourne"]);
         assert_eq!(box_tracks(r#"{ "records": {} }"#), None);
         assert_eq!(box_tracks("not json"), None);
+        let old = catalog(text).unwrap();
+        assert_eq!((old.profile, old.build), (None, None));
+        assert!(catalog(text).unwrap().is_for("anything"));
+    }
+
+    #[test]
+    fn a_catalog_names_the_profile_and_build_of_its_boxes() {
+        let c = catalog(
+            r#"{ "profile": "Classic Seasons", "build": "9d7a5f9177e1436d",
+                 "tracks": { "game/f1_2025": { "grand_prix": {} } } }"#,
+        )
+        .unwrap();
+        assert_eq!(c.profile.as_deref(), Some("Classic Seasons"));
+        assert_eq!(c.build.as_deref(), Some("9d7a5f9177e1436d"));
+        assert_eq!(c.boxes.len(), 1);
+        assert!(c.is_for("Classic Seasons"));
+        assert!(!c.is_for("Tails what-if"));
+        let unnamed = catalog(r#"{ "profile": "", "build": "", "tracks": {} }"#).unwrap();
+        assert_eq!((unnamed.profile, unnamed.build), (None, None));
     }
 
     const CONFLICTS_DOC: &str = r#"{

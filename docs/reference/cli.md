@@ -263,10 +263,10 @@ Tracks are mods: import a community track package with `swofty mods import <zip>
 swofty registry tracks
 ```
 
-From 1.6.5. Prints each Grand Prix and Time Trial box's track list from your last session, as the core wrote it to `$DATA/registry/catalog.json` when you picked the box: the calendar, the more tracks and the tracks it leaves out, with the reason.
+From 1.6.5. Prints each Grand Prix and Time Trial box's track list from the profile's last session, as the core wrote it to `$DATA/registry/catalog.json` when you picked the box: the calendar, the more tracks and the tracks it leaves out, with the reason. The catalog holds the boxes of the last build that ran; a box press under another profile or build starts it again.
 
 ```text
-as of your last session:
+as of the last session of profile Classic Seasons (build 9d7a5f9177e1436d):
 box swofty.classic-seasons-2016/f1_2016 (grand prix): calendar 20, more tracks 9, left out 1
   calendar: game/melbourne, game/bahrain, game/shanghai, ...
   more tracks: game/melbourne_reverse, mod.okayama/okayama, ...
@@ -276,7 +276,7 @@ box game/f1_2026 (time trial): calendar 0, more tracks 26, left out 1
   left out mod.okayama/okayama: no Time Trial support
 ```
 
-Before you pick a box, it prints `no box track lists yet: the core writes them in <path> when you pick a box`. See [Tracks](/std/systems/tracks#the-tracks-a-box-offers).
+Before you pick a box, it prints `no box track lists yet: the core writes them in <path> when you pick a box`. When the last session ran another profile, it prints `no box track lists for profile <profile> yet: catalog.json holds the boxes of profile <other>; the core rewrites it when you pick a box in a session of <profile>`. A catalog an older core wrote names no profile; it is printed under `as of your last session (an older core wrote these lists; they can include boxes from earlier sessions and other profiles):`. See [Tracks](/std/systems/tracks#the-tracks-a-box-offers).
 
 ## `swofty update`
 

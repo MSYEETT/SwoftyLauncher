@@ -32,6 +32,10 @@ public:
     virtual const char *registry() const = 0;
     virtual Applies applies() const = 0;
 
+    // Before any applier's database_keys: declare the stock records other registries' records name, so a
+    // record read while sizing finds them. Called once, after the register pass.
+    virtual void prepare(Store &) {}
+
     // Before the game database loads (Applies::boot): how many new database keys this registry's
     // effective records will add, for the value-map sizing. Called once, after the register pass.
     virtual std::size_t database_keys(Store &) { return 0; }

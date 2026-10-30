@@ -83,7 +83,7 @@
       "pattern": "^[a-z0-9_]+$"
     },
     "fuel": {
-      "description": "tracks::Fuel: TrackGeneralData.fuel_burn_per_lap, kg per lap.",
+      "description": "tracks::Fuel: TrackGeneralData.fuel_burn_per_lap, kg per lap. The game uses it for the MFD fuel delta, the fuel strategy and refuelling; the car's real burn comes from its power unit, and the race's starting fuel stays the same.",
       "type": "object",
       "properties": {
         "burn_per_lap": {

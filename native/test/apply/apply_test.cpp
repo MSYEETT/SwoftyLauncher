@@ -40,6 +40,7 @@ struct TestApplier : ap::Applier {
     TestApplier(std::string n, reg::Applies k, std::size_t keys_ = 0) : name(std::move(n)), kind(k), keys(keys_) {}
     const char *registry() const override { return name.c_str(); }
     reg::Applies applies() const override { return kind; }
+    void prepare(reg::Store &) override { calls.push_back(name + ".prepare"); }
     std::size_t database_keys(reg::Store &) override
     {
         calls.push_back(name + ".keys");
@@ -355,7 +356,9 @@ void test_scheduler()
     s.set_facts([&](const reg::Context &c) { facts.push_back(c); });
     calls.clear();
     check(s.plan_boot() == 7, "the plan sums database_keys of the boot appliers");
-    check(s.plan_boot() == 7 && joined(calls) == "t.boot1.keys | t.boot2.keys", "database_keys runs once per boot applier, in order: " + joined(calls));
+    check(s.plan_boot() == 7 && joined(calls) == "t.boot1.prepare | t.boot2.prepare | t.boot1.keys | t.boot2.keys",
+          "every boot applier prepares before any database_keys, then database_keys runs once per boot applier, in order: " +
+              joined(calls));
     check(s.boot_work(), "keys make boot work");
     calls.clear();
     ap::db::staging().open([](const std::string &p) { return p == "stock.row"; });

@@ -464,4 +464,4 @@ The SDK ships a JSON Schema for each core registry and version, for checking dat
 - `type`, `enum` and `required` come from the struct's field types.
 - `minimum`, `maximum` and `pattern` come from the owner's `check`.
 
-The core declares every registry the SDK headers define (34) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.
+The core declares every registry the SDK headers define (37) itself at the start of the register pass, so a data-only addon needs no DLL to add records to any of them, and its `registry/index.json` entry is all the core needs to find it. A data-only addon can't declare a registry of its own. It can add records to any registry, add them to any `c/` tag and layer any record.

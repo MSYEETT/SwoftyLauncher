@@ -154,6 +154,21 @@ inline swofty::json::Value list_json(const List &l)
     return Value::object({{"calendar", std::move(calendar)}, {"more", std::move(more)}, {"left_out", std::move(left)}});
 }
 
+// catalog.json holds the box lists of one build: a box press under another profile or build starts its "tracks" again.
+inline void put_catalog(swofty::json::Value &doc, const std::string &profile, const std::string &build,
+                        const std::string &package, Mode mode, swofty::json::Value list)
+{
+    using swofty::json::Value;
+    if (!doc.is_object())
+        doc = Value::object();
+    const Value &was = doc;
+    if (was["profile"].as_string() != profile || was["build"].as_string() != build || !was["tracks"].is_object())
+        doc["tracks"] = Value::object();
+    doc["profile"] = Value(profile);
+    doc["build"] = Value(build);
+    doc["tracks"][package][mode_name(mode)] = std::move(list);
+}
+
 inline std::vector<Round> rounds_of(const swofty::json::Value &calendar)
 {
     std::vector<Round> out;

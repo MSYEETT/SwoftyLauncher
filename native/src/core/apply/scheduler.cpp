@@ -235,6 +235,9 @@ std::size_t Scheduler::plan_boot()
         return n;
     }
     planned_ = true;
+    for (Applier *a : appliers())
+        if (a->applies() == Applies::boot)
+            a->prepare(store_);
     std::size_t total = 0;
     int boot = 0;
     for (Applier *a : appliers()) {
