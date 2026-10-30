@@ -265,7 +265,6 @@ void on_flow(SwoftyContext *c)
         swofty_core::apply::moments::session_load("StateLoadSession");
     }
     if (known && to == 1 && !std::strcmp(known, "StateUnloadSession")) {
-        runtime::era_session_end();
         swofty_core::apply::moments::session_end("StateUnloadSession");
     }
     fire(SWOFTY_EVENT_FLOW_STATE, to, from, &f);

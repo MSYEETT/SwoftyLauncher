@@ -141,7 +141,6 @@ std::string older_addon(const void *from);
 std::vector<CoreMixins> era_mixins();
 void era_commit();
 void era_session_load();
-void era_session_end();
 void era_session_trace(const char *state, int to);
 void era_session_unloaded(const char *state, int to);
 std::vector<CoreMixins> tt_guard_mixins();

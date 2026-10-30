@@ -436,12 +436,17 @@ int main()
             *reinterpret_cast<void **>(slots + 3 * era::OVERRIDE_SLOT + 8) = &other;
             slots[0] = 7;
             *reinterpret_cast<void **>(slots + 8) = &base;
-            expect(era::override_for(9, slots, meta, 4) == &f1_custom_team && era::override_for(12, slots, meta, 4) == &other,
+            expect(era::override_for(9, slots, meta, 4).to == &f1_custom_team && era::override_for(12, slots, meta, 4).to == &other,
                    "an entrant setup mode with an override row is swapped for its override, as slot 0x1d8 does");
-            expect(!era::override_for(7, slots, meta, 4) && !era::override_for(8, slots, meta, 4),
+            expect(!era::override_for(7, slots, meta, 4).found && !era::override_for(8, slots, meta, 4).found,
                    "a slot whose metadata byte is 0 is empty, so stale key bytes there match nothing; no row, no swap");
-            expect(!era::override_for(9, nullptr, meta, 4) && !era::override_for(9, slots, meta, era::MAX_OVERRIDE_SLOTS + 1),
+            expect(!era::override_for(9, nullptr, meta, 4).found &&
+                       !era::override_for(9, slots, meta, era::MAX_OVERRIDE_SLOTS + 1).found,
                    "an unread or over-long override map swaps nothing");
+            *reinterpret_cast<void **>(slots + 3 * era::OVERRIDE_SLOT + 8) = nullptr;
+            auto null_row = era::override_for(12, slots, meta, 4);
+            expect(null_row.found && !null_row.to,
+                   "a row whose override is null is still installed, as the game does: that mode slot is left empty");
         }
         expect(era::ref_key(0x02a5001fu) == era::ref_key(0x02a5ff1fu) && era::ref_key(0x02a5001fu) != era::ref_key(0x02a60020u),
                "vehicle refs are the same car when byte +0 and the u16 +2 match, whatever byte +1 holds");
@@ -455,6 +460,48 @@ int main()
         expect(pl.find("from 1 list(s) of its leaderboard and the entrants system pools (4)") != std::string::npos &&
                    pl.find("16 of the 26-slot") != std::string::npos,
                "the budget line names the pools and their cars (" + pl + ")");
+        {
+            std::vector<uint8_t> pool(3001 * era::POOL_SLOT, 0);
+            uint32_t high = 3000u << 16, low = 5u << 16;
+            *reinterpret_cast<uint32_t **>(pool.data() + 3000 * era::POOL_SLOT + 8) = &high;
+            *reinterpret_cast<uint32_t **>(pool.data() + 5 * era::POOL_SLOT + 8) = &low;
+            auto read = [](uintptr_t a, auto &v) {
+                std::memcpy(&v, reinterpret_cast<const void *>(a), sizeof(v));
+                return true;
+            };
+            auto b0 = reinterpret_cast<uintptr_t>(pool.data());
+            auto got = era::pool_refs_from(b0, b0 + pool.size(), read);
+            expect(got.refs == std::vector<uint32_t>{low, high} && !got.capped,
+                   "a pool is as long as its highest vehicle stat id + 1: an addon car at id 3000 is counted");
+            std::vector<uint8_t> huge((era::MAX_POOL + 10) * era::POOL_SLOT, 0);
+            uint32_t past = 1u << 16;
+            *reinterpret_cast<uint32_t **>(huge.data() + (era::MAX_POOL + 5) * era::POOL_SLOT + 8) = &past;
+            auto hb = reinterpret_cast<uintptr_t>(huge.data());
+            auto capped = era::pool_refs_from(hb, hb + huge.size(), read);
+            expect(capped.capped && capped.refs.empty(), "a pool past 8192 slots is counted to 8192 and reported as capped");
+            expect(era::pool_refs_from(b0, b0 + 0x18, read).refs.empty() && era::pool_refs_from(0, 0x100, read).refs.empty(),
+                   "a misaligned or null pool counts nothing");
+        }
+        {
+            era::SessionTrace bt;
+            bt.where = "Sess_Setup_VehicleComponents";
+            bt.budget = 15;
+            bt.vehicles = 27;
+            expect(era::budget_mismatch(bt) ==
+                       "Time Trial fill at Sess_Setup_VehicleComponents made 27 vehicles where the budget expected 15",
+                   "a fill that made more vehicles than the budget expected logs a line");
+            bt.vehicles = 15;
+            expect(era::budget_mismatch(bt).empty(), "a fill that matches the budget logs nothing more");
+            bt.vehicles = -1;
+            bt.gm_session = 27;
+            bt.where = "StateLoadSession Exiting";
+            expect(!era::budget_mismatch(bt).empty(), "before the vehicle setup the descriptor's participants are compared");
+            bt.gm_session = 0;
+            expect(era::budget_mismatch(bt).empty(), "an empty descriptor (no fill yet) is not a mismatch");
+            bt.budget = -1;
+            bt.gm_session = 27;
+            expect(era::budget_mismatch(bt).empty(), "outside a budgeted Time Trial nothing is compared");
+        }
         expect(era::vehicle_flags(era::TAKES_LIST, 0) == era::TAKES_LIST &&
                    era::vehicle_flags(0, era::TAKES_POOL_A) == era::TAKES_POOL_A && era::vehicle_flags(0, 0) == 0,
                "the fill's human record reads the player or the second player flag word, so both are taken together");

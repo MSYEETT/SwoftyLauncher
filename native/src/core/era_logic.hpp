@@ -211,14 +211,21 @@ constexpr size_t MGR_OVERRIDE_MASK = 0xff8;
 constexpr size_t OVERRIDE_SLOT = 0x10;
 constexpr size_t MAX_OVERRIDE_SLOTS = 1024;
 
-inline const void *override_for(uint8_t id, const uint8_t *slots, const uint8_t *meta, size_t count)
+struct Override {
+    bool found = false;
+    const void *to = nullptr;
+};
+
+// The game installs a row's value even when it is null (0x1485b5280 writes it unchecked), so a found row with a
+// null value leaves that entrant setup mode slot empty.
+inline Override override_for(uint8_t id, const uint8_t *slots, const uint8_t *meta, size_t count)
 {
     if (!slots || !meta || count > MAX_OVERRIDE_SLOTS)
-        return nullptr;
+        return {};
     for (size_t i = 0; i < count; ++i)
         if (meta[i] && slots[i * OVERRIDE_SLOT] == id)
-            return *reinterpret_cast<void *const *>(slots + i * OVERRIDE_SLOT + 8);
-    return nullptr;
+            return {true, *reinterpret_cast<void *const *>(slots + i * OVERRIDE_SLOT + 8)};
+    return {};
 }
 
 // 0x1424a1c20 takes a list's own records when the mode's flag word +0x258 + idx * 4 has bit 0 (idx 0 or 1 for the
@@ -228,7 +235,34 @@ constexpr uint32_t TAKES_LIST = 1, TAKES_POOL_A = 2, TAKES_POOL_B = 4;
 constexpr size_t ES_POOL_A = 0x338;
 constexpr size_t ES_POOL_B = 0x348;
 constexpr size_t GM_ENTRANTS_SYSTEM = 0x290;
-constexpr size_t MAX_POOL = 512;
+constexpr size_t POOL_SLOT = 0x10;
+constexpr size_t MAX_POOL = 8192;
+
+// An entrants system pool is indexed by vehicle stat id, so its length is the highest id + 1: 0x10-byte slots from
+// begin to end, a pointer to the vehicle ref at +8 or 0 when the id is free. read(address, value) is a guarded read.
+struct PoolRefs {
+    std::vector<uint32_t> refs;
+    bool capped = false;
+};
+
+template <class Read> PoolRefs pool_refs_from(uintptr_t begin, uintptr_t end, Read read)
+{
+    PoolRefs out;
+    if (!begin || end < begin || (end - begin) % POOL_SLOT)
+        return out;
+    size_t slots = (end - begin) / POOL_SLOT;
+    if (slots > MAX_POOL) {
+        out.capped = true;
+        slots = MAX_POOL;
+    }
+    for (size_t i = 0; i < slots; ++i) {
+        uintptr_t at_ref = 0;
+        uint32_t ref = 0;
+        if (read(begin + i * POOL_SLOT + 8, at_ref) && at_ref && read(at_ref, ref))
+            out.refs.push_back(ref);
+    }
+    return out;
+}
 
 inline uint32_t vehicle_flags(uint32_t player, uint32_t second_player)
 {
@@ -406,7 +440,19 @@ struct SessionTrace {
     std::vector<uint16_t> teams;
     int64_t gm_session = -1, module_session = -1, module_next = -1;
     int64_t vehicles = -1;
+    int64_t budget = -1;
 };
+
+// The Time Trial budget's expected vehicles (its cars plus the game's 4 entries) against what the fill made: the
+// participants in the game manager's descriptor, or the vehicles at the session's vehicle setup.
+inline std::string budget_mismatch(const SessionTrace &t)
+{
+    int64_t seen = t.vehicles >= 0 ? t.vehicles : t.gm_session;
+    if (t.budget < 0 || seen <= 0 || seen == t.budget)
+        return {};
+    return "Time Trial fill at " + t.where + " made " + std::to_string(seen) + " vehicles where the budget expected " +
+           std::to_string(t.budget);
+}
 
 inline std::string count_text(int64_t n)
 {
@@ -422,7 +468,8 @@ inline std::string session_trace_line(const SessionTrace &t)
            (teams.empty() ? "" : " (teams " + teams + ")") + ", list " + (t.list.empty() ? "?" : t.list) + " (" +
            count_text(t.list_cars) + " cars) of setup mode " + (t.setup_mode.empty() ? "?" : t.setup_mode) +
            "; participants: game manager " + count_text(t.gm_session) + ", game module " + count_text(t.module_session) +
-           " (next " + count_text(t.module_next) + "); session vehicles " + count_text(t.vehicles);
+           " (next " + count_text(t.module_next) + "); session vehicles " + count_text(t.vehicles) +
+           (t.budget >= 0 ? "; Time Trial budget " + std::to_string(t.budget) : std::string());
 }
 
 inline std::vector<Box> ordered(std::vector<Box> boxes)

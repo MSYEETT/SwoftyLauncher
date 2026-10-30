@@ -79,7 +79,7 @@ std::string settings_addon(const void *from, std::string &dll);
 // lists out, addon lists first, until they fit beside the game's 4 entries in the 26-slot table, and its unload
 // puts them back; era_session_load (StateLoadSession, any mode) puts back what it held
 // and, in Time Trial, logs the setup's resolved list and keeps a list past 23 cars out of the session;
-// era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
+// era_session_unloaded (StateUnloadSession Exiting) and every press put it back. The session vehicle guard is a
 // separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered.
 //
 // Setup mode guard: Sess_Apply_ContentAvailability rebuilds the game setup modes (it frees the old objects), so a
@@ -453,6 +453,7 @@ std::string session_list(uintptr_t ctx)
 }
 
 uint32_t trace_lines;
+std::atomic<int64_t> tt_budget{-1};
 
 int64_t descriptor_participants(uintptr_t holder, size_t off)
 {
@@ -498,6 +499,7 @@ void session_trace(const std::string &where, int64_t vehicles)
                 mem::c_string(gsm_name, t.setup_mode, 64);
         }
     }
+    t.budget = tt_budget.load();
     t.gm_session = descriptor_participants(gm, logic::GM_SESSION);
     if (mem::read(gm + logic::GM_MODULE, module) && module) {
         t.module_session = descriptor_participants(module, logic::MODULE_SESSION);
@@ -505,6 +507,9 @@ void session_trace(const std::string &where, int64_t vehicles)
     }
     trace_lines++;
     swofty::log("[era] %s", logic::session_trace_line(t).c_str());
+    std::string mismatch = logic::budget_mismatch(t);
+    if (!mismatch.empty())
+        swofty::log("[era] %s", mismatch.c_str());
 }
 
 void vehicles_entry(void *module)
@@ -620,9 +625,13 @@ uint8_t *resolved_esm(uintptr_t setup, uint8_t *esm)
     if (count > logic::MAX_OVERRIDE_SLOTS || !mem::readable(reinterpret_cast<void *>(slots), count * logic::OVERRIDE_SLOT) ||
         !mem::readable(reinterpret_cast<void *>(meta), count))
         return esm;
-    auto *to = static_cast<uint8_t *>(const_cast<void *>(logic::override_for(
-        id, reinterpret_cast<const uint8_t *>(slots), reinterpret_cast<const uint8_t *>(meta), count)));
-    return to ? to : esm;
+    auto o = logic::override_for(id, reinterpret_cast<const uint8_t *>(slots), reinterpret_cast<const uint8_t *>(meta), count);
+    static uint32_t logged_null;
+    if (o.found && !o.to && logged_null++ < LOG_FIRST)
+        swofty::log("[era] the Time Trial's override row for entrant setup mode %u is empty: the game leaves that mode "
+                    "out, so the budget does too",
+                    unsigned(id));
+    return o.found ? static_cast<uint8_t *>(const_cast<void *>(o.to)) : esm;
 }
 
 std::vector<uint32_t> pool_refs(uint32_t pools)
@@ -635,14 +644,15 @@ std::vector<uint32_t> pool_refs(uint32_t pools)
                             std::pair<uint32_t, size_t>{logic::TAKES_POOL_B, logic::ES_POOL_B}}) {
         uintptr_t pool = 0, begin = 0, end = 0;
         if (!(pools & bit) || !mem::read(es + off, pool) || !pool || !mem::read(pool + 8, begin) ||
-            !mem::read(pool + 0x10, end) || end < begin || (end - begin) / 0x10 > logic::MAX_POOL)
+            !mem::read(pool + 0x10, end))
             continue;
-        for (uintptr_t e = begin; e < end; e += 0x10) {
-            uintptr_t at_ref = 0;
-            uint32_t ref = 0;
-            if (mem::read(e + 8, at_ref) && at_ref && mem::read(at_ref, ref))
-                refs.push_back(ref);
-        }
+        auto got = logic::pool_refs_from(begin, end, [](uintptr_t a, auto &v) { return mem::read(a, v); });
+        static uint32_t logged_cap;
+        if (got.capped && logged_cap++ < LOG_FIRST)
+            swofty::log("[era] entrants system pool +0x%zx holds more than %zu vehicle slots; the Time Trial budget counts "
+                        "the first %zu",
+                        off, logic::MAX_POOL, logic::MAX_POOL);
+        refs.insert(refs.end(), got.refs.begin(), got.refs.end());
     }
     return refs;
 }
@@ -755,6 +765,7 @@ void time_trial_budget(void *mode, uintptr_t setup)
         swofty::log("[era] Time Trial cut skipped in %zu entrant setup mode(s): the core's restore stack of %zu is full, "
                     "so those lists stay offered",
                     unrecorded, std::size(narrowed));
+    tt_budget = int64_t(budget.cars + logic::TT_OWN_ENTRIES);
     if (logged++ < LOG_FIRST * 3)
         swofty::log("[era] %s", logic::time_trial_budget_line(lists, budget, board).c_str());
 }
@@ -1204,18 +1215,14 @@ void era_session_trace(const char *state, int to)
     session_trace(std::string(state) + " " + STEP[to & 3], -1);
 }
 
-void era_session_end()
-{
-    std::lock_guard<std::mutex> g(held_lock);
-    put_back();
-}
-
 void era_session_unloaded(const char *state, int to)
 {
     static uint32_t logged;
     if (!state || !logic::time_trial_cut_off(state, to))
         return;
+    tt_budget = -1;
     std::lock_guard<std::mutex> g(held_lock);
+    put_back();
     if (size_t n = restore_time_trial_lists(); n && logged++ < LOG_FIRST)
         swofty::log("[era] StateUnloadSession Exiting: the lists the Time Trial guards left out are back in %zu entrant "
                     "setup mode(s)",
