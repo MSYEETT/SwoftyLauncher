@@ -13,7 +13,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 
 <Split>
 
-`swofty/systems/career.hpp` has eight registries. The main ones:
+`swofty/systems/career.hpp` has ten registries. The main ones:
 
 - `career::modes`: a mode row, its save container and data group (`career.mode`);
 - `career::contents`: a career tile and the data it clones (`career.content`);
@@ -21,7 +21,7 @@ A **career mode** is the game's mode row, with its own save container and **data
 - `career::calendars`: an event list (`career.calendar`);
 - `career::ratings`: a driver's ratings at the start of a season (`career.driver_ratings`).
 
-The rest: `characters`, `wizards`, `hub_tabs`.
+The rest: `characters`, `wizards`, `hub_tabs`, and the [R&D trees and the driver market](#r-d-trees-and-the-driver-market) (`rnd_trees`, `markets`).
 
 <template #example>
 <Example root="swofty-sdk" code-file="include/swofty/systems/career.hpp">
@@ -404,6 +404,77 @@ SWOFTY_ADDON()
 
 The data version has no season-start handler. It lists the seasons, and applying a line-up needs code.
 
+## Career contents
+
+A **career content** is a tile in the Addons row of the career menu, under the stock 2025 and 2026 tiles, with its own data group and save slots. A `career.content` record makes one: from a data file with no DLL, from `SWOFTY_REGISTER`, or from the 1.5 call `career::content::add`, which provides the record under the calling addon's id. All three make the same tile.
+
+### From a data file
+
+```json
+// registry/career.json in community.f1-2012
+{
+  "career.mode": {
+    "f1_2012": { "data_group": "f1_career_2012", "save_container": "driver_career_2012", "title": "lng_f1_2012_title" }
+  },
+  "career.content": {
+    "f1_2012": { "mode": "community.f1-2012/f1_2012", "suffix": "12", "description": "lng_f1_2012_desc",
+                 "careers": "both" }
+  }
+}
+```
+
+- **From the mode.** A field the content leaves out comes from the `career.mode` record its `mode` names: `data_group`, `save_container` and `title`. The 1.6 core has no stock `career.mode` records: the mode is a record of its own, not a variant of `game/f1_career_2026`.
+- **Defaults.** `description` defaults to the title, `model` to `game/f1_career_2026` and `careers` to `driver`. `model` is `game/f1_career_2026` or `game/f1_career_2025`.
+- **Required.** `suffix`, and a data group, save container and title from the content or its mode.
+- **Not read for the tile:** `tile`, `calendar` and `after_last`.
+- **Layers.** The tile shows the effective record, so another addon's layer on its title, description, badge or careers shows on the tile.
+- **With a call.** When the addon's DLL also calls `career::content::add` with the record's key, the call's content replaces the record's before its first tile. Calls and records share the core's 8 contents.
+
+The tile needs the same game data as a call's tile. The 1.6 core makes none of it from records. The addon's database operations add it:
+
+- a `game_modes.ModeChampionship` row whose `save_data.name` is the save container;
+- an `entrants.entrant_lists` row named by the data group, with a `stat_id` below 256;
+- the official entrant list `F1CAREER_<suffix>` in a content set. `F2CAREER_<suffix>` and `ICONS_<suffix>` fill the F2 and Icons tabs of Choose Driver.
+
+```text
+[career] content 'f1_2012' from community.f1-2012 (career.content record community.f1-2012/f1_2012, no call) registered
+         (tile 1 after the stock ones, 2026 model, data group f1_career_2012, suffix 12, mode driver_career_2012): queued
+         for the next mixin commit
+[career] content 'f1_2012' ready: mode driver_career_2012 statId 83, data group f1_career_2012 (entrant list stat_id 41),
+         suffix 12 (F1CAREER_12, F2CAREER, ICONS)
+```
+
+A record that is missing a field makes no tile, and the log names the field:
+
+```text
+[career] career.content record community.f1-2012/f1_2012 makes no tile: it names no suffix (Choose Driver lists F1CAREER_<suffix>)
+```
+
+### From the 1.5 call
+
+```cpp
+#include <swofty/career_content.hpp>
+
+namespace content = swofty::career::content;
+
+bool register_tile()
+{
+    content::add({.id = "f1_2012",
+                  .title = "lng_f1_2012_title",
+                  .description = "lng_f1_2012_desc",
+                  .data_group = "f1_career_2012",
+                  .suffix = "12",
+                  .mode = "driver_career_2012",          // the save container
+                  .model = content::Model::f1_2026,
+                  .careers = content::Career::both});
+    return true;
+}
+
+SWOFTY_ADDON(register_tile)
+```
+
+The call provides a `career.content` record with these fields under `community.f1-2012/f1_2012`, and other addons layer it like a data-file record.
+
 ## A season's box
 
 A season's box supplies its cars, liveries, sounds and session rules. The box each season uses is chosen when the career is created.
@@ -413,6 +484,67 @@ A season's box supplies its cars, liveries, sounds and session rules. The box ea
 
 ```text
 [registry] career season 2019: box swofty.classic-seasons-2019/f1_2019 is off (cars and looks only); using game/f1_2025
+```
+
+## Standings
+
+A season starts with every team on 0 points, listed in a start order. Progressive's start order is the real previous year's final constructors' order, then the slots that year doesn't list in slot order. A slot closed that year is left out.
+
+### A twelfth team in Progressive
+
+A layer that names a team in slot 12 of a Progressive season gives that season 12 teams. Progressive passes slot 12 to `career::apply_teams` with its seats, and lists it in the season-start order after the eleven career slots:
+
+```cpp
+career::seasons.layer(career::seasons["swofty.progressive/2016"], [](career::Season &s) {
+    career::SeasonTeam twelfth;
+    twelfth.slot = 12;
+    twelfth.team = teams::identities["mod.f1-2012/marussia"];
+    twelfth.seats = { drivers::identities["mod.f1-2012/timo_glock"], drivers::identities["mod.f1-2012/charles_pic"] };
+    s.teams.push_back(twelfth);
+}, Scope::profile);
+```
+
+```text
+[progressive]   2016 slot 12 is mod.f1-2012/marussia (a record names the team)
+[progressive] standings: season 2016 starts in the real 2015 order: 24 driver(s) (lewis_hamilton first), 12 team(s): mercedes_26, ferrari_26, williams_26, redbull_26, forceindia_26, renault_26, tororosso_26, sauber_26, mclaren_26, gm_cadillac_26, haas_26, marussia
+```
+
+Slot 12 is listed by the team row the core made for the record (its key, `marussia`), and only while a row of the career races for that team:
+
+```text
+[progressive] standings: season 2016 slot 12 (marussia) is left out of the order: no row of the career races for it
+```
+
+### A box with 12 teams
+
+A `content.package` gets its own standings row, `<entrant_list>_teams`, which its entrant list names as the previous season's team standings. The core copies `f1_teams_2026` (11 teams) for a package of more than 20 cars and `f1_teams_2024` (10 teams) otherwise, and writes the package's teams into it in package order. When the package has more teams than the copied row, the core adds the rest. The entrant list grows the same way past the 22 entrants of `f1_2026`:
+
+```json
+{
+  "content.package": {
+    "f1_2012": {
+      "title": "lng_f1_2012", "entrant_list": "f1_2012", "season": 2012,
+      "teams": [
+        { "key": "redbull",  "team": "mod.f1-2012/redbull",  "vehicle": "mod.f1-2012/redbull_2012",
+          "drivers": [ { "driver": "game/sebastian_vettel", "number": 1 }, { "driver": "game/mark_webber", "number": 2 } ] },
+        { "key": "marussia", "team": "mod.f1-2012/marussia", "vehicle": "mod.f1-2012/marussia_2012",
+          "drivers": [ { "driver": "mod.f1-2012/timo_glock", "number": 24 }, { "driver": "mod.f1-2012/charles_pic", "number": 25 } ] }
+      ]
+    }
+  }
+}
+```
+
+```text
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: standings f1_2012_teams has 12 teams; f1_teams_2026 holds 11, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012 has 24 entrants; f1_2026 holds 22, the rest are added
+[apply] content.package boot:   content.package mod.f1-2012/f1_2012: entrant list f1_2012, 24 entrants in swofty_f1
+```
+
+The package's `database` block names other rows to copy: `standings_from` a standings row, `entrant_list_from` an entrant list. A row it names that already holds every team is copied as it is, and nothing is added.
+
+```json
+"database": { "standings_from": "mod_f1_2012_teams", "entrant_list_from": "f1_2026" }
 ```
 
 ## What a career freezes
@@ -477,7 +609,7 @@ career::contents.layer(career::contents["swofty.progressive/f1_career_progressiv
 
 ## Calendars
 
-The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group and applies nothing else.
+The 1.6.0 core stores `career.calendar` records and applies nothing from them; it logs `[registry] career.calendar: N record(s); this core applies nothing from it`. Likewise `career.mode` records: the core reads a mode's data group, and the save container and title a career tile takes from it (see [Career contents](#career-contents)), and applies nothing else.
 
 ```cpp
 auto calendar = career::calendars.add("f1_1990", {
@@ -498,9 +630,89 @@ A history career can race each season's real calendar (`Season::calendar`). The 
 [registry] career season 2017 calendar: 20 rounds from swofty.progressive/2017; venue/sepang not installed, round dropped
 ```
 
+## R&D trees and the driver market
+
+A career reads its R&D trees and its driver market from the game database when it is created and each time it loads. `career.rnd.tree` and `career.market` records change those rows at boot, so a career sees them at its next load, whether it was started before or after the record was installed. Neither is frozen per season.
+
+Each game mode reads its own group of rows. Its upgrades component names the upgrades group (`upgrades_path`, for example `upgrades.myteam_2025` for a My Team career) and its driver market component names the market group (`data_group`). A record without a `data_group` writes every group, so it reaches every mode. A record with one writes only that group.
+
+- **Loading a saved career rebuilds its R&D trees.** The game drops each team's saved R&D model, builds it again from the rows of the mode's upgrades group, then puts the saved progress back on the nodes it still finds by label. A new node starts unresearched. A removed node's progress is dropped.
+- **The driver market is read again too.** The driver market component reads its group's tables (retirement and firing schedules, team rating requirements) in its data load, at a career's creation and at each load.
+
+### R&D trees
+
+A tree is one team's R&D: its `token` (the 12 stock trees: `mercedes`, `ferrari`, `redbull`, `williams`, `tororosso`, `renault`, `haas`, `mclaren`, `sauber`, `force_india`, `gm_cadillac`, `user_defined`) in an upgrades group. The game has four groups: `2022`, `myteam_2025`, `2026` and `myteam_om_xm`. `gm_cadillac` has a tree in `2026` and `myteam_om_xm` only. A My Team car uses the `user_defined` tree. Each department (`aerodynamics`, `chassis`, `durability`, `engine`) is a list of nodes, and the hub `default` links to each department's first nodes.
+
+Without `data_group`, a record changes the token's tree in every group that has one, and the log has a line per group. The groups' trees differ (`2022` and `myteam_2025` have 24 aerodynamics nodes, `2026` has 25), so a `from` or `after` label one group lacks refuses that node in that group only.
+
+```cpp
+career::rnd_trees.add("mercedes_beam_wing", {
+    .token = "mercedes",
+    .nodes = {
+        { .label = "swofty_beam_wing_1", .department = career::UpgradeDepartment::aerodynamics,
+          .from = "drag_minor_1", .name = "swofty_beam_wing", .type = "Rear Downforce",
+          .size = career::UpgradeSize::minor, .cost = 600, .x = 1, .y = -5,
+          .after = { "drag_minor_1" } },                     // drag_minor_1 unlocks it
+        { .label = "drag_minor_1", .department = career::UpgradeDepartment::aerodynamics, .cost = 450 },
+    },
+});
+```
+
+- **A new label adds a node.** The node copies the row of `from` (default: the department's first node) and takes the fields you give. It has no links of its own unless you give `links`.
+- **A stock label edits that node.** Only the fields you give change. A non-empty `links` replaces the node's links.
+- **`after`** names nodes of the same tree, in any department or the hub `default`, that unlock the new node. A node no other node links to never shows.
+- **`type`** is one of the upgrade types the stock trees use: `Drag`, `Front Downforce`, `Rear Downforce`, `drs`, `Brakes`, `Chassis Weight Redistribution`, `Chassis Weight Reduction`, `Tyre Wear`, the six `... Durability` types, `Engine Power`, `Fuel Consumption` and `ers`. The game reads any other name as the first type, so the core refuses it.
+- **Progress lives in the save by label.** A node removed later loses its progress at the next load. A new node starts unresearched in a running career.
+
+```text
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group 2022
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group myteam_2025
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group 2026
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/mercedes_beam_wing: 1 node(s) added, 1 edited, 0 refused in the mercedes tree of upgrades group myteam_om_xm
+[apply] career.rnd.tree boot:   career.rnd.tree swofty.beamwing/ferrari_beam_wing: node sw_x_1 refused in upgrades group 2026: no node drag_minor_9 in aerodynamics to copy
+```
+
+A record covers one tree. Use `extends` to give the other trees the same nodes:
+
+```json
+{
+  "career.rnd.tree": {
+    "mercedes_beam_wing": { "token": "mercedes", "nodes": [ { "label": "swofty_beam_wing_1", "type": "Rear Downforce", "after": [ "drag_minor_1" ] } ] },
+    "ferrari_beam_wing": { "extends": "swofty.beamwing/mercedes_beam_wing", "token": "ferrari" }
+  }
+}
+```
+
+### The driver market
+
+A market group (`2025`, `2026`) holds the drivers who retire, the drivers who are fired, and the driver rating each team asks for. The stock game modes read both: some name `2025`, others `2026`. Without `data_group`, a record writes every group.
+
+```cpp
+career::markets.add("history", {
+    .retirements = std::vector<career::Retirement>{
+        { .driver = drivers::identities["game/fernando_alonso"], .retire = 2027y / 12 / 14, .announce = 2027y / 9 / 16 },
+        { .driver = drivers::identities["game/lewis_hamilton"], .retire = 2028y / 12 / 14, .announce = 2028y / 9 / 23 },
+    },
+    .firings = std::vector<career::Firing>{ { .driver = drivers::identities["game/lance_stroll"], .season_index = 1 } },
+    .team_ratings = { { .team = teams::identities["game/mclaren_26"], .rating = 97 } },
+});
+```
+
+- **`retirements`** replaces the drivers of every retirement schedule (6 in stock, of 8 drivers each) with this list. A career uses one schedule. An empty list means nobody retires. Absent keeps the stock schedules.
+- **`firings`** replaces the drivers of every firing schedule (4 in stock) the same way. `season_index` 0 is the career's first season.
+- **`team_ratings`** sets the driver rating a team asks for. A team without a row gets one. An added team needs one, with its own `entrants.teams` label, for the market to rank it.
+- A driver without a `entrants.drivers` row, a team without an `entrants.teams` row, or a group the game doesn't have is left out, and the log says so.
+
+```text
+[apply] career.market boot:   career.market swofty.history/history: 2 retirement(s) in 6 schedule(s), 1 firing(s) in 4 schedule(s), 1 team rating(s) set, 0 added in market group 2025
+[apply] career.market boot:   career.market swofty.history/history: 2 retirement(s) in 6 schedule(s), 1 firing(s) in 4 schedule(s), 1 team rating(s) set, 0 added in market group 2026
+```
+
+Both registries are experimental in 1.6.4 (features `registry_career_rnd_tree` and `registry_career_market`): their shape can change before they are stable.
+
 ## Described, in headers that come later
 
-The market, contracts, R&D, facilities, the economy and sponsors are described here. The 1.6.0 headers have no registry for them: `career.market`, `career.contract_rules`, `career.rnd.department`, `career.rnd.tree`, `career.facility`, `career.economy` and `career.sponsor`.
+Contracts, R&D departments, facilities, the economy and sponsors are described here. No header has a registry for them yet: `career.contract_rules`, `career.rnd.department`, `career.facility`, `career.economy` and `career.sponsor`.
 
 ```cpp
 struct RndDepartment {
@@ -510,44 +722,13 @@ struct RndDepartment {
     float cost_scale = 1.0f;                   // UpgradeDepartmentEntry economy scale
 };
 
-struct Retirement {                            // one retirement schedule
-    std::chrono::year_month_day date;          // stock schedules use absolute dates; the last is December 2035
-    std::vector<Ref<drivers::Identity>> drivers;   // up to 8
-};
-
-struct Market {                                // driver_market, per data group
-    std::string data_group;
-    std::vector<Retirement> retirements;       // driver_retirements: 6 schedules of 8 drivers in stock
-    bool firings = true;                       // driver_firings
-    std::vector<Ref<drivers::Identity>> available;   // drivers_available_from_team_setup
-};
-SWOFTY_RECORD(Market, data_group, retirements, firings, available)
-
-struct ContractRules {                         // driver_contracts and career.generic_contracts, per data group
-    std::string data_group;
-    std::map<std::string, std::array<int, 2>> rating_ranges;   // the rating range each team tier asks for
+struct ContractRules {                         // driver_contracts and career.generic_contracts
+    std::map<std::string, std::array<int, 2>> rating_ranges;   // driver_contracts.NCS.rating_ranges
     std::array<int64_t, 2> salary;             // the lowest and highest salary offered
     int secret_meetings = 9;                   // secret meetings a season offers
     bool counteroffers = true;                 // career.generic_contracts counteroffers
 };
-SWOFTY_RECORD(ContractRules, data_group, rating_ranges, salary, secret_meetings, counteroffers)
-
-struct RndUpgrade {                            // one node of a tree: an upgrade_N row
-    int cost = 0, weighting = 0, size = 0;
-    int type = 0;                              // upgrade_type: 0..18 (the game keeps a std::bitset<19>)
-    Ref<RndDepartment> department;
-    std::vector<int> links;                    // the nodes it unlocks, by index
-    std::array<int, 2> grid_coordinates;       // where the node sits in the tree
-    int unlock_at_facility_level = 0;
-};
-
-struct RndTree {                               // one team's tree in one data group
-    std::string data_group;
-    std::string token;                         // one of the 12 compiled-in team tokens: "ferrari" .. "user_defined"
-    std::vector<Ref<RndDepartment>> departments;
-    std::vector<RndUpgrade> nodes;
-};
-SWOFTY_RECORD(RndTree, data_group, token, departments, nodes)
+SWOFTY_RECORD(ContractRules, rating_ranges, salary, secret_meetings, counteroffers)
 
 struct Facility {                              // career.my_team_facilities: Engineering, Personnel, Corporate
     Text name;
@@ -575,7 +756,9 @@ struct Sponsor {                               // career.my_team_sponsors: 15 ti
 SWOFTY_RECORD(Sponsor, name, logo, title, loyalty, stat_id)
 ```
 
-A market record for a mode of its own would clear the stock retirements while its seasons cover the grid. The game draws four R&D departments natively; a fifth and more come from native code, as R&D Tyres does. Team trees are found through 12 compiled-in tokens, and a 13th tree needs native code.
+- **Contracts:** the rating ranges, secret meetings and counteroffers are tables every career shares (`driver_contracts.NCS`, `career.generic_contracts`); no data group partitions them. The rating each team asks for is the market's `team_ratings`.
+- **R&D departments:** the game draws four departments natively. A fifth and more come from native code, as R&D Tyres does. The department economy rows name attribute rows rather than holding numbers.
+- **Trees:** found through 12 compiled-in tokens. A 13th tree needs native code.
 
 ## Characters and wizards
 
@@ -625,7 +808,7 @@ The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `Swo
 `set_seat` takes a 1-based `slot` of the loaded career's data group, `set_seat_of_team` a team stat id; `set_car_number` takes `swap`, which gives the driver who held the number the caller's old one. `set_driver_ratings` writes experience, racecraft, awareness and pace by game stat id 0, 1, 3 and 4.
 
 - **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
-- **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`.
+- **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`. It reads only the records of the season's `data_group` and dresses only the rows of that group's slot table. A dressed slot row's loaded team record takes the season team's names, code, colours, base and principal (`team.identity` 1.1); its logo stays the slot row's. When the career unloads, every dressed record goes back to its own. Twelve slots work in Driver Career; twelve with My Team are refused (see [A season's teams](/std/systems/teams#a-season-s-teams)).
 - **Added teams in the new-career wizard:** a season whose slot names a team an addon made (its own `team.identity`, not a `game/` row) is an added team. The career's team rows are the ones its career list holds for every start season, so the added team wears its slot's row: the request `{"start": {"data_group": "<group>", "year": <start season>}}` dresses those rows (names, colours) while the wizard shows that start season, and `"year": 0` takes the dress off. The season start dresses the same row the same way, so the career never gets a second row for the team. At boot, each new driver (a `driver.identity` with a donor) of an added team gets a teamless entrant in the first teamless list the career list references, so the career has a row to seat him in.
 - **`set_seat`:** the driver takes race seat 0 or 1 of a slot in Driver Career. A race driver exchanges seats with the seat's driver; a free agent takes the seat and the seat's driver leaves the grid.
 - **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied.
@@ -651,7 +834,7 @@ Any other order crashes the career. Every operation runs on the flow thread.
 ## Readiness and limits
 
 - **The most ready system:** 59 career and 46 game functions at L2, saves at L3. Ready: contracts, line-ups, standings, resource points, upgrade start, cancel and cost, the calendar, activities, the wizard step, save containers.
-- **Partial:** Team HQ tabs (L1). Facilities, sponsors and the market are described under "Described, in headers that come later".
+- **Partial:** Team HQ tabs (L1). Contracts, R&D departments, facilities, sponsors and the economy are described under "Described, in headers that come later".
 - **Unknown:** the resource point spend, regulation changes, a 13th team tree.
 - **The save heap** is 3 MB. The core keeps career snapshots outside it, in the `swofty_registry` entry, with a budget per registry and per career.
 - **R&D:** four departments drawn natively; upgrade types are a table of 19 and a `std::bitset<19>` (ids of 19 and up throw without native code).
