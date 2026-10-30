@@ -74,8 +74,10 @@ std::string settings_addon(const void *from, std::string &dll);
 // so a game without registered boxes runs none of them.
 //
 // Time Trial guard (era_logic.hpp): a stock box pressed on a Time Trial picker leaves swofty_f1 offering
-// only its lists of at most 23 cars, none when no list fits (the Time Trial takes the teams of every offered
-// list of the stock list's season); era_session_load (StateLoadSession, any mode) puts back what it held
+// only its lists of at most 23 cars, none when no list fits; each Time Trial load counts the distinct cars of
+// every list of the selected list's leaderboard that the Time Trial fill takes (era_logic.hpp) and leaves whole
+// lists out, addon lists first, until they fit beside the game's 4 entries in the 26-slot table, and its unload
+// puts them back; era_session_load (StateLoadSession, any mode) puts back what it held
 // and, in Time Trial, logs the setup's resolved list and keeps a list past 23 cars out of the session;
 // era_session_end (StateUnloadSession) and every press put it back. The session vehicle guard is a
 // separate set wrapping Sess_Setup_VehicleComponents, offered whether or not a box is registered.
@@ -156,6 +158,7 @@ struct Narrowed {
     int64_t count, kept;
     void *lists[LIST_SLOTS];
     void *kept_lists[LIST_SLOTS];
+    bool time_trial;
 };
 
 std::mutex lock;
@@ -165,7 +168,7 @@ std::atomic<bool> offered, settled, live, off;
 std::string off_why;
 Set set;
 Built built;
-Narrowed narrowed[4];
+Narrowed narrowed[16];
 size_t narrowed_count;
 std::string last_pick, last_press;
 uint32_t logged_renarrow;
@@ -273,17 +276,34 @@ void put_back_drs()
         log_drs(std::string(logic::HOST) + "'s DRS group put back on " + std::to_string(n) + " mode(s)");
 }
 
+void put_back_narrowed(Narrowed &n)
+{
+    if (at<int64_t>(n.setup, LIST_COUNT) != n.kept || memcmp(n.setup + LISTS, n.kept_lists, size_t(n.kept) * sizeof(void *)))
+        return;
+    memcpy(n.setup + LISTS, n.lists, size_t(n.count) * sizeof(void *));
+    ref<int64_t>(n.setup, LIST_COUNT) = n.count;
+}
+
 void restore_lists()
 {
-    for (size_t i = 0; i < narrowed_count; ++i) {
-        Narrowed &n = narrowed[i];
-        if (at<int64_t>(n.setup, LIST_COUNT) != n.kept ||
-            memcmp(n.setup + LISTS, n.kept_lists, size_t(n.kept) * sizeof(void *)))
-            continue;
-        memcpy(n.setup + LISTS, n.lists, size_t(n.count) * sizeof(void *));
-        ref<int64_t>(n.setup, LIST_COUNT) = n.count;
-    }
+    for (size_t i = narrowed_count; i-- > 0;)
+        put_back_narrowed(narrowed[i]);
     narrowed_count = 0;
+}
+
+size_t restore_time_trial_lists()
+{
+    size_t put = 0, keep = 0;
+    for (size_t i = narrowed_count; i-- > 0;)
+        if (narrowed[i].time_trial) {
+            put_back_narrowed(narrowed[i]);
+            put++;
+        }
+    for (size_t i = 0; i < narrowed_count; ++i)
+        if (!narrowed[i].time_trial)
+            narrowed[keep++] = narrowed[i];
+    narrowed_count = keep;
+    return put;
 }
 
 void restore()
@@ -312,6 +332,7 @@ void narrow(void *mode, const char *list)
         n.setup = setup;
         n.count = count;
         n.kept = 1;
+        n.time_trial = false;
         n.kept_lists[0] = hit;
         memcpy(n.lists, lists, size_t(count) * sizeof(void *));
         lists[0] = hit;
@@ -521,6 +542,7 @@ bool keep_time_trial_lists(void *mode)
         n.setup = setup;
         n.count = int64_t(info.size());
         n.kept = int64_t(keep.size());
+        n.time_trial = true;
         memcpy(n.lists, ptrs.data(), info.size() * sizeof(void *));
         for (size_t i = 0; i < keep.size(); ++i)
             n.kept_lists[i] = ptrs[keep[i]];
@@ -541,6 +563,140 @@ bool keep_time_trial_lists(void *mode)
         }
     });
     return any;
+}
+
+struct ListSlot {
+    uint8_t *setup;
+    size_t index;
+};
+
+struct LeaderboardList {
+    void *list;
+    std::vector<ListSlot> slots;
+};
+
+bool leaderboard_of(const void *list, uint8_t &id)
+{
+    uint8_t set = 0;
+    auto at_list = reinterpret_cast<uintptr_t>(list);
+    return list && mem::read(at_list + logic::LIST_LEADERBOARD_SET, set) && set &&
+           mem::read(at_list + logic::LIST_LEADERBOARD, id);
+}
+
+std::vector<uint32_t> vehicle_refs(const void *list)
+{
+    std::vector<uint32_t> refs;
+    uintptr_t begin = 0, end = 0;
+    auto at_list = reinterpret_cast<uintptr_t>(list);
+    if (!mem::read(at_list + logic::LIST_ENTRANTS_BEGIN, begin) || !mem::read(at_list + logic::LIST_ENTRANTS_END, end))
+        return refs;
+    int64_t n = logic::entrant_count(begin, end);
+    for (int64_t i = 0; i < n; ++i) {
+        uint32_t ref = 0;
+        if (mem::read(begin + size_t(i) * logic::ENTRANT_RECORD + logic::ENTRANT_VEHICLE, ref))
+            refs.push_back(ref);
+    }
+    return refs;
+}
+
+bool box_list(const std::string &name)
+{
+    std::lock_guard<std::mutex> g(lock);
+    for (const auto &box : boxes)
+        if (box.entrant_list == name || box.time_trial == name)
+            return true;
+    return false;
+}
+
+void time_trial_budget(void *mode, uintptr_t setup)
+{
+    static uint32_t logged;
+    static std::string last_line;
+    uintptr_t selected = 0;
+    uint8_t board = 0;
+    if (!mem::read(setup + SELECTED_LIST, selected) || !selected || !leaderboard_of(reinterpret_cast<void *>(selected), board))
+        return;
+    auto *modes = setup_owner(mode);
+    if (!modes)
+        return;
+    auto get = reinterpret_cast<uint8_t *(*)(void *)>((*reinterpret_cast<void ***>(modes))[SETUP_MODES_VFUNC / 8]);
+    uint8_t *vec = get(modes);
+    if (!vec)
+        return;
+    std::vector<LeaderboardList> found{{reinterpret_cast<void *>(selected), {}}};
+    std::vector<bool> addon{false};
+    for (auto **p = at<uint8_t **>(vec, 8), **e = at<uint8_t **>(vec, 0x10); p != e; ++p) {
+        const char *gsm = name_of(*p, SETUP_MODE_NAME);
+        bool host = gsm && !strcmp(gsm, logic::HOST);
+        int64_t n = at<int64_t>(*p, ENTRANT_SETUP_COUNT);
+        auto **esms = reinterpret_cast<uint8_t **>(*p + ENTRANT_SETUPS);
+        for (int64_t k = 0; k < n && k < ENTRANT_SETUP_SLOTS; ++k) {
+            uint8_t *esm = esms[k];
+            int64_t count = 0;
+            if (!esm || !mem::read(reinterpret_cast<uintptr_t>(esm) + LIST_COUNT, count) || count <= 0 ||
+                count > int64_t(LIST_SLOTS))
+                continue;
+            auto **lists = reinterpret_cast<void **>(esm + LISTS);
+            for (int64_t i = 0; i < count; ++i) {
+                uint8_t id = 0;
+                if (!leaderboard_of(lists[i], id) || id != board)
+                    continue;
+                size_t at_found = found.size();
+                for (size_t f = 0; f < found.size(); ++f)
+                    if (found[f].list == lists[i])
+                        at_found = f;
+                if (at_found == found.size()) {
+                    found.push_back({lists[i], {}});
+                    addon.push_back(false);
+                }
+                found[at_found].slots.push_back({esm, size_t(i)});
+                addon[at_found] = addon[at_found] || host;
+            }
+        }
+    }
+    std::vector<logic::TtList> lists;
+    for (size_t f = 0; f < found.size(); ++f) {
+        const char *name = name_of(found[f].list, LIST_NAME);
+        logic::TtList l;
+        l.name = name ? name : "?";
+        l.selected = f == 0;
+        l.addon = !l.selected && (addon[f] || box_list(l.name));
+        l.refs = vehicle_refs(found[f].list);
+        lists.push_back(std::move(l));
+    }
+    auto budget = logic::time_trial_budget(lists);
+    for (size_t d : budget.dropped)
+        for (const auto &slot : found[d].slots) {
+            bool known = false;
+            for (size_t i = 0; i < narrowed_count; ++i)
+                known = known || (narrowed[i].time_trial && narrowed[i].setup == slot.setup &&
+                                  narrowed[i].kept == at<int64_t>(slot.setup, LIST_COUNT));
+            if (!known && narrowed_count < std::size(narrowed)) {
+                Narrowed &n = narrowed[narrowed_count++];
+                n.setup = slot.setup;
+                n.count = at<int64_t>(slot.setup, LIST_COUNT);
+                memcpy(n.lists, slot.setup + LISTS, size_t(n.count) * sizeof(void *));
+                n.time_trial = true;
+                n.kept = n.count;
+                memcpy(n.kept_lists, n.lists, sizeof(n.lists));
+            }
+            auto **arr = reinterpret_cast<void **>(slot.setup + LISTS);
+            int64_t count = at<int64_t>(slot.setup, LIST_COUNT), w = 0;
+            for (int64_t i = 0; i < count; ++i)
+                if (arr[i] != found[d].list)
+                    arr[w++] = arr[i];
+            ref<int64_t>(slot.setup, LIST_COUNT) = w;
+            for (size_t i = narrowed_count; i-- > 0;)
+                if (narrowed[i].time_trial && narrowed[i].setup == slot.setup) {
+                    narrowed[i].kept = w;
+                    memcpy(narrowed[i].kept_lists, arr, size_t(w) * sizeof(void *));
+                    break;
+                }
+        }
+    std::string line = logic::time_trial_budget_line(lists, budget, board);
+    if (line != last_line && logged++ < LOG_FIRST * 2)
+        swofty::log("[era] %s", line.c_str());
+    last_line = line;
 }
 
 bool skip_once(const std::string &key)
@@ -873,6 +1029,7 @@ void era_session_load()
                     selected.name.empty() ? "?" : selected.name.c_str(), (long long)selected.cars, setup_mode.c_str(),
                     last_press.empty() ? "none" : last_press.c_str());
     last_seen = seen;
+    time_trial_budget(reinterpret_cast<void *>(ctx), setup);
     if (!logic::oversized(selected.cars) && !logic::oversized(first.cars))
         return;
     logic::ListCars bad = logic::oversized(selected.cars) ? selected : first;
@@ -989,7 +1146,10 @@ void era_session_trace(const char *state, int to)
 
 void era_session_end()
 {
+    static uint32_t logged;
     std::lock_guard<std::mutex> g(held_lock);
+    if (size_t n = restore_time_trial_lists(); n && logged++ < LOG_FIRST)
+        swofty::log("[era] the Time Trial session unloads: %s's lists are back in %zu entrant setup mode(s)", logic::HOST, n);
     put_back();
 }
 
