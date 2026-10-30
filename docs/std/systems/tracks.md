@@ -47,7 +47,7 @@ Not in 1.6.5; their sections describe the design:
 
 namespace swofty::tracks {
 
-struct Fuel { float burn_per_lap = 0; };            // TrackGeneralData.fuel_burn_per_lap, kg per lap
+struct Fuel { float burn_per_lap = 0; };            // TrackGeneralData.fuel_burn_per_lap, kg per lap: the fuel delta, strategy and refuel figure
 
 struct Venue {                                     // track.venue: a real circuit; the core owns the venue/ ids
     static constexpr Version version{1, 0};
@@ -449,10 +449,10 @@ tracks::TrackList tracks::track_list(Ref<content::Package> box, events::Mode mod
 [tracks] box game/f1_2026 (time_trial): 26 tracks; left out 4 added tracks (no Time Trial support)
 ```
 
-A venue a calendar repeats, such as 2020's two races at the Red Bull Ring, is listed once and counted as one round. `swofty registry tracks` prints the lists of your last session from `$DATA/registry/catalog.json`:
+A venue a calendar repeats, such as 2020's two races at the Red Bull Ring, is listed once and counted as one round. `$DATA/registry/catalog.json` holds the boxes of the last build that ran, with its profile and build; a box press under another profile or build starts it again. `swofty registry tracks` prints them for the current profile:
 
 ```text
-as of your last session:
+as of the last session of profile Classic Seasons (build 9d7a5f9177e1436d):
 box swofty.classic-seasons-2016/f1_2016 (grand prix): calendar 20, more tracks 9, left out 1
   calendar: game/melbourne, game/bahrain, game/shanghai, ...
   more tracks: game/melbourne_reverse, mod.okayama/okayama, ...
@@ -480,6 +480,7 @@ A box can also give a track its own data: laps, fuel, tyre class, pit lane, name
 - **Any addon can give a box data.** A box's entries are the ids `<package id>/<key>` and every `per_package` record whose `package` names the box.
 - **It applies when the box is picked.** The core writes the box's data into the track data the game reads (`Game_TrackData_GetTrack`), and puts it back when the box is left. A Grand Prix box's fuel goes into every data set its setup mode reads when the box is picked, and the session's track again at session load.
 - **In 1.6.5 the core writes `fuel`.** `laps`, `pit`, `names`, `date` and `tyre_class` are stored, and apply once those fields of the game's track data are mapped (see [Readiness and limits](#readiness-and-limits)).
+- **`fuel.burn_per_lap` is the track's fuel-per-lap figure.** The game uses it for the MFD fuel delta, the fuel strategy and refuelling. The car's real burn comes from its power unit, and the race's starting fuel stays the same.
 
 <template #example>
 <Example root="swofty.classic-seasons-2016" code-file="native/src/tracks.cpp" data-file="registry/tracks.json" files="swofty.json, native/src/calendar.cpp, native/src/content.cpp">
@@ -534,6 +535,35 @@ SWOFTY_REGISTER
 [registry] content swofty.classic-seasons-2016/f1_2016 ended: 1 scoped change put back
 [registry] content game/f1_2026 active: base track data (mod.hockenheim/hockenheim included)
 ```
+
+### What `burn_per_lap` changes
+
+```json
+// registry/fuel.json: Monaco in the F1 2017 box
+{
+  "track.per_package": {
+    "f1_2017/monaco": { "package": "swofty.classic-seasons-2017/f1_2017", "track": "game/monaco",
+                        "fuel": { "burn_per_lap": 2.5 } }
+  }
+}
+```
+
+```text
+[tracks] box swofty.classic-seasons-2017/f1_2017: fuel written at the box press: 6 write(s) in 6 set(s) for setup mode 20
+[tracks] box swofty.classic-seasons-2017/f1_2017: monaco fuel written in 6 of 6 set(s) (query mode 20, season 7; ...)
+[tracks] box fuel: 6 of 6 write(s) put back (the box was left)
+```
+
+A 5-lap race at Monaco, read from the game's UDP car status (`m_fuelInTank`, `m_fuelRemainingLaps`):
+
+```text
+F1 2017 box, burn_per_lap 2.5:  start 9.30 kg, fuel delta -1.34 laps (9.30 / 2.5 - 5), burn 1.06 to 1.09 kg per lap
+F1 2016 box, stock 1.18:        start 9.29 kg, fuel delta +2.78 laps (9.29 / 1.18 - 5), burn 1.08 to 1.12 kg per lap
+```
+
+- **The fuel delta, strategy and refuelling** read `burn_per_lap`: the MFD's laps of fuel left, the fuel-for-laps the start sequence sets, the garage refuel and the virtual session's per-lap fuel.
+- **The car's burn** comes from its power unit: it burns the stock amount whatever `burn_per_lap` says. The fuel delta drifts back as the game measures the real use during the race.
+- **The starting fuel** comes from the track's race fuel rows (`Game_CarSetup_SessionFuelLoad`), which `burn_per_lap` doesn't change.
 
 A 2018-only layout addon edits only the 2018 box's entry:
 
@@ -675,7 +705,7 @@ tracks::set_data(tracks::tracks["game/monaco"], [](tracks::TrackData &d) { d.lap
 - **No tracks registry records, no track made for 1.5:** the core seeds the venues and the stock tracks that provide them (without stat ids), so calendars stay valid, and doesn't read the game database for the base. The base is empty, no box list is built and the guard lets every track through.
 - **Calendars:** Classic Seasons 2016 to 2024 name their real calendars. Careers keep their own calendars in 1.6.5.
 - **Track data at boot:** `track.data` values are written into the database before it loads, so they hold from the first session. At session load the core writes fuel again into the data set the session reads.
-- **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The game reads `fuel_burn_per_lap` in the garage refuel, the virtual session's per-lap fuel and a fuel-for-laps set in the start sequence. A race's starting fuel comes from the track's race fuel rows (`Game_CarSetup_SessionFuelLoad`), which a burn per lap leaves as they are. The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
+- **A box's own data: fuel.** `per_package` applies `fuel` when the box is picked and puts it back when it's left. The game reads `fuel_burn_per_lap` for the MFD fuel delta, the garage refuel, the virtual session's per-lap fuel and a fuel-for-laps set in the start sequence. The car's real burn comes from its power unit, and a race's starting fuel comes from the track's race fuel rows (`Game_CarSetup_SessionFuelLoad`); a burn per lap changes neither (see [What `burn_per_lap` changes](#what-burn-per-lap-changes)). The reader of the game's track data (`TrackDataTrack`, 0x290 bytes) is mapped at L1: laps at +0xe0 (a pointer to the database value), weekend month and day at +0xf4 and +0xf8, pit speed limit and stop times at +0x21c to +0x224. Fuel at +0xf0 is L2. The other fields apply once their readers are proven.
 - **The box's track list: logged, not shown.** The core works out each box's list and writes it to the log and `catalog.json`. The track select screen still shows its own list, built from view-model nodes (`track_data.track_list`, `track_info.gm_track_list`). The list builder behind `ui.track_select.build` isn't found yet.
 - **The guard:** the Grand Prix confirm (`advance_pressed`) and the Time Trial confirm (`select_pressed`) are L2. Refusing the press before the game's handler runs leaves no state behind.
 - **Time Trial:** record tracks have `time_trial` false unless their record sets it. Tracks made for 1.5 run Time Trial unless their facts say `time_trial: false` (`time_trial_why`: none of their files holds a world the track layers load).

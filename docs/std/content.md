@@ -372,7 +372,7 @@ The box's track list shows the season's real calendar first, in round order: the
 
 A track that doesn't fit is left out of that box. The track select screen's list builder needs reverse engineering. Until it's understood, the screen shows every track in the base in the game's own order, and a guard stops a track that doesn't fit before the session loads.
 
-Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data. In 1.6.5 the core applies a box's `fuel`; its other fields are stored.
+Each box also has its own view of each track in `tracks::per_package`, keyed `<package>/<track>`: whether it's offered, its place under More tracks, and per-track data for that box only. An empty field comes from the base track data. In 1.6.5 the core applies a box's `fuel`; its other fields are stored. `fuel.burn_per_lap` is the track's fuel-per-lap figure for the MFD fuel delta, the fuel strategy and refuelling; the car's real burn comes from its power unit (see [What `burn_per_lap` changes](/std/systems/tracks#what-burn-per-lap-changes)).
 
 Classic Seasons 2016 to 2024 each register the season's real calendar and name it in the package, optionally: a round at a venue no stock track provides, such as Sochi in 2017, is dropped until a track addon provides it (see [A calendar that uses it](/std/systems/tracks#a-calendar-that-uses-it-optionally)).
 
