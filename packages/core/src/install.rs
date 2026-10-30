@@ -1001,6 +1001,10 @@ impl<'a> Installer<'a> {
             crate::stdlib::careers::keep(self.data, &self.game.dir)?;
             let ids = addon_storage::present(&self.game.dir)?;
             self.keep_storage(&ids, &Journal::open(self.data)?)?;
+            let stranded = addon_storage::addon_dir(self.data, addon_storage::LOGO_CACHE);
+            if stranded.is_dir() {
+                with_retry(&stranded, || std::fs::remove_dir_all(&stranded))?;
+            }
             let logs = self.data.join("sessions/orphaned-logs");
             for e in std::fs::read_dir(&loader).map_err(io_err(&loader))?.flatten() {
                 if e.path().extension().is_some_and(|x| x == "log") {
