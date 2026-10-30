@@ -1,5 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
+use std::time::Duration;
 
 use crate::bytes::Reader;
 use crate::{Error, Result};
@@ -11,6 +12,9 @@ pub const ZSTD: u8 = 0x11;
 pub const STORED: u8 = 0x91;
 pub const ZSTD_LEVEL: i32 = 19;
 const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
+/// The waits between tries of an archive's open or replace that Windows
+/// refused for now: an antivirus holds a file it scans for a moment.
+const BACKOFF_MS: [u64; 6] = [25, 50, 100, 200, 400, 800];
 
 #[derive(Debug, Clone)]
 pub struct Fragment {
@@ -490,7 +494,7 @@ pub struct ErpFile {
 
 impl ErpFile {
     pub fn open(path: &Path) -> Result<Self> {
-        let mut file = std::fs::File::open(path).map_err(crate::io_at(path))?;
+        let mut file = open(path)?;
         let mut index = vec![0; HEADER_LEN];
         file.read_exact(&mut index).map_err(crate::io_at(path))?;
         if &index[..4] != MAGIC {
@@ -511,7 +515,7 @@ impl ErpFile {
     }
 
     pub fn load(&self, res: &Resource) -> Result<Resource> {
-        let mut file = std::fs::File::open(&self.path).map_err(crate::io_at(&self.path))?;
+        let mut file = open(&self.path)?;
         let mut out = res.clone();
         for f in &mut out.fragments {
             file.seek(SeekFrom::Start(self.data_off + f.offset))
@@ -548,10 +552,10 @@ impl ErpFile {
         };
         let head = erp.layout();
         let tmp = dst.with_extension("erp.tmp");
-        let mut src = std::fs::File::open(&self.path).map_err(crate::io_at(&self.path))?;
+        let mut src = open(&self.path)?;
         let mut out = std::io::BufWriter::with_capacity(
             1 << 20,
-            std::fs::File::create(&tmp).map_err(crate::io_at(&tmp))?,
+            retry(|| std::fs::File::create(&tmp)).map_err(crate::io_at(&tmp))?,
         );
         std::io::Write::write_all(&mut out, &head)?;
         let mut buf = vec![0; 1 << 20];
@@ -572,7 +576,8 @@ impl ErpFile {
         }
         std::io::Write::flush(&mut out)?;
         drop(out);
-        if let Err(e) = std::fs::rename(&tmp, dst) {
+        drop(src);
+        if let Err(e) = replace(&tmp, dst) {
             std::fs::remove_file(&tmp).ok();
             return Err(crate::io_at(dst)(e));
         }
@@ -580,6 +585,66 @@ impl ErpFile {
         Ok(())
     }
 }
+
+fn transient(e: &std::io::Error) -> bool {
+    const ERROR_ACCESS_DENIED: i32 = 5;
+    const ERROR_SHARING_VIOLATION: i32 = 32;
+    cfg!(windows)
+        && matches!(
+            e.raw_os_error(),
+            Some(ERROR_ACCESS_DENIED | ERROR_SHARING_VIOLATION)
+        )
+}
+
+fn retrying<T>(
+    transient: &dyn Fn(&std::io::Error) -> bool,
+    wait: &mut dyn FnMut(Duration),
+    mut f: impl FnMut() -> std::io::Result<T>,
+) -> std::io::Result<T> {
+    let mut waits = BACKOFF_MS.iter();
+    loop {
+        match f() {
+            Err(e) if transient(&e) => match waits.next() {
+                Some(ms) => wait(Duration::from_millis(*ms)),
+                None => return Err(e),
+            },
+            done => return done,
+        }
+    }
+}
+
+fn retry<T>(f: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    retrying(&transient, &mut std::thread::sleep, f)
+}
+
+fn open(path: &Path) -> Result<std::fs::File> {
+    retry(|| std::fs::File::open(path)).map_err(crate::io_at(path))
+}
+
+/// Moves `tmp` over `dst`, clearing a read-only `dst` first, and tries again
+/// for a moment while Windows refuses it, as it does while an antivirus scans
+/// either file. Nothing of ours may hold `dst` open.
+pub fn replace(tmp: &Path, dst: &Path) -> std::io::Result<()> {
+    retry(|| {
+        writable(dst);
+        std::fs::rename(tmp, dst)
+    })
+}
+
+#[cfg(windows)]
+#[allow(clippy::permissions_set_readonly_false)]
+fn writable(path: &Path) {
+    if let Ok(meta) = std::fs::metadata(path)
+        && meta.permissions().readonly()
+    {
+        let mut perms = meta.permissions();
+        perms.set_readonly(false);
+        std::fs::set_permissions(path, perms).ok();
+    }
+}
+
+#[cfg(not(windows))]
+fn writable(_: &Path) {}
 
 #[cfg(test)]
 mod tests {
@@ -876,6 +941,89 @@ mod tests {
         );
         assert_eq!(back.resources[1].fragments[1].data().unwrap(), b"abc");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_archive_rewritten_over_itself_replaces_a_read_only_copy() {
+        let dir = std::env::temp_dir().join(format!("swofty-erp-in-place-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("databases.erp");
+        std::fs::write(&path, two().to_bytes()).unwrap();
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&path, perms).unwrap();
+        let file = ErpFile::open(&path).unwrap();
+        let mut owned = file.load(&file.erp.resources[1]).unwrap();
+        owned.set_fragment(0, b"patched").unwrap();
+        file.write(
+            vec![Entry::Copy(&file.erp.resources[0]), Entry::Owned(owned)],
+            &path,
+        )
+        .unwrap();
+        let back = Erp::parse(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(back.resources[1].fragments[0].data().unwrap(), b"patched");
+        assert_eq!(
+            back.resources[0].fragments[0].data().unwrap(),
+            b"!pkg sample payload"
+        );
+        assert!(!path.with_extension("erp.tmp").exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn refused(code: i32) -> std::io::Error {
+        std::io::Error::from_raw_os_error(code)
+    }
+
+    #[test]
+    fn retries_a_file_windows_refuses_for_now() {
+        let held = |e: &std::io::Error| matches!(e.raw_os_error(), Some(5 | 32));
+        let mut waits = Vec::new();
+        let mut tries = [refused(5), refused(32)].into_iter();
+        let opened = retrying(&held, &mut |d| waits.push(d.as_millis()), || match tries.next() {
+            Some(e) => Err(e),
+            None => Ok("opened"),
+        });
+        assert_eq!(opened.unwrap(), "opened");
+        assert_eq!(waits, [25, 50]);
+
+        let mut waits = Vec::new();
+        let mut calls = 0;
+        let err = retrying(
+            &held,
+            &mut |d| waits.push(d.as_millis()),
+            || -> std::io::Result<()> {
+                calls += 1;
+                Err(refused(5))
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(5));
+        assert_eq!(calls, BACKOFF_MS.len() + 1);
+        assert_eq!(waits, BACKOFF_MS.map(u128::from));
+
+        let mut waits = Vec::new();
+        let mut calls = 0;
+        let err = retrying(
+            &held,
+            &mut |d| waits.push(d.as_millis()),
+            || -> std::io::Result<()> {
+                calls += 1;
+                Err(std::io::Error::from(std::io::ErrorKind::NotFound))
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!((calls, waits.len()), (1, 0));
+    }
+
+    #[test]
+    fn only_windows_refusals_count_as_held_for_now() {
+        assert_eq!(transient(&refused(5)), cfg!(windows));
+        assert_eq!(transient(&refused(32)), cfg!(windows));
+        assert!(!transient(&refused(2)));
+        assert!(!transient(&std::io::Error::from(
+            std::io::ErrorKind::PermissionDenied
+        )));
     }
 
     #[test]

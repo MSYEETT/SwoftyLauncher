@@ -2514,6 +2514,7 @@ pub type Ne_Log_Thunk_t = unsafe extern "C" fn(channel: *const c_char, fmt: *con
 pub type Ne_Make_StrFromCStr_t =
     unsafe extern "C" fn(out: *mut *mut NeStr, s: *const c_char, flags: u32, len: usize) -> u32;
 pub type Ne_Parse_Long_t = unsafe extern "C" fn(text: *const c_char, end: *mut *mut c_char, base: i32) -> i32;
+pub type Ne_Phys_ParseMaterials_t = unsafe extern "C" fn(lib: *mut c_void, node: *mut c_void);
 pub type Ne_Play_FullscreenVideo_t = unsafe extern "C" fn(
     feature_system: *mut c_void,
     path: *mut *mut NeStr,
@@ -2566,6 +2567,11 @@ pub type Sess_Record_GroupTimes_t =
 pub type Sess_RedFlagRaceStrategy_Enter_t = unsafe extern "C" fn(state: *mut c_void) -> u64;
 pub type Sess_RedFlagRaceStrategy_Update_t =
     unsafe extern "C" fn(state: *mut c_void, route: *mut u32) -> *mut u32;
+pub type Sess_Register_RaceRecordables_t = unsafe extern "C" fn(game: *mut c_void);
+pub type Sess_RuleManager_Initialise_t =
+    unsafe extern "C" fn(self_: *mut c_void, systems: *mut c_void, components: *mut c_void) -> u32;
+pub type Sess_Rules_IsPracticeQualifying_t =
+    unsafe extern "C" fn(owner_with_session_at_0x1b8: *mut c_void) -> bool;
 pub type Sess_SafetyCarTether_UpdateProgress_t = unsafe extern "C" fn(tether_entry: *mut c_void);
 pub type Sess_SafetyCarTether_UpdateTarget_t = unsafe extern "C" fn(tether_entry: *mut c_void, gap: f32);
 pub type Sess_ScDebrisAccumulator_Update_t = unsafe extern "C" fn(acc: *mut c_void);
@@ -2595,6 +2601,10 @@ pub type Sess_Tyres_ClosestAvailableCompound_t = unsafe extern "C" fn(
 pub type Sess_WeatherComponent_SetSystemRandomSeed_t = unsafe extern "C" fn(component: *mut c_void);
 pub type Sess_Weekend_Start_t =
     unsafe extern "C" fn(weekend: *mut c_void, entrants: *const c_void, begin: bool);
+pub type Trk_GrandPrixTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> *mut *mut c_void;
+pub type Trk_TimeTrialTrackSelectVm_OnCommandRaised_t =
+    unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut u32) -> u64;
 pub type Vm_GetOrCreate_ListChild_t =
     unsafe extern "C" fn(registry: *mut c_void, parent: *mut c_void, hash: *const u32) -> *mut *mut c_void;
 pub type Vm_List_AppendChild_t = unsafe extern "C" fn(list: *mut c_void) -> *mut *mut c_void;
@@ -3355,8 +3365,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Phys_ParseMaterials: Binding = Binding {
+        id: "Ne_Phys_ParseMaterials",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Play_FullscreenVideo: Binding = Binding {
         id: "Ne_Play_FullscreenVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Player_SetFFBInputDeviceId: Binding = Binding {
+        id: "Ne_Player_SetFFBInputDeviceId",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3430,6 +3450,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_FormationLapLogic_CheckAllParked: Binding = Binding {
+        id: "Sess_FormationLapLogic_CheckAllParked",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FormationLapLogic_Reset: Binding = Binding {
+        id: "Sess_FormationLapLogic_Reset",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_FormationLap_Update: Binding = Binding {
         id: "Sess_FormationLap_Update",
         kind: "func",
@@ -3485,6 +3515,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_MisconductManager_Ctor: Binding = Binding {
+        id: "Sess_MisconductManager_Ctor",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MultipleWarningsPenalty_ReceiveData: Binding = Binding {
+        id: "Sess_MultipleWarningsPenalty_ReceiveData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_MultipleWarningsPenalty_SendData: Binding = Binding {
+        id: "Sess_MultipleWarningsPenalty_SendData",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_PreRaceToRace_Update: Binding = Binding {
         id: "Sess_PreRaceToRace_Update",
         kind: "func",
@@ -3495,8 +3540,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RaceRuleset_OnLapCompleted: Binding = Binding {
+        id: "Sess_RaceRuleset_OnLapCompleted",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RaceRuleset_SetTimeLimit: Binding = Binding {
+        id: "Sess_RaceRuleset_SetTimeLimit",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Record_GroupTimes: Binding = Binding {
         id: "Sess_Record_GroupTimes",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Recordable_Register: Binding = Binding {
+        id: "Sess_Recordable_Register",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3510,8 +3570,123 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_RedFlagSystem_Deploy: Binding = Binding {
+        id: "Sess_RedFlagSystem_Deploy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_OnSessionBeginGameplay: Binding = Binding {
+        id: "Sess_RedFlagSystem_OnSessionBeginGameplay",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_OnStartLightsBegin: Binding = Binding {
+        id: "Sess_RedFlagSystem_OnStartLightsBegin",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_ResetCarStatus: Binding = Binding {
+        id: "Sess_RedFlagSystem_ResetCarStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_SimulateSessionTime: Binding = Binding {
+        id: "Sess_RedFlagSystem_SimulateSessionTime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RedFlagSystem_SnapshotDamage: Binding = Binding {
+        id: "Sess_RedFlagSystem_SnapshotDamage",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Register_RaceRecordables: Binding = Binding {
+        id: "Sess_Register_RaceRecordables",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RuleManager_Initialise: Binding = Binding {
+        id: "Sess_RuleManager_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ApplyPostSessionPenalties: Binding = Binding {
+        id: "Sess_Rules_ApplyPostSessionPenalties",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_CornerCuttingTimeGained_2: Binding = Binding {
+        id: "Sess_Rules_CornerCuttingTimeGained_2",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Rules_Disqualify: Binding = Binding {
         id: "Sess_Rules_Disqualify",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_DisqualifyForPenaltyPoints: Binding = Binding {
+        id: "Sess_Rules_DisqualifyForPenaltyPoints",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_IsPracticeQualifying: Binding = Binding {
+        id: "Sess_Rules_IsPracticeQualifying",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_PaceCarNewLap: Binding = Binding {
+        id: "Sess_Rules_PaceCarNewLap",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCollisionExpectedSpeed: Binding = Binding {
+        id: "Sess_Rules_ReadCollisionExpectedSpeed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCollisionSettings: Binding = Binding {
+        id: "Sess_Rules_ReadCollisionSettings",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadCornerCuttingSettings: Binding = Binding {
+        id: "Sess_Rules_ReadCornerCuttingSettings",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadFormationLapMiniGame: Binding = Binding {
+        id: "Sess_Rules_ReadFormationLapMiniGame",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadPitWhiteLine: Binding = Binding {
+        id: "Sess_Rules_ReadPitWhiteLine",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadRedFlagRepairTimes: Binding = Binding {
+        id: "Sess_Rules_ReadRedFlagRepairTimes",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadSafetyCarPacePenalties: Binding = Binding {
+        id: "Sess_Rules_ReadSafetyCarPacePenalties",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_ReadYellowFlagOvertaking: Binding = Binding {
+        id: "Sess_Rules_ReadYellowFlagOvertaking",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_RemoveInvalidOvertake: Binding = Binding {
+        id: "Sess_Rules_RemoveInvalidOvertake",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Rules_SendBlackFlagTimerToOsd: Binding = Binding {
+        id: "Sess_Rules_SendBlackFlagTimerToOsd",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3525,8 +3700,48 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_SafetyCar_ChangeState: Binding = Binding {
+        id: "Sess_SafetyCar_ChangeState",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_IntersectionTime: Binding = Binding {
+        id: "Sess_SafetyCar_IntersectionTime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_OnLapChanged: Binding = Binding {
+        id: "Sess_SafetyCar_OnLapChanged",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_ReadDynamicObstruction: Binding = Binding {
+        id: "Sess_SafetyCar_ReadDynamicObstruction",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_ReadMaxRedFlags: Binding = Binding {
+        id: "Sess_SafetyCar_ReadMaxRedFlags",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_UnlapGate: Binding = Binding {
+        id: "Sess_SafetyCar_UnlapGate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SafetyCar_VehicleTransition: Binding = Binding {
+        id: "Sess_SafetyCar_VehicleTransition",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_ScDebrisAccumulator_Update: Binding = Binding {
         id: "Sess_ScDebrisAccumulator_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SessionClock_SetTime: Binding = Binding {
+        id: "Sess_SessionClock_SetTime",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3582,6 +3797,16 @@ pub mod bindings {
     };
     pub const Sess_Weekend_Start: Binding = Binding {
         id: "Sess_Weekend_Start",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_GrandPrixTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_GrandPrixTrackSelectVm_OnCommandRaised",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Trk_TimeTrialTrackSelectVm_OnCommandRaised: Binding = Binding {
+        id: "Trk_TimeTrialTrackSelectVm_OnCommandRaised",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5060,6 +5285,11 @@ pub mod bindings {
         kind: "site",
         status: Status::Experimental,
     };
+    pub const site_Trk_TrackData_SetMatched: Binding = Binding {
+        id: "site_Trk_TrackData_SetMatched",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const vt_Career_BankTransactionMessage: Binding = Binding {
         id: "vt_Career_BankTransactionMessage",
         kind: "vtable",
@@ -5160,6 +5390,11 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Ne_ParticleEffectComponent: Binding = Binding {
+        id: "vt_Ne_ParticleEffectComponent",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Ne_SaveSystem2Win: Binding = Binding {
         id: "vt_Ne_SaveSystem2Win",
         kind: "vtable",
@@ -5170,8 +5405,28 @@ pub mod bindings {
         kind: "vtable",
         status: Status::Experimental,
     };
+    pub const vt_Sess_RaceRuleset: Binding = Binding {
+        id: "vt_Sess_RaceRuleset",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScAheadOfLead: Binding = Binding {
+        id: "vt_Sess_ScAheadOfLead",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
     pub const vt_Sess_ScCanReturn: Binding = Binding {
         id: "vt_Sess_ScCanReturn",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScCarsGrouped: Binding = Binding {
+        id: "vt_Sess_ScCarsGrouped",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScDebugDeploy: Binding = Binding {
+        id: "vt_Sess_ScDebugDeploy",
         kind: "vtable",
         status: Status::Experimental,
     };
@@ -5182,6 +5437,11 @@ pub mod bindings {
     };
     pub const vt_Sess_ScTriggerRedFlag: Binding = Binding {
         id: "vt_Sess_ScTriggerRedFlag",
+        kind: "vtable",
+        status: Status::Experimental,
+    };
+    pub const vt_Sess_ScTriggerVsc: Binding = Binding {
+        id: "vt_Sess_ScTriggerVsc",
         kind: "vtable",
         status: Status::Experimental,
     };
