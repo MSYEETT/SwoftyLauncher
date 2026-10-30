@@ -1719,3 +1719,21 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-29	bt-verify	func	Game_AutoResetToTrack_Init	L2	agree	decomp:re/decomp/142f00a70.c;xref:0x142f01210	V1727 claim 4
 2026-10-29	bt-verify	func	Game_PauseMenu_ResetToTrackCfg	L2	agree	decomp:re/decomp/142bb7020.c;xref:0x1457cb8c0	V1728 claim 5
 2026-10-29	bt-verify	func	Game_OffTrack_StuckMonitor	L2	agree	decomp:re/decomp/142521230.c;xref:0x144740efc	V1729 claim 7
+2026-10-28	wx-verify	func	Car_Dynamics_Update	L1	agree	xref:0x1446dc758,0x1446dc785,0x1446dc79b	V1730 wx-verify: r9=wheel+0x200, r8=wheel+0x2f0, call [vt+0x28], 0x30 bytes copied to wheel+0x280..+0x2af x4
+2026-10-28	ap-verify	func	Car_Solver_PrepareDrivetrain	L1	agree	xref:0x1446db350,0x1446db374,0x1446db390	V1731 ap-verify: solver+0x4e4 product incl. engine+0x2598 XOR
+2026-10-28	car2-verify	func	Car_Dynamics_Update	L1	agree	xref:0x1446dc4e8,0x1446dc531	V1732 recorded by engine-re from car2-verify (blind capstone): 360.0 at 0x145faa60c/610, count -> body+0xa4c
+2026-10-28	car2-verify	func	Car_Physics_StepVehicle	L1	agree	xref:0x1446dcf20,0x1446dcf2c,0x1446dcf3c,0x1446dcf44	V1733 car2-verify: cmp [car+0x9f40],7; >=7 dafa0, dee60, e1920; <7 e1920, dafa0, dee60
+2026-10-28	su-verify	func	Car_Dynamics_Update	L2	agree	decomp:re/decomp/1446dc480.c;xref:0x145bff4d8	V1734 claim 1/4 body vtable, loader last call
+2026-10-28	su-verify	func	Car_Physics_StepVehicle	L2	partial	decomp:re/decomp/1446dceb0.c;xref:0x145bff4e0	V1735 claim 5/6; no explicit rake input
+2026-10-28	su-verify	func	Car_Suspension_PublishWheelState	L2	partial	decomp:re/decomp/1446e4330.c;xref:0x145bff4f0	V1736 claim 7; once per frame unverified
+2026-10-28	su-verify	func	Car_Setup_SetFrontSpring	L2	partial	decomp:re/decomp/1446d7580.c;xref:0x140c11550	V1737 claim 2; HV fallback only +0x1660; thunk
+2026-10-28	su-verify	func	Car_Setup_SetRearSpring	L2	partial	decomp:re/decomp/1446d7780.c;xref:0x140c11550	V1738 claim 2
+2026-10-28	su-verify	func	Car_Setup_SetFrontRideHeight	L2	partial	decomp:re/decomp/1446d7c80.c;xref:0x140c11550	V1739 claim 3; +0x164c / +0x1648 on opposite axles
+2026-10-28	su-verify	func	Car_Setup_SetRearRideHeight	L2	partial	decomp:re/decomp/1446d8080.c;xref:0x140c11550	V1740 claim 3
+2026-10-28	su-verify	func	Car_Solver_PrepareDrivetrain	L2	agree	decomp:re/decomp/1446db280.c;xref:0x1446dc480	V1741 claim 4 lane loader mappings exact
+2026-10-28	su-verify	func	Car_Suspension_Integrate	L2	partial	decomp:re/decomp/1446e1920.c;xref:0x1446dceb0	V1742 claim 5; ARB MR +0x240, Fz only HV < 7
+2026-10-28	su-verify	func	Car_F1Aero_GetFrontRideHeight	L2	partial	decomp:re/decomp/1446cb000.c;xref:0x1446dd570	V1743 claim 6
+2026-10-28	su-verify	func	Car_F1Aero_GetRearRideHeight	L2	partial	decomp:re/decomp/1446cb260.c;xref:0x1446dd53c	V1744 claim 6; rear ref +0x98
+2026-10-28	su-verify	func	Car_SuspensionSystem_OnTuningChanged_Body	L1	agree	decomp:re/decomp/15543f450.c	V1745 claim 8
+2026-10-28	su-verify	func	Car_Tuning_SetSuspension	L2	partial	decomp:re/decomp/1446a7be0.c;xref:0x15543f450	V1746 claim 8; range +0x228..+0x254
+2026-10-28	su-verify	func	Car_SuspensionSystem_ResetRestAndSpring	L1	partial	decomp:re/decomp/1446b1460.c	V1747 claim 8; VTF stock source unverified
