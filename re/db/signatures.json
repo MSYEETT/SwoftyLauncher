@@ -14676,7 +14676,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/hooks/car_live.cpp"
+   ]
   },
   {
    "id": "car.tuning_set_suspension",
@@ -74502,7 +74504,9 @@
      "how": "static"
     }
    ],
-   "used_by": []
+   "used_by": [
+    "native/src/core/hooks/car_live.cpp"
+   ]
   },
   {
    "id": "car.register_vehicle_id",
@@ -76058,6 +76062,7 @@
     }
    ],
    "used_by": [
+    "native/src/core/hooks/car_live.cpp",
     "native/src/core/testagent/agent.cpp"
    ]
   },
@@ -76086,6 +76091,7 @@
     }
    ],
    "used_by": [
+    "native/src/core/hooks/car_live.cpp",
     "native/src/core/testagent/agent.cpp"
    ]
   },
@@ -84661,6 +84667,60 @@
     }
    ],
    "used_by": []
+  },
+  {
+   "id": "car.systems_reset_thunk",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? A5 0F 8B ?? ?? ?? ?? E9",
+   "match": "0x1447426c0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1447426c0",
+   "kind": "func_start",
+   "names": [
+    "Car_Systems_Reset_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "std-cars-live",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/hooks/car_live.cpp"
+   ],
+   "func_start": "0x1555bdf80"
+  },
+  {
+   "id": "car.engine_compute_derived",
+   "section": ".xtls",
+   "pattern": "E8 ?? ?? ?? ?? 48 89 F9 E8 ?? ?? ?? ?? C7 83 28 01 00 00 01 00 00 00 48 8B 96 08 02 00 00 0F B6 46 3B 48 8B 4A 30 48 8B 52 38 48 29 CA 48 C1 FA 03 48 39 C2 76 1D 48 8B 0C C1",
+   "match": "0x142971ac0",
+   "anchor": "0x1",
+   "resolve": {
+    "kind": "rel32",
+    "insn": "0x0"
+   },
+   "target": "0x144689a70",
+   "kind": "call",
+   "names": [
+    "Car_Engine_ComputeDerived_Thunk"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-10-30",
+     "by": "std-cars-live",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/hooks/car_live.cpp"
+   ]
   }
  ]
 }

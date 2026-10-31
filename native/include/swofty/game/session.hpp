@@ -454,6 +454,8 @@ inline constexpr fn<"Sess_WinnerSequence_Update", Sess_WinnerSequence_Update_t> 
 inline constexpr data<"g_Sess_TyreRulesActive", uint8_t> g_Sess_TyreRulesActive{}; // L2 experimental
 inline constexpr data<"g_Sess_TyreRulesMode", uint8_t> g_Sess_TyreRulesMode{}; // L2 experimental
 inline constexpr data<"g_Sess_TyreRulesSessionType", uint32_t> g_Sess_TyreRulesSessionType{}; // L2 experimental
+inline constexpr data<"g_Sess_VehicleCount", uint32_t> g_Sess_VehicleCount{}; // L2 experimental
+inline constexpr data<"g_Sess_VehicleTable", void *[]> g_Sess_VehicleTable{}; // L2 experimental
 inline constexpr data<"k_Sess_TyreComponentType", void *> k_Sess_TyreComponentType{}; // L2 experimental
 inline constexpr call<"site_Sess_AiVehicleRegisterCall"> site_Sess_AiVehicleRegisterCall{}; // L2 experimental
 inline constexpr call<"site_Sess_ControllerSystem_ApplyRecordCall"> site_Sess_ControllerSystem_ApplyRecordCall{}; // L2 experimental
