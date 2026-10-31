@@ -866,7 +866,7 @@ typedef struct SwoftyCareerOps {
     int (*set_look)(const char *driver_ref, const char *look_ref);
 } SwoftyCareerOps;
 
-/* Career saves (standard library 1.6.13, experimental), from the core export SwoftyCoreCareerSaves; not a
+/* Career saves (standard library 1.7.0, experimental), from the core export SwoftyCoreCareerSaves; not a
    SwoftyApi field. Table version 1. The core keeps a career index in the launcher's data folder
    ($DATA/careers/index.json, written at each profile load, career.loaded and profile save) and, beside it,
    one data file per career and addon ($DATA/careers/data/<career>/<addon>.json). index: the career index as

@@ -5,7 +5,7 @@
   "x-version": "1.1",
   "x-applies": "session",
   "x-snapshot": false,
-  "description": "cars::Handling: one car handling file: the sections and keys it holds, in snake_case. A section is an open object. The launcher applies the records in data files to the handling files it ships at build (experimental, 1.6.13); the core stores them.",
+  "description": "cars::Handling: one car handling file: the sections and keys it holds, in snake_case. A section is an open object. The launcher applies the records in data files to the handling files it ships at build (experimental, 1.7.0); the core stores them.",
   "type": "object",
   "properties": {
     "from": {

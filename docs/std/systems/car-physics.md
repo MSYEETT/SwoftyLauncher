@@ -6,7 +6,7 @@ description: How a car's handling is built from its handling file, every part yo
 # Car physics and handling
 
 ::: warning Experimental
-Live car physics (`cars::live`, layers, `car.profile`) is experimental in 1.6.13. Nothing in it has run in game yet, and its shape can change before it is stable. A field whose game code has no independent verification yet stays off and logs `<field> off: needs <row>`.
+Live car physics (`cars::live`, layers, `car.profile`) is experimental in 1.7.0. Nothing in it has run in game yet, and its shape can change before it is stable. A field whose game code has no independent verification yet stays off and logs `<field> off: needs <row>`.
 :::
 
 Every car on track is built from its **handling file**: the `.vtf` in the car's package (`teams/ferrari/handling/ferrari.vtf`). The file has one section per part of the car, such as Engine, F1Aero or F1WingDamage, and each section is a list of named values. Your addon changes those values in three ways:
@@ -394,7 +394,7 @@ Credit: the front wing damage, suspension damage, fuel ECU and ERS layouts were 
 ## Handling records
 
 ::: warning Experimental
-Applying `vehicle.handling` records at build is experimental (launcher 1.6.13). The records, the typed sections and the launcher's build step can change before they are stable.
+Applying `vehicle.handling` records at build is experimental (launcher 1.7.0). The records, the typed sections and the launcher's build step can change before they are stable.
 :::
 
 The launcher applies the `vehicle.handling` records in an addon's data files to the handling files the build ships. The change is in the file before the game starts, so every car built from it has it, in every session, with no code running in game. A GearBox change, a removed ERS and a raised suspension in one file:

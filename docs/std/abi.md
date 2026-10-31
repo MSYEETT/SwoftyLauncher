@@ -251,7 +251,7 @@ The report the core writes:
 
 ## The career saves table
 
-The core exports `SwoftyCoreCareerSaves` (since 1.6.13, experimental). `swofty/systems/career.hpp` finds it with `GetProcAddress`, and on a core without it `career::saves` is empty and every call returns `unavailable`.
+The core exports `SwoftyCoreCareerSaves` (since 1.7.0, experimental). `swofty/systems/career.hpp` finds it with `GetProcAddress`, and on a core without it `career::saves` is empty and every call returns `unavailable`.
 
 ```c
 typedef struct SwoftyCareerSaves {

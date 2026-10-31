@@ -54,7 +54,7 @@ Your [data folder](/guide/installation#where-your-files-are-stored) holds the or
 
 ## Launcher saves
 
-Each profile plays on its own copy of the profile save, kept in your data folder. Steam's save stays as it is, so starting F1 25 from Steam shows your normal careers. The first time the launcher starts after updating to 1.6.13, it copies your current Steam save into every profile; after that the two saves are independent, and launcher saves don't sync between PCs. **Use launcher saves** in the menu beside Play turns it off for a profile, and **Play once with your Steam saves** runs a single session on the Steam save. `swofty saves import` and `swofty saves export --to steam` copy between them. [Launcher saves](/reference/saves#launcher-saves) has the folders and the details.
+Each profile plays on its own copy of the profile save, kept in your data folder. Steam's save stays as it is, so starting F1 25 from Steam shows your normal careers. The first time the launcher starts after updating to 1.7.0, it copies your current Steam save into every profile; after that the two saves are independent, and launcher saves don't sync between PCs. **Use launcher saves** in the menu beside Play turns it off for a profile, and **Play once with your Steam saves** runs a single session on the Steam save. `swofty saves import` and `swofty saves export --to steam` copy between them. [Launcher saves](/reference/saves#launcher-saves) has the folders and the details.
 
 ## Restoring a profile save
 

@@ -8,6 +8,6 @@
   "license": "MIT",
   "kind": ["native"],
   "category": "career",
-  "compat": { "game": "f1_25", "launcher": ">=1.6.13" },
+  "compat": { "game": "f1_25", "launcher": ">=1.7.0" },
   "operations": { "native": [ { "dll": "native/notes.dll" } ] }
 }

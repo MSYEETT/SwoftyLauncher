@@ -51,7 +51,7 @@ The game's corrupt-save upload to Steam is off in these sessions.
 
 ### The first start
 
-The first launcher start after updating to 1.6.13, while F1 25 isn't running, copies the Steam save of the copy Play uses into every profile's store that is empty. A store that already holds files is left alone. Each import is snapshotted in the vault as `Imported from Steam saves`, and `$DATA/saves/imported.json` records that the import ran, so it never repeats on its own:
+The first launcher start after updating to 1.7.0, while F1 25 isn't running, copies the Steam save of the copy Play uses into every profile's store that is empty. A store that already holds files is left alone. Each import is snapshotted in the vault as `Imported from Steam saves`, and `$DATA/saves/imported.json` records that the import ran, so it never repeats on its own:
 
 ```text
 swofty-launcher: saves: copied the Steam save (2 file(s), 961752 bytes, /home/you/.local/share/Steam/userdata/843502855/3059520/remote) into the launcher saves of profile default (/home/you/.local/share/swofty/saves/default/remote); the vault holds it as snapshot 20261031-201502-imported
@@ -59,7 +59,7 @@ swofty-launcher: saves: copied the Steam save (2 file(s), 961752 bytes, ...) int
 ```
 
 ```json
-{ "at": 1793477702, "launcher": "1.6.13", "profiles": ["default", "progressive"], "note": "imported from /home/you/.local/share/Steam/userdata/843502855/3059520/remote" }
+{ "at": 1793477702, "launcher": "1.7.0", "profiles": ["default", "progressive"], "note": "imported from /home/you/.local/share/Steam/userdata/843502855/3059520/remote" }
 ```
 
 When F1 25 is running at that start, the launcher logs that the import waits and tries again at the next start. A profile created later, or one whose store is empty at Play, gets the same copy at its first Play. The Steam save is only read.
@@ -170,7 +170,7 @@ Highlights, ghosts and mid-session saves stay out. Steam and the launcher saves 
   "reason": "after-session",
   "session_id": "4f0c2b9e",
   "profile": "default",
-  "launcher": "1.6.13",
+  "launcher": "1.7.0",
   "exe_sha256": "9c1e…",
   "source": "steam-843502855",
   "layout": "steam",
@@ -206,7 +206,7 @@ Highlights, ghosts and mid-session saves stay out. Steam and the launcher saves 
 ```text
 $ swofty saves show 20261030-221500-after-session
 20261030-221500-after-session  after Play, profile progressive, 2 file(s), 961336 bytes, pinned (before-outside-change)
-taken 2026-10-30 22:15 UTC by launcher 1.6.13
+taken 2026-10-30 22:15 UTC by launcher 1.7.0
 save folder /home/you/.local/share/Steam/userdata/843502855/3059520/remote
 session 91aa03d1
 F1_25.exe sha256 9c1e…

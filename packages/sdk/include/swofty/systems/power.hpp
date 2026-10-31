@@ -5,7 +5,7 @@
 
 // Power: the DRS rules a Grand Prix or Time Trial box names in its rules (sessions::Rules::drs). Each rule
 // becomes a DRS allowed-lap group in the game database at boot; the box's rule applies when the box is
-// pressed. Suppliers are experimental (1.6.13): a record is stored and a vehicle's engine names it, but the core
+// pressed. Suppliers are experimental (1.7.0): a record is stored and a vehicle's engine names it, but the core
 // writes no entrants.engines row from it yet. Power units and component rules come later.
 
 namespace swofty::power {

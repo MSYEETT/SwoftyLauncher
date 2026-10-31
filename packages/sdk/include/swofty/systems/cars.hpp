@@ -10,7 +10,7 @@
 
 // Cars: vehicle rows and their packages (boot), each car's handling file (applied as the car is built at
 // every session load). Handling records written in data files are applied by the launcher at build (experimental,
-// 1.6.13): see Handling. Handling parts are named after the handling
+// 1.7.0): see Handling. Handling parts are named after the handling
 // file's sections and their fields after its keys, in snake_case (FrontCoeffLiftMultiplier ->
 // front_coeff_lift_multiplier); a key this header doesn't name is kept in the part's `extra`. cars::live
 // is the cars on track, read and written through the core's car operations (SwoftyCoreCarOps): cars()

@@ -833,7 +833,7 @@ Any other order crashes the career. Every operation runs on the flow thread.
 
 ## Saves
 
-Saves are experimental, since 1.6.13. The core keeps an index of the careers it has loaded, and each addon's own data for each career, in the launcher's data folder. Careers are listed there with the addons they need, so the launcher can warn before Play and tell the career vault which careers an addon toggle would drop.
+Saves are experimental, since 1.7.0. The core keeps an index of the careers it has loaded, and each addon's own data for each career, in the launcher's data folder. Careers are listed there with the addons they need, so the launcher can warn before Play and tell the career vault which careers an addon toggle would drop.
 
 ```cpp
 #include <swofty/systems/career.hpp>
@@ -974,7 +974,7 @@ The template `templates/std/career-saves` is such an addon with its tests.
 - **The save heap** is 3 MB. The core keeps career snapshots outside it, in the `swofty_registry` entry, with a budget per registry and per career.
 - **R&D:** four departments drawn natively; upgrade types are a table of 19 and a `std::bitset<19>` (ids of 19 and up throw without native code).
 - **The 10-season career limit** is calendar data (`_season_instancecount_`), not code. Career days are 16-bit (about 200 seasons). Stock retirement schedules end in December 2035.
-- **Career saves** (since 1.6.13) are experimental: `career.saving` and `career.saved` run on the profile-writing thread, and `career.missing` on the profile-loading thread.
+- **Career saves** (since 1.7.0) are experimental: `career.saving` and `career.saved` run on the profile-writing thread, and `career.missing` on the profile-loading thread.
 - **Saves keep the season list.** Rounds of a season that hasn't started can be replaced, added or removed. The upgrade loader drops instances it doesn't know.
 - **Hashed per-team career tables** can't gain rows. **Eight tables** are partitioned by data group.
 - **My Team** freezes when the upgrade availability is refreshed over and over. **Follow-career scene paths** crashed new Progressive careers (#411).

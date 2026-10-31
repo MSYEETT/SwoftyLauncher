@@ -3,7 +3,7 @@
 #include <swofty/registry.hpp>
 #include <swofty/systems/forward.hpp>
 
-// Tyres, first slice (experimental, 1.6.13): physical compounds with their tyre group, visual compounds, tyre
+// Tyres, first slice (experimental, 1.7.0): physical compounds with their tyre group, visual compounds, tyre
 // classes, allocations and rules. The records are stored and nothing in them is applied: the core writes no
 // tyre rows from them yet. What reaches the car today is the tyre group, which the launcher writes into a
 // handling file's Chassis TyrePhysicsGroup at build, from Vehicle::tyre_group (or from

@@ -372,7 +372,7 @@ pub struct SwoftyText {
     pub size: usize,
 }
 
-/// The core's career saves table (export `SwoftyCoreCareerSaves`, since 1.6.13).
+/// The core's career saves table (export `SwoftyCoreCareerSaves`, since 1.7.0).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SwoftyCareerSaves {

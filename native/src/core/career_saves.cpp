@@ -16,7 +16,7 @@
 #include "hooks/hooks.hpp"
 #include "registry/table.hpp"
 
-// Career saves (since 1.6.13): the career index and the per-career addon data.
+// Career saves (since 1.7.0): the career index and the per-career addon data.
 //
 // The index is $DATA/careers/index.json, the launcher's data folder (state_root; the game's swofty folder
 // when the launcher named none), in the career index shape of docs/std/dependencies.md: one record per
