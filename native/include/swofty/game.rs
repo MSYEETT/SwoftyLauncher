@@ -2623,6 +2623,9 @@ pub type Game_SpeechSystem_PostLine_t =
     unsafe extern "C" fn(speech: *mut c_void, line: *mut c_void, retrigger: u8);
 pub type Game_TeamHQAdvanceViewModel_OnCommandRaised_t =
     unsafe extern "C" fn(vm: *mut c_void, cmd: *mut *mut NeStr, data: *mut c_void) -> u64;
+pub type Game_TeamHQAdvanceViewModel_PressAdvance_t = unsafe extern "C" fn(vm: *mut c_void);
+pub type Game_TeamHQAdvanceViewModel_ShowTodayCards_t = unsafe extern "C" fn(vm: *mut c_void) -> bool;
+pub type Game_TeamHQAdvanceViewModel_StopAdvance_t = unsafe extern "C" fn(vm: *mut c_void);
 pub type Game_TeamHQAdvanceViewModel_Update_t = unsafe extern "C" fn(vm: *mut c_void) -> u64;
 pub type Game_Teleport_Vehicle_t = unsafe extern "C" fn(
     car: *mut c_void,
@@ -3503,6 +3506,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_TeamHQAdvanceViewModel_PressAdvance: Binding = Binding {
+        id: "Game_TeamHQAdvanceViewModel_PressAdvance",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_TeamHQAdvanceViewModel_ShowTodayCards: Binding = Binding {
+        id: "Game_TeamHQAdvanceViewModel_ShowTodayCards",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_TeamHQAdvanceViewModel_StopAdvance: Binding = Binding {
+        id: "Game_TeamHQAdvanceViewModel_StopAdvance",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_TeamHQAdvanceViewModel_Update: Binding = Binding {
         id: "Game_TeamHQAdvanceViewModel_Update",
         kind: "func",
@@ -3648,6 +3666,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_CustomisationDecalRenderer_BakePasses: Binding = Binding {
+        id: "Ne_CustomisationDecalRenderer_BakePasses",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_CustomisationDecalRenderer_Render: Binding = Binding {
         id: "Ne_CustomisationDecalRenderer_Render",
         kind: "func",
@@ -3675,6 +3698,21 @@ pub mod bindings {
     };
     pub const Ne_CutsceneScriptResourceFactory_StartDestroyResource: Binding = Binding {
         id: "Ne_CutsceneScriptResourceFactory_StartDestroyResource",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_DecalsProjectionAreaProxy_Ctor: Binding = Binding {
+        id: "Ne_DecalsProjectionAreaProxy_Ctor",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_DecalsProjectionAreaProxy_Dtor: Binding = Binding {
+        id: "Ne_DecalsProjectionAreaProxy_Dtor",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_DecalsSetProxy_Dtor: Binding = Binding {
+        id: "Ne_DecalsSetProxy_Dtor",
         kind: "func",
         status: Status::Experimental,
     };

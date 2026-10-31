@@ -149,12 +149,16 @@ inline constexpr address<"Ne_CrowdPlugin_LoadXml"> Ne_CrowdPlugin_LoadXml{}; // 
 inline constexpr address<"Ne_Crt_Atanf"> Ne_Crt_Atanf{}; // L2 experimental
 inline constexpr address<"Ne_Crt_Powf"> Ne_Crt_Powf{}; // L2 experimental
 inline constexpr address<"Ne_Crt_Sinf"> Ne_Crt_Sinf{}; // L2 experimental
+inline constexpr address<"Ne_CustomisationDecalRenderer_BakePasses"> Ne_CustomisationDecalRenderer_BakePasses{}; // L2 experimental
 inline constexpr address<"Ne_CustomisationDecalRenderer_Render"> Ne_CustomisationDecalRenderer_Render{}; // L2 experimental, NeCustomisationDecalRenderer::render
 inline constexpr address<"Ne_CustomisationDecalsProjectionAreasSetPlugin_CloseConnection"> Ne_CustomisationDecalsProjectionAreasSetPlugin_CloseConnection{}; // L2 experimental, NeCustomisationDecalsProjectionAreasSetPlugin::closeConnection
 inline constexpr address<"Ne_CustomisationDecalsSetPlugin_CloseConnection"> Ne_CustomisationDecalsSetPlugin_CloseConnection{}; // L2 experimental, NeCustomisationDecalsSetPlugin::closeConnection
 inline constexpr address<"Ne_CutsceneScriptResourceFactory_CreateResourceFinished"> Ne_CutsceneScriptResourceFactory_CreateResourceFinished{}; // L2 experimental
 inline constexpr address<"Ne_CutsceneScriptResourceFactory_DestroyResource"> Ne_CutsceneScriptResourceFactory_DestroyResource{}; // L2 experimental
 inline constexpr address<"Ne_CutsceneScriptResourceFactory_StartDestroyResource"> Ne_CutsceneScriptResourceFactory_StartDestroyResource{}; // L2 experimental
+inline constexpr address<"Ne_DecalsProjectionAreaProxy_Ctor"> Ne_DecalsProjectionAreaProxy_Ctor{}; // L2 experimental
+inline constexpr address<"Ne_DecalsProjectionAreaProxy_Dtor"> Ne_DecalsProjectionAreaProxy_Dtor{}; // L2 experimental
+inline constexpr address<"Ne_DecalsSetProxy_Dtor"> Ne_DecalsSetProxy_Dtor{}; // L2 experimental
 using Ne_Detach_ChildNode_t = int(void *parent, void *child);
 inline constexpr fn<"Ne_Detach_ChildNode", Ne_Detach_ChildNode_t> Ne_Detach_ChildNode{}; // L2 experimental
 inline constexpr address<"Ne_EadpErrorsDataService_UninstallExceptionHandler"> Ne_EadpErrorsDataService_UninstallExceptionHandler{}; // L2 experimental
