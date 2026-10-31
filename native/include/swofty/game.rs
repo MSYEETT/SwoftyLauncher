@@ -2603,6 +2603,8 @@ pub type Game_SaveData_SerialiseContainer_t = unsafe extern "C" fn(
 pub type Game_SaveData_WriteBag_t = unsafe extern "C" fn(codec: *mut NeBagCodec, bag: *mut c_void) -> c_int;
 pub type Game_SaveMgr_RequestProfileSave_Thunk_t =
     unsafe extern "C" fn(save_mgr: *mut c_void, callback: *mut c_void, a3: u8, a4: u8) -> bool;
+pub type Game_SaveSlotManager_SelectSlot_t =
+    unsafe extern "C" fn(manager: *mut c_void, slot_id: u64, force: bool, a4: u32) -> c_int;
 pub type Game_SceneManagerSpawn_SpawnScene_t = unsafe extern "C" fn(
     mgr: *mut c_void,
     opts: *const u8,
@@ -3466,6 +3468,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_SaveSlotManager_SelectSlot: Binding = Binding {
+        id: "Game_SaveSlotManager_SelectSlot",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_SceneManagerSpawn_SpawnScene: Binding = Binding {
         id: "Game_SceneManagerSpawn_SpawnScene",
         kind: "func",
@@ -3553,6 +3560,21 @@ pub mod bindings {
     };
     pub const Ne_AssetGroupSubTask_OnComplete: Binding = Binding {
         id: "Ne_AssetGroupSubTask_OnComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_BitStream_ReadQuantizedFloat: Binding = Binding {
+        id: "Ne_BitStream_ReadQuantizedFloat",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_BitStream_WriteFloatByPrecision: Binding = Binding {
+        id: "Ne_BitStream_WriteFloatByPrecision",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_BitStream_WriteQuantizedFloat: Binding = Binding {
+        id: "Ne_BitStream_WriteQuantizedFloat",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3858,6 +3880,11 @@ pub mod bindings {
     };
     pub const Ne_ModuleSystem_CheckPlatform: Binding = Binding {
         id: "Ne_ModuleSystem_CheckPlatform",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_MoverCollision_CreateResource: Binding = Binding {
+        id: "Ne_MoverCollision_CreateResource",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4656,6 +4683,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Steam_OnEncryptedAppTicket: Binding = Binding {
+        id: "Ne_Steam_OnEncryptedAppTicket",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_StringPool_LogMemoryStats: Binding = Binding {
+        id: "Ne_StringPool_LogMemoryStats",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_StringTable_Lookup: Binding = Binding {
         id: "Ne_StringTable_Lookup",
         kind: "func",
@@ -4663,6 +4700,11 @@ pub mod bindings {
     };
     pub const Ne_TerrainResource_GetMaterialResourcel: Binding = Binding {
         id: "Ne_TerrainResource_GetMaterialResourcel",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_TextRingBuffer_FlushPending: Binding = Binding {
+        id: "Ne_TextRingBuffer_FlushPending",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4678,6 +4720,11 @@ pub mod bindings {
     };
     pub const Ne_TimeManager_OnSetFixedTimeStep: Binding = Binding {
         id: "Ne_TimeManager_OnSetFixedTimeStep",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_TypedArray2_LogStats_8db0: Binding = Binding {
+        id: "Ne_TypedArray2_LogStats_8db0",
         kind: "func",
         status: Status::Experimental,
     };

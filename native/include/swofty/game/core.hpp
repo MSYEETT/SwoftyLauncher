@@ -131,6 +131,9 @@ inline constexpr address<"Ne_AnimClipResourceFactory_CreateResource"> Ne_AnimCli
 inline constexpr address<"Ne_Application2_OnFocusChanged"> Ne_Application2_OnFocusChanged{}; // L2 experimental, NeApplication2::onFocusChanged
 inline constexpr address<"Ne_Application2_OnVisibilityChanged"> Ne_Application2_OnVisibilityChanged{}; // L2 experimental, NeApplication2::onVisibilityChanged
 inline constexpr address<"Ne_AssetGroupSubTask_OnComplete"> Ne_AssetGroupSubTask_OnComplete{}; // L2 experimental
+inline constexpr address<"Ne_BitStream_ReadQuantizedFloat"> Ne_BitStream_ReadQuantizedFloat{}; // L2 experimental
+inline constexpr address<"Ne_BitStream_WriteFloatByPrecision"> Ne_BitStream_WriteFloatByPrecision{}; // L2 experimental
+inline constexpr address<"Ne_BitStream_WriteQuantizedFloat"> Ne_BitStream_WriteQuantizedFloat{}; // L2 experimental
 inline constexpr address<"Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups"> Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups{}; // L2 experimental, NeBufferedAssetGroupLoader::groupSwapAssetGroups
 inline constexpr address<"Ne_CloudGenerator_Destroy"> Ne_CloudGenerator_Destroy{}; // L2 experimental, NeCloudGenerator::~NeCloudGenerator
 inline constexpr address<"Ne_CloudUploader_Upload"> Ne_CloudUploader_Upload{}; // L2 experimental
@@ -201,6 +204,7 @@ inline constexpr address<"Ne_MipTailGenerator_Destroy"> Ne_MipTailGenerator_Dest
 inline constexpr address<"Ne_MipTailGenerator_Record"> Ne_MipTailGenerator_Record{}; // L2 experimental, NeMipTailGenerator::record
 inline constexpr address<"Ne_ModuleSystem_CheckConfig"> Ne_ModuleSystem_CheckConfig{}; // L2 experimental
 inline constexpr address<"Ne_ModuleSystem_CheckPlatform"> Ne_ModuleSystem_CheckPlatform{}; // L2 experimental
+inline constexpr address<"Ne_MoverCollision_CreateResource"> Ne_MoverCollision_CreateResource{}; // L2 experimental
 inline constexpr address<"Ne_NetConnectionQuality_ConnectionArrived"> Ne_NetConnectionQuality_ConnectionArrived{}; // L2 experimental, neon::NeNetConnectionQuality::connectionArrived
 inline constexpr address<"Ne_NetConnectionQuality_ConnectionLeft"> Ne_NetConnectionQuality_ConnectionLeft{}; // L2 experimental, neon::NeNetConnectionQuality::connectionLeft
 inline constexpr address<"Ne_NetConnectionQuality_OnBandwidthEvalPayload"> Ne_NetConnectionQuality_OnBandwidthEvalPayload{}; // L2 experimental, neon::NeNetConnectionQuality::onBandwidthEvalPayload
@@ -368,12 +372,16 @@ inline constexpr address<"Ne_SequenceInstance_Construct"> Ne_SequenceInstance_Co
 inline constexpr address<"Ne_SequenceResource_CreateResource"> Ne_SequenceResource_CreateResource{}; // L2 experimental, NeSequenceResource::createResource
 inline constexpr address<"Ne_SteamTransport_FlushPeerBuffers"> Ne_SteamTransport_FlushPeerBuffers{}; // L2 experimental
 inline constexpr address<"Ne_SteamTransport_QueuePacket"> Ne_SteamTransport_QueuePacket{}; // L2 experimental
+inline constexpr address<"Ne_Steam_OnEncryptedAppTicket"> Ne_Steam_OnEncryptedAppTicket{}; // L2 experimental
+inline constexpr address<"Ne_StringPool_LogMemoryStats"> Ne_StringPool_LogMemoryStats{}; // L2 experimental
 using Ne_StringTable_Lookup_t = const char *(void *table, uint64_t hash);
 inline constexpr fn<"Ne_StringTable_Lookup", Ne_StringTable_Lookup_t> Ne_StringTable_Lookup{}; // L3 stable
 inline constexpr address<"Ne_TerrainResource_GetMaterialResourcel"> Ne_TerrainResource_GetMaterialResourcel{}; // L2 experimental, NeTerrainResource::getMaterialResourcel
+inline constexpr address<"Ne_TextRingBuffer_FlushPending"> Ne_TextRingBuffer_FlushPending{}; // L2 experimental
 inline constexpr address<"Ne_TextureDecompressionGeneratorFactory_ObtainGeneratorResource"> Ne_TextureDecompressionGeneratorFactory_ObtainGeneratorResource{}; // L2 experimental, NeTextureDecompressionGeneratorFactory::obtainGeneratorResource
 inline constexpr address<"Ne_Thread_Destroy"> Ne_Thread_Destroy{}; // L2 experimental, NeThread::~NeThread
 inline constexpr address<"Ne_TimeManager_OnSetFixedTimeStep"> Ne_TimeManager_OnSetFixedTimeStep{}; // L2 experimental
+inline constexpr address<"Ne_TypedArray2_LogStats_8db0"> Ne_TypedArray2_LogStats_8db0{}; // L2 experimental
 inline constexpr address<"Ne_UIAction_C_closeScreenId"> Ne_UIAction_C_closeScreenId{}; // L2 experimental, NeUIAction::c_closeScreenId
 inline constexpr address<"Ne_UICrashDumpInfo_OnScreenEvent"> Ne_UICrashDumpInfo_OnScreenEvent{}; // L2 experimental
 inline constexpr address<"Ne_UICrashDumpInfo_SettingsScreenClearSelectedCategory"> Ne_UICrashDumpInfo_SettingsScreenClearSelectedCategory{}; // L2 experimental

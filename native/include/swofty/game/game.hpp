@@ -263,6 +263,8 @@ using Game_SaveData_WriteBag_t = int(NeBagCodec *codec, void *bag);
 inline constexpr fn<"Game_SaveData_WriteBag", Game_SaveData_WriteBag_t> Game_SaveData_WriteBag{}; // L3 stable
 using Game_SaveMgr_RequestProfileSave_Thunk_t = bool(void *save_mgr, void *callback, uint8_t a3, uint8_t a4);
 inline constexpr fn<"Game_SaveMgr_RequestProfileSave_Thunk", Game_SaveMgr_RequestProfileSave_Thunk_t> Game_SaveMgr_RequestProfileSave_Thunk{}; // L2 experimental
+using Game_SaveSlotManager_SelectSlot_t = int(void *manager, uint64_t slot_id, bool force, uint32_t a4);
+inline constexpr fn<"Game_SaveSlotManager_SelectSlot", Game_SaveSlotManager_SelectSlot_t> Game_SaveSlotManager_SelectSlot{}; // L2 experimental
 using Game_SceneManagerSpawn_SpawnScene_t = void *(void *mgr, const uint8_t *opts, void *scene, const float *mtx44, void *ov_a, void *ov_b, uint64_t p7);
 inline constexpr fn<"Game_SceneManagerSpawn_SpawnScene", Game_SceneManagerSpawn_SpawnScene_t> Game_SceneManagerSpawn_SpawnScene{}; // L2 experimental
 using Game_SeasonLength_ApplyPreset_t = void(void *component, uint8_t preset);
