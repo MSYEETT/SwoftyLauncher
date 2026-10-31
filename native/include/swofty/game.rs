@@ -5311,6 +5311,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Loader_PrepareGridThumbnails: Binding = Binding {
+        id: "Sess_Loader_PrepareGridThumbnails",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Loader_RequestCareerHubLoad: Binding = Binding {
         id: "Sess_Loader_RequestCareerHubLoad",
         kind: "func",
@@ -5318,6 +5323,11 @@ pub mod bindings {
     };
     pub const Sess_Loader_RequestCareerHubUnload: Binding = Binding {
         id: "Sess_Loader_RequestCareerHubUnload",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_RequestLoadThumbnails: Binding = Binding {
+        id: "Sess_Loader_RequestLoadThumbnails",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5343,6 +5353,21 @@ pub mod bindings {
     };
     pub const Sess_Loader_SetupTrackAssets: Binding = Binding {
         id: "Sess_Loader_SetupTrackAssets",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_StartFrontendAssetLoad: Binding = Binding {
+        id: "Sess_Loader_StartFrontendAssetLoad",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_UnloadSession: Binding = Binding {
+        id: "Sess_Loader_UnloadSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Loader_Update: Binding = Binding {
+        id: "Sess_Loader_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5553,6 +5578,11 @@ pub mod bindings {
     };
     pub const Sess_RaceRuleset_SetTimeLimit: Binding = Binding {
         id: "Sess_RaceRuleset_SetTimeLimit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RaceStrategy_Initialise: Binding = Binding {
+        id: "Sess_RaceStrategy_Initialise",
         kind: "func",
         status: Status::Experimental,
     };

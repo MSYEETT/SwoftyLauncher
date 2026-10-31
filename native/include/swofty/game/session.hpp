@@ -293,13 +293,18 @@ inline constexpr address<"Sess_LapTimes_SendLapHistory"> Sess_LapTimes_SendLapHi
 using Sess_Load_Teams_t = void(void *entrants_system, uint8_t set);
 inline constexpr fn<"Sess_Load_Teams", Sess_Load_Teams_t> Sess_Load_Teams{}; // L2 experimental
 inline constexpr address<"Sess_Loader_PlayGridPlayerShotCutscene"> Sess_Loader_PlayGridPlayerShotCutscene{}; // L2 experimental
+inline constexpr address<"Sess_Loader_PrepareGridThumbnails"> Sess_Loader_PrepareGridThumbnails{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestCareerHubLoad"> Sess_Loader_RequestCareerHubLoad{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestCareerHubUnload"> Sess_Loader_RequestCareerHubUnload{}; // L2 experimental
+inline constexpr address<"Sess_Loader_RequestLoadThumbnails"> Sess_Loader_RequestLoadThumbnails{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestSessionLoad"> Sess_Loader_RequestSessionLoad{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestSessionUnload"> Sess_Loader_RequestSessionUnload{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestTrackLoad"> Sess_Loader_RequestTrackLoad{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestTrackUnload"> Sess_Loader_RequestTrackUnload{}; // L2 experimental
 inline constexpr address<"Sess_Loader_SetupTrackAssets"> Sess_Loader_SetupTrackAssets{}; // L2 experimental
+inline constexpr address<"Sess_Loader_StartFrontendAssetLoad"> Sess_Loader_StartFrontendAssetLoad{}; // L2 experimental
+inline constexpr address<"Sess_Loader_UnloadSession"> Sess_Loader_UnloadSession{}; // L2 experimental
+inline constexpr address<"Sess_Loader_Update"> Sess_Loader_Update{}; // L2 experimental
 inline constexpr address<"Sess_LocationLoadCutscene_OnStateUpdate"> Sess_LocationLoadCutscene_OnStateUpdate{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_Set"> Sess_MarshalLights_Set{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_UpdateZoneShader"> Sess_MarshalLights_UpdateZoneShader{}; // L2 experimental
@@ -345,6 +350,7 @@ inline constexpr address<"Sess_RC_HandleAheadOfLeadData"> Sess_RC_HandleAheadOfL
 inline constexpr address<"Sess_RC_SendAheadOfLeadData"> Sess_RC_SendAheadOfLeadData{}; // L2 experimental
 inline constexpr address<"Sess_RaceRuleset_OnLapCompleted"> Sess_RaceRuleset_OnLapCompleted{}; // L2 experimental
 inline constexpr address<"Sess_RaceRuleset_SetTimeLimit"> Sess_RaceRuleset_SetTimeLimit{}; // L2 experimental
+inline constexpr address<"Sess_RaceStrategy_Initialise"> Sess_RaceStrategy_Initialise{}; // L2 experimental
 inline constexpr address<"Sess_Read_DeploymentPoints"> Sess_Read_DeploymentPoints{}; // L2 experimental
 inline constexpr address<"Sess_Read_LoosePartsRules"> Sess_Read_LoosePartsRules{}; // L2 experimental
 using Sess_Record_GroupTimes_t = void(void *weekend, uint8_t group, void *entries);
