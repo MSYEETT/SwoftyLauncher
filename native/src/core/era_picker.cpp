@@ -119,7 +119,7 @@ constexpr size_t SETUP_MODES_VFUNC = 0x1d0;
 constexpr size_t SELECTED_LIST = 0xe18;
 constexpr size_t SETUP_ENTRANT_SETUP = 0xe10;
 constexpr size_t SETUP_GAME_SETUP_MODE = 0x2b0;
-constexpr size_t ENTRANT_SETUP_MAX_ENTRANTS = 0x268;
+using logic::ENTRANT_SETUP_MAX_ENTRANTS;
 constexpr size_t SETUP_MODE_NAME = 0xd8;
 constexpr size_t ENTRANT_SETUPS = 0x10;
 constexpr size_t ENTRANT_SETUP_COUNT = 0x70;
@@ -159,6 +159,7 @@ struct Narrowed {
     void *lists[LIST_SLOTS];
     void *kept_lists[LIST_SLOTS];
     bool time_trial;
+    logic::GridLimit grid;
 };
 
 std::mutex lock;
@@ -278,6 +279,7 @@ void put_back_drs()
 
 void put_back_narrowed(Narrowed &n)
 {
+    n.grid.restore();
     if (at<int64_t>(n.setup, LIST_COUNT) != n.kept || memcmp(n.setup + LISTS, n.kept_lists, size_t(n.kept) * sizeof(void *)))
         return;
     memcpy(n.setup + LISTS, n.lists, size_t(n.count) * sizeof(void *));
@@ -312,6 +314,10 @@ void restore()
     put_back_drs();
 }
 
+logic::ListCars list_cars(const void *list);
+
+logic::GridLimit continue_grid;
+
 void narrow(void *mode, const char *list)
 {
     restore_lists();
@@ -333,6 +339,10 @@ void narrow(void *mode, const char *list)
         n.count = count;
         n.kept = 1;
         n.time_trial = false;
+        n.grid = {};
+        std::string grid = n.grid.raise(setup, list_cars(hit).cars);
+        if (!grid.empty())
+            swofty::log("[era] %s pressed: %s", list, grid.c_str());
         n.kept_lists[0] = hit;
         memcpy(n.lists, lists, size_t(count) * sizeof(void *));
         lists[0] = hit;
@@ -415,6 +425,7 @@ bool holding;
 
 void put_back()
 {
+    continue_grid.restore();
     if (!holding)
         return;
     holding = false;
@@ -551,6 +562,7 @@ bool keep_time_trial_lists(void *mode)
         n.count = int64_t(info.size());
         n.kept = int64_t(keep.size());
         n.time_trial = true;
+        n.grid = {};
         memcpy(n.lists, ptrs.data(), info.size() * sizeof(void *));
         for (size_t i = 0; i < keep.size(); ++i)
             n.kept_lists[i] = ptrs[keep[i]];
@@ -748,6 +760,7 @@ void time_trial_budget(void *mode, uintptr_t setup)
                 n.count = at<int64_t>(slot.setup, LIST_COUNT);
                 memcpy(n.lists, slot.setup + LISTS, size_t(n.count) * sizeof(void *));
                 n.time_trial = true;
+                n.grid = {};
                 n.kept = n.count;
                 memcpy(n.kept_lists, n.lists, sizeof(n.lists));
             }
@@ -1114,6 +1127,9 @@ void grand_prix_load(uintptr_t ctx)
             ref<void *>(reinterpret_cast<void *>(setup), SELECTED_LIST) = ptrs[size_t(pick.index)];
             if (logged++ < LOG_FIRST)
                 swofty::log("[era] Grand Prix load: %s", pick.line.c_str());
+            std::string grid = continue_grid.raise(reinterpret_cast<uint8_t *>(entrant_setup), cars[size_t(pick.index)].cars);
+            if (!grid.empty())
+                swofty::log("[era] Grand Prix load: %s", grid.c_str());
         }
     }
     std::string why = logic::continue_stop(track_why, pick, empty);
