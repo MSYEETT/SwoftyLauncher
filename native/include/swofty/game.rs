@@ -2769,6 +2769,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Car_Tuning_SetFinalDrive: Binding = Binding {
+        id: "Car_Tuning_SetFinalDrive",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Car_Tyre_GripScale: Binding = Binding {
         id: "Car_Tyre_GripScale",
         kind: "func",
