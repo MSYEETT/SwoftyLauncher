@@ -292,6 +292,7 @@ inline constexpr address<"Sess_LapTimes_ReportSplit"> Sess_LapTimes_ReportSplit{
 inline constexpr address<"Sess_LapTimes_SendLapHistory"> Sess_LapTimes_SendLapHistory{}; // L2 experimental
 using Sess_Load_Teams_t = void(void *entrants_system, uint8_t set);
 inline constexpr fn<"Sess_Load_Teams", Sess_Load_Teams_t> Sess_Load_Teams{}; // L2 experimental
+inline constexpr address<"Sess_Loader_PlayGridPlayerShotCutscene"> Sess_Loader_PlayGridPlayerShotCutscene{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestCareerHubLoad"> Sess_Loader_RequestCareerHubLoad{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestCareerHubUnload"> Sess_Loader_RequestCareerHubUnload{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestSessionLoad"> Sess_Loader_RequestSessionLoad{}; // L2 experimental
@@ -299,6 +300,7 @@ inline constexpr address<"Sess_Loader_RequestSessionUnload"> Sess_Loader_Request
 inline constexpr address<"Sess_Loader_RequestTrackLoad"> Sess_Loader_RequestTrackLoad{}; // L2 experimental
 inline constexpr address<"Sess_Loader_RequestTrackUnload"> Sess_Loader_RequestTrackUnload{}; // L2 experimental
 inline constexpr address<"Sess_Loader_SetupTrackAssets"> Sess_Loader_SetupTrackAssets{}; // L2 experimental
+inline constexpr address<"Sess_LocationLoadCutscene_OnStateUpdate"> Sess_LocationLoadCutscene_OnStateUpdate{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_Set"> Sess_MarshalLights_Set{}; // L2 experimental
 inline constexpr address<"Sess_MarshalLights_UpdateZoneShader"> Sess_MarshalLights_UpdateZoneShader{}; // L2 experimental
 inline constexpr address<"Sess_MarshalZoneMonitor_Init"> Sess_MarshalZoneMonitor_Init{}; // L2 experimental
@@ -324,6 +326,7 @@ inline constexpr address<"Sess_PenaltyLog_SendRecord"> Sess_PenaltyLog_SendRecor
 inline constexpr address<"Sess_PenaltyLog_SendRecord_2"> Sess_PenaltyLog_SendRecord_2{}; // L2 experimental
 using Sess_PitStopUpdateJob_Update_t = void(void *job);
 inline constexpr fn<"Sess_PitStopUpdateJob_Update", Sess_PitStopUpdateJob_Update_t> Sess_PitStopUpdateJob_Update{}; // L2 experimental
+inline constexpr address<"Sess_PlayCutScene_OnStateEnter"> Sess_PlayCutScene_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_PlayerTerminalDamage_Enter"> Sess_PlayerTerminalDamage_Enter{}; // L2 experimental
 inline constexpr address<"Sess_PostRaceSceneSetup_OnStateEnter"> Sess_PostRaceSceneSetup_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_PreLights_OnStateEnter"> Sess_PreLights_OnStateEnter{}; // L2 experimental
@@ -332,6 +335,7 @@ inline constexpr address<"Sess_PreRaceGridState_OnEnter"> Sess_PreRaceGridState_
 using Sess_PreRaceToRace_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_PreRaceToRace_Update", Sess_PreRaceToRace_Update_t> Sess_PreRaceToRace_Update{}; // L2 experimental
 inline constexpr address<"Sess_PreRace_OnStateExit"> Sess_PreRace_OnStateExit{}; // L2 experimental
+inline constexpr address<"Sess_PreRace_PlayGridPlayerShotCutscene"> Sess_PreRace_PlayGridPlayerShotCutscene{}; // L2 experimental
 using Sess_PreRace_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
 inline constexpr fn<"Sess_PreRace_Update", Sess_PreRace_Update_t> Sess_PreRace_Update{}; // L2 experimental
 inline constexpr address<"Sess_Progress_SyncResultRecord"> Sess_Progress_SyncResultRecord{}; // L2 experimental
@@ -371,6 +375,7 @@ inline constexpr address<"Sess_Result_DecodeVehicleResult"> Sess_Result_DecodeVe
 inline constexpr address<"Sess_Result_RequestDNF"> Sess_Result_RequestDNF{}; // L2 experimental
 inline constexpr address<"Sess_Result_RequestStatus"> Sess_Result_RequestStatus{}; // L2 experimental
 inline constexpr address<"Sess_Result_RequestVehicleStatus"> Sess_Result_RequestVehicleStatus{}; // L2 experimental
+inline constexpr address<"Sess_RetirementSequence_OnEnter"> Sess_RetirementSequence_OnEnter{}; // L2 experimental
 inline constexpr address<"Sess_RetirementSequence_PlayTerminalDamage"> Sess_RetirementSequence_PlayTerminalDamage{}; // L2 experimental
 inline constexpr address<"Sess_RetirementSequence_Update"> Sess_RetirementSequence_Update{}; // L2 experimental
 inline constexpr address<"Sess_RuleManager_HandleSessionEvents"> Sess_RuleManager_HandleSessionEvents{}; // L2 experimental

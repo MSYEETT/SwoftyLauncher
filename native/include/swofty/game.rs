@@ -5306,6 +5306,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Loader_PlayGridPlayerShotCutscene: Binding = Binding {
+        id: "Sess_Loader_PlayGridPlayerShotCutscene",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Loader_RequestCareerHubLoad: Binding = Binding {
         id: "Sess_Loader_RequestCareerHubLoad",
         kind: "func",
@@ -5338,6 +5343,11 @@ pub mod bindings {
     };
     pub const Sess_Loader_SetupTrackAssets: Binding = Binding {
         id: "Sess_Loader_SetupTrackAssets",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_LocationLoadCutscene_OnStateUpdate: Binding = Binding {
+        id: "Sess_LocationLoadCutscene_OnStateUpdate",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5461,6 +5471,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_PlayCutScene_OnStateEnter: Binding = Binding {
+        id: "Sess_PlayCutScene_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_PlayerTerminalDamage_Enter: Binding = Binding {
         id: "Sess_PlayerTerminalDamage_Enter",
         kind: "func",
@@ -5493,6 +5508,11 @@ pub mod bindings {
     };
     pub const Sess_PreRace_OnStateExit: Binding = Binding {
         id: "Sess_PreRace_OnStateExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreRace_PlayGridPlayerShotCutscene: Binding = Binding {
+        id: "Sess_PreRace_PlayGridPlayerShotCutscene",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5663,6 +5683,11 @@ pub mod bindings {
     };
     pub const Sess_Result_RequestVehicleStatus: Binding = Binding {
         id: "Sess_Result_RequestVehicleStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_RetirementSequence_OnEnter: Binding = Binding {
+        id: "Sess_RetirementSequence_OnEnter",
         kind: "func",
         status: Status::Experimental,
     };
