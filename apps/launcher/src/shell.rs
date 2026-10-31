@@ -1806,7 +1806,6 @@ impl Shell {
             (Page::News, None),
             (Page::Addons, Some(self.library.listed().count())),
             (Page::Browser, None),
-            (Page::Tools, None),
             (Page::Profiles, Some(self.library.profiles.len())),
             (
                 Page::Careers,
@@ -1817,6 +1816,9 @@ impl Shell {
                     .filter(|n| *n > 0),
             ),
         ];
+        if self.store.config().developer {
+            big.insert(3, (Page::Tools, None));
+        }
         if self.mp_allowed() {
             big.push((Page::Multiplayer, None));
         }
