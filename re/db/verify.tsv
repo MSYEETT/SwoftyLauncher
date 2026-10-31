@@ -3242,3 +3242,102 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-30	d14-verify	func	Game_AudioEngineBundle_Initialise	L1	agree	decomp:re/decomp/4451c3d0.c;xref:None	V3250 offsets, vtable slot/callers, strings and calls checked in decomp; claim holds
 2026-10-30	d14-verify	func	Game_RacingVehicles_Initialise	L1	agree	decomp:re/decomp/4463adc0.c;xref:None	V3251 offsets, vtable slot/callers, strings and calls checked in decomp; claim holds
 2026-10-30	d14-verify	func	Game_AnimatedDriver_Initialise	L1	agree	decomp:re/decomp/44645540.c;xref:None	V3252 offsets, vtable slot/callers, strings and calls checked in decomp; claim holds
+2026-10-30	d16-verify	func	Game_RetrieveConsumableEntitlementsTask_RequestSteamPrices	L1	agree	decomp:re/decomp/1407938d0.c;xref:0x140794a00	V3253 ids joined, appdetails URL, child HTTP task, CollatePackageData fallthrough consistent
+2026-10-30	d16-verify	func	Game_F1os_CreateOnlineServiceTask	L1	agree	decomp:re/decomp/14095d500.c;xref:0x14095d500	V3254 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_GetCCLeaderboard	L1	agree	decomp:re/decomp/140b250c0.c;xref:0x140b250c0	V3255 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Career_CareerOnlineDoc_ResetAfterSync	L1	agree	decomp:re/decomp/140fd04e0.c;xref:0x140fd04e0	V3256 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_RemoveMember	L1	agree	decomp:re/decomp/1410968e0.c;xref:0x1410968e0	V3257 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineCareer_OnFirstRequestResult	L1	agree	decomp:re/decomp/1416d9760.c;xref:0x1416d91ea	V3258 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineCareer_OnSecondRequestResult	L1	agree	decomp:re/decomp/1416d9fa0.c;xref:0x1416d98a4	V3259 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_CareerWizard_ResolveOrExit	L1	agree	decomp:re/decomp/141a22ea0.c;xref:0x141a22ea0	V3260 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1WorldScreenVM_Update	L1	agree	decomp:re/decomp/141b1a2f0.c;xref:0x141b1a2f0	V3261 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServer_TriggerLogout	L1	agree	decomp:re/decomp/141bb4490.c;xref:0x141bb4490	V3262 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_ProLeaguesVM_OnExit	L1	agree	decomp:re/decomp/141d44ab0.c;xref:0x141d44ab0	V3263 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_ProLeaguesVM_OnLeaguesResult	L1	agree	decomp:re/decomp/141d476f0.c;xref:0x141d476f0	V3264 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_SocialHubFriendsVM_OnFriendSelected	L1	agree	decomp:re/decomp/141dfc830.c;xref:0x141dfc7d2	V3265 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_SocialHubFriendsVM_OnInviteResult	L1	agree	decomp:re/decomp/141dfd200.c;xref:0x141dfcd76	V3266 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_CraftBlueprint	L1	agree	decomp:re/decomp/1426153e0.c;xref:0x1426153e0	V3267 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_StartEvent	L1	agree	decomp:re/decomp/14263e370.c;xref:0x14263e370	V3268 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_CompleteEvent	L1	agree	decomp:re/decomp/142648b90.c;xref:0x142648b90	V3269 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1WorldTask_Update	L1	agree	decomp:re/decomp/14273a580.c;xref:0x14579df78	V3270 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1WorldTask_Reset	L1	agree	decomp:re/decomp/14273d530.c;xref:0x14579ded8	V3271 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1WorldTask_CheckLogout	L1	agree	decomp:re/decomp/14273d850.c;xref:0x14579df58	V3272 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1WorldTask_OnRequestResult	L1	agree	decomp:re/decomp/14273faa0.c;xref:0x14273faa0	V3273 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1CGTask_Update	L1	agree	decomp:re/decomp/14279fb20.c;xref:0x14579fdf8	V3274 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1CGTask_Reset	L1	agree	decomp:re/decomp/1427a13a0.c;xref:0x14579fd58	V3275 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1CGTask_CheckLogout	L1	agree	decomp:re/decomp/1427a16c0.c;xref:0x14579fdd8	V3276 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_F1CGTask_OnRequestResult	L1	agree	decomp:re/decomp/1427a1da0.c;xref:0x1427a1da0	V3277 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1wAction_Destroy_EmptyAction	L1	agree	decomp:re/decomp/1427c3800.c;xref:0x1427c3800	V3278 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_GetPPackagesData	L1	agree	decomp:re/decomp/142b95820.c;xref:0x142b95dd6	V3279 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_PurchaseVIP	L1	agree	decomp:re/decomp/142e67e80.c;xref:0x142e67e80	V3280 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_SessionBrowserSearchSessions	L1	agree	decomp:re/decomp/1431daa00.c;xref:0x1431daa00	V3281 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateHttpRequest	L1	agree	decomp:re/decomp/1432934a0.c;xref:0x1432934a0	V3282 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_SpawnChild_Vt1458323b0	L1	agree	decomp:re/decomp/1432b19f0.c;xref:0x1458323b8	V3283 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_OnResultSetFinished_Vt145832400	L1	agree	decomp:re/decomp/1432b1f70.c;xref:0x1458324d0	V3284 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_RegisterEntrant_Vt1458323b0	L1	agree	decomp:re/decomp/1432b2150.c;xref:0x1432b2150	V3285 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_OnJoinFailed_Vt145832400	L1	agree	decomp:re/decomp/1432b2870.c;xref:0x145832478	V3286 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_DestroyOnlineServiceTaskBase	L1	agree	decomp:re/decomp/1432b3a20.c;xref:0x1432b3a20	V3287 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt14583c2a0	L1	agree	decomp:re/decomp/1432bb100.c;xref:0x1432bb100	V3288 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_SetFinishedReleaseRef	L1	agree	decomp:re/decomp/1432c1dd0.c;xref:0x1432c1dd0	V3289 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineSubsystemTaskOnServiceBase_Ctor	L1	agree	decomp:re/decomp/1432c1ee0.c;xref:0x1432c1ee0	V3290 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt145834f90	L1	agree	decomp:re/decomp/1432c4640.c;xref:0x1432c4640	V3291 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt145835090	L1	agree	decomp:re/decomp/1432c54d0.c;xref:0x1432c54d0	V3292 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt145835490	L1	agree	decomp:re/decomp/1432c56e0.c;xref:0x1432c56e0	V3293 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt1458352e0	L1	agree	decomp:re/decomp/1432c5d20.c;xref:0x1432c5d20	V3294 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt145835780	L1	agree	decomp:re/decomp/1432c6200.c;xref:0x1432c6200	V3295 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_FinishIfNoPending_GetFriendsList	L1	agree	decomp:re/decomp/1432c74a0.c;xref:0x145835000	V3296 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_ResolveNames_GetFriendsList	L1	agree	decomp:re/decomp/1432c7590.c;xref:0x145835008	V3297 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_Ctor_Vt145835090	L1	agree	decomp:re/decomp/1432c7b10.c;xref:0x1432c7b10	V3298 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_ProcessFriendsReply_Vt145834f90	L1	agree	decomp:re/decomp/1432c94c0.c;xref:0x1432c94c0	V3299 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_FinishLocked_PlayerSearch	L1	agree	decomp:re/decomp/1432ce5a0.c;xref:0x145835358	V3300 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineSystemGetFriendRequestListTask_Update	L1	agree	decomp:re/decomp/1432cf480.c;xref:0x1432cf480	V3301 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineSystemGetFriendRequestListTask_OnPlayerCards	L1	agree	decomp:re/decomp/1432cfac0.c;xref:0x1432cfac0	V3302 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineSystemEADPAsyncTask_Update	L1	agree	decomp:re/decomp/1432d23e0.c;xref:0x1432d23e0	V3303 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_SpawnChild_Vt145835c00	L1	agree	decomp:re/decomp/1432d5a60.c;xref:0x145835c10	V3304 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_OnChildFinished_Vt145835c00	L1	agree	decomp:re/decomp/1432d5e30.c;xref:0x145835c50	V3305 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTask_CollectResults_Vt145835c00	L1	agree	decomp:re/decomp/1432d7670.c;xref:0x1432d7670	V3306 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_Update	L1	agree	decomp:re/decomp/1432d9420.c;xref:0x1432d9420	V3307 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt145835ba0	L1	agree	decomp:re/decomp/143312810.c;xref:0x143312810	V3308 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_GetLeaderboard	L1	agree	decomp:re/decomp/143345890.c;xref:0x145837fc8	V3309 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_GetFriendsLeaderboard	L1	agree	decomp:re/decomp/143347da0.c;xref:0x145838328	V3310 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_DestroyTaskBody_GetFriendsLeaderboard	L1	agree	decomp:re/decomp/143348bd0.c;xref:0x143348bd0	V3311 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_PlatformAuthorisationTask_OnStart	L1	agree	decomp:re/decomp/14334e4f0.c;xref:0x14334e4f0	V3312 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_PlatformAuthorisationTask_Update	L1	agree	decomp:re/decomp/14334e760.c;xref:0x14334e760	V3313 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_HomeScreen_RequestHomeScreenInfo	L1	agree	decomp:re/decomp/143350f80.c;xref:0x143350f80	V3314 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_HomeScreen_OnHomeScreenInfoResult	L1	agree	decomp:re/decomp/1433516d0.c;xref:0x1433512eb	V3315 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServerLogInTask_OnStart	L1	agree	decomp:re/decomp/143369ea0.c;xref:0x143369ea0	V3316 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServerLogInTask_SetFinished	L1	agree	decomp:re/decomp/14336b030.c;xref:0x14336b030	V3317 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServerLogInTask_FinishWithState	L1	agree	decomp:re/decomp/14336b270.c;xref:0x14336b270	V3318 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServerLogInTask_SetFinishedReleaseRef	L1	agree	decomp:re/decomp/14336bb60.c;xref:0x14336bb60	V3319 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_OnlineServerLogInTask_OnError	L1	agree	decomp:re/decomp/14336bcb0.c;xref:0x14336bcb0	V3320 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osHttpTask_Ctor_Vt14583cd40	L1	agree	decomp:re/decomp/14336e2f0.c;xref:0x140795f2d	V3321 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_EALoginTask_OnStart	L1	agree	decomp:re/decomp/143372760.c;xref:0x143372760	V3322 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_EALoginTask_Update	L1	agree	decomp:re/decomp/143372c10.c;xref:0x143372c10	V3323 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_HandleUserEntitlementsUpdateTask_OnChildDone	L1	agree	decomp:re/decomp/143377650.c;xref:0x143377650	V3324 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_Create_SetPlayerInfo	L1	agree	decomp:re/decomp/1433d6b00.c;xref:0x1433d6b00	V3325 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_HoldingPageHint	L1	agree	decomp:re/decomp/143431960.c;xref:0x143431960	V3326 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_RequestPackagePTask	L1	agree	decomp:re/decomp/143432f90.c;xref:0x143432f90	V3327 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_RequestPackageP	L1	agree	decomp:re/decomp/1434334a0.c;xref:0x14583f2d8	V3328 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1osTasksystem_CreateTask_Vt14583d000	L1	agree	decomp:re/decomp/143435e20.c;xref:0x143435e20	V3329 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_Login	L1	agree	decomp:re/decomp/14344d470.c;xref:0x145840558	V3330 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_RefreshSessionToken	L1	agree	decomp:re/decomp/14344ecf0.c;xref:0x145840858	V3331 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_F1os_CreateTask_ReconcileUserEntitlements	L1	agree	decomp:re/decomp/143451670.c;xref:0x145840c78	V3332 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_FlowState_EnterBootLogout	L1	agree	decomp:re/decomp/1436d9a60.c;xref:0x14585c030	V3333 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Game_UIConnectionManager_ShowConnectionLostPopup	L1	agree	decomp:re/decomp/1438831d0.c;xref:0x1438831d0	V3334 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Ne_OSHttpOperation_OnStart	L1	agree	decomp:re/decomp/14443a930.c;xref:0x14443a930	V3335 role, offsets, calls and constants match decomp
+2026-10-30	d16-verify	func	Ne_OSHttpRequest_Send	L1	agree	decomp:re/decomp/14443af90.c;xref:0x14443af90	V3336 role, offsets, calls and constants match decomp
+2026-10-30	cs3-verify	func	Game_RetrieveConsumableEntitlementsTask_Ctor	L1	agree	decomp:re/decomp/140792740.c;xref:0x142b9565d	V3337 ctor body, vtables, field clears match; field roles inferred
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetCalendar	L1	agree	decomp:re/decomp/140b1afe0.c;xref:0x140b19c00	V3338 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetActiveChallengeCareer	L1	agree	decomp:re/decomp/140cf3350.c;xref:0x140cf1d20	V3339 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetCareerBackupData	L1	agree	decomp:re/decomp/1410a9f00.c;xref:0x1410a9310	V3340 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_UpgradeCard	L1	agree	decomp:re/decomp/142695610.c;xref:0x142694560	V3341 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetCompendiumRewards	L1	agree	decomp:re/decomp/1426d0660.c;xref:0x1426cdec0	V3342 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_ClaimRewards	L1	agree	decomp:re/decomp/1428090e0.c;xref:0x142807e10	V3343 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetStorefront	L1	agree	decomp:re/decomp/142b456e0.c;xref:0x142b43d00	V3344 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1osTasksystem_CreateTask_Vt1457f1bc0	L1	partial	decomp:re/decomp/142e67830.c;xref:0x142e677f4	V3345 Sub-object ptrs are at +0x150 and +0x160 (allocator/holder at +0x148/+0x158), not objects at +0x148/+0x158; rest holds (0x168, vtables, AddTask, log). Name is vtable-only; keep
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_SessionBrowserSearchSessions	L1	agree	decomp:re/decomp/1431e1630.c;xref:0x1431e0270	V3346 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_SessionBrowserGetSessionByID	L1	agree	decomp:re/decomp/1431e89e0.c;xref:0x1431e7a70	V3347 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1os_LogF	L1	agree	decomp:re/decomp/143294a10.c;xref:0x14329769d	V3348 vsnprintf cap 2047, '%s' on F1OS; 4 call sites confirmed by byte scan
+2026-10-30	cs3-verify	func	Game_F1osTask_SetFinished_B	L1	agree	decomp:re/decomp/1432b2060.c;xref:0x1432c8c45	V3349 body identical to 1432c1cf0 (diff clean); offsets +0x48/+0x90/+0xa1 match
+2026-10-30	cs3-verify	func	Game_F1os_LogLargePayload_GetInbox	L1	agree	decomp:re/decomp/14341b680.c;xref:0x143419910	V3350 Identical body to other LogLargePayload loggers; null->F1OS (extra pre-call 0x143295240), >1MiB->F1OS-LARGEPAYLOAD, 2047 bytes copied; 3 calls from OnResult
+2026-10-30	cs3-verify	func	Game_F1osTasksystem_CreateTask_FinalisePackagePTask	L1	agree	decomp:re/decomp/143434750.c;xref:0x142b96b22	V3351 0x168 alloc, vtables, AddTask, +0x150+0x10 store of param_3+8 confirmed

@@ -4356,6 +4356,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_OSHttpOperation_OnStart: Binding = Binding {
+        id: "Ne_OSHttpOperation_OnStart",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_OSHttpRequest_Send: Binding = Binding {
+        id: "Ne_OSHttpRequest_Send",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_OSOperationHandle_UnregisterSelf: Binding = Binding {
         id: "Ne_OSOperationHandle_UnregisterSelf",
         kind: "func",

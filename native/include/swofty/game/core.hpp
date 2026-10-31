@@ -295,6 +295,8 @@ inline constexpr address<"Ne_NetVoiceNotificationClient_WaveInAddBuffer"> Ne_Net
 inline constexpr address<"Ne_Network_Init"> Ne_Network_Init{}; // L2 experimental, neon::NeNetwork::init
 inline constexpr address<"Ne_Network_StartAsync"> Ne_Network_StartAsync{}; // L2 experimental, neon::NeNetwork::startAsync
 inline constexpr address<"Ne_OSHTTPRequestAndResponseResponseHandler_CbHttpResponse"> Ne_OSHTTPRequestAndResponseResponseHandler_CbHttpResponse{}; // L2 experimental, neon::NeOSHTTPRequestAndResponse::ResponseHandler::cbHttpResponse
+inline constexpr address<"Ne_OSHttpOperation_OnStart"> Ne_OSHttpOperation_OnStart{}; // L2 experimental
+inline constexpr address<"Ne_OSHttpRequest_Send"> Ne_OSHttpRequest_Send{}; // L2 experimental
 inline constexpr address<"Ne_OSOperationHandle_UnregisterSelf"> Ne_OSOperationHandle_UnregisterSelf{}; // L2 experimental, neon::NeOSOperationHandle::unregisterSelf
 using Ne_Parse_Long_t = int32_t(const char *text, char **end, int32_t base);
 inline constexpr fn<"Ne_Parse_Long", Ne_Parse_Long_t> Ne_Parse_Long{}; // L2 experimental, strtol
