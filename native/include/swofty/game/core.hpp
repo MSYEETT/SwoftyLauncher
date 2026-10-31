@@ -211,6 +211,7 @@ inline constexpr address<"Ne_NetConnectionQuality_SetTesterState"> Ne_NetConnect
 inline constexpr address<"Ne_NetConnectionStore_Deinitialise"> Ne_NetConnectionStore_Deinitialise{}; // L2 experimental, neon::NeNetConnectionStore::deinitialise
 inline constexpr address<"Ne_NetConnectionStore_Dtor"> Ne_NetConnectionStore_Dtor{}; // L2 experimental, neon::NeNetConnectionStore::~NeNetConnectionStore
 inline constexpr address<"Ne_NetConnectionStore_Initialise"> Ne_NetConnectionStore_Initialise{}; // L2 experimental, neon::NeNetConnectionStore::initialise
+inline constexpr address<"Ne_NetConnectionStore_RemoveConnection"> Ne_NetConnectionStore_RemoveConnection{}; // L2 experimental
 inline constexpr address<"Ne_NetHttpRequestHandler_CreateRequest"> Ne_NetHttpRequestHandler_CreateRequest{}; // L2 experimental, NeNetHttpRequestHandler::createRequest
 inline constexpr address<"Ne_NetNullSSLPeer_Update"> Ne_NetNullSSLPeer_Update{}; // L2 experimental, neon::NeNetNullSSLPeer::update
 inline constexpr address<"Ne_NetReliableAsyncSocket_DisconnectAll"> Ne_NetReliableAsyncSocket_DisconnectAll{}; // L2 experimental, neon::NeNetReliableAsyncSocket::DisconnectAll
@@ -219,11 +220,15 @@ inline constexpr address<"Ne_NetReliableAsyncSocket_OnMessageDecrypted"> Ne_NetR
 inline constexpr address<"Ne_NetReliableAsyncSocket_OnMessageEncrypted"> Ne_NetReliableAsyncSocket_OnMessageEncrypted{}; // L2 experimental, neon::NeNetReliableAsyncSocket::onMessageEncrypted
 inline constexpr address<"Ne_NetReliableAsyncSocket_Restart"> Ne_NetReliableAsyncSocket_Restart{}; // L2 experimental, NeNetReliableAsyncSocket::Restart
 inline constexpr address<"Ne_NetReliableAsyncSocket_SetKeyMaterial"> Ne_NetReliableAsyncSocket_SetKeyMaterial{}; // L2 experimental, neon::NeNetReliableAsyncSocket::setKeyMaterial
+inline constexpr address<"Ne_NetSessionF1OS_CallSessionBrowserCreateSession"> Ne_NetSessionF1OS_CallSessionBrowserCreateSession{}; // L2 experimental
 inline constexpr address<"Ne_NetSessionF1OS_JoinSession"> Ne_NetSessionF1OS_JoinSession{}; // L2 experimental, neon::NeNetSessionF1OS::joinSession
 inline constexpr address<"Ne_NetSessionF1OS_MigrateSessionClient"> Ne_NetSessionF1OS_MigrateSessionClient{}; // L2 experimental, NeNetSessionF1OS::migrateSessionClient
 inline constexpr address<"Ne_NetSessionF1OS_MigrateSessionHost"> Ne_NetSessionF1OS_MigrateSessionHost{}; // L2 experimental, neon::NeNetSessionF1OS::migrateSessionHost
 inline constexpr address<"Ne_NetSessionF1OS_SetCrossplay"> Ne_NetSessionF1OS_SetCrossplay{}; // L2 experimental, neon::NeNetSessionF1OS::setCrossplay
+inline constexpr address<"Ne_NetSessionF1OS_SetSessionInfo"> Ne_NetSessionF1OS_SetSessionInfo{}; // L2 experimental
 inline constexpr address<"Ne_NetSessionF1OS_SetSessionName"> Ne_NetSessionF1OS_SetSessionName{}; // L2 experimental, neon::NeNetSessionF1OS::setSessionName
+inline constexpr address<"Ne_NetSessionF1OS_SetStateCreating"> Ne_NetSessionF1OS_SetStateCreating{}; // L2 experimental
+inline constexpr address<"Ne_NetSessionF1OS_UpdateAttributes"> Ne_NetSessionF1OS_UpdateAttributes{}; // L2 experimental
 inline constexpr address<"Ne_NetSessionLAN_MigrateSessionClient"> Ne_NetSessionLAN_MigrateSessionClient{}; // L2 experimental, NeNetSessionLAN::migrateSessionClient
 inline constexpr address<"Ne_NetSessionLAN_MigrateSessionHost"> Ne_NetSessionLAN_MigrateSessionHost{}; // L2 experimental, NeNetSessionLAN::migrateSessionHost
 inline constexpr address<"Ne_NetSessionLAN_OnCreateMigratedSessionFinished"> Ne_NetSessionLAN_OnCreateMigratedSessionFinished{}; // L2 experimental, NeNetSessionLAN::onCreateMigratedSessionFinished
@@ -231,6 +236,7 @@ inline constexpr address<"Ne_NetSessionSearcherLAN_SearchForSessions"> Ne_NetSes
 inline constexpr address<"Ne_NetSyncClock_IntegrateRemoteHostClock"> Ne_NetSyncClock_IntegrateRemoteHostClock{}; // L2 experimental, NeNetSyncClock::integrateRemoteHostClock
 inline constexpr address<"Ne_NetSyncClock_RecalculateClockOffset"> Ne_NetSyncClock_RecalculateClockOffset{}; // L2 experimental, neon::NeNetSyncClock::recalculateClockOffset
 inline constexpr address<"Ne_NetSystemClassicMatchmaking_CreateSession"> Ne_NetSystemClassicMatchmaking_CreateSession{}; // L2 experimental, neon::NeNetSystemClassicMatchmaking::createSession
+inline constexpr address<"Ne_NetSystemClassicMatchmaking_JoinSession"> Ne_NetSystemClassicMatchmaking_JoinSession{}; // L2 experimental
 inline constexpr address<"Ne_NetSystemClassicMatchmaking_MigrateSession"> Ne_NetSystemClassicMatchmaking_MigrateSession{}; // L2 experimental, neon::NeNetSystemClassicMatchmaking::migrateSession
 inline constexpr address<"Ne_NetSystemClassicMatchmaking_NotifyPeersMigrationResult"> Ne_NetSystemClassicMatchmaking_NotifyPeersMigrationResult{}; // L2 experimental, neon::NeNetSystemClassicMatchmaking::notifyPeersMigrationResult
 inline constexpr address<"Ne_NetSystemClassicMatchmaking_OnCreateSessionComplete"> Ne_NetSystemClassicMatchmaking_OnCreateSessionComplete{}; // L2 experimental, neon::NeNetSystemClassicMatchmaking::onCreateSessionComplete
@@ -255,15 +261,22 @@ inline constexpr address<"Ne_NetSystemServerHelloResponseMessage_Deserialise"> N
 inline constexpr address<"Ne_NetSystemServerHelloResponseMessage_Serialise"> Ne_NetSystemServerHelloResponseMessage_Serialise{}; // L2 experimental, neon::NeNetSystemServerHelloResponseMessage::serialise
 inline constexpr address<"Ne_NetTransportCommon_AddHostConnectionInfoToConnectionStore"> Ne_NetTransportCommon_AddHostConnectionInfoToConnectionStore{}; // L2 experimental, NeNetTransportCommon::addHostConnectionInfoToConnectionStore
 inline constexpr address<"Ne_NetTransportCommon_BroadcastNewConnectionToClients"> Ne_NetTransportCommon_BroadcastNewConnectionToClients{}; // L2 experimental, neon::NeNetTransportCommon::broadcastNewConnectionToClients
+inline constexpr address<"Ne_NetTransportCommon_BroadcastRemovedConnectionToClients"> Ne_NetTransportCommon_BroadcastRemovedConnectionToClients{}; // L2 experimental
+inline constexpr address<"Ne_NetTransportCommon_FreeConnectionID"> Ne_NetTransportCommon_FreeConnectionID{}; // L2 experimental
 inline constexpr address<"Ne_NetTransportCommon_HandleClientHello"> Ne_NetTransportCommon_HandleClientHello{}; // L2 experimental, neon::NeNetTransportCommon::handleClientHello
+inline constexpr address<"Ne_NetTransportCommon_HandleServerDisconnection"> Ne_NetTransportCommon_HandleServerDisconnection{}; // L2 experimental
 inline constexpr address<"Ne_NetTransportCommon_InitialiseClient"> Ne_NetTransportCommon_InitialiseClient{}; // L2 experimental, neon::NeNetTransportCommon::initialiseClient
 inline constexpr address<"Ne_NetTransportCommon_Migrate"> Ne_NetTransportCommon_Migrate{}; // L2 experimental, neon::NeNetTransportCommon::migrate
 inline constexpr address<"Ne_NetTransportCommon_ReportClientInitialConnections"> Ne_NetTransportCommon_ReportClientInitialConnections{}; // L2 experimental, neon::NeNetTransportCommon::reportClientInitialConnections
+inline constexpr address<"Ne_NetTransportCommon_SetLocalConnectivity"> Ne_NetTransportCommon_SetLocalConnectivity{}; // L2 experimental
+inline constexpr address<"Ne_NetTransportCommon_SetMyConnectionId"> Ne_NetTransportCommon_SetMyConnectionId{}; // L2 experimental
 inline constexpr address<"Ne_NetTransportCommon_StartHandshaking"> Ne_NetTransportCommon_StartHandshaking{}; // L2 experimental, neon::NeNetTransportCommon::startHandshaking
+inline constexpr address<"Ne_NetTransportLAN_OnConnectionLost"> Ne_NetTransportLAN_OnConnectionLost{}; // L2 experimental
 inline constexpr address<"Ne_NetTransportLAN_RegisterArrivedConnection"> Ne_NetTransportLAN_RegisterArrivedConnection{}; // L2 experimental, NeNetTransportLAN::registerArrivedConnection
 inline constexpr address<"Ne_NetTransportPlayFab_MigrateConnections"> Ne_NetTransportPlayFab_MigrateConnections{}; // L2 experimental, neon::NeNetTransportPlayFab::migrateConnections
 inline constexpr address<"Ne_NetTransportPlayFab_SendTo"> Ne_NetTransportPlayFab_SendTo{}; // L2 experimental, neon::NeNetTransportPlayFab::sendTo
 inline constexpr address<"Ne_NetTransportPlayFab_SendToConnectionInfo"> Ne_NetTransportPlayFab_SendToConnectionInfo{}; // L2 experimental, neon::NeNetTransportPlayFab::sendToConnectionInfo
+inline constexpr address<"Ne_NetTransport_MigrateConnections"> Ne_NetTransport_MigrateConnections{}; // L2 experimental
 inline constexpr address<"Ne_NetVoiceNotificationClient_WaveInAddBuffer"> Ne_NetVoiceNotificationClient_WaveInAddBuffer{}; // L2 experimental, NeNetVoiceNotificationClient::waveInAddBuffer
 inline constexpr address<"Ne_Network_Init"> Ne_Network_Init{}; // L2 experimental, neon::NeNetwork::init
 inline constexpr address<"Ne_Network_StartAsync"> Ne_Network_StartAsync{}; // L2 experimental, neon::NeNetwork::startAsync

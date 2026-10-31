@@ -3906,6 +3906,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetConnectionStore_RemoveConnection: Binding = Binding {
+        id: "Ne_NetConnectionStore_RemoveConnection",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetHttpRequestHandler_CreateRequest: Binding = Binding {
         id: "Ne_NetHttpRequestHandler_CreateRequest",
         kind: "func",
@@ -3946,6 +3951,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetSessionF1OS_CallSessionBrowserCreateSession: Binding = Binding {
+        id: "Ne_NetSessionF1OS_CallSessionBrowserCreateSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetSessionF1OS_JoinSession: Binding = Binding {
         id: "Ne_NetSessionF1OS_JoinSession",
         kind: "func",
@@ -3966,8 +3976,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetSessionF1OS_SetSessionInfo: Binding = Binding {
+        id: "Ne_NetSessionF1OS_SetSessionInfo",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetSessionF1OS_SetSessionName: Binding = Binding {
         id: "Ne_NetSessionF1OS_SetSessionName",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_SetStateCreating: Binding = Binding {
+        id: "Ne_NetSessionF1OS_SetStateCreating",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSessionF1OS_UpdateAttributes: Binding = Binding {
+        id: "Ne_NetSessionF1OS_UpdateAttributes",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4003,6 +4028,11 @@ pub mod bindings {
     };
     pub const Ne_NetSystemClassicMatchmaking_CreateSession: Binding = Binding {
         id: "Ne_NetSystemClassicMatchmaking_CreateSession",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetSystemClassicMatchmaking_JoinSession: Binding = Binding {
+        id: "Ne_NetSystemClassicMatchmaking_JoinSession",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4126,8 +4156,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetTransportCommon_BroadcastRemovedConnectionToClients: Binding = Binding {
+        id: "Ne_NetTransportCommon_BroadcastRemovedConnectionToClients",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_FreeConnectionID: Binding = Binding {
+        id: "Ne_NetTransportCommon_FreeConnectionID",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetTransportCommon_HandleClientHello: Binding = Binding {
         id: "Ne_NetTransportCommon_HandleClientHello",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_HandleServerDisconnection: Binding = Binding {
+        id: "Ne_NetTransportCommon_HandleServerDisconnection",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4146,8 +4191,23 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetTransportCommon_SetLocalConnectivity: Binding = Binding {
+        id: "Ne_NetTransportCommon_SetLocalConnectivity",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportCommon_SetMyConnectionId: Binding = Binding {
+        id: "Ne_NetTransportCommon_SetMyConnectionId",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetTransportCommon_StartHandshaking: Binding = Binding {
         id: "Ne_NetTransportCommon_StartHandshaking",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransportLAN_OnConnectionLost: Binding = Binding {
+        id: "Ne_NetTransportLAN_OnConnectionLost",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4168,6 +4228,11 @@ pub mod bindings {
     };
     pub const Ne_NetTransportPlayFab_SendToConnectionInfo: Binding = Binding {
         id: "Ne_NetTransportPlayFab_SendToConnectionInfo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetTransport_MigrateConnections: Binding = Binding {
+        id: "Ne_NetTransport_MigrateConnections",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5678,6 +5743,16 @@ pub mod bindings {
     };
     pub const Sess_SpeedLimitPenalty_SendData: Binding = Binding {
         id: "Sess_SpeedLimitPenalty_SendData",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StartLightsMachine_SetProxy: Binding = Binding {
+        id: "Sess_StartLightsMachine_SetProxy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StartLightsSync_MustAdvance: Binding = Binding {
+        id: "Sess_StartLightsSync_MustAdvance",
         kind: "func",
         status: Status::Experimental,
     };

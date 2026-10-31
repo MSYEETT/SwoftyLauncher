@@ -423,6 +423,8 @@ inline constexpr address<"Sess_SpectatorDirector_Update"> Sess_SpectatorDirector
 inline constexpr address<"Sess_SpectatorHud_Hide"> Sess_SpectatorHud_Hide{}; // L2 experimental
 inline constexpr address<"Sess_SpeedLimitPenalty_ReceiveData"> Sess_SpeedLimitPenalty_ReceiveData{}; // L2 experimental
 inline constexpr address<"Sess_SpeedLimitPenalty_SendData"> Sess_SpeedLimitPenalty_SendData{}; // L2 experimental
+inline constexpr address<"Sess_StartLightsMachine_SetProxy"> Sess_StartLightsMachine_SetProxy{}; // L2 experimental
+inline constexpr address<"Sess_StartLightsSync_MustAdvance"> Sess_StartLightsSync_MustAdvance{}; // L2 experimental
 inline constexpr address<"Sess_StartLights_Enter"> Sess_StartLights_Enter{}; // L2 experimental
 inline constexpr address<"Sess_StartLights_Init"> Sess_StartLights_Init{}; // L2 experimental
 inline constexpr address<"Sess_Start_VehiclesInGarages"> Sess_Start_VehiclesInGarages{}; // L2 experimental
