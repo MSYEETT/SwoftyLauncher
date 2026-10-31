@@ -2664,6 +2664,26 @@ pub type Vm_Set_TabEnabled_t = unsafe extern "C" fn(tabs: usize, node: usize, en
 
 pub mod bindings {
     use super::{Binding, Status};
+    pub const Asset_Load_DevSessionWorlds: Binding = Binding {
+        id: "Asset_Load_DevSessionWorlds",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Asset_Map_EaidToGroupA: Binding = Binding {
+        id: "Asset_Map_EaidToGroupA",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Asset_Unk_142a982b0: Binding = Binding {
+        id: "Asset_Unk_142a982b0",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Asset_Unk_14379dd00: Binding = Binding {
+        id: "Asset_Unk_14379dd00",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Car_Assets_CreateSystemForPerformanceMode: Binding = Binding {
         id: "Car_Assets_CreateSystemForPerformanceMode",
         kind: "func",
@@ -3019,6 +3039,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Stable,
     };
+    pub const FeHome_StoryItem_Populate: Binding = Binding {
+        id: "FeHome_StoryItem_Populate",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const FeTile_Add_EraTile: Binding = Binding {
         id: "FeTile_Add_EraTile",
         kind: "func",
@@ -3053,6 +3078,11 @@ pub mod bindings {
         id: "FeTile_ItemBase_Populate",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const FeTile_ItemGeneric_Populate: Binding = Binding {
+        id: "FeTile_ItemGeneric_Populate",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const FeTile_Press_EraTile: Binding = Binding {
         id: "FeTile_Press_EraTile",
