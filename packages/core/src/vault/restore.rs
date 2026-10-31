@@ -12,6 +12,7 @@ use crate::{Error, Result, io_err};
 
 pub const CLOSE_STEAM: &str = "Exit Steam completely (Steam menu > Exit), then restore again. Starting Steam \
                                afterwards uploads the restored save.";
+pub const CLOSE_GAME: &str = "Close F1 25, then try again.";
 pub const CLOSE_EA: &str = "Exit the EA app completely (its tray icon > Quit), then restore again.";
 
 /// What runs that a restore must wait for.
@@ -23,7 +24,19 @@ pub struct Running {
 }
 
 impl Running {
+    pub const TEST_ENV: &'static str = "SWOFTY_TEST_RUNNING";
+
+    /// `SWOFTY_TEST_RUNNING` (a list of `game`, `steam`, `ea`; empty for none) replaces
+    /// the process check, for tests that must not depend on the machine they run on.
     pub fn now() -> Self {
+        if let Ok(v) = std::env::var(Self::TEST_ENV) {
+            let has = |n: &str| v.split(',').any(|p| p.trim() == n);
+            return Self {
+                game: has("game"),
+                steam: has("steam"),
+                ea_app: has("ea"),
+            };
+        }
         Self {
             game: crate::process::game_running(),
             steam: crate::steam_client::status().state != crate::steam_client::State::Stopped,
@@ -37,6 +50,7 @@ pub fn blocker(layout: Layout, r: Running) -> Option<String> {
     let close = match layout {
         Layout::Steam => CLOSE_STEAM,
         Layout::Ea => CLOSE_EA,
+        Layout::Launcher | Layout::LauncherEa => CLOSE_GAME,
     };
     if r.game {
         return Some(format!("F1 25 is running; close it first. {close}"));
@@ -46,7 +60,7 @@ pub fn blocker(layout: Layout, r: Running) -> Option<String> {
             "Steam is running and would call the restored save corrupted. {CLOSE_STEAM}"
         )),
         Layout::Ea if r.ea_app => Some(format!("The EA app is running. {CLOSE_EA}")),
-        _ => None,
+        Layout::Steam | Layout::Ea | Layout::Launcher | Layout::LauncherEa => None,
     }
 }
 
@@ -68,6 +82,21 @@ impl Restored {
 }
 
 pub fn restore(vault: &Vault, id: &str, loc: &Location, running: Running, now: i64) -> Result<Restored> {
+    restore_across(vault, id, loc, vault, running, now)
+}
+
+/// Restore snapshot `id` of `from` into the save at `loc`, which `into` keeps the vault of. Between a
+/// Steam save and a launcher store the files carry the same names, so a snapshot of either restores
+/// into the other.
+pub fn restore_across(
+    from: &Vault,
+    id: &str,
+    loc: &Location,
+    into: &Vault,
+    running: Running,
+    now: i64,
+) -> Result<Restored> {
+    let vault = from;
     if let Some(why) = blocker(loc.layout, running) {
         vault.log(
             &Event::new(now, EventKind::RestoreRefused)
@@ -81,9 +110,20 @@ pub fn restore(vault: &Vault, id: &str, loc: &Location, running: Running, now: i
             "a Play session or another restore is running; wait for it to end, then restore again".to_owned(),
         )
     })?;
-    let _lock = vault.lock()?;
+    let same = from.source == into.source;
+    let (first, second) = match from.source <= into.source {
+        true => (from, into),
+        false => (into, from),
+    };
+    let _lock = first.lock()?;
+    let _lock2 = match same {
+        true => None,
+        false => Some(second.lock()?),
+    };
     let snap = vault.find(id)?;
-    if snap.layout != loc.layout || snap.source != loc.source {
+    if (same && (snap.layout != loc.layout || snap.source != loc.source))
+        || !snap.layout.exchanges_with(loc.layout)
+    {
         return Err(Error::Other(format!(
             "snapshot {id} is a save of {}, not of {}",
             snap.source, loc.source
@@ -103,7 +143,7 @@ pub fn restore(vault: &Vault, id: &str, loc: &Location, running: Running, now: i
             .ok_or_else(|| Error::Other(format!("snapshot {id} names an odd file, {}", f.name)))?;
         plan.push((blob, to, f));
     }
-    let before = vault.snapshot_locked(
+    let before = into.snapshot_locked(
         loc,
         Meta::new(Reason::BeforeRestore)
             .pin("before-restore")
@@ -169,16 +209,19 @@ pub fn restore(vault: &Vault, id: &str, loc: &Location, running: Running, now: i
     let mut e = Event::new(now, EventKind::Restored).snapshot(id);
     e.from = before.clone();
     e.detail = Some(loc.dir.display().to_string());
-    vault.log(&e);
-    vault.snapshot_locked(
+    into.log(&e);
+    into.snapshot_locked(
         loc,
         Meta::new(Reason::Restored).note(format!("restored from {id}")),
         now,
     )?;
-    if Notice::read(&vault.data).is_some_and(|n| n.source == vault.source) {
-        Notice::clear(&vault.data);
+    if Notice::read(&into.data).is_some_and(|n| n.source == into.source) {
+        Notice::clear(&into.data);
     }
-    vault.prune_locked(now)?;
+    into.prune_locked(now)?;
+    if !same {
+        from.prune_locked(now)?;
+    }
     Ok(Restored {
         snapshot: id.to_owned(),
         before,

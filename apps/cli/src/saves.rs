@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use swofty_core::install::Game;
+use swofty_core::launcher_saves;
 use swofty_core::save_backup;
 use swofty_core::store::Store;
 use swofty_core::vault::restore::{self, Running};
@@ -70,12 +71,41 @@ pub enum SavesCommand {
     },
     #[command(about = "Show or set the career vault's size cap in MB (500 by default)")]
     Cap { mb: Option<u64> },
+    #[command(
+        about = "Copy a Steam save, or another profile's launcher saves, into a profile's launcher saves (F1 25 must be closed); keeps what they held in the vault first"
+    )]
+    Import {
+        #[arg(
+            long,
+            value_name = "steam",
+            conflicts_with = "from_profile",
+            help = "Import the Steam save (the default)"
+        )]
+        from: Option<String>,
+        #[arg(
+            long,
+            value_name = "PROFILE",
+            help = "Import another profile's launcher saves"
+        )]
+        from_profile: Option<String>,
+        #[arg(long, help = "The profile to import into (default: the active profile)")]
+        profile: Option<String>,
+    },
+    #[command(
+        about = "Copy a profile's launcher saves over the Steam save (F1 25 and Steam must be closed); keeps the Steam save in the vault first"
+    )]
+    Export {
+        #[arg(long, value_name = "steam", help = "Where to copy to; only steam")]
+        to: String,
+        #[arg(long, help = "The profile to export (default: the active profile)")]
+        profile: Option<String>,
+    },
 }
 
 const PINNED: &str = "pinned";
 
 const SOURCE_HELP: &str =
-    "The vault to use, steam-<id> or ea-<user> (default: the save of the copy Play uses)";
+    "The vault to use, steam-<id>, ea-<user> or launcher-<profile> (default: the save of the copy Play uses)";
 
 /// The snapshot a session's after-session check compares with.
 pub struct Before {
@@ -93,7 +123,31 @@ fn report(lines: Vec<String>) {
 
 /// Snapshot the profile save before a session, after moving in any old
 /// `save-backups/`.
-pub fn before_session(store: &Store, profile: &str, g: &Game, session: &str) -> Option<Before> {
+pub fn before_session(
+    store: &Store,
+    profile: &str,
+    g: &Game,
+    session: &str,
+    launcher_saves_allowed: bool,
+) -> Option<Before> {
+    before_session_at(
+        store,
+        profile,
+        g,
+        session,
+        launcher_saves_allowed,
+        Location::for_game(g),
+    )
+}
+
+fn before_session_at(
+    store: &Store,
+    profile: &str,
+    g: &Game,
+    session: &str,
+    launcher_saves_allowed: bool,
+    game_loc: Option<Location>,
+) -> Option<Before> {
     match migrate::migrate(&store.root) {
         Ok(notes) => report(notes),
         Err(e) => say(
@@ -101,14 +155,38 @@ pub fn before_session(store: &Store, profile: &str, g: &Game, session: &str) -> 
             &format!("saves: could not move save-backups into the career vault: {e}"),
         ),
     }
-    let Some(loc) = Location::for_game(g) else {
+    let p = store.profile(profile);
+    let launcher = match (&game_loc, &p) {
+        (Some(l), Ok(p)) if !p.is_vanilla() && p.launcher_saves => {
+            match launcher_saves::supported(l.layout) {
+                true => launcher_saves::store_for(&store.root, profile, l).filter(|_| launcher_saves_allowed),
+                false => {
+                    say("info", &format!("saves: {}", launcher_saves::EA_NOTE));
+                    None
+                }
+            }
+        }
+        _ => None,
+    };
+    if let (Some(store_loc), Some(from)) = (&launcher, &game_loc) {
+        seed_if_empty(store, profile, from, store_loc);
+    }
+    let Some(loc) = launcher.or(game_loc) else {
         say(
             "info",
             "saves: no profile save folder found for this copy of F1 25; nothing to snapshot",
         );
         return None;
     };
-    let p = store.profile(profile);
+    if loc.layout.is_launcher() {
+        say(
+            "info",
+            &format!(
+                "saves: this session plays on the launcher saves of profile {profile} ({}); Steam's saves are not touched",
+                loc.dir.display()
+            ),
+        );
+    }
     let absent = match p
         .as_ref()
         .map_err(|e| e.to_string())
@@ -172,6 +250,21 @@ pub fn before_session(store: &Store, profile: &str, g: &Game, session: &str) -> 
     })
 }
 
+fn seed_if_empty(store: &Store, profile: &str, from: &Location, to: &Location) {
+    if launcher_saves::has_files(to) {
+        return;
+    }
+    match launcher_saves::seed(&store.root, profile, from, Reason::Imported, vault::now()) {
+        Ok(s) => say("info", &s.line(profile, from, to)),
+        Err(e) => say(
+            "warning",
+            &format!(
+                "saves: could not copy the Steam save into the launcher saves of profile {profile}: {e}"
+            ),
+        ),
+    }
+}
+
 /// Snapshot the profile save once the game exited and the session's game
 /// files are rolled back.
 pub fn after_session(before: Option<Before>) {
@@ -213,7 +306,12 @@ pub fn notice_since(store: &Store, since: f64) -> Option<String> {
 fn open(store: &Store, source: Option<&str>) -> Result<(Vault, Option<Location>)> {
     let active = Location::active(&store.root);
     match source {
-        Some(s) => Ok((Vault::open(&store.root, s)?, active.filter(|l| l.source == s))),
+        Some(s) => Ok((
+            Vault::open(&store.root, s)?,
+            active
+                .filter(|l| l.source == s)
+                .or_else(|| Location::of_source(&store.root, s)),
+        )),
         None => match active {
             Some(l) => Ok((Vault::of(&store.root, &l)?, Some(l))),
             None => match Vault::sources(&store.root).as_slice() {
@@ -517,6 +615,9 @@ fn restore_cmd(store: &Store, id: &str, source: Option<&str>) -> Result<()> {
     if !r.kept.is_empty() {
         println!("left as they are (not in the snapshot): {}", r.kept.join(", "));
     }
+    if loc.layout.is_launcher() {
+        println!("the launcher saves are restored; Steam's saves are not touched");
+    }
     if loc.layout == vault::Layout::Steam {
         println!(
             "start Steam to upload the restored save; if it asks which copy to keep, keep the local files (this computer)"
@@ -525,8 +626,92 @@ fn restore_cmd(store: &Store, id: &str, source: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+fn profile_arg(store: &Store, profile: Option<String>) -> Result<String> {
+    let p = profile.unwrap_or_else(|| store.active_profile());
+    let loaded = store.profile(&p)?;
+    if loaded.is_vanilla() {
+        bail!("{p} plays without the Swofty core and always uses Steam's saves");
+    }
+    Ok(p)
+}
+
+fn import_cmd(
+    store: &Store,
+    from: Option<String>,
+    from_profile: Option<String>,
+    profile: Option<String>,
+) -> Result<()> {
+    let profile = profile_arg(store, profile)?;
+    let (src, reason) = match (from.as_deref(), from_profile) {
+        (Some(other), _) if other != "steam" => {
+            bail!("--from takes steam; use --from-profile for another profile")
+        }
+        (_, Some(p)) => {
+            if p == profile {
+                bail!("{p} is the profile to import into");
+            }
+            store.profile(&p)?;
+            (launcher_saves::location(&store.root, &p), Reason::ImportedProfile)
+        }
+        _ => match Location::active(&store.root) {
+            Some(l) if l.layout == vault::Layout::Steam => (l, Reason::Imported),
+            Some(_) => bail!("{}", launcher_saves::EA_NOTE),
+            None => bail!("no Steam save of F1 25 found to import"),
+        },
+    };
+    let (files, bytes, snapshot) =
+        launcher_saves::import(&store.root, &profile, &src, reason, Running::now(), vault::now())?;
+    say(
+        "info",
+        &format!(
+            "saves: imported {files} file(s) from {} into the launcher saves of profile {profile}",
+            src.dir.display()
+        ),
+    );
+    println!(
+        "imported {files} file(s), {bytes} bytes, from {} into {}",
+        src.dir.display(),
+        launcher_saves::remote_dir(&store.root, &profile).display()
+    );
+    if let Some(s) = snapshot {
+        println!("the vault holds it as snapshot {s}");
+    }
+    Ok(())
+}
+
+fn export_cmd(store: &Store, to: &str, profile: Option<String>) -> Result<()> {
+    if to != "steam" {
+        bail!("--to takes steam");
+    }
+    let profile = profile_arg(store, profile)?;
+    let steam = match Location::active(&store.root) {
+        Some(l) if l.layout == vault::Layout::Steam => l,
+        Some(_) => bail!("{}", launcher_saves::EA_NOTE),
+        None => bail!("no Steam save folder of F1 25 found to export to"),
+    };
+    let r = launcher_saves::export(&store.root, &profile, &steam, Running::now(), vault::now())?;
+    say("info", &r.log_line());
+    if let Some(b) = &r.before {
+        println!("the Steam save it replaced is snapshot {b}");
+    }
+    println!(
+        "exported the launcher saves of profile {profile} into {}",
+        r.dir.display()
+    );
+    println!(
+        "start Steam to upload the exported save; if it asks which copy to keep, keep the local files (this computer)"
+    );
+    Ok(())
+}
+
 pub fn command(store: &Store, cmd: SavesCommand) -> Result<ExitCode> {
     match cmd {
+        SavesCommand::Import {
+            from,
+            from_profile,
+            profile,
+        } => import_cmd(store, from, from_profile, profile)?,
+        SavesCommand::Export { to, profile } => export_cmd(store, &to, profile)?,
         SavesCommand::List { source } => list(store, source.as_deref())?,
         SavesCommand::Show { snapshot, source } => show(store, &snapshot, source.as_deref())?,
         SavesCommand::Versions { source } => versions(store, source.as_deref())?,
@@ -550,4 +735,137 @@ pub fn command(store: &Store, cmd: SavesCommand) -> Result<ExitCode> {
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use swofty_core::GAME_EXE;
+    use swofty_core::baseline::Identity;
+
+    use super::*;
+
+    const DATA: &str = "savegame@profile#NXDSMWW.BWW";
+    const INDEX: &str = "savegame@profile#QKRHMYXE";
+
+    struct Fixture {
+        root: PathBuf,
+        store: Store,
+        game: Game,
+        steam: Location,
+    }
+
+    fn fixture(name: &str) -> Fixture {
+        let root = std::env::temp_dir().join(format!("swofty-cli-saves-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(GAME_EXE), "exe").unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let remote = root.join("steam/userdata/843502855/3059520/remote");
+        std::fs::create_dir_all(&remote).unwrap();
+        std::fs::write(remote.join(DATA), [1u8; 900]).unwrap();
+        std::fs::write(remote.join(INDEX), [7u8; 416]).unwrap();
+        Fixture {
+            store: Store::new(root.join("data")),
+            steam: Location::steam(&remote).unwrap(),
+            game,
+            root,
+        }
+    }
+
+    fn names(dir: &Path) -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(dir)
+            .map(|rd| {
+                rd.flatten()
+                    .map(|e| e.file_name().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn the_first_play_copies_the_steam_save_into_an_empty_store_and_plays_on_it() {
+        let f = fixture("first");
+        let b = before_session_at(&f.store, "default", &f.game, "s1", true, Some(f.steam.clone())).unwrap();
+        let store = launcher_saves::remote_dir(&f.store.root, "default");
+        assert_eq!(b.loc.layout, vault::Layout::Launcher);
+        assert_eq!(b.loc.dir, store);
+        assert_eq!(names(&store), [DATA, INDEX]);
+        assert_eq!(std::fs::read(store.join(DATA)).unwrap(), vec![1u8; 900]);
+        assert_eq!(names(&f.steam.dir), [DATA, INDEX]);
+        let snaps = Vault::open(&f.store.root, "launcher-default")
+            .unwrap()
+            .list()
+            .unwrap();
+        assert!(
+            snaps
+                .iter()
+                .any(|s| s.reason == Reason::Imported && s.layout == vault::Layout::Launcher)
+        );
+        assert!(snaps.iter().any(|s| s.reason == Reason::BeforeSession) || b.snapshot.is_some());
+        std::fs::remove_dir_all(&f.root).ok();
+    }
+
+    #[test]
+    fn a_store_with_files_is_not_reseeded() {
+        let f = fixture("kept");
+        let store = launcher_saves::remote_dir(&f.store.root, "default");
+        std::fs::create_dir_all(&store).unwrap();
+        std::fs::write(store.join(DATA), b"launcher career").unwrap();
+        let b = before_session_at(&f.store, "default", &f.game, "s1", true, Some(f.steam.clone())).unwrap();
+        assert_eq!(b.loc.layout, vault::Layout::Launcher);
+        assert_eq!(names(&store), [DATA]);
+        assert_eq!(std::fs::read(store.join(DATA)).unwrap(), b"launcher career");
+        std::fs::remove_dir_all(&f.root).ok();
+    }
+
+    #[test]
+    fn one_session_on_steam_saves_and_a_profile_with_the_setting_off_use_steam() {
+        let f = fixture("steam");
+        let b = before_session_at(&f.store, "default", &f.game, "s1", false, Some(f.steam.clone())).unwrap();
+        assert_eq!(b.loc.layout, vault::Layout::Steam);
+        assert!(!launcher_saves::remote_dir(&f.store.root, "default").exists());
+        f.store
+            .update_profile("default", |p| {
+                p.launcher_saves = false;
+                Ok(())
+            })
+            .unwrap();
+        let b = before_session_at(&f.store, "default", &f.game, "s2", true, Some(f.steam.clone())).unwrap();
+        assert_eq!(b.loc.layout, vault::Layout::Steam);
+        assert!(!launcher_saves::remote_dir(&f.store.root, "default").exists());
+        std::fs::remove_dir_all(&f.root).ok();
+    }
+
+    #[test]
+    fn the_vanilla_profile_always_plays_on_steam_saves() {
+        let f = fixture("vanilla");
+        let b = before_session_at(&f.store, "vanilla", &f.game, "s1", true, Some(f.steam.clone())).unwrap();
+        assert_eq!(b.loc.layout, vault::Layout::Steam);
+        assert!(!launcher_saves::root(&f.store.root).exists());
+        std::fs::remove_dir_all(&f.root).ok();
+    }
+
+    #[test]
+    fn the_ea_copy_keeps_its_own_saves() {
+        let f = fixture("ea");
+        let ea_dir = f
+            .root
+            .join("pfx/drive_c/users/steamuser/AppData/Local/F1 25/savegame/ea/profile");
+        std::fs::create_dir_all(&ea_dir).unwrap();
+        std::fs::write(ea_dir.join("NXDSMWW.BWW"), [3u8; 64]).unwrap();
+        let ea = Location::ea(&ea_dir, "steamuser");
+        let b = before_session_at(&f.store, "default", &f.game, "s1", true, Some(ea)).unwrap();
+        assert_eq!(b.loc.layout, vault::Layout::Ea);
+        assert!(!launcher_saves::root(&f.store.root).exists());
+        std::fs::remove_dir_all(&f.root).ok();
+    }
 }

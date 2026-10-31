@@ -54,6 +54,8 @@ pub enum Reason {
     BeforeRestore,
     Restored,
     Migrated,
+    Imported,
+    ImportedProfile,
     #[serde(other)]
     Other,
 }
@@ -71,6 +73,8 @@ impl Reason {
             Self::BeforeRestore => "before-restore",
             Self::Restored => "restored",
             Self::Migrated => "migrated",
+            Self::Imported => "imported",
+            Self::ImportedProfile => "imported-profile",
             Self::Other => "other",
         }
     }
@@ -99,6 +103,8 @@ impl Reason {
             Self::BeforeRestore => "before a restore",
             Self::Restored => "restored",
             Self::Migrated => "from save-backups",
+            Self::Imported => "Imported from Steam saves",
+            Self::ImportedProfile => "Imported from another profile",
             Self::Other => "other",
         }
     }
@@ -153,7 +159,7 @@ impl Snapshot {
     /// The cloud status recorded when the snapshot was taken.
     pub fn cloud(&self) -> cloud::Status {
         match self.layout {
-            Layout::Ea => cloud::Status::Local,
+            Layout::Ea | Layout::Launcher | Layout::LauncherEa => cloud::Status::Local,
             Layout::Steam => cloud::combine(
                 self.files
                     .iter()
@@ -356,6 +362,16 @@ impl Notice {
     }
 
     pub fn text(&self) -> String {
+        if self.source.starts_with("launcher-") {
+            return format!(
+                "{}: {}. If a career is missing, restore it with `swofty saves restore {} --source {}` while F1 25 is \
+                 closed",
+                self.headline(),
+                self.snapshot,
+                self.snapshot,
+                self.source
+            );
+        }
         format!(
             "{}: {}. If a career is missing, restore it with `swofty saves restore {}` while F1 25 and {} are \
              closed",
@@ -466,7 +482,7 @@ pub fn save_status(loc: &Location) -> Result<SaveStatus> {
     let files = hash_all(loc)?;
     let cache = loc.remotecache().map(|p| cloud::read(&p)).unwrap_or_default();
     let status = match loc.layout {
-        Layout::Ea => cloud::Status::Local,
+        Layout::Ea | Layout::Launcher | Layout::LauncherEa => cloud::Status::Local,
         Layout::Steam => cloud::combine(files.iter().map(|f| {
             let name = f.path.file_name().unwrap_or_default().to_string_lossy();
             cloud::status(cache.get(name.as_ref()), &f.sha1)
@@ -728,7 +744,7 @@ impl Vault {
         Ok(taken)
     }
 
-    fn snapshot_locked(&self, loc: &Location, meta: Meta, now: i64) -> Result<Taken> {
+    pub(crate) fn snapshot_locked(&self, loc: &Location, meta: Meta, now: i64) -> Result<Taken> {
         if loc.source != self.source {
             return Err(Error::Other(format!(
                 "the save at {} belongs to {}, not {}",

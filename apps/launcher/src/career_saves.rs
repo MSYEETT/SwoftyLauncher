@@ -652,7 +652,9 @@ impl Shell {
             None => "Careers not known for this version".to_owned(),
         };
         let cloud_text = match s.layout {
-            vault::Layout::Ea => "local only".to_owned(),
+            vault::Layout::Ea | vault::Layout::Launcher | vault::Layout::LauncherEa => {
+                "local only".to_owned()
+            }
             vault::Layout::Steam => s.cloud().text().to_owned(),
         };
         let (restore_id, source) = (id.clone(), view.source.clone());
@@ -818,6 +820,7 @@ impl Shell {
                 "Exit Steam completely (Steam menu > Exit) and close F1 25 before you restore. Starting Steam afterwards uploads the restored save."
             }
             vault::Layout::Ea => "Close the EA app and F1 25 before you restore.",
+            vault::Layout::Launcher | vault::Layout::LauncherEa => "Close F1 25 before you restore.",
         };
         v_flex()
             .gap(px(8.))

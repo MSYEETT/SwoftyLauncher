@@ -152,15 +152,20 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+// The text of swofty/settings.json as the launcher wrote it (empty when absent), and the running build's
+// distribution as the binding set names it: "steam", "ea" or "unknown".
+const std::string &settings_json_text();
+std::string build_distribution();
 // Career saves (career_saves.cpp): the career index and per-career addon data.
 void career_saves_start();
 void career_saves_saving();
 void career_saves_saved();
 void career_saves_found(const std::set<std::string> &keys);
-// Test save sandbox (save_sandbox.cpp): only under `swofty test` with a run token.
+// Save sandbox (save_sandbox.cpp): under `swofty test` with a run token, or with the launcher's saves.
 std::vector<CoreMixins> save_sandbox_mixins();
 void save_sandbox_commit();
 bool save_sandbox_test_mode();
+bool save_sandbox_launcher_mode();
 bool save_sandbox_armed();
 // FileWrite calls the sandbox has served: a save that reached the save device.
 uint32_t save_sandbox_writes();

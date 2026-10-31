@@ -105,12 +105,22 @@ fn watch_vault(store: &Store, processes: &[GameProcess]) {
 /// runs (the probe's watch takes that one) or a session holds the lock.
 pub fn vault_at_start(store: &Store) {
     if !game_processes().is_empty() {
+        if swofty_core::launcher_saves::marker(&store.root).is_none() {
+            crate::app_log::note(
+                "saves: F1 25 is running; the import of the Steam save into the launcher saves waits for the next launcher start",
+            );
+        }
         return;
     }
     let Ok(Some(_lock)) = SessionLock::try_acquire(&store.root) else {
         return;
     };
     for l in vault::watch::at_launcher_start(&store.root) {
+        crate::app_log::note(&l);
+    }
+    let profiles = store.profile_names().unwrap_or_default();
+    let running = vault::restore::Running::now();
+    for l in swofty_core::launcher_saves::first_start_import(&store.root, &profiles, running, vault::now()) {
         crate::app_log::note(&l);
     }
 }
@@ -279,6 +289,7 @@ impl Launch {
         install: &Install,
         mode: LaunchMode,
         netplay: bool,
+        steam_saves_once: bool,
     ) -> Result<Self, String> {
         let cli = cli_path(store).ok_or_else(|| app_control::missing(&expected_cli(store)))?;
         let at = now_secs();
@@ -297,6 +308,9 @@ impl Launch {
             .arg("--apply");
         if mode.is_vr() {
             c.arg("--vr");
+        }
+        if steam_saves_once {
+            c.arg("--steam-saves-once");
         }
         c.arg("--game").arg(&install.dir);
         if netplay {

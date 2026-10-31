@@ -19,6 +19,24 @@ const EA_PROFILE: &[&str] = &["F1 25", "savegame", "ea", "profile"];
 pub enum Layout {
     Steam,
     Ea,
+    Launcher,
+    LauncherEa,
+}
+
+impl Layout {
+    pub fn named_like_steam(self) -> bool {
+        matches!(self, Self::Steam | Self::Launcher)
+    }
+
+    pub fn exchanges_with(self, other: Self) -> bool {
+        self == other
+            || (self.named_like_steam() && other.named_like_steam())
+            || (matches!(self, Self::Ea | Self::LauncherEa) && matches!(other, Self::Ea | Self::LauncherEa))
+    }
+
+    pub fn is_launcher(self) -> bool {
+        matches!(self, Self::Launcher | Self::LauncherEa)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +77,34 @@ impl Location {
             layout: Layout::Steam,
             dir: remote.to_path_buf(),
         })
+    }
+
+    /// A launcher profile's own store, `$DATA/saves/<profile>/remote`: the
+    /// files carry the names Steam's remote storage gives them.
+    pub fn launcher(data: &Path, profile: &str) -> Self {
+        Self {
+            source: format!("launcher-{}", safe(profile)),
+            layout: Layout::Launcher,
+            dir: crate::launcher_saves::remote_dir(data, profile),
+        }
+    }
+
+    /// A launcher profile's store for an EA app copy, `$DATA/saves/<profile>/ea/profile`: the files
+    /// carry the names the EA app copy's save folder gives them.
+    pub fn launcher_ea(data: &Path, profile: &str) -> Self {
+        Self {
+            source: format!("launcher-ea.{}", safe(profile)),
+            layout: Layout::LauncherEa,
+            dir: crate::launcher_saves::ea_dir(data, profile),
+        }
+    }
+
+    /// The launcher store a vault source name stands for (`launcher-<profile>`, `launcher-ea.<profile>`).
+    pub fn of_source(data: &Path, source: &str) -> Option<Self> {
+        if let Some(p) = source.strip_prefix("launcher-ea.") {
+            return Some(Self::launcher_ea(data, p));
+        }
+        source.strip_prefix("launcher-").map(|p| Self::launcher(data, p))
     }
 
     pub fn ea(profile: &Path, user: &str) -> Self {
@@ -167,14 +213,14 @@ impl Location {
     pub fn remotecache(&self) -> Option<PathBuf> {
         match self.layout {
             Layout::Steam => Some(self.dir.parent()?.join("remotecache.vdf")),
-            Layout::Ea => None,
+            Layout::Ea | Layout::Launcher | Layout::LauncherEa => None,
         }
     }
 
     pub fn key_of(&self, file_name: &str) -> Option<String> {
         let rest = match self.layout {
-            Layout::Steam => file_name.strip_prefix(STEAM_PREFIX)?,
-            Layout::Ea => file_name,
+            Layout::Steam | Layout::Launcher => file_name.strip_prefix(STEAM_PREFIX)?,
+            Layout::Ea | Layout::LauncherEa => file_name,
         };
         (!rest.is_empty() && !rest.starts_with('.')).then(|| format!("{KEY_PREFIX}{rest}"))
     }
@@ -185,8 +231,8 @@ impl Location {
             return None;
         }
         Some(match self.layout {
-            Layout::Steam => format!("{STEAM_PREFIX}{rest}"),
-            Layout::Ea => rest.to_owned(),
+            Layout::Steam | Layout::Launcher => format!("{STEAM_PREFIX}{rest}"),
+            Layout::Ea | Layout::LauncherEa => rest.to_owned(),
         })
     }
 
