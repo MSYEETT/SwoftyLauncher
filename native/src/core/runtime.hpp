@@ -188,6 +188,8 @@ std::vector<CoreMixins> standings_guard_mixins();
 void standings_guard_commit();
 std::vector<CoreMixins> tyre_slots_mixins();
 void tyre_slots_commit();
+std::vector<CoreMixins> garage_crew_mixins();
+void garage_crew_commit();
 std::vector<CoreMixins> track_acclim_mixins();
 void track_acclim_commit();
 std::vector<CoreMixins> audio_queue_mixins();
