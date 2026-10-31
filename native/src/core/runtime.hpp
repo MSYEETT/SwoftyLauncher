@@ -192,6 +192,8 @@ std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> ers_mode_mixins();
 void ers_mode_commit();
+std::vector<CoreMixins> car_levers_mixins();
+void car_levers_commit();
 std::vector<CoreMixins> standings_guard_mixins();
 void standings_guard_commit();
 std::vector<CoreMixins> tyre_slots_mixins();

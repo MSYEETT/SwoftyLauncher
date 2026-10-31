@@ -30,6 +30,7 @@ pub const STOP_EXIT: u8 = 3;
 /// (`packages/sdk/std/registries/<name>/<major>.<minor>.json`).
 pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("addon.option", "1.0"),
+    ("car.profile", "1.0"),
     ("career.calendar", "1.0"),
     ("career.character", "1.0"),
     ("career.content", "1.0"),
@@ -39,7 +40,7 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("career.rnd.tree", "1.0"),
     ("career.season", "1.0"),
     ("career.wizard", "1.0"),
-    ("content.package", "1.0"),
+    ("content.package", "1.1"),
     ("driver.head", "1.0"),
     ("driver.identity", "1.0"),
     ("driver.look", "1.0"),
@@ -62,8 +63,8 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("track.data", "1.0"),
     ("track.per_package", "1.0"),
     ("track.venue", "1.0"),
-    ("vehicle", "1.0"),
-    ("vehicle.handling", "1.0"),
+    ("vehicle", "1.1"),
+    ("vehicle.handling", "1.1"),
     ("vehicle.package", "1.0"),
     ("wearable.season_set", "1.0"),
 ];
