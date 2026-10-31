@@ -4524,6 +4524,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_ElimRuleset_FinaliseResults: Binding = Binding {
+        id: "Sess_ElimRuleset_FinaliseResults",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ElimRuleset_ForceFinishAll: Binding = Binding {
+        id: "Sess_ElimRuleset_ForceFinishAll",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_ElimRuleset_RetireVehicle: Binding = Binding {
+        id: "Sess_ElimRuleset_RetireVehicle",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_EntrantVec_PushBack: Binding = Binding {
         id: "Sess_EntrantVec_PushBack",
         kind: "func",
@@ -4769,6 +4784,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_PQRuleset_FinaliseResults: Binding = Binding {
+        id: "Sess_PQRuleset_FinaliseResults",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_PenaltyLog_Print: Binding = Binding {
         id: "Sess_PenaltyLog_Print",
         kind: "func",
@@ -4821,6 +4841,16 @@ pub mod bindings {
     };
     pub const Sess_PreRace_Update: Binding = Binding {
         id: "Sess_PreRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Progress_SyncResultRecord: Binding = Binding {
+        id: "Sess_Progress_SyncResultRecord",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PursuitRuleset_FinaliseResults: Binding = Binding {
+        id: "Sess_PursuitRuleset_FinaliseResults",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4959,6 +4989,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Result_RequestDNF: Binding = Binding {
+        id: "Sess_Result_RequestDNF",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Result_RequestStatus: Binding = Binding {
+        id: "Sess_Result_RequestStatus",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Result_RequestVehicleStatus: Binding = Binding {
         id: "Sess_Result_RequestVehicleStatus",
         kind: "func",
@@ -5066,6 +5106,21 @@ pub mod bindings {
     };
     pub const Sess_Ruleset_FinaliseResults: Binding = Binding {
         id: "Sess_Ruleset_FinaliseResults",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Ruleset_FinaliseResultsDefault: Binding = Binding {
+        id: "Sess_Ruleset_FinaliseResultsDefault",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Ruleset_ForceFinishAllDefault: Binding = Binding {
+        id: "Sess_Ruleset_ForceFinishAllDefault",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Ruleset_SetupExtraTime: Binding = Binding {
+        id: "Sess_Ruleset_SetupExtraTime",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5209,6 +5264,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Session_ResetForRestart: Binding = Binding {
+        id: "Sess_Session_ResetForRestart",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Set_RowsAvailable: Binding = Binding {
         id: "Sess_Set_RowsAvailable",
         kind: "func",
@@ -5346,6 +5406,11 @@ pub mod bindings {
     };
     pub const Sess_VehiclePlacement_PlaceOnSlot: Binding = Binding {
         id: "Sess_VehiclePlacement_PlaceOnSlot",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_VirtualLapsRuleset_ForceFinishAll: Binding = Binding {
+        id: "Sess_VirtualLapsRuleset_ForceFinishAll",
         kind: "func",
         status: Status::Experimental,
     };
