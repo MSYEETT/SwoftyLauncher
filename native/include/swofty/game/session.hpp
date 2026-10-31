@@ -225,6 +225,7 @@ inline constexpr fn<"Sess_Apply_ContentAvailability", Sess_Apply_ContentAvailabi
 inline constexpr address<"Sess_AutoCrossRuleset_PlaceVehicles"> Sess_AutoCrossRuleset_PlaceVehicles{}; // L2 experimental
 using Sess_Build_GroupResult_t = void(void *weekend, uint8_t group, void *result);
 inline constexpr fn<"Sess_Build_GroupResult", Sess_Build_GroupResult_t> Sess_Build_GroupResult{}; // L2 experimental
+inline constexpr address<"Sess_Classification_CompareEntries"> Sess_Classification_CompareEntries{}; // L2 experimental
 inline constexpr address<"Sess_Complete_Update"> Sess_Complete_Update{}; // L2 experimental
 inline constexpr address<"Sess_ControllerSystem_ApplyInputs"> Sess_ControllerSystem_ApplyInputs{}; // L2 experimental
 inline constexpr address<"Sess_ControllerSystem_BuildSets"> Sess_ControllerSystem_BuildSets{}; // L2 experimental

@@ -3341,6 +3341,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_GameModes_BuildMode: Binding = Binding {
+        id: "Game_GameModes_BuildMode",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_Get_ModelNodeId: Binding = Binding {
         id: "Game_Get_ModelNodeId",
         kind: "func",
@@ -3546,6 +3551,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_AssetGroupSubTask_OnComplete: Binding = Binding {
+        id: "Ne_AssetGroupSubTask_OnComplete",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups: Binding = Binding {
         id: "Ne_BufferedAssetGroupLoader_GroupSwapAssetGroups",
         kind: "func",
@@ -3563,6 +3573,16 @@ pub mod bindings {
     };
     pub const Ne_Compare_StringNoCase: Binding = Binding {
         id: "Ne_Compare_StringNoCase",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ComponentDefinitions_CreateComponent: Binding = Binding {
+        id: "Ne_ComponentDefinitions_CreateComponent",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ComponentDefinitions_CreateComponent_2: Binding = Binding {
+        id: "Ne_ComponentDefinitions_CreateComponent_2",
         kind: "func",
         status: Status::Experimental,
     };
@@ -3726,6 +3746,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Heap_OnCorruptionNotification: Binding = Binding {
+        id: "Ne_Heap_OnCorruptionNotification",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_IBLCubeProbe_FreeInterpolatedArrays: Binding = Binding {
         id: "Ne_IBLCubeProbe_FreeInterpolatedArrays",
         kind: "func",
@@ -3776,6 +3801,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_JobSignal_WaitWithTimeout: Binding = Binding {
+        id: "Ne_JobSignal_WaitWithTimeout",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_LinkResolver_ResolveLinks: Binding = Binding {
         id: "Ne_LinkResolver_ResolveLinks",
         kind: "func",
@@ -3790,6 +3820,11 @@ pub mod bindings {
         id: "Ne_Make_StrFromCStr",
         kind: "func",
         status: Status::Stable,
+    };
+    pub const Ne_MessageQueue_Alloc: Binding = Binding {
+        id: "Ne_MessageQueue_Alloc",
+        kind: "func",
+        status: Status::Experimental,
     };
     pub const Ne_MipTailGeneratorFactory_ObtainGeneratorResource: Binding = Binding {
         id: "Ne_MipTailGeneratorFactory_ObtainGeneratorResource",
@@ -4371,6 +4406,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_Presence_OnSubscribeResult: Binding = Binding {
+        id: "Ne_Presence_OnSubscribeResult",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_ReplaySystem_ForceReset: Binding = Binding {
         id: "Ne_ReplaySystem_ForceReset",
         kind: "func",
@@ -4596,6 +4636,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_SequenceInstance_Construct: Binding = Binding {
+        id: "Ne_SequenceInstance_Construct",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_SequenceResource_CreateResource: Binding = Binding {
         id: "Ne_SequenceResource_CreateResource",
         kind: "func",
@@ -4628,6 +4673,11 @@ pub mod bindings {
     };
     pub const Ne_Thread_Destroy: Binding = Binding {
         id: "Ne_Thread_Destroy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_TimeManager_OnSetFixedTimeStep: Binding = Binding {
+        id: "Ne_TimeManager_OnSetFixedTimeStep",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4903,6 +4953,11 @@ pub mod bindings {
     };
     pub const Sess_Build_GroupResult: Binding = Binding {
         id: "Sess_Build_GroupResult",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_Classification_CompareEntries: Binding = Binding {
+        id: "Sess_Classification_CompareEntries",
         kind: "func",
         status: Status::Experimental,
     };
