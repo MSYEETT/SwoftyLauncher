@@ -282,6 +282,7 @@ inline constexpr fn<"Car_Register_DetachablePart_Thunk", Car_Register_Detachable
 using Car_Reset_LastFittedUpgrade_t = void(void *inst);
 inline constexpr fn<"Car_Reset_LastFittedUpgrade", Car_Reset_LastFittedUpgrade_t> Car_Reset_LastFittedUpgrade{}; // L2 experimental
 inline constexpr address<"Car_Setup_ApplyTuning"> Car_Setup_ApplyTuning{}; // L3 stable
+inline constexpr address<"Car_Systems_FindOrCreate"> Car_Systems_FindOrCreate{}; // L2 experimental
 inline constexpr address<"Car_Systems_Reset_Thunk"> Car_Systems_Reset_Thunk{}; // L3 stable
 inline constexpr address<"Car_Tuning_SetChassisZCom"> Car_Tuning_SetChassisZCom{}; // L2 experimental
 inline constexpr address<"Car_Tuning_SetFinalDrive"> Car_Tuning_SetFinalDrive{}; // L2 experimental
@@ -292,6 +293,7 @@ inline constexpr fn<"Car_Tyre_SetWearFactor", Car_Tyre_SetWearFactor_t> Car_Tyre
 inline constexpr address<"Car_Tyre_UpdateWear"> Car_Tyre_UpdateWear{}; // L2 experimental
 inline constexpr address<"Car_Upgrades_ApplyToVehicle"> Car_Upgrades_ApplyToVehicle{}; // L3 experimental
 inline constexpr address<"Car_Upgrades_CalcNonLinearMass"> Car_Upgrades_CalcNonLinearMass{}; // L2 experimental
+inline constexpr address<"Car_Upgrades_CalcTypeMass"> Car_Upgrades_CalcTypeMass{}; // L2 experimental
 inline constexpr address<"Car_Write_Differential"> Car_Write_Differential{}; // L2 experimental
 inline constexpr address<"Car_Write_FuelTank"> Car_Write_FuelTank{}; // L2 experimental
 inline constexpr address<"Car_Write_GearBox"> Car_Write_GearBox{}; // L2 experimental

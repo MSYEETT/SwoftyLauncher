@@ -287,6 +287,8 @@ using Game_TeamHQAdvanceViewModel_Update_t = uint64_t(void *vm);
 inline constexpr fn<"Game_TeamHQAdvanceViewModel_Update", Game_TeamHQAdvanceViewModel_Update_t> Game_TeamHQAdvanceViewModel_Update{}; // L2 experimental
 using Game_Teleport_Vehicle_t = void(void *car, const char *name, float *prev_mtx, float *new_mtx, float dt, uint32_t flags);
 inline constexpr fn<"Game_Teleport_Vehicle", Game_Teleport_Vehicle_t> Game_Teleport_Vehicle{}; // L2 experimental
+using Game_TrackData_GetTrack_t = void *(void *system, const void *track_ref, const uint8_t *query);
+inline constexpr fn<"Game_TrackData_GetTrack", Game_TrackData_GetTrack_t> Game_TrackData_GetTrack{}; // L2 experimental
 using Game_TyreAllocationComponent_SetPresetChoiceForHumanDriver_t = void(void *component, uint32_t preset, int local_player);
 inline constexpr fn<"Game_TyreAllocationComponent_SetPresetChoiceForHumanDriver", Game_TyreAllocationComponent_SetPresetChoiceForHumanDriver_t> Game_TyreAllocationComponent_SetPresetChoiceForHumanDriver{}; // L2 experimental, TyreAllocationComponent::setPresetChoiceForHumanDriver
 inline constexpr data<"g_Game_FlowLinkStay", uint32_t> g_Game_FlowLinkStay{}; // L2 experimental
