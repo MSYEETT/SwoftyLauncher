@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -151,6 +152,11 @@ std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
 void save_splice_commit();
+// Career saves (career_saves.cpp): the career index and per-career addon data.
+void career_saves_start();
+void career_saves_saving();
+void career_saves_saved();
+void career_saves_found(const std::set<std::string> &keys);
 // Test save sandbox (save_sandbox.cpp): only under `swofty test` with a run token.
 std::vector<CoreMixins> save_sandbox_mixins();
 void save_sandbox_commit();
