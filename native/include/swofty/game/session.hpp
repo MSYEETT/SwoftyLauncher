@@ -222,6 +222,7 @@ static_assert(offsetof(WeatherSessionSettings, exact_timing) == 0xb18);
 
 using Sess_Apply_ContentAvailability_t = void(void *self, void *availability);
 inline constexpr fn<"Sess_Apply_ContentAvailability", Sess_Apply_ContentAvailability_t> Sess_Apply_ContentAvailability{}; // L2 experimental
+inline constexpr address<"Sess_AutoCrossRuleset_PlaceVehicles"> Sess_AutoCrossRuleset_PlaceVehicles{}; // L2 experimental
 using Sess_Build_GroupResult_t = void(void *weekend, uint8_t group, void *result);
 inline constexpr fn<"Sess_Build_GroupResult", Sess_Build_GroupResult_t> Sess_Build_GroupResult{}; // L2 experimental
 inline constexpr address<"Sess_ControllerSystem_ApplyInputs"> Sess_ControllerSystem_ApplyInputs{}; // L2 experimental
@@ -409,6 +410,8 @@ inline constexpr address<"Sess_ScState_VscEnding_Enter"> Sess_ScState_VscEnding_
 inline constexpr address<"Sess_ScState_VscEnding_Exit"> Sess_ScState_VscEnding_Exit{}; // L2 experimental
 inline constexpr address<"Sess_SessionClock_SetTime"> Sess_SessionClock_SetTime{}; // L2 experimental
 inline constexpr address<"Sess_SessionExit_OnStateEnter"> Sess_SessionExit_OnStateEnter{}; // L2 experimental
+inline constexpr address<"Sess_SessionStateIntroCameras_OnEnter"> Sess_SessionStateIntroCameras_OnEnter{}; // L2 experimental
+inline constexpr address<"Sess_SessionStateMidSessionSaveCutscene_OnEnter"> Sess_SessionStateMidSessionSaveCutscene_OnEnter{}; // L2 experimental
 inline constexpr address<"Sess_Session_ResetForRestart"> Sess_Session_ResetForRestart{}; // L2 experimental
 inline constexpr address<"Sess_Set_RowsAvailable"> Sess_Set_RowsAvailable{}; // L2 experimental
 using Sess_Set_SafetyCarDeploymentType_t = void(void *sc_state, const void *sc_deployment_msg);

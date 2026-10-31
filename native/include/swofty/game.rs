@@ -4201,6 +4201,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_PlayerInputProvider_BindToDeviceNode: Binding = Binding {
+        id: "Ne_PlayerInputProvider_BindToDeviceNode",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_PlayerInputProvider_SetDeviceBound: Binding = Binding {
+        id: "Ne_PlayerInputProvider_SetDeviceBound",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_PlayerManager_DisplayUnsupportedDeviceWarning: Binding = Binding {
         id: "Ne_PlayerManager_DisplayUnsupportedDeviceWarning",
         kind: "func",
@@ -4623,6 +4633,11 @@ pub mod bindings {
     };
     pub const Sess_Apply_ContentAvailability: Binding = Binding {
         id: "Sess_Apply_ContentAvailability",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_AutoCrossRuleset_PlaceVehicles: Binding = Binding {
+        id: "Sess_AutoCrossRuleset_PlaceVehicles",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5423,6 +5438,16 @@ pub mod bindings {
     };
     pub const Sess_SessionExit_OnStateEnter: Binding = Binding {
         id: "Sess_SessionExit_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SessionStateIntroCameras_OnEnter: Binding = Binding {
+        id: "Sess_SessionStateIntroCameras_OnEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SessionStateMidSessionSaveCutscene_OnEnter: Binding = Binding {
+        id: "Sess_SessionStateMidSessionSaveCutscene_OnEnter",
         kind: "func",
         status: Status::Experimental,
     };

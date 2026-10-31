@@ -273,6 +273,8 @@ inline constexpr address<"Ne_Phys_ParseMaterials"> Ne_Phys_ParseMaterials{}; // 
 using Ne_Play_FullscreenVideo_t = void(void *feature_system, NeStr **path, const void *on_end, const void *frame_callbacks, int32_t layer);
 inline constexpr fn<"Ne_Play_FullscreenVideo", Ne_Play_FullscreenVideo_t> Ne_Play_FullscreenVideo{}; // L2 experimental, neon::NeUIGenericFeatureSystem::playFullscreenVideo
 inline constexpr address<"Ne_PlayerCustomInputProvider_BindToDevices"> Ne_PlayerCustomInputProvider_BindToDevices{}; // L2 experimental, NePlayerCustomInputProvider::bindToDevices
+inline constexpr address<"Ne_PlayerInputProvider_BindToDeviceNode"> Ne_PlayerInputProvider_BindToDeviceNode{}; // L2 experimental
+inline constexpr address<"Ne_PlayerInputProvider_SetDeviceBound"> Ne_PlayerInputProvider_SetDeviceBound{}; // L2 experimental
 inline constexpr address<"Ne_PlayerManager_DisplayUnsupportedDeviceWarning"> Ne_PlayerManager_DisplayUnsupportedDeviceWarning{}; // L2 experimental, NePlayerManager::displayUnsupportedDeviceWarning
 inline constexpr address<"Ne_PlayerManager_HandleLeadPlayerLogoutOrChangeCallback"> Ne_PlayerManager_HandleLeadPlayerLogoutOrChangeCallback{}; // L2 experimental, NePlayerManager::handleLeadPlayerLogoutOrChangeCallback
 inline constexpr address<"Ne_PlayerManager_PlatformProcessAllInputDevices"> Ne_PlayerManager_PlatformProcessAllInputDevices{}; // L2 experimental, NePlayerManager::platformProcessAllInputDevices
