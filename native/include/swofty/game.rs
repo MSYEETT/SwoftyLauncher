@@ -3581,6 +3581,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_CrowdPluginProxy_Destructor: Binding = Binding {
+        id: "Ne_CrowdPluginProxy_Destructor",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_CrowdPlugin_LoadXml: Binding = Binding {
         id: "Ne_CrowdPlugin_LoadXml",
         kind: "func",
@@ -3698,6 +3703,21 @@ pub mod bindings {
     };
     pub const Ne_Get_SettingU32: Binding = Binding {
         id: "Ne_Get_SettingU32",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Gfx2Renderer_Initialise: Binding = Binding {
+        id: "Ne_Gfx2Renderer_Initialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Gfx2TextureManager_SetInRaceOff: Binding = Binding {
+        id: "Ne_Gfx2TextureManager_SetInRaceOff",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Gfx2TextureManager_SetInRaceOn: Binding = Binding {
+        id: "Ne_Gfx2TextureManager_SetInRaceOn",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4306,8 +4326,113 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_RttRenderer_FlushJobs: Binding = Binding {
+        id: "Ne_RttRenderer_FlushJobs",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_RttRenderer_SubmitJob: Binding = Binding {
+        id: "Ne_RttRenderer_SubmitJob",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Rtt_DefaultCallback: Binding = Binding {
+        id: "Ne_Rtt_DefaultCallback",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Rtt_RegisterCameras: Binding = Binding {
+        id: "Ne_Rtt_RegisterCameras",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Rtt_UnregisterGenerators: Binding = Binding {
+        id: "Ne_Rtt_UnregisterGenerators",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_CorruptFmtSUU: Binding = Binding {
+        id: "Ne_SaveError_CorruptFmtSUU",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_EncryptionSourceFailed: Binding = Binding {
+        id: "Ne_SaveError_EncryptionSourceFailed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_NotDirectoryFmtSS: Binding = Binding {
+        id: "Ne_SaveError_NotDirectoryFmtSS",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_SelectedIndexOutOfRange: Binding = Binding {
+        id: "Ne_SaveError_SelectedIndexOutOfRange",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_SetFmt: Binding = Binding {
+        id: "Ne_SaveError_SetFmt",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_SetFmtSSS: Binding = Binding {
+        id: "Ne_SaveError_SetFmtSSS",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_SetFmtWS: Binding = Binding {
+        id: "Ne_SaveError_SetFmtWS",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_ThumbnailTooLarge: Binding = Binding {
+        id: "Ne_SaveError_ThumbnailTooLarge",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_TransformFailed: Binding = Binding {
+        id: "Ne_SaveError_TransformFailed",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_Win32FmtSSSU: Binding = Binding {
+        id: "Ne_SaveError_Win32FmtSSSU",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_Win32FmtSSU: Binding = Binding {
+        id: "Ne_SaveError_Win32FmtSSU",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_Win32FmtSU: Binding = Binding {
+        id: "Ne_SaveError_Win32FmtSU",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveError_Win32FmtU: Binding = Binding {
+        id: "Ne_SaveError_Win32FmtU",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_EmptyDirectory: Binding = Binding {
+        id: "Ne_SaveSystem2Win_EmptyDirectory",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_SaveSystem2Win_Mount: Binding = Binding {
         id: "Ne_SaveSystem2Win_Mount",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_RenameDirectory: Binding = Binding {
+        id: "Ne_SaveSystem2Win_RenameDirectory",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem2Win_SaveSelected: Binding = Binding {
+        id: "Ne_SaveSystem2Win_SaveSelected",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4388,6 +4513,11 @@ pub mod bindings {
     };
     pub const Ne_SaveSystem_Terminate: Binding = Binding {
         id: "Ne_SaveSystem_Terminate",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SaveSystem_ThreadProcessRequest: Binding = Binding {
+        id: "Ne_SaveSystem_ThreadProcessRequest",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4551,8 +4681,58 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_VideoInstance_Close: Binding = Binding {
+        id: "Ne_VideoInstance_Close",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_OpenVideo: Binding = Binding {
+        id: "Ne_VideoManager_OpenVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_PauseVideo: Binding = Binding {
+        id: "Ne_VideoManager_PauseVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_PlayIntervalFrames: Binding = Binding {
+        id: "Ne_VideoManager_PlayIntervalFrames",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_PlayIntervalSeconds: Binding = Binding {
+        id: "Ne_VideoManager_PlayIntervalSeconds",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_PlayOneFrame: Binding = Binding {
+        id: "Ne_VideoManager_PlayOneFrame",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_PlayVideo: Binding = Binding {
+        id: "Ne_VideoManager_PlayVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_ResumeVideo: Binding = Binding {
+        id: "Ne_VideoManager_ResumeVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_VideoManager_StopVideo: Binding = Binding {
+        id: "Ne_VideoManager_StopVideo",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_VideoResource_Destroy: Binding = Binding {
         id: "Ne_VideoResource_Destroy",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_Video_InitBinkThreads: Binding = Binding {
+        id: "Ne_Video_InitBinkThreads",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4628,6 +4808,11 @@ pub mod bindings {
     };
     pub const Ne_WorldLayerModule_DeregisterLayer: Binding = Binding {
         id: "Ne_WorldLayerModule_DeregisterLayer",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WorldLoadTask_Update: Binding = Binding {
+        id: "Ne_WorldLoadTask_Update",
         kind: "func",
         status: Status::Experimental,
     };

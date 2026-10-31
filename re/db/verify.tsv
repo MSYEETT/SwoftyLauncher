@@ -2510,3 +2510,60 @@ date	verifier	kind	item	claimed	verdict	evidence	notes
 2026-10-30	d4-verify-b	func	Game_VehicleProgressSystem_GetLapProgress	L1	agree	decomp:re/decomp/1446046a0.c;xref:0x1446046a0	V2518 returns POINTER [sys+0x38][idx]+0x30 (not a value); fallback static 0x146ce5758, PROGRESS warning; caller count 166 not verified
 2026-10-30	d4-verify-b	func	Game_VehicleProgressSystem_GetDistanceData	L1	agree	decomp:re/decomp/1446047b0.c;xref:0x1446047b0	V2519 returns POINTER [sys+0x38][idx]+0xc8, fallback static 0x146ce57f8
 2026-10-30	d4-verify-b	func	Game_TodData_FindParam	L1	agree	decomp:re/decomp/14460ec40.c;xref:0x141cf0434	V2520 current scenario hash data+0x1d8, param hash djb2 in data+0x28 stride 0x20, binding 142ff65e0, log not specified in data; 12 refs in BindRainCurves confirmed, 90/202 counts not verified
+2026-10-30	d5-verify	func	Ne_Rtt_RegisterCameras	L1	agree	decomp:re/decomp/140140fb0.c;xref:0x14014e54f	V2521 20-iteration rttCamera%d loop, vcall +0x38 register confirmed
+2026-10-30	d5-verify	func	Ne_Rtt_UnregisterGenerators	L1	agree	decomp:re/decomp/14015f750.c;xref:0x14015eacb	V2522 camera%u/_nj/_pr and weather generator names confirmed
+2026-10-30	d5-verify	func	Ne_Rtt_DefaultCallback	L1	agree	decomp:re/decomp/140174f50.c;xref:0x1434f236a	V2523 logs default-callback string under renderToTextureCallback
+2026-10-30	d5-verify	func	Ne_Gfx2TextureManager_SetInRaceOff	L1	agree	decomp:re/decomp/1401775b0.c;xref:0x14023a6e8	V2524 clears +0x4c8, msgs 0x28=0x1200e4,0x25=3,0x20 bool; also 0x38,0xc,0x23
+2026-10-30	d5-verify	func	Ne_Gfx2TextureManager_SetInRaceOn	L1	agree	decomp:re/decomp/1401777e0.c;xref:0x14023a6e8	V2525 sets +0x4c8=1, 0x28=0x1000e0, 0x25=3, sets 0x145f9707c
+2026-10-30	d5-verify	func	Game_CutSceneScript_ActivateExtraWorld	L1	agree	decomp:re/decomp/140238170.c;xref:0x140362225	V2526 activateExtraWorld log, calls DeactivatePrimaryWorld, crowd msg 7 ready
+2026-10-30	d5-verify	func	Game_CutSceneScript_SetStateFinished	L1	agree	decomp:re/decomp/140238af0.c;xref:0x140362c85	V2527 setStateFinished log, deactivateExtraWorld, notifyInvalidateCrowdData path
+2026-10-30	d5-verify	func	Game_CutSceneScript_DeactivatePrimaryWorld	L1	agree	decomp:re/decomp/14024dfd0.c;xref:0x140238170	V2528 primary world +0xe8 and primary_livery by name; crowd msg 6; secondary not verified
+2026-10-30	d5-verify	func	Game_CutSceneScript_ActivatePrimaryWorld	L1	agree	decomp:re/decomp/14024e180.c;xref:0x140238f2c	V2529 activatePrimaryWorld log; podium-crowd.layer string present; crowd msg 7
+2026-10-30	d5-verify	func	Game_Pod2019FirstScript_Shutdown	L1	agree	decomp:re/decomp/140363420.c;xref:0x1455f6f30	V2530 pod_2019_1st_script::shutdown, VideoModuleQueue release, chains to Podium2019/PodiumBase shutdown
+2026-10-30	d5-verify	func	Game_Pod2019FirstScript_OnShutDownComplete	L1	agree	decomp:re/decomp/140363700.c;xref:0x1455f6f38	V2531 onShutDownComplete log chain, setStateShutdown
+2026-10-30	d5-verify	func	Game_Pod2019FirstScript_Initialise	L1	agree	decomp:re/decomp/140363850.c;xref:0x1455f6ee0	V2532 strings confirm runon/tunnelWalk/flyover/crowd_wide/champagne/podium_audio/pod_emote
+2026-10-30	d5-verify	func	Game_CareerEventsSequencer_SetLoadingEnabled	L1	agree	decomp:re/decomp/140c77ed0.c;xref:0x142d5111b	V2533 +0x168 set, texmgr +0x21d bits3-4=1 (value 8), +0x220=0 under SRW +0x590
+2026-10-30	d5-verify	func	Game_CareerEventsSequencer_SetAllEnabled	L1	agree	decomp:re/decomp/140c7a210.c;xref:0x140c7a210	V2534 sets +0x168/+0x169/+0x16a, purgeAll(0) when enabling
+2026-10-30	d5-verify	func	Game_CareerEventsSequencer_UnloadAll	L1	agree	decomp:re/decomp/140c7a510.c;xref:0x140c7a510	V2535 unSpawn x4, unloadActors, ShutdownExtraWorlds, purgeAll(0); primary reactivation not visible in decomp
+2026-10-30	d5-verify	func	Game_CareerEventResourceManager_DeactivateExtraWorld	L1	agree	decomp:re/decomp/140c7ac60.c;xref:0x140c7a657	V2536 strings deactivateExtraWorld/releaseWarmedTextures/CUTSCENE_TEXTURE_CONTROL/setInRace
+2026-10-30	d5-verify	func	Game_CareerEventResourceManager_ShutdownExtraWorlds	L1	agree	decomp:re/decomp/140c7ce90.c;xref:0x140c7a657	V2537 shutdownExtraWorld strings incl m_watingforWorldToShutdown
+2026-10-30	d5-verify	func	Game_StreamingAssetLoadTask_Update	L1	agree	decomp:re/decomp/142d4b6a0.c;xref:0x142d4a477	V2538 state 0 start load, state 2 wait, &=0xdf unpause with setStreamingPaused false log, completion +0x220
+2026-10-30	d5-verify	func	Game_SessionState_EnableOnDemandTextureStreaming	L1	agree	decomp:re/decomp/142d873c0.c;xref:0x1457e15d0	V2539 setStreamingOnDemandEnabled true, +0x21c|=8, returns 1
+2026-10-30	d5-verify	func	Game_RttTaskManager_OnTaskComplete	L1	agree	decomp:re/decomp/1434f0660.c;xref:0x1434f062a	V2540 Received Task Complete callback string
+2026-10-30	d5-verify	func	Game_RttTaskManager_ProcessCompletedTasks	L1	agree	decomp:re/decomp/1434f0950.c;xref:0x1458465a8	V2541 processCompletedRenderTask, cleanupTaskResources, Disabling RTT Renderer
+2026-10-30	d5-verify	func	Game_RttTaskManager_StartTask	L1	agree	decomp:re/decomp/1434f0fe0.c;xref:0x1434f35f0	V2542 Failed to start no generators, Enabling RTT Renderer, Starting render task ID strings
+2026-10-30	d5-verify	func	Game_RttTaskManager_QueueTask	L1	agree	decomp:re/decomp/1434f2eb0.c;xref:0x14f34629e	V2543 queue fallback string present
+2026-10-30	d5-verify	func	Game_RttTaskManager_CleanupTask	L1	agree	decomp:re/decomp/1434f3be0.c;xref:0x1434f0ef4	V2544 Cleanup task ID, from render tasks/pending entries/entries strings
+2026-10-30	d5-verify	func	Ne_SaveError_SetFmt	L1	agree	decomp:re/decomp/1436593b0.c;xref:0x1436593b0	V2545 param_1 = code stored to errno list and trace ring (5 entries x16 bytes), logs on SAVE
+2026-10-30	d5-verify	func	Ne_Gfx2Renderer_Initialise	L1	agree	decomp:re/decomp/143b5eb60.c;xref:0x144476b6a	V2546 streamingCacheSize default 0x12c00000; _ext key for platforms 2,5,10 (mask 0x424); streamingMemoryReserve_ext; enableIblOnRtt confirmed
+2026-10-30	d5-verify	func	Ne_Gfx2Renderer_RenderFrame	L1	agree	decomp:re/decomp/143b77ea0.c;xref:0x144478911	V2547 large render-thread frame function; not fully re-verified
+2026-10-30	d5-verify	func	Ne_RttRenderer_SubmitJob	L1	agree	decomp:re/decomp/143d8e380.c;xref:0x140176b54	V2548 RTT Job null/invalid camera/invalid texture/no gbuffer strings
+2026-10-30	d5-verify	func	Ne_RttRenderer_FlushJobs	L1	agree	decomp:re/decomp/143d8efd0.c;xref:0x140176b6e	V2549 RTT - flushed %d jobs
+2026-10-30	d5-verify	func	Ne_CrowdPluginProxy_Destructor	L1	agree	decomp:re/decomp/143e9e350.c;xref:0x1458e6b00	V2550 ~NeCrowdPluginProxy and PROXY_MESSAGE_ID_CLOSE strings
+2026-10-30	d5-verify	func	Ne_VideoInstance_Close	L1	agree	decomp:re/decomp/143f87360.c;xref:0x145a41a28	V2551 BinkDoFrameAsyncWait +0x118 when +0x53c, BinkClose(+0x118), stop_bink_* strings, render resources removed
+2026-10-30	d5-verify	func	Ne_Video_InitBinkThreads	L1	agree	decomp:re/decomp/143f8caa0.c;xref:0x152bea147	V2552 bink thread #%d initialised, using core %d strings
+2026-10-30	d5-verify	func	Ne_VideoManager_OpenVideo	L1	agree	decomp:re/decomp/143f8ddc0.c;xref:0x143f938ab	V2553 open video string; handle param_2 name param_3; open list +0xa0
+2026-10-30	d5-verify	func	Ne_VideoManager_PlayVideo	L1	agree	decomp:re/decomp/143f90900.c;xref:0x143f938dd	V2554 0x16 if handle missing, 0 if already in playing list +0x60, 400-byte command
+2026-10-30	d5-verify	func	Ne_VideoManager_PlayIntervalFrames	L1	agree	decomp:re/decomp/143f90e70.c;xref:0x143f93901	V2555 u32 param_3/param_4 frames
+2026-10-30	d5-verify	func	Ne_VideoManager_PlayIntervalSeconds	L1	agree	decomp:re/decomp/143f913a0.c;xref:0x143f93929	V2556 float param_3/param_4
+2026-10-30	d5-verify	func	Ne_VideoManager_PlayOneFrame	L1	agree	decomp:re/decomp/143f91990.c;xref:0x140257159	V2557 float time param_3, play one frame string
+2026-10-30	d5-verify	func	Ne_VideoManager_PauseVideo	L1	agree	decomp:re/decomp/143f91e90.c;xref:0x143f9393f	V2558 pause video string, 0x16 if unknown
+2026-10-30	d5-verify	func	Ne_VideoManager_ResumeVideo	L1	agree	decomp:re/decomp/143f92260.c;xref:0x1444b3abc	V2559 resume video string, 0x16 if unknown
+2026-10-30	d5-verify	func	Ne_VideoManager_StopVideo	L1	agree	decomp:re/decomp/143f92510.c;xref:0x143f93955	V2560 stop video string, playing list +0x60 removal, vcall +0x10 on +0x168 destroy
+2026-10-30	d5-verify	func	Ne_SaveSystem_ThreadProcessRequest	L1	agree	decomp:re/decomp/1441396a0.c;xref:0x145a5c550	V2561 event +0x438, list +0x3d8, current +0x478, result +0x34=0x24, switch on +0x18 with vtable offsets as claimed, Unknown operation type string
+2026-10-30	d5-verify	func	Ne_SaveError_Win32FmtU	L1	agree	decomp:re/decomp/144144700.c;xref:0x14413ad6d	V2562 fixed code 0x58, fmt + one u32
+2026-10-30	d5-verify	func	Ne_SaveError_Win32FmtSSU	L1	agree	decomp:re/decomp/144148040.c;xref:0x144147c9e	V2563 fixed code 0x58, fmt + 2 strings + u32
+2026-10-30	d5-verify	func	Ne_SaveError_NotDirectoryFmtSS	L1	agree	decomp:re/decomp/144148260.c;xref:0x144147c9e	V2564 fixed code 2, fmt + 2 args
+2026-10-30	d5-verify	func	Ne_SaveSystem2Win_EmptyDirectory	L1	agree	decomp:re/decomp/144148480.c;xref:0x14413ad6d	V2565 Empty directory requested/result strings, FindFirst/Next, DeleteFile error strings
+2026-10-30	d5-verify	func	Ne_SaveError_Win32FmtSU	L1	agree	decomp:re/decomp/14414ad20.c;xref:0x14414ab50	V2566 fixed code 0x58, fmt + string + u32
+2026-10-30	d5-verify	func	Ne_SaveSystem2Win_RenameDirectory	L1	agree	decomp:re/decomp/14414b150.c;xref:0x14414ab50	V2567 Rename directory requested/result strings, MoveFileExW error strings; Create directory strings also present
+2026-10-30	d5-verify	func	Ne_SaveError_EncryptionSourceFailed	L1	agree	decomp:re/decomp/14414c780.c;xref:0x14413e8ad	V2568 fixed code 0x58 and fixed message
+2026-10-30	d5-verify	func	Ne_SaveError_SetFmtWS	L1	agree	decomp:re/decomp/14414c9a0.c;xref:0x144148480	V2569 code param_1, fmt param_2, wchar by value + char*
+2026-10-30	d5-verify	func	Ne_SaveError_SelectedIndexOutOfRange	L1	agree	decomp:re/decomp/14414cbb0.c;xref:0x14414014b	V2570 fixed code 0x22 and message confirmed
+2026-10-30	d5-verify	func	Ne_SaveSystem2Win_SaveSelected	L1	agree	decomp:re/decomp/144152070.c;xref:0x14414014b	V2571 Save selected requested/result strings, lock vcall +0x60/+0x68, UI busy +0x1c8/+0x1d0, Mount/Process/Unmount chain
+2026-10-30	d5-verify	func	Ne_SaveError_TransformFailed	L1	agree	decomp:re/decomp/144152410.c;xref:0x14413e9c5	V2572 code param_1, message confirmed
+2026-10-30	d5-verify	func	Ne_SaveError_SetFmtSSS	L1	agree	decomp:re/decomp/144152630.c;xref:0x144152630	V2573 code param_1, fmt + 3 strings
+2026-10-30	d5-verify	func	Ne_SaveError_Win32FmtSSSU	L1	agree	decomp:re/decomp/144152850.c;xref:0x144152850	V2574 fixed code 0x58, fmt + 3 strings + u32
+2026-10-30	d5-verify	func	Ne_SaveError_CorruptFmtSUU	L1	agree	decomp:re/decomp/144152a80.c;xref:0x144152a80	V2575 fixed code 0x56
+2026-10-30	d5-verify	func	Ne_SaveError_ThumbnailTooLarge	L1	agree	decomp:re/decomp/1441532d0.c;xref:0x14413ea74	V2576 fixed code 0x56, limit 0x4000, size is u16
+2026-10-30	d5-verify	func	Ne_WorldLoadTask_Update	L1	agree	decomp:re/decomp/14442a090.c;xref:0x1457e6a78	V2577 state +200, name +0xa0, crowd msg 6, world +0xe8, list +0xf0; create call passes primary_livery

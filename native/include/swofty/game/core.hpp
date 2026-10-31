@@ -138,6 +138,7 @@ inline constexpr fn<"Ne_Compare_StringNoCase", Ne_Compare_StringNoCase_t> Ne_Com
 inline constexpr address<"Ne_CrowdAnimationLoader_LoadBehavioursInStage"> Ne_CrowdAnimationLoader_LoadBehavioursInStage{}; // L2 experimental, NeCrowdAnimationLoader::loadBehavioursInStage
 inline constexpr address<"Ne_CrowdAnimationLoader_OnAnimClipChanged"> Ne_CrowdAnimationLoader_OnAnimClipChanged{}; // L2 experimental, NeCrowdAnimationLoader::onAnimClipChanged
 inline constexpr address<"Ne_CrowdPluginConnection_ProcessMessage"> Ne_CrowdPluginConnection_ProcessMessage{}; // L2 experimental, NeCrowdPluginConnection::processMessage
+inline constexpr address<"Ne_CrowdPluginProxy_Destructor"> Ne_CrowdPluginProxy_Destructor{}; // L2 experimental
 inline constexpr address<"Ne_CrowdPlugin_LoadXml"> Ne_CrowdPlugin_LoadXml{}; // L2 experimental
 inline constexpr address<"Ne_Crt_Atanf"> Ne_Crt_Atanf{}; // L2 experimental
 inline constexpr address<"Ne_Crt_Powf"> Ne_Crt_Powf{}; // L2 experimental
@@ -167,6 +168,9 @@ using Ne_Get_SettingBool_t = uint64_t(void *node, const char *name, uint8_t *out
 inline constexpr fn<"Ne_Get_SettingBool", Ne_Get_SettingBool_t> Ne_Get_SettingBool{}; // L2 experimental
 using Ne_Get_SettingU32_t = uint64_t(void *node, const char *name, uint32_t *out, uint32_t def);
 inline constexpr fn<"Ne_Get_SettingU32", Ne_Get_SettingU32_t> Ne_Get_SettingU32{}; // L2 experimental
+inline constexpr address<"Ne_Gfx2Renderer_Initialise"> Ne_Gfx2Renderer_Initialise{}; // L2 experimental
+inline constexpr address<"Ne_Gfx2TextureManager_SetInRaceOff"> Ne_Gfx2TextureManager_SetInRaceOff{}; // L2 experimental
+inline constexpr address<"Ne_Gfx2TextureManager_SetInRaceOn"> Ne_Gfx2TextureManager_SetInRaceOn{}; // L2 experimental
 using Ne_Heap_DeallocateNonSmall_t = uint64_t(void *heap, uint8_t *ptr);
 inline constexpr fn<"Ne_Heap_DeallocateNonSmall", Ne_Heap_DeallocateNonSmall_t> Ne_Heap_DeallocateNonSmall{}; // L2 experimental
 inline constexpr address<"Ne_IBLCubeProbe_FreeInterpolatedArrays"> Ne_IBLCubeProbe_FreeInterpolatedArrays{}; // L2 experimental
@@ -296,8 +300,29 @@ inline constexpr address<"Ne_ReplaySystem_ForceReset"> Ne_ReplaySystem_ForceRese
 inline constexpr address<"Ne_ReplaySystem_ResetSlot24"> Ne_ReplaySystem_ResetSlot24{}; // L2 experimental
 inline constexpr address<"Ne_Replay_SetState"> Ne_Replay_SetState{}; // L2 experimental
 inline constexpr address<"Ne_RobinHoodMap_U8F_Insert"> Ne_RobinHoodMap_U8F_Insert{}; // L2 experimental
+inline constexpr address<"Ne_RttRenderer_FlushJobs"> Ne_RttRenderer_FlushJobs{}; // L2 experimental
+inline constexpr address<"Ne_RttRenderer_SubmitJob"> Ne_RttRenderer_SubmitJob{}; // L2 experimental
+inline constexpr address<"Ne_Rtt_DefaultCallback"> Ne_Rtt_DefaultCallback{}; // L2 experimental
+inline constexpr address<"Ne_Rtt_RegisterCameras"> Ne_Rtt_RegisterCameras{}; // L2 experimental
+inline constexpr address<"Ne_Rtt_UnregisterGenerators"> Ne_Rtt_UnregisterGenerators{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_CorruptFmtSUU"> Ne_SaveError_CorruptFmtSUU{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_EncryptionSourceFailed"> Ne_SaveError_EncryptionSourceFailed{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_NotDirectoryFmtSS"> Ne_SaveError_NotDirectoryFmtSS{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_SelectedIndexOutOfRange"> Ne_SaveError_SelectedIndexOutOfRange{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_SetFmt"> Ne_SaveError_SetFmt{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_SetFmtSSS"> Ne_SaveError_SetFmtSSS{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_SetFmtWS"> Ne_SaveError_SetFmtWS{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_ThumbnailTooLarge"> Ne_SaveError_ThumbnailTooLarge{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_TransformFailed"> Ne_SaveError_TransformFailed{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_Win32FmtSSSU"> Ne_SaveError_Win32FmtSSSU{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_Win32FmtSSU"> Ne_SaveError_Win32FmtSSU{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_Win32FmtSU"> Ne_SaveError_Win32FmtSU{}; // L2 experimental
+inline constexpr address<"Ne_SaveError_Win32FmtU"> Ne_SaveError_Win32FmtU{}; // L2 experimental
+inline constexpr address<"Ne_SaveSystem2Win_EmptyDirectory"> Ne_SaveSystem2Win_EmptyDirectory{}; // L2 experimental
 using Ne_SaveSystem2Win_Mount_t = uint32_t(void *device, void *op, void *save, uint8_t for_saving, uint8_t a5, uint8_t *created);
 inline constexpr fn<"Ne_SaveSystem2Win_Mount", Ne_SaveSystem2Win_Mount_t> Ne_SaveSystem2Win_Mount{}; // L2 experimental
+inline constexpr address<"Ne_SaveSystem2Win_RenameDirectory"> Ne_SaveSystem2Win_RenameDirectory{}; // L2 experimental
+inline constexpr address<"Ne_SaveSystem2Win_SaveSelected"> Ne_SaveSystem2Win_SaveSelected{}; // L2 experimental
 using Ne_SaveSystem2Win_Start_t = uint64_t(void *device);
 inline constexpr fn<"Ne_SaveSystem2Win_Start", Ne_SaveSystem2Win_Start_t> Ne_SaveSystem2Win_Start{}; // L2 experimental
 inline constexpr address<"Ne_SaveSystem2Win_WriteInfoXml"> Ne_SaveSystem2Win_WriteInfoXml{}; // L2 experimental
@@ -316,6 +341,7 @@ inline constexpr address<"Ne_SaveSystem_SelectAndDelete"> Ne_SaveSystem_SelectAn
 inline constexpr address<"Ne_SaveSystem_SelectAndLoad"> Ne_SaveSystem_SelectAndLoad{}; // L2 experimental
 inline constexpr address<"Ne_SaveSystem_SelectAndSave"> Ne_SaveSystem_SelectAndSave{}; // L2 experimental
 inline constexpr address<"Ne_SaveSystem_Terminate"> Ne_SaveSystem_Terminate{}; // L2 experimental
+inline constexpr address<"Ne_SaveSystem_ThreadProcessRequest"> Ne_SaveSystem_ThreadProcessRequest{}; // L2 experimental
 inline constexpr address<"Ne_SequenceAudioStreamPacket_PreloadAudioStream"> Ne_SequenceAudioStreamPacket_PreloadAudioStream{}; // L2 experimental, NeSequenceAudioStreamPacket::preloadAudioStream
 inline constexpr address<"Ne_SequenceClipInstance_BindOptional"> Ne_SequenceClipInstance_BindOptional{}; // L2 experimental, NeSequenceClipInstance::bindOptional
 inline constexpr address<"Ne_SequenceResource_CreateResource"> Ne_SequenceResource_CreateResource{}; // L2 experimental, NeSequenceResource::createResource
@@ -349,7 +375,17 @@ inline constexpr address<"Ne_Ugc_DeleteTemporaryFiles"> Ne_Ugc_DeleteTemporaryFi
 inline constexpr address<"Ne_Ugc_GameOverlayActivatedCallback"> Ne_Ugc_GameOverlayActivatedCallback{}; // L2 experimental
 inline constexpr address<"Ne_Ugc_ReadInstalledItem"> Ne_Ugc_ReadInstalledItem{}; // L2 experimental
 inline constexpr address<"Ne_Ugc_UpdateItemCallback"> Ne_Ugc_UpdateItemCallback{}; // L2 experimental
+inline constexpr address<"Ne_VideoInstance_Close"> Ne_VideoInstance_Close{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_OpenVideo"> Ne_VideoManager_OpenVideo{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_PauseVideo"> Ne_VideoManager_PauseVideo{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_PlayIntervalFrames"> Ne_VideoManager_PlayIntervalFrames{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_PlayIntervalSeconds"> Ne_VideoManager_PlayIntervalSeconds{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_PlayOneFrame"> Ne_VideoManager_PlayOneFrame{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_PlayVideo"> Ne_VideoManager_PlayVideo{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_ResumeVideo"> Ne_VideoManager_ResumeVideo{}; // L2 experimental
+inline constexpr address<"Ne_VideoManager_StopVideo"> Ne_VideoManager_StopVideo{}; // L2 experimental
 inline constexpr address<"Ne_VideoResource_Destroy"> Ne_VideoResource_Destroy{}; // L2 experimental, NeVideoResource::~NeVideoResource
+inline constexpr address<"Ne_Video_InitBinkThreads"> Ne_Video_InitBinkThreads{}; // L2 experimental
 inline constexpr address<"Ne_WindowWin_MonitorEnumProc"> Ne_WindowWin_MonitorEnumProc{}; // L2 experimental, NeWindowWin::monitorEnumProc
 inline constexpr address<"Ne_WindowWin_ResizeTarget"> Ne_WindowWin_ResizeTarget{}; // L2 experimental, NeWindowWin::resizeTarget
 inline constexpr address<"Ne_WindowWin_SaveWindowPosition"> Ne_WindowWin_SaveWindowPosition{}; // L2 experimental, NeWindowWin::saveWindowPosition
@@ -365,6 +401,7 @@ inline constexpr address<"Ne_WorldInstance_DestroyAllWorldObjectsInLayer"> Ne_Wo
 inline constexpr address<"Ne_WorldInstance_PreWarmTextures"> Ne_WorldInstance_PreWarmTextures{}; // L2 experimental
 inline constexpr address<"Ne_WorldInstance_ReleaseWarmedTextures"> Ne_WorldInstance_ReleaseWarmedTextures{}; // L2 experimental
 inline constexpr address<"Ne_WorldLayerModule_DeregisterLayer"> Ne_WorldLayerModule_DeregisterLayer{}; // L2 experimental, NeWorldLayerModule::deregisterLayer
+inline constexpr address<"Ne_WorldLoadTask_Update"> Ne_WorldLoadTask_Update{}; // L2 experimental
 inline constexpr data<"g_Ne_DefaultAllocator", void *> g_Ne_DefaultAllocator{}; // L2 experimental
 inline constexpr data<"g_Ne_LogGate", NeLogGate> g_Ne_LogGate{}; // L2 experimental
 inline constexpr data<"g_Ne_NameTable", void *> g_Ne_NameTable{}; // L2 experimental
