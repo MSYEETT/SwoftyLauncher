@@ -4896,6 +4896,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_Complete_Update: Binding = Binding {
+        id: "Sess_Complete_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_ControllerSystem_ApplyInputs: Binding = Binding {
         id: "Sess_ControllerSystem_ApplyInputs",
         kind: "func",
@@ -4916,8 +4921,18 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_DelayOnLoadingScreen_Update: Binding = Binding {
+        id: "Sess_DelayOnLoadingScreen_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_DoughnutSequence_Enter: Binding = Binding {
         id: "Sess_DoughnutSequence_Enter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_DoughnutSequence_Update: Binding = Binding {
+        id: "Sess_DoughnutSequence_Update",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4933,6 +4948,16 @@ pub mod bindings {
     };
     pub const Sess_DriveThroughPenalty_SendData_2: Binding = Binding {
         id: "Sess_DriveThroughPenalty_SendData_2",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_EditMode_OnStateEnter: Binding = Binding {
+        id: "Sess_EditMode_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_EditMode_OnStateExit: Binding = Binding {
+        id: "Sess_EditMode_OnStateExit",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4996,6 +5021,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_FormationLap_OnStateExit: Binding = Binding {
+        id: "Sess_FormationLap_OnStateExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_FormationLap_Update: Binding = Binding {
         id: "Sess_FormationLap_Update",
         kind: "func",
@@ -5021,6 +5051,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_GarageState_OnStateExit: Binding = Binding {
+        id: "Sess_GarageState_OnStateExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_GarageState_RefreshHudVisibility: Binding = Binding {
+        id: "Sess_GarageState_RefreshHudVisibility",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Get_PlayerVehicleIndex: Binding = Binding {
         id: "Sess_Get_PlayerVehicleIndex",
         kind: "func",
@@ -5036,8 +5076,33 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_InGameRace_OnStateExit: Binding = Binding {
+        id: "Sess_InGameRace_OnStateExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_InGameRace_Update: Binding = Binding {
+        id: "Sess_InGameRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_InGame_OnStateExitHideHud: Binding = Binding {
+        id: "Sess_InGame_OnStateExitHideHud",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_InGame_UpdateBase: Binding = Binding {
         id: "Sess_InGame_UpdateBase",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_IntroVideo_OnStateEnter: Binding = Binding {
+        id: "Sess_IntroVideo_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_IntroVideo_OnVideoDoneFadeIn: Binding = Binding {
+        id: "Sess_IntroVideo_OnVideoDoneFadeIn",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5246,6 +5311,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_PostRaceSceneSetup_OnStateEnter: Binding = Binding {
+        id: "Sess_PostRaceSceneSetup_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreLights_OnStateEnter: Binding = Binding {
+        id: "Sess_PreLights_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_PreLights_Update: Binding = Binding {
         id: "Sess_PreLights_Update",
         kind: "func",
@@ -5253,6 +5328,11 @@ pub mod bindings {
     };
     pub const Sess_PreRaceToRace_Update: Binding = Binding {
         id: "Sess_PreRaceToRace_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreRace_OnStateExit: Binding = Binding {
+        id: "Sess_PreRace_OnStateExit",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5736,6 +5816,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_SpectatorHud_Show: Binding = Binding {
+        id: "Sess_SpectatorHud_Show",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_SpeedLimitPenalty_ReceiveData: Binding = Binding {
         id: "Sess_SpeedLimitPenalty_ReceiveData",
         kind: "func",
@@ -5771,6 +5856,21 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_State_OnPauseRequested: Binding = Binding {
+        id: "Sess_State_OnPauseRequested",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_State_Pause: Binding = Binding {
+        id: "Sess_State_Pause",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_State_Unpause: Binding = Binding {
+        id: "Sess_State_Unpause",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_StopGoPenalty_ReceiveData: Binding = Binding {
         id: "Sess_StopGoPenalty_ReceiveData",
         kind: "func",
@@ -5788,6 +5888,16 @@ pub mod bindings {
     };
     pub const Sess_StoryPreLights_Update: Binding = Binding {
         id: "Sess_StoryPreLights_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StoryRollingStart_OnStateEnter: Binding = Binding {
+        id: "Sess_StoryRollingStart_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_StoryStartLights_OnStateEnter: Binding = Binding {
+        id: "Sess_StoryStartLights_OnStateEnter",
         kind: "func",
         status: Status::Experimental,
     };
