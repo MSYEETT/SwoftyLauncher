@@ -4601,6 +4601,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_SteamTransport_FlushPeerBuffers: Binding = Binding {
+        id: "Ne_SteamTransport_FlushPeerBuffers",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_SteamTransport_QueuePacket: Binding = Binding {
+        id: "Ne_SteamTransport_QueuePacket",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_StringTable_Lookup: Binding = Binding {
         id: "Ne_StringTable_Lookup",
         kind: "func",
@@ -5256,6 +5266,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_NetJournalMonitorState_OnExit: Binding = Binding {
+        id: "Sess_NetJournalMonitorState_OnExit",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_OsqTeleportToStart: Binding = Binding {
         id: "Sess_OsqTeleportToStart",
         kind: "func",
@@ -5323,6 +5338,11 @@ pub mod bindings {
     };
     pub const Sess_PreLights_Update: Binding = Binding {
         id: "Sess_PreLights_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_PreRaceGridState_OnEnter: Binding = Binding {
+        id: "Sess_PreRaceGridState_OnEnter",
         kind: "func",
         status: Status::Experimental,
     };
@@ -5853,6 +5873,11 @@ pub mod bindings {
     };
     pub const Sess_Start_VehiclesInGarages: Binding = Binding {
         id: "Sess_Start_VehiclesInGarages",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_State_EnterOnTrackCommon: Binding = Binding {
+        id: "Sess_State_EnterOnTrackCommon",
         kind: "func",
         status: Status::Experimental,
     };

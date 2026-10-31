@@ -311,6 +311,7 @@ inline constexpr address<"Sess_Misconduct_OnCarToCarCollision"> Sess_Misconduct_
 inline constexpr address<"Sess_MultipleWarningsPenalty_ReceiveData"> Sess_MultipleWarningsPenalty_ReceiveData{}; // L2 experimental
 inline constexpr address<"Sess_MultipleWarningsPenalty_SendData"> Sess_MultipleWarningsPenalty_SendData{}; // L2 experimental
 inline constexpr address<"Sess_MultipleWarningsPenalty_SendData_2"> Sess_MultipleWarningsPenalty_SendData_2{}; // L2 experimental
+inline constexpr address<"Sess_NetJournalMonitorState_OnExit"> Sess_NetJournalMonitorState_OnExit{}; // L2 experimental
 inline constexpr address<"Sess_OsqTeleportToStart"> Sess_OsqTeleportToStart{}; // L2 experimental
 inline constexpr address<"Sess_OvertakeLog_SendAllRecords"> Sess_OvertakeLog_SendAllRecords{}; // L2 experimental
 inline constexpr address<"Sess_PQRuleset_FinaliseResults"> Sess_PQRuleset_FinaliseResults{}; // L2 experimental
@@ -326,6 +327,7 @@ inline constexpr address<"Sess_PlayerTerminalDamage_Enter"> Sess_PlayerTerminalD
 inline constexpr address<"Sess_PostRaceSceneSetup_OnStateEnter"> Sess_PostRaceSceneSetup_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_PreLights_OnStateEnter"> Sess_PreLights_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_PreLights_Update"> Sess_PreLights_Update{}; // L2 experimental
+inline constexpr address<"Sess_PreRaceGridState_OnEnter"> Sess_PreRaceGridState_OnEnter{}; // L2 experimental
 using Sess_PreRaceToRace_Update_t = uint32_t *(void *state, uint32_t *route);
 inline constexpr fn<"Sess_PreRaceToRace_Update", Sess_PreRaceToRace_Update_t> Sess_PreRaceToRace_Update{}; // L2 experimental
 inline constexpr address<"Sess_PreRace_OnStateExit"> Sess_PreRace_OnStateExit{}; // L2 experimental
@@ -445,6 +447,7 @@ inline constexpr address<"Sess_StartLightsSync_MustAdvance"> Sess_StartLightsSyn
 inline constexpr address<"Sess_StartLights_Enter"> Sess_StartLights_Enter{}; // L2 experimental
 inline constexpr address<"Sess_StartLights_Init"> Sess_StartLights_Init{}; // L2 experimental
 inline constexpr address<"Sess_Start_VehiclesInGarages"> Sess_Start_VehiclesInGarages{}; // L2 experimental
+inline constexpr address<"Sess_State_EnterOnTrackCommon"> Sess_State_EnterOnTrackCommon{}; // L2 experimental
 inline constexpr address<"Sess_State_OnPauseRequested"> Sess_State_OnPauseRequested{}; // L2 experimental
 inline constexpr address<"Sess_State_Pause"> Sess_State_Pause{}; // L2 experimental
 inline constexpr address<"Sess_State_Unpause"> Sess_State_Unpause{}; // L2 experimental

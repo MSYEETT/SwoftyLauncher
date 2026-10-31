@@ -358,6 +358,8 @@ inline constexpr address<"Ne_SaveSystem_ThreadProcessRequest"> Ne_SaveSystem_Thr
 inline constexpr address<"Ne_SequenceAudioStreamPacket_PreloadAudioStream"> Ne_SequenceAudioStreamPacket_PreloadAudioStream{}; // L2 experimental, NeSequenceAudioStreamPacket::preloadAudioStream
 inline constexpr address<"Ne_SequenceClipInstance_BindOptional"> Ne_SequenceClipInstance_BindOptional{}; // L2 experimental, NeSequenceClipInstance::bindOptional
 inline constexpr address<"Ne_SequenceResource_CreateResource"> Ne_SequenceResource_CreateResource{}; // L2 experimental, NeSequenceResource::createResource
+inline constexpr address<"Ne_SteamTransport_FlushPeerBuffers"> Ne_SteamTransport_FlushPeerBuffers{}; // L2 experimental
+inline constexpr address<"Ne_SteamTransport_QueuePacket"> Ne_SteamTransport_QueuePacket{}; // L2 experimental
 using Ne_StringTable_Lookup_t = const char *(void *table, uint64_t hash);
 inline constexpr fn<"Ne_StringTable_Lookup", Ne_StringTable_Lookup_t> Ne_StringTable_Lookup{}; // L3 stable
 inline constexpr address<"Ne_TerrainResource_GetMaterialResourcel"> Ne_TerrainResource_GetMaterialResourcel{}; // L2 experimental, NeTerrainResource::getMaterialResourcel
