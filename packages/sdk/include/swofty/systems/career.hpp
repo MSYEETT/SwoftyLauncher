@@ -56,7 +56,7 @@ struct Requirement {
 SWOFTY_RECORD(Requirement, id, range, why)
 
 struct Content {
-    static constexpr Version version{1, 0};
+    static constexpr Version version{1, 1};
     Ref<ModeRecord> mode;
     Path tile;
     Ref<Content> model;
@@ -562,7 +562,7 @@ inline Result report_season(int year, int season_index)
     return detail::ops_result(t->report_season(year, season_index));
 }
 
-// Career saves (since 1.6.13, experimental). The core keeps an index of the careers it has seen, in the
+// Career saves (since 1.7.0, experimental). The core keeps an index of the careers it has seen, in the
 // launcher's data folder ($DATA/careers/index.json), and an addon's own data for each career beside it.
 // Every call reports unavailable on a core without the table (SwoftyCareerSaves, the core export
 // SwoftyCoreCareerSaves), and the index is empty then.

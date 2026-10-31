@@ -33,7 +33,7 @@ pub const CORE_REGISTRIES: &[(&str, &str)] = &[
     ("car.profile", "1.0"),
     ("career.calendar", "1.0"),
     ("career.character", "1.0"),
-    ("career.content", "1.0"),
+    ("career.content", "1.1"),
     ("career.driver_ratings", "1.0"),
     ("career.market", "1.0"),
     ("career.mode", "1.0"),
