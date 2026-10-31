@@ -290,6 +290,8 @@ inline constexpr address<"Ne_PresenceNameResolverEADP_UpdateToResolveList_Lambda
 using Ne_PresenceNameResolverFixed_AddName_t = void(void *resolver, const void *user, const char *name);
 inline constexpr fn<"Ne_PresenceNameResolverFixed_AddName", Ne_PresenceNameResolverFixed_AddName_t> Ne_PresenceNameResolverFixed_AddName{}; // L2 experimental, neon::NePresenceNameResolverFixed::addName
 inline constexpr address<"Ne_PresenceNameResolverFixed_StartResolving"> Ne_PresenceNameResolverFixed_StartResolving{}; // L2 experimental, neon::NePresenceNameResolverFixed::startResolving
+inline constexpr address<"Ne_ReplaySystem_ForceReset"> Ne_ReplaySystem_ForceReset{}; // L2 experimental
+inline constexpr address<"Ne_ReplaySystem_ResetSlot24"> Ne_ReplaySystem_ResetSlot24{}; // L2 experimental
 inline constexpr address<"Ne_Replay_SetState"> Ne_Replay_SetState{}; // L2 experimental
 inline constexpr address<"Ne_RobinHoodMap_U8F_Insert"> Ne_RobinHoodMap_U8F_Insert{}; // L2 experimental
 using Ne_SaveSystem2Win_Mount_t = uint32_t(void *device, void *op, void *save, uint8_t for_saving, uint8_t a5, uint8_t *created);

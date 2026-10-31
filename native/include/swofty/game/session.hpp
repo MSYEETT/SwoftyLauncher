@@ -243,6 +243,7 @@ inline constexpr address<"Sess_FormationLapLogic_CheckAllParked"> Sess_Formation
 inline constexpr address<"Sess_FormationLapLogic_IsActiveOtherType"> Sess_FormationLapLogic_IsActiveOtherType{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapLogic_IsActiveType0"> Sess_FormationLapLogic_IsActiveType0{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapLogic_Reset"> Sess_FormationLapLogic_Reset{}; // L2 experimental
+inline constexpr address<"Sess_FormationLapStartLights_OnStateEnter"> Sess_FormationLapStartLights_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapType_Update"> Sess_FormationLapType_Update{}; // L2 experimental
 using Sess_FormationLap_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
 inline constexpr fn<"Sess_FormationLap_Update", Sess_FormationLap_Update_t> Sess_FormationLap_Update{}; // L2 experimental
@@ -343,6 +344,7 @@ inline constexpr address<"Sess_RedFlag_SimulateUnlapLaps"> Sess_RedFlag_Simulate
 inline constexpr address<"Sess_Register_EntrantSetupMode"> Sess_Register_EntrantSetupMode{}; // L2 experimental
 using Sess_Register_RaceRecordables_t = void(void *game);
 inline constexpr fn<"Sess_Register_RaceRecordables", Sess_Register_RaceRecordables_t> Sess_Register_RaceRecordables{}; // L2 experimental
+inline constexpr address<"Sess_ResetReplay_OnStateEnter"> Sess_ResetReplay_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_ResetReplay_Update"> Sess_ResetReplay_Update{}; // L2 experimental
 inline constexpr address<"Sess_Result_ChangeVehicleStatus"> Sess_Result_ChangeVehicleStatus{}; // L2 experimental
 inline constexpr address<"Sess_Result_DecodeVehicleResult"> Sess_Result_DecodeVehicleResult{}; // L2 experimental
@@ -406,6 +408,7 @@ inline constexpr address<"Sess_ScState_VscDeploy_Enter"> Sess_ScState_VscDeploy_
 inline constexpr address<"Sess_ScState_VscEnding_Enter"> Sess_ScState_VscEnding_Enter{}; // L2 experimental
 inline constexpr address<"Sess_ScState_VscEnding_Exit"> Sess_ScState_VscEnding_Exit{}; // L2 experimental
 inline constexpr address<"Sess_SessionClock_SetTime"> Sess_SessionClock_SetTime{}; // L2 experimental
+inline constexpr address<"Sess_SessionExit_OnStateEnter"> Sess_SessionExit_OnStateEnter{}; // L2 experimental
 inline constexpr address<"Sess_Session_ResetForRestart"> Sess_Session_ResetForRestart{}; // L2 experimental
 inline constexpr address<"Sess_Set_RowsAvailable"> Sess_Set_RowsAvailable{}; // L2 experimental
 using Sess_Set_SafetyCarDeploymentType_t = void(void *sc_state, const void *sc_deployment_msg);

@@ -4139,6 +4139,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_ReplaySystem_ForceReset: Binding = Binding {
+        id: "Ne_ReplaySystem_ForceReset",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_ReplaySystem_ResetSlot24: Binding = Binding {
+        id: "Ne_ReplaySystem_ResetSlot24",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_Replay_SetState: Binding = Binding {
         id: "Ne_Replay_SetState",
         kind: "func",
@@ -4574,6 +4584,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_FormationLapStartLights_OnStateEnter: Binding = Binding {
+        id: "Sess_FormationLapStartLights_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_FormationLapType_Update: Binding = Binding {
         id: "Sess_FormationLapType_Update",
         kind: "func",
@@ -4974,6 +4989,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_ResetReplay_OnStateEnter: Binding = Binding {
+        id: "Sess_ResetReplay_OnStateEnter",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_ResetReplay_Update: Binding = Binding {
         id: "Sess_ResetReplay_Update",
         kind: "func",
@@ -5261,6 +5281,11 @@ pub mod bindings {
     };
     pub const Sess_SessionClock_SetTime: Binding = Binding {
         id: "Sess_SessionClock_SetTime",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_SessionExit_OnStateEnter: Binding = Binding {
+        id: "Sess_SessionExit_OnStateEnter",
         kind: "func",
         status: Status::Experimental,
     };
