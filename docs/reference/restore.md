@@ -53,7 +53,7 @@ Modded play waits for the setup in `swofty_core::setup`. The launcher opens it o
 3. The player verifies the game files in Steam or repairs them in the EA app. A player who says no other mods are in the folder skips this on a Steam copy whose depot manifests `setup::store_checks` can read, when the restore put every file back: the install checks each original against those manifests. On a Steam copy, **I've verified, continue** stays off until the player opens the verify, and while Steam is verifying or updating the game. A running Steam's state comes from its `logs/content_log.txt`, since Steam doesn't update the `StateFlags` of the app manifest during a verify; the manifest covers the rest.
 4. `setup::finish` records the setup as done and deletes `$DATA/baseline-retired`.
 
-The next install records each original again as it first sees it, checked against Steam's manifests when they can be read. Raising `setup::VERSION` sends every player through the setup again. `swofty run --apply` and every install refuse to start until the setup is done. `swofty run` also refuses to start while Steam is verifying or updating the game.
+The next install records each original again as it first sees it, checked against Steam's manifests when they can be read. Raising `setup::VERSION` sends every player through the setup again. A build whose record names an original missing from `$DATA/baseline/objects` stops with the names of the missing files, deletes `$DATA/state/setup.json`, and the next Play opens the setup again. `swofty run --apply` and every install refuse to start until the setup is done. `swofty run` also refuses to start while Steam is verifying or updating the game.
 
 ## Recovery rules
 
@@ -76,6 +76,10 @@ The `swofty run` wrapper holds `session.lock` from before it installs the profil
 While the wrapper builds and installs the profile, it rewrites `build.json` every 2 seconds and deletes it when the install ends. The build checks for `cancel-build` before each archive edit, before each archive it writes and between the steps of the build; the install checks before each file it copies. A cancelled build stops with `the build was cancelled; the game folder is back as it was`, writes no saved build for the profile, and the wrapper rolls back the files it copied. Installing over, updating or removing an addon listed in a live `build.json` fails with `<name> is in the build that is running`.
 
 A session journal still open while the lock is free belongs to a session that ended without rolling back. `swofty run`, `swofty apply` and the wrapper roll back every open journal before they start. The launcher rolls back session journals when it starts, and keeps a `swofty apply` install. A `build.json` left while the lock is free belongs to a build whose process ended; the same rollback deletes it and `cancel-build`, and logs `the last Play stopped while <step>; Play starts the build again`. The launcher runs that rollback as soon as it finds one.
+
+Each session journal records the game folder it was written for (`"game"`). When that folder no longer has `F1_25.exe` and the rollback runs for another folder, as after the game folder was moved by hand, the journal rolls back there only when each finished entry's file holds the bytes the install wrote or the original, or is absent for an added file. Otherwise the rollback stops with `an earlier session's undo record is for F1 25 in <folder>, which is gone, ...` and the journal stays open.
+
+Offline play's journal names its game folder on its `meta` line. When that folder no longer has `F1_25.exe`, recovery and `swofty restore` move the journal's paths to the game folder they run for, when that folder holds at least one file the journal staged with the recorded digest and none that differs. Otherwise they stop with `offline play's record is for F1 25 in <folder>, which is gone, ...` and the journal stays.
 
 ## Leftovers
 

@@ -52,6 +52,8 @@ std::vector<CoreMixins> era_mixins();
 void era_commit();
 std::vector<CoreMixins> tt_guard_mixins();
 void tt_guard_commit();
+std::vector<CoreMixins> career_alias_mixins();
+void career_alias_commit();
 std::vector<CoreMixins> car_category_mixins();
 void car_category_commit();
 std::vector<CoreMixins> save_splice_mixins();
@@ -62,6 +64,16 @@ std::vector<CoreMixins> ers_newlap_mixins();
 void ers_newlap_commit();
 std::vector<CoreMixins> ers_mode_mixins();
 void ers_mode_commit();
+std::vector<CoreMixins> car_levers_mixins();
+void car_levers_commit();
+std::vector<CoreMixins> standings_guard_mixins();
+void standings_guard_commit();
+std::vector<CoreMixins> tyre_slots_mixins();
+void tyre_slots_commit();
+std::vector<CoreMixins> garage_crew_mixins();
+std::vector<CoreMixins> pit_slots_mixins();
+void garage_crew_commit();
+void pit_slots_commit();
 std::vector<CoreMixins> track_acclim_mixins();
 void track_acclim_commit();
 std::vector<CoreMixins> audio_queue_mixins();
@@ -72,6 +84,8 @@ std::vector<CoreMixins> team_slots_mixins();
 void team_slots_commit();
 std::vector<CoreMixins> netplay_icons_mixins();
 void netplay_icons_commit();
+std::vector<CoreMixins> leaderboard_guard_mixins();
+void leaderboard_guard_commit();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
 std::vector<CoreMixins> tile_route_mixins();
@@ -1755,9 +1769,11 @@ size_t offer_core_sets()
 {
     size_t before = addons.size();
     for (auto *sets : {runtime::save_sandbox_mixins, runtime::career_content_mixins, runtime::characters_mixins, runtime::wizard_mixins,
-                       runtime::tile_route_mixins, runtime::era_mixins, runtime::tt_guard_mixins, runtime::car_category_mixins,
-                       runtime::save_splice_mixins, runtime::ers_newlap_mixins, runtime::ers_mode_mixins, runtime::track_acclim_mixins,
-                       runtime::audio_queue_mixins, runtime::team_slots_mixins, runtime::track_select_mixins, runtime::netplay_icons_mixins})
+                       runtime::tile_route_mixins, runtime::era_mixins, runtime::tt_guard_mixins, runtime::career_alias_mixins, runtime::car_category_mixins,
+                       runtime::save_splice_mixins, runtime::ers_newlap_mixins, runtime::ers_mode_mixins, runtime::car_levers_mixins,
+                       runtime::garage_crew_mixins, runtime::pit_slots_mixins, runtime::standings_guard_mixins, runtime::tyre_slots_mixins, runtime::track_acclim_mixins,
+                       runtime::audio_queue_mixins, runtime::team_slots_mixins, runtime::track_select_mixins, runtime::netplay_icons_mixins,
+                       runtime::leaderboard_guard_mixins})
         add_core_sets(sets());
     return addons.size() - before;
 }
@@ -1771,15 +1787,22 @@ void settle_core_sets()
     runtime::wizard_commit();
     runtime::era_commit();
     runtime::tt_guard_commit();
+    runtime::career_alias_commit();
     runtime::car_category_commit();
     runtime::save_splice_commit();
     runtime::ers_newlap_commit();
     runtime::ers_mode_commit();
+    runtime::car_levers_commit();
+    runtime::standings_guard_commit();
+    runtime::tyre_slots_commit();
+    runtime::garage_crew_commit();
+    runtime::pit_slots_commit();
     runtime::track_acclim_commit();
     runtime::audio_queue_commit();
     runtime::team_slots_commit();
     runtime::track_select_commit();
     runtime::netplay_icons_commit();
+    runtime::leaderboard_guard_commit();
 }
 
 void install_groups(size_t from, bool late, size_t *count)
@@ -2112,6 +2135,11 @@ std::string core_code_owner(uintptr_t addr)
 /* Standard library 1.6 game hook points: the addon whose raw overwrite targets a function, and what
    already sits on a function's first bytes when a point installs while the game runs. */
 namespace runtime {
+
+std::string build_distribution()
+{
+    return build_tag;
+}
 
 std::string mixin_overwrite_on(const std::string &binding, uintptr_t at)
 {
