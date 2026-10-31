@@ -204,6 +204,8 @@ inline constexpr address<"Ne_NetConnectionQuality_SendAllStatsUpdates"> Ne_NetCo
 inline constexpr address<"Ne_NetConnectionQuality_SendBandwidthTesterStateUpdateMessage"> Ne_NetConnectionQuality_SendBandwidthTesterStateUpdateMessage{}; // L2 experimental, neon::NeNetConnectionQuality::sendBandwidthTesterStateUpdateMessage
 inline constexpr address<"Ne_NetConnectionQuality_SendSingleStatsUpdate"> Ne_NetConnectionQuality_SendSingleStatsUpdate{}; // L2 experimental, neon::NeNetConnectionQuality::sendSingleStatsUpdate
 inline constexpr address<"Ne_NetConnectionQuality_SetTesterState"> Ne_NetConnectionQuality_SetTesterState{}; // L2 experimental, neon::NeNetConnectionQuality::setTesterState
+inline constexpr address<"Ne_NetConnectionStore_Deinitialise"> Ne_NetConnectionStore_Deinitialise{}; // L2 experimental, neon::NeNetConnectionStore::deinitialise
+inline constexpr address<"Ne_NetConnectionStore_Dtor"> Ne_NetConnectionStore_Dtor{}; // L2 experimental, neon::NeNetConnectionStore::~NeNetConnectionStore
 inline constexpr address<"Ne_NetConnectionStore_Initialise"> Ne_NetConnectionStore_Initialise{}; // L2 experimental, neon::NeNetConnectionStore::initialise
 inline constexpr address<"Ne_NetHttpRequestHandler_CreateRequest"> Ne_NetHttpRequestHandler_CreateRequest{}; // L2 experimental, NeNetHttpRequestHandler::createRequest
 inline constexpr address<"Ne_NetNullSSLPeer_Update"> Ne_NetNullSSLPeer_Update{}; // L2 experimental, neon::NeNetNullSSLPeer::update
@@ -289,6 +291,7 @@ using Ne_PresenceNameResolverFixed_AddName_t = void(void *resolver, const void *
 inline constexpr fn<"Ne_PresenceNameResolverFixed_AddName", Ne_PresenceNameResolverFixed_AddName_t> Ne_PresenceNameResolverFixed_AddName{}; // L2 experimental, neon::NePresenceNameResolverFixed::addName
 inline constexpr address<"Ne_PresenceNameResolverFixed_StartResolving"> Ne_PresenceNameResolverFixed_StartResolving{}; // L2 experimental, neon::NePresenceNameResolverFixed::startResolving
 inline constexpr address<"Ne_Replay_SetState"> Ne_Replay_SetState{}; // L2 experimental
+inline constexpr address<"Ne_RobinHoodMap_U8F_Insert"> Ne_RobinHoodMap_U8F_Insert{}; // L2 experimental
 using Ne_SaveSystem2Win_Mount_t = uint32_t(void *device, void *op, void *save, uint8_t for_saving, uint8_t a5, uint8_t *created);
 inline constexpr fn<"Ne_SaveSystem2Win_Mount", Ne_SaveSystem2Win_Mount_t> Ne_SaveSystem2Win_Mount{}; // L2 experimental
 using Ne_SaveSystem2Win_Start_t = uint64_t(void *device);
@@ -352,7 +355,11 @@ inline constexpr address<"Ne_WindowWin_Startup"> Ne_WindowWin_Startup{}; // L2 e
 inline constexpr address<"Ne_WindowWin_ToggleFullScreen"> Ne_WindowWin_ToggleFullScreen{}; // L2 experimental, NeWindowWin::toggleFullScreen
 inline constexpr address<"Ne_WindowWin_Update"> Ne_WindowWin_Update{}; // L2 experimental, NeWindowWin::update
 inline constexpr address<"Ne_WindowWin_WinProc"> Ne_WindowWin_WinProc{}; // L2 experimental, NeWindowWin::winProc
+inline constexpr address<"Ne_WorldInstance_ActivateAllWorldObjects"> Ne_WorldInstance_ActivateAllWorldObjects{}; // L2 experimental
+inline constexpr address<"Ne_WorldInstance_DeactivateAllWorldObjects"> Ne_WorldInstance_DeactivateAllWorldObjects{}; // L2 experimental
 inline constexpr address<"Ne_WorldInstance_DestroyAllWorldObjectsInLayer"> Ne_WorldInstance_DestroyAllWorldObjectsInLayer{}; // L2 experimental
+inline constexpr address<"Ne_WorldInstance_PreWarmTextures"> Ne_WorldInstance_PreWarmTextures{}; // L2 experimental
+inline constexpr address<"Ne_WorldInstance_ReleaseWarmedTextures"> Ne_WorldInstance_ReleaseWarmedTextures{}; // L2 experimental
 inline constexpr address<"Ne_WorldLayerModule_DeregisterLayer"> Ne_WorldLayerModule_DeregisterLayer{}; // L2 experimental, NeWorldLayerModule::deregisterLayer
 inline constexpr data<"g_Ne_DefaultAllocator", void *> g_Ne_DefaultAllocator{}; // L2 experimental
 inline constexpr data<"g_Ne_LogGate", NeLogGate> g_Ne_LogGate{}; // L2 experimental

@@ -3734,6 +3734,16 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_NetConnectionStore_Deinitialise: Binding = Binding {
+        id: "Ne_NetConnectionStore_Deinitialise",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_NetConnectionStore_Dtor: Binding = Binding {
+        id: "Ne_NetConnectionStore_Dtor",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_NetConnectionStore_Initialise: Binding = Binding {
         id: "Ne_NetConnectionStore_Initialise",
         kind: "func",
@@ -4134,6 +4144,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_RobinHoodMap_U8F_Insert: Binding = Binding {
+        id: "Ne_RobinHoodMap_U8F_Insert",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_SaveSystem2Win_Mount: Binding = Binding {
         id: "Ne_SaveSystem2Win_Mount",
         kind: "func",
@@ -4429,8 +4444,28 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Ne_WorldInstance_ActivateAllWorldObjects: Binding = Binding {
+        id: "Ne_WorldInstance_ActivateAllWorldObjects",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WorldInstance_DeactivateAllWorldObjects: Binding = Binding {
+        id: "Ne_WorldInstance_DeactivateAllWorldObjects",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Ne_WorldInstance_DestroyAllWorldObjectsInLayer: Binding = Binding {
         id: "Ne_WorldInstance_DestroyAllWorldObjectsInLayer",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WorldInstance_PreWarmTextures: Binding = Binding {
+        id: "Ne_WorldInstance_PreWarmTextures",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Ne_WorldInstance_ReleaseWarmedTextures: Binding = Binding {
+        id: "Ne_WorldInstance_ReleaseWarmedTextures",
         kind: "func",
         status: Status::Experimental,
     };
@@ -4489,6 +4524,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Sess_EntrantVec_PushBack: Binding = Binding {
+        id: "Sess_EntrantVec_PushBack",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Sess_Find_GroupRowPosition: Binding = Binding {
         id: "Sess_Find_GroupRowPosition",
         kind: "func",
@@ -4501,6 +4541,16 @@ pub mod bindings {
     };
     pub const Sess_FormationLapLogic_CheckAllParked: Binding = Binding {
         id: "Sess_FormationLapLogic_CheckAllParked",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FormationLapLogic_IsActiveOtherType: Binding = Binding {
+        id: "Sess_FormationLapLogic_IsActiveOtherType",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Sess_FormationLapLogic_IsActiveType0: Binding = Binding {
+        id: "Sess_FormationLapLogic_IsActiveType0",
         kind: "func",
         status: Status::Experimental,
     };

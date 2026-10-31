@@ -232,10 +232,13 @@ inline constexpr address<"Sess_DoughnutSequence_Enter"> Sess_DoughnutSequence_En
 inline constexpr address<"Sess_DriveThroughPenalty_ReceiveData"> Sess_DriveThroughPenalty_ReceiveData{}; // L2 experimental
 inline constexpr address<"Sess_DriveThroughPenalty_SendData"> Sess_DriveThroughPenalty_SendData{}; // L2 experimental
 inline constexpr address<"Sess_DriveThroughPenalty_SendData_2"> Sess_DriveThroughPenalty_SendData_2{}; // L2 experimental
+inline constexpr address<"Sess_EntrantVec_PushBack"> Sess_EntrantVec_PushBack{}; // L2 experimental
 using Sess_Find_GroupRowPosition_t = int32_t *(void *weekend, void *result, uint32_t driver_key);
 inline constexpr fn<"Sess_Find_GroupRowPosition", Sess_Find_GroupRowPosition_t> Sess_Find_GroupRowPosition{}; // L2 experimental
 inline constexpr address<"Sess_Flow_ParseXml"> Sess_Flow_ParseXml{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapLogic_CheckAllParked"> Sess_FormationLapLogic_CheckAllParked{}; // L2 experimental
+inline constexpr address<"Sess_FormationLapLogic_IsActiveOtherType"> Sess_FormationLapLogic_IsActiveOtherType{}; // L2 experimental
+inline constexpr address<"Sess_FormationLapLogic_IsActiveType0"> Sess_FormationLapLogic_IsActiveType0{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapLogic_Reset"> Sess_FormationLapLogic_Reset{}; // L2 experimental
 inline constexpr address<"Sess_FormationLapType_Update"> Sess_FormationLapType_Update{}; // L2 experimental
 using Sess_FormationLap_Update_t = uint32_t *(void *state, uint32_t *route, double dt);
