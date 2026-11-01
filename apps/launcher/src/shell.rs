@@ -414,7 +414,7 @@ impl Shell {
                     this.update(cx, |s, _| {
                         let r = std::mem::take(&mut s.rediscover);
                         let profile = s.library.profile.name.clone();
-                        let due = r || s.saves.banner_profile != profile;
+                        let due = r || s.saves.banner_profile != profile || game::banner_stale();
                         (
                             s.store.clone(),
                             r,
