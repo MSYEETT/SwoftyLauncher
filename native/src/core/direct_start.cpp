@@ -544,6 +544,12 @@ void choose_session(void *modes, const char *when)
         cur = 0;
     }
     auto &id = *reinterpret_cast<uint32_t *>(b + SESSION_ID);
+    bool family = (name == "qualifying" && id >= 5 && id <= 9) || (name == "sprint_shootout" && id >= 10 && id <= 14);
+    if (family) {
+        swofty::log("[direct] Grand Prix: session 0 %s is the weekend's own %s; it is kept", testagent::SESSION_NAMES[id],
+                    name.c_str());
+        return;
+    }
     if (id != uint32_t(want)) {
         swofty::log("[direct] Grand Prix: session 0 %s -> %s", id < 19 ? testagent::SESSION_NAMES[id] : "?",
                     testagent::SESSION_NAMES[want]);
