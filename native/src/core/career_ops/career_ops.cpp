@@ -754,13 +754,13 @@ bool read_lineup(const json::Value &j, Lineup &l, std::string &err)
     return err.empty();
 }
 
-int row_index(const std::vector<Row> &rows, uint32_t stat)
+int row_index(const std::vector<Row> &rows, uint32_t stat, uint32_t domain = 0)
 {
     std::vector<career_ops::rows::Row> view;
     view.reserve(rows.size());
     for (auto &r : rows)
         view.push_back({driver_of(r.rec), teamless(r.rec)});
-    return career_ops::rows::pick(view, stat);
+    return career_ops::rows::pick(view, stat, domain);
 }
 
 int holder_of(const std::vector<Row> &rows, uint32_t team, int seat)
@@ -1850,8 +1850,9 @@ std::string number_text(uint8_t n)
 int api_set_car_number(uint32_t driver, int32_t want_number, uint32_t flags)
 {
     labels();
-    std::string head = "set_car_number " + driver_name(driver) + " #" + std::to_string(want_number) +
-                       ((flags & SWOFTY_NUMBER_SWAP) ? " (swap)" : "");
+    const uint32_t stat = driver & 0x3fff, domain = (driver >> 14) & 3;
+    std::string head = "set_car_number " + (domain ? "driver(" + std::to_string(driver) + ")" : driver_name(driver)) +
+                       " #" + std::to_string(want_number) + ((flags & SWOFTY_NUMBER_SWAP) ? " (swap)" : "");
     std::string summary;
     int r = SWOFTY_ASSET_OK;
     uintptr_t e = 0;
@@ -1859,8 +1860,8 @@ int api_set_car_number(uint32_t driver, int32_t want_number, uint32_t flags)
     if (!on_flow_thread()) {
         summary = "late: called off the flow thread";
         r = SWOFTY_ASSET_LATE;
-    } else if (driver >= 0x3fff || (flags & ~uint32_t(SWOFTY_NUMBER_SWAP))) {
-        summary = "a driver stat id 0..16382 and flags 0 or SWOFTY_NUMBER_SWAP are needed";
+    } else if (!career_ops::rows::driver_id(driver) || (flags & ~uint32_t(SWOFTY_NUMBER_SWAP))) {
+        summary = "a driver save id (stat id 0..16382, the domain in bits 14-15) and flags 0 or SWOFTY_NUMBER_SWAP are needed";
         r = SWOFTY_ASSET_INVALID;
     } else if (!bind("Career_Set_EntrantData_Thunk")) {
         summary = "unavailable: binding(s) not resolved: Career_Set_EntrantData_Thunk";
@@ -1878,8 +1879,8 @@ int api_set_car_number(uint32_t driver, int32_t want_number, uint32_t flags)
             view.push_back({driver_of(row.rec), row.rec.car_number, !teamless(row.rec)});
             humans += human(row.rec);
         }
-        int idx = row_index(rows, driver);
-        uint32_t key = idx >= 0 ? driver_of(rows[idx].rec) : driver << 16;
+        int idx = row_index(rows, stat, domain);
+        uint32_t key = idx >= 0 ? driver_of(rows[idx].rec) : career_ops::rows::key_of_id(driver);
         career_ops::numbers::Plan np = career_ops::numbers::plan(view, key, want_number, flags & SWOFTY_NUMBER_SWAP);
         if (np.error != career_ops::numbers::Error::none) {
             summary = "refused: " + np.why;
