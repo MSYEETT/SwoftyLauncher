@@ -754,6 +754,20 @@ static void livery_tests()
               ops.find("mercedes_2025_bw") != std::string::npos,
           "the se_livery row is copied from the car's stock special livery with the slot as its wep override");
 
+    check(ops.find("team_customisation") == std::string::npos,
+          "a special livery cloned from the car's own stock row keeps that row's team customisation");
+
+    db[std::string(content::VEHICLES) + "[_metadata_=cs23_redbull].vehicle_package"] = "cs_2017_mercedes";
+    db[std::string(content::SE_LIVERIES) + ".se_livery_0.compatible_vehicle"] = "mercedes_2025";
+    db[std::string(content::SE_LIVERIES) + ".se_livery_0.team_customisation"] = "2025-mclarensilverstone";
+    recs["mod.a/car"] = Value::object({{"label", "cs23_redbull"}});
+    content::Plan foreign;
+    content::lower_livery("mod.a/sp", sp, {}, lookup, read, foreign, stat, &slot);
+    std::string fops = swofty::json::dump(foreign.ops);
+    check(foreign.ops.size() == 2 && fops.find("2025-mclarensilverstone") == std::string::npos &&
+              fops.find("\"team_customisation\":\"\"") != std::string::npos,
+          "a special on a car with no stock se_livery row takes no other team's team customisation");
+
     content::Plan missing;
     Value bad = Value::object({{"vehicle", "mod.a/car"}, {"archive", "a.erp"}});
     recs["mod.a/car"] = Value::object({{"label", "nope"}});

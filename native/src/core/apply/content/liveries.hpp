@@ -13,7 +13,8 @@
 // and its package's resource_path. A livery's archive is routed to the addon's file; a car whose archive is not in
 // the game folder gets its asset group, listing its package's teams/common.erp (or the donor package's) first. Its
 // textures folder is routed file by file over the car's textures<suffix>/ folder. A special livery adds an se_livery
-// row and an unlock row, copied from the first stock special livery of the same car (or the table's first), with the
+// row and an unlock row, copied from the first stock special livery of the same car (or the table's first; then it carries no team
+// customisation, so each driver wears his own look, never another team's kit), with the
 // se_livery id and the unlock statId from their pools.
 
 namespace swofty_core::apply::content {
@@ -169,10 +170,12 @@ inline void lower_livery(const std::string &id, const Value &rec, const std::vec
     std::string from = std::string(SE_LIVERIES) + ".se_livery_0";
     auto count = read(std::string(SE_LIVERIES) + "._se_livery_instancecount_");
     int64_t rows = count ? std::strtoll(count->c_str(), nullptr, 10) : 0;
+    bool own_source = false;
     for (int64_t i = 0; i < rows; i++) {
         std::string at = std::string(SE_LIVERIES) + ".se_livery_" + std::to_string(i);
         if (read(at + ".compatible_vehicle") == car.label) {
             from = at;
+            own_source = true;
             break;
         }
     }
@@ -197,6 +200,8 @@ inline void lower_livery(const std::string &id, const Value &rec, const std::vec
                               {"id", std::to_string(*sid)},
                               {"wep_override", suffix},
                               {"ui_priority", std::to_string(*sid)}});
+    if (!own_source)
+        se["team_customisation"] = std::string();
     if (!picker.empty()) {
         se["name_loc_tag"] = Value(picker);
         se["desc_loc_tag"] = Value(picker);
