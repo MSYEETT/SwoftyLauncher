@@ -212,6 +212,18 @@ int main()
                "the memo leaves unreadable memory and a null manager to the game");
     }
     {
+        std::vector<uint64_t> keys;
+        for (uint64_t k = 1; k <= 4000; k++)
+            keys.push_back(k * 10);
+        Memory m = world(keys);
+        se::Memo memo;
+        memo.decide(MANAGER, RSP, 15, 1000, read, &m);
+        int per = m.reads;
+        m.reads = 0;
+        memo.decide(MANAGER, RSP, 25, 1001, read, &m);
+        expect(per < 80 && m.reads < 80, "a decision over a 4000-entry group map reads a bounded number of words");
+    }
+    {
         se::Skips k;
         int a = k.note(), b = k.note();
         expect(k.logged(a) && k.logged(b) && !k.last(b), "early fixes are logged");
