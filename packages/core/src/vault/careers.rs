@@ -459,8 +459,17 @@ impl Careers {
                 }
             }
         }
+        let twins: Vec<&Career> = in_save(index).collect();
         for r in self.careers.iter_mut() {
             if here.contains(r.career.as_str()) {
+                continue;
+            }
+            if twins.iter().any(|c| twin(r, c)) {
+                if matches!(r.status, Status::MissingSince(_)) {
+                    r.status = Status::Present;
+                    r.found_at = None;
+                    r.dismissed = false;
+                }
                 continue;
             }
             match (&r.status, gone.contains(r.career.as_str())) {
@@ -478,6 +487,18 @@ impl Careers {
         }
         dropped
     }
+}
+
+/// A row and an index career that are one career under two ids: the core
+/// names a career it cannot tie to a save slot by a key that can change
+/// between loads.
+fn twin(r: &Row, c: &Career) -> bool {
+    r.career != c.career
+        && r.mode.is_some()
+        && r.mode == text(c, "mode")
+        && !r.label.is_empty()
+        && r.label == c.label
+        && r.profile == c.profile
 }
 
 /// A career as the restore panel lists it.
@@ -658,5 +679,54 @@ mod tests {
         assert_eq!(l.len(), 1);
         assert_eq!(l[0].state, State::DeletedInGame);
         assert!(read_listing(&dir, None).is_empty());
+    }
+
+    fn mt(id: &str, status: &str) -> String {
+        format!(
+            r#"{{"career":"{id}","profile":"MyTeam","label":"f1_career_2026","mode":"my_team","status":"{status}"}}"#
+        )
+    }
+
+    fn table(rows: &[String]) -> Vec<Career> {
+        parse(&format!(r#"{{"version":1,"careers":[{}]}}"#, rows.join(",")))
+    }
+
+    #[test]
+    fn a_career_that_alternates_between_two_ids_is_not_missing() {
+        let mut t = Careers::default();
+        let a = "mt-00000001-00d00000";
+        let b = "mt-00000001-00bc0000";
+        assert!(t.observe("s1", 1, &table(&[mt(a, "present")])).is_empty());
+        assert!(
+            t.observe("s2", 2, &table(&[mt(a, "missing"), mt(b, "present")]))
+                .is_empty()
+        );
+        assert!(
+            t.observe("s3", 3, &table(&[mt(a, "present"), mt(b, "missing")]))
+                .is_empty()
+        );
+        assert!(t.careers.iter().all(|r| r.status == Status::Present));
+        assert!(t.drop_to_show().is_empty());
+    }
+
+    #[test]
+    fn a_stale_missing_row_of_a_twin_is_cleared() {
+        let mut t = Careers::default();
+        t.observe("s1", 1, &table(&[mt("mt-1-a", "present")]));
+        t.careers[0].status = Status::MissingSince("s0".into());
+        t.careers[0].found_at = Some(1);
+        t.observe("s2", 2, &table(&[mt("mt-1-b", "present")]));
+        assert_eq!(t.find("mt-1-a").unwrap().status, Status::Present);
+        assert!(t.drop_to_show().is_empty());
+    }
+
+    #[test]
+    fn a_career_with_no_twin_is_still_reported_missing() {
+        let mut t = Careers::default();
+        let other = r#"{"career":"dc-00320000","profile":"MyTeam","label":"f1_career_2026","mode":"driver_career","status":"present"}"#;
+        t.observe("s1", 1, &table(&[mt("mt-1-a", "present")]));
+        let dropped = t.observe("s2", 2, &table(&[other.to_owned()]));
+        assert_eq!(dropped, [("mt-1-a".to_owned(), "s1".to_owned())]);
+        assert!(t.find("mt-1-a").unwrap().status.is_missing());
     }
 }
