@@ -10,6 +10,8 @@ use crate::baseline::sha256_file;
 use crate::recovery::SessionLock;
 use crate::{Error, Result, io_err};
 
+const SESSION_GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+
 pub const CLOSE_STEAM: &str = "Exit Steam completely (Steam menu > Exit), then restore again. Starting Steam \
                                afterwards uploads the restored save.";
 pub const CLOSE_GAME: &str = "F1 25 is running; close it, then try again.";
@@ -122,7 +124,7 @@ pub fn restore_across(
         );
         return Err(Error::Other(why));
     }
-    let _session = SessionLock::try_acquire(&vault.data)?.ok_or_else(|| {
+    let _session = SessionLock::wait(&vault.data, SESSION_GRACE)?.ok_or_else(|| {
         Error::Other(
             "a Play session or another restore is running; wait for it to end, then restore again".to_owned(),
         )
