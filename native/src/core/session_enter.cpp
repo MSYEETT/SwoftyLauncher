@@ -38,6 +38,8 @@ namespace se = runtime::session_enter;
 
 bool offered = false, settled = false, offered_ok = false;
 se::Skips skips;
+se::Memo memo;
+constexpr uint32_t TRUST_MS = 4000;
 
 bool read_memory(uint64_t address, void *out, size_t n, void *)
 {
@@ -49,7 +51,8 @@ bool read_memory(uint64_t address, void *out, size_t n, void *)
 
 void name_hash(SwoftyContext *c)
 {
-    se::Fix f = se::decide(c->rcx, c->rsp, c->r13, read_memory, nullptr);
+    swofty::mem::Trust trust(TRUST_MS);
+    se::Fix f = memo.decide(c->rcx, c->rsp, c->r13, GetTickCount64(), read_memory, nullptr);
     if (!f.replace)
         return;
     uint64_t hash = c->r13;
