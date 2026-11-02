@@ -1812,6 +1812,11 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             .get(origin)
             .map_or_else(|| origin.to_owned(), |m| m.name.clone()),
     };
+    for (id, folder, n) in stray_asset_groups(&game.dir, &file_ops) {
+        built
+            .warnings
+            .push(stray_asset_group_line(&name(&id), &folder, n));
+    }
     if !erp_ops.is_empty() || !puts.is_empty() {
         let staged = built.plan.data.clone();
         let base = |rel: &str| {
@@ -2637,6 +2642,38 @@ fn missing_archives(name: &str, rels: &BTreeSet<String>) -> String {
     };
     format!(
         "{name}: archive changes skipped; {what}. Turn {name} off if it doesn't work, and tell its author"
+    )
+}
+
+/// The game-root folders addons put files in that the game never reads from
+/// there: not a folder at the game root, but one under `2025_asset_groups/`.
+/// Each is the addon, the folder and how many files go in it.
+fn stray_asset_groups(game: &Path, files: &[Op]) -> Vec<(String, String, usize)> {
+    let mut counts: BTreeMap<(String, String), usize> = BTreeMap::new();
+    for op in files {
+        let AssetOp::File(FileOp::Put { target, .. }) = &op.op else {
+            continue;
+        };
+        let Some((top, _)) = target.split_once('/') else {
+            continue;
+        };
+        if top.is_empty()
+            || top.eq_ignore_ascii_case("2025_asset_groups")
+            || game.join(top).is_dir()
+            || !game.join("2025_asset_groups").join(top).is_dir()
+        {
+            continue;
+        }
+        *counts
+            .entry((op.origin.addon.clone(), top.to_owned()))
+            .or_default() += 1;
+    }
+    counts.into_iter().map(|((a, f), n)| (a, f, n)).collect()
+}
+
+fn stray_asset_group_line(name: &str, folder: &str, n: usize) -> String {
+    format!(
+        "{name}: {n} file(s) under {folder}/ land at the game root, where the game never reads them; the folder belongs under 2025_asset_groups/ - re-import it with that path"
     )
 }
 
@@ -6575,6 +6612,47 @@ mod tests {
             built.warnings
         );
         assert!(built.plan.data.contains_key(erp), "{:?}", built.plan.data);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn files_in_an_asset_group_folder_at_the_game_root_are_flagged() {
+        let root = std::env::temp_dir().join(format!("swofty-stray-groups-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let groups = root.join("2025_asset_groups");
+        std::fs::create_dir_all(groups.join("f1_2026_vehicle_package")).unwrap();
+        std::fs::create_dir_all(groups.join("character_package")).unwrap();
+        std::fs::create_dir_all(root.join("swofty")).unwrap();
+        let put = |addon: &str, target: &str| Op {
+            op: serde_json::from_str(&format!(
+                r#"{{"op":"file.put","source":"f","target":"{target}"}}"#
+            ))
+            .unwrap(),
+            origin: Origin {
+                addon: addon.to_owned(),
+                ..serde_json::from_str(r#"{"addon":"x"}"#).unwrap()
+            },
+        };
+        let files = [
+            put("m", "f1_2026_vehicle_package/teams/ferrari/wep/ferrari.erp"),
+            put("m", "f1_2026_vehicle_package/teams/ferrari/wep/b.erp"),
+            put("m", "character_package/a.erp"),
+            put("m", "2025_asset_groups/ui_package/ok.erp"),
+            put("m", "swofty/own.bin"),
+            put("m", "unknown_folder/x.bin"),
+            put("m", "top_level.bin"),
+        ];
+        assert_eq!(
+            stray_asset_groups(&root, &files),
+            [
+                ("m".to_owned(), "character_package".to_owned(), 1),
+                ("m".to_owned(), "f1_2026_vehicle_package".to_owned(), 2),
+            ]
+        );
+        assert_eq!(
+            stray_asset_group_line("Mod", "character_package", 1),
+            "Mod: 1 file(s) under character_package/ land at the game root, where the game never reads them; the folder belongs under 2025_asset_groups/ - re-import it with that path"
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
