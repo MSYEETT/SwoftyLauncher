@@ -805,6 +805,17 @@ fn read_head(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
     Ok(data)
 }
 
+fn read_ends(path: &Path, head: u64, tail: u64) -> std::io::Result<Vec<u8>> {
+    let len = std::fs::metadata(path)?.len();
+    if len <= head + tail {
+        return read_head(path, head + tail);
+    }
+    let mut data = read_head(path, head)?;
+    data.push(b'\n');
+    data.extend(read_tail(path, tail)?.0);
+    Ok(data)
+}
+
 fn same_contents(a: &Path, b: &Path) -> bool {
     let len = |p: &Path| std::fs::metadata(p).map(|m| m.len()).ok();
     len(a).is_some_and(|n| len(b) == Some(n))
@@ -852,10 +863,10 @@ fn overlay_lines(store: &Store, logs: &[(String, PathBuf)]) -> Vec<String> {
         }
     ));
     for (label, log) in logs {
-        let Ok(head) = read_head(log, OVERLAY_READ) else {
+        let Ok(text) = read_ends(log, OVERLAY_READ, OVERLAY_READ) else {
             continue;
         };
-        let state = crate::overlay_guard::SessionOverlay::scan(&String::from_utf8_lossy(&head))
+        let state = crate::overlay_guard::SessionOverlay::scan(&String::from_utf8_lossy(&text))
             .map_or_else(|| "no [overlay] lines".to_owned(), |o| o.describe());
         out.push(format!("  {label:40} {state}"));
     }

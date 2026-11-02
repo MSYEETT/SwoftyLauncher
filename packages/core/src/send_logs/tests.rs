@@ -1843,3 +1843,20 @@ fn summary_names_the_stub_an_antivirus_blocked() {
     assert_eq!(plain.stub_blocked_line(Some(&game)), None);
     std::fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn reads_both_ends_of_a_log_bigger_than_the_cap() {
+    let dir = tmp("read-ends");
+    let path = dir.join("loader.log");
+    let mut log = String::from("1 [overlay] present hook armed: Present (vt+0x40)\n");
+    log.push_str(&"2 [game] filler line\n".repeat(500));
+    log.push_str("3 [overlay] first overlay frame submitted: 96 vertices\n");
+    put(&path, &log);
+    let head_only = read_head(&path, 1024).unwrap();
+    let missed = crate::overlay_guard::SessionOverlay::scan(&String::from_utf8_lossy(&head_only)).unwrap();
+    assert!(!missed.drew);
+    let ends = read_ends(&path, 1024, 1024).unwrap();
+    let seen = crate::overlay_guard::SessionOverlay::scan(&String::from_utf8_lossy(&ends)).unwrap();
+    assert!(seen.armed && seen.drew);
+    assert_eq!(read_ends(&path, 1 << 20, 1 << 20).unwrap(), log.as_bytes());
+}
