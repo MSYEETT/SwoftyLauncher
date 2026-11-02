@@ -738,8 +738,9 @@ impl Shell {
                         window.push_notification(Notification::error(e.to_string()), cx);
                         return false;
                     }
+                    window.close_dialog(cx);
                     shell.update(cx, |s, cx| s.play(window, cx)).ok();
-                    true
+                    false
                 })
         });
     }
