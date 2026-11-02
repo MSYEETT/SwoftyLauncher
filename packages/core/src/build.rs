@@ -50,7 +50,7 @@ use crate::{Error, Result, io_err};
 pub const GVDB: &str = "game_package/gamedatabases/gamedatabases.2025.bin";
 pub const PLAN_FILE: &str = "plan.json";
 pub const SAVED_FILE: &str = "built.json";
-const SAVED_VERSION: u32 = 2;
+const SAVED_VERSION: u32 = 3;
 const PACKED_AGE: std::time::Duration = std::time::Duration::from_secs(30 * 24 * 3600);
 const ARCHIVE_AGE: std::time::Duration = std::time::Duration::from_secs(3 * 24 * 3600);
 const ARCHIVE_BYTES: u64 = 10 << 30;
@@ -470,6 +470,8 @@ struct Saved {
     loader: BTreeMap<String, PathBuf>,
     registry_override: bool,
     sizes: BTreeMap<PathBuf, u64>,
+    #[serde(default)]
+    stamps: BTreeMap<PathBuf, (u128, u64)>,
     settings: Option<SessionSettings>,
     lines: Vec<String>,
     warnings: Vec<String>,
@@ -481,15 +483,30 @@ struct Saved {
     row_ids: BTreeMap<String, BTreeMap<String, i64>>,
 }
 
+fn output_stamp(meta: &std::fs::Metadata) -> (u128, u64) {
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_nanos());
+    #[cfg(unix)]
+    let ino = std::os::unix::fs::MetadataExt::ino(meta);
+    #[cfg(not(unix))]
+    let ino = 0;
+    (modified, ino)
+}
+
 impl Saved {
     fn of(built: &Built, lines: usize, warnings: usize) -> Result<Self> {
         let mut sizes = BTreeMap::new();
+        let mut stamps = BTreeMap::new();
         for src in [&built.plan.data, &built.plan.added]
             .into_iter()
             .flat_map(|m| m.values())
         {
             let meta = std::fs::metadata(src).map_err(io_err(src))?;
             sizes.insert(src.clone(), meta.len());
+            stamps.insert(src.clone(), output_stamp(&meta));
         }
         Ok(Self {
             version: SAVED_VERSION,
@@ -499,6 +516,7 @@ impl Saved {
             loader: built_files(&built.plan.loader, loader_dir().as_deref()),
             registry_override: built.plan.registry_override,
             sizes,
+            stamps,
             settings: built.settings.clone(),
             lines: built.lines[lines..].to_vec(),
             warnings: built.warnings[warnings..].to_vec(),
@@ -522,7 +540,12 @@ impl Saved {
             .sizes
             .iter()
             .all(|(p, len)| std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.len() == *len));
+        let untouched = self
+            .stamps
+            .iter()
+            .all(|(p, stamp)| std::fs::metadata(p).is_ok_and(|m| output_stamp(&m) == *stamp));
         if !sources
+            || !untouched
             || !self.loader.values().all(|p| p.is_file())
             || self
                 .added
@@ -3900,6 +3923,60 @@ mod tests {
         inst.apply(&crate::install::Plan::vanilla()).unwrap();
         assert_eq!(std::fs::read(&installed).unwrap(), stock);
         assert_eq!(std::fs::read(&out).unwrap(), made);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_cached_output_changed_in_place_to_the_same_size_is_rebuilt() {
+        use swofty_formats::gvdb::Record;
+        if loader_dir().is_some() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-touched-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        let mut records = vec![Record::new("entrants.teams._team_instancecount_", 0, "2")];
+        for (i, label) in ["mclaren_26", "gm_cadillac_26"].iter().enumerate() {
+            let row = format!("entrants.teams.team_{i}");
+            records.push(Record::new(&format!("{row}._metadata_"), 4, *label));
+            records.push(Record::new(&format!("{row}.stat_id"), 0, (100 + i).to_string()));
+        }
+        std::fs::write(dir.join(GVDB), Gvdb { records }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir: dir.clone(),
+            user_reg: None,
+        };
+        let manifest = AddonManifest::parse(
+            r#"{ "schema_version": 1, "id": "t.rows", "name": "Rows", "version": "1.0.0", "author": "t",
+                 "compat": { "game": "f1_25" } }"#,
+        )
+        .unwrap();
+        let store = Store::new(root.join("data")).with_builtins(vec![Builtin {
+            addon: Arc::new(Rows(manifest)),
+            locked: false,
+            default_on: true,
+        }]);
+        let built = build(&store, "default", &game).unwrap();
+        let out = built.plan.data[GVDB].clone();
+        let made = std::fs::read(&out).unwrap();
+        let again = build(&store, "default", &game).unwrap();
+        assert!(again.lines.iter().any(|l| l.contains("reusing it")));
+
+        let mut bad = made.clone();
+        bad[0] ^= 0xff;
+        let file = std::fs::OpenOptions::new().write(true).open(&out).unwrap();
+        std::io::Write::write_all(&mut &file, &bad).unwrap();
+        file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(5))
+            .unwrap();
+        drop(file);
+        assert_eq!(std::fs::read(&out).unwrap().len(), made.len());
+
+        let rebuilt = build(&store, "default", &game).unwrap();
+        assert!(!rebuilt.lines.iter().any(|l| l.contains("reusing it")));
+        assert_eq!(std::fs::read(&rebuilt.plan.data[GVDB]).unwrap(), made);
         std::fs::remove_dir_all(&root).ok();
     }
 
