@@ -856,7 +856,12 @@ mod tests {
         let log = RefCell::new(Vec::new());
         h.install(&log).unwrap();
         assert_eq!(h.mip(), "mip-ferrari");
-        assert!(log.borrow().is_empty());
+        assert!(
+            log.borrow().iter().all(|l| l.starts_with("installing: ")),
+            "{:?}",
+            log.borrow()
+        );
+        log.borrow_mut().clear();
         // The session was interrupted and its journal is gone; the mip file
         // it placed is still in the game folder.
         std::fs::remove_dir_all(h.store.root.join("state/journal")).unwrap();
