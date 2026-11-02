@@ -1758,7 +1758,11 @@ impl Shell {
         let custom: Vec<Option<f32>> = t
             .columns
             .iter()
-            .map(|c| self.column_widths.get(&(table_key.clone(), c.key().to_owned())).copied())
+            .map(|c| {
+                self.column_widths
+                    .get(&(table_key.clone(), c.key().to_owned()))
+                    .copied()
+            })
             .collect();
         // The open row's detail goes beside the table when every column still fits, else under
         // its row, where it was clicked.
@@ -1770,7 +1774,11 @@ impl Shell {
                 .sum::<f32>()
             + 12. * specs.len().saturating_sub(1) as f32;
         let beside = selected.is_some() && at.width - DETAIL_W - GAP >= needed;
-        let table_w = if beside { at.width - DETAIL_W - GAP } else { at.width };
+        let table_w = if beside {
+            at.width - DETAIL_W - GAP
+        } else {
+            at.width
+        };
         let avail = (table_w - 24. - 12. * specs.len().saturating_sub(1) as f32).max(0.);
         let widths = resolve_column_widths(avail, &defaults, &custom);
         let sized = |d: Div, i: usize| -> Div {
@@ -2063,11 +2071,8 @@ impl Shell {
                         moved
                             .update(cx, |this, cx| match ev.pressed_button {
                                 Some(MouseButton::Left) => {
-                                    let width = column_drag_width(
-                                        d.start_width,
-                                        d.start_x,
-                                        f32::from(ev.position.x),
-                                    );
+                                    let width =
+                                        column_drag_width(d.start_width, d.start_x, f32::from(ev.position.x));
                                     this.column_widths.insert((d.table, d.column), width);
                                     cx.notify();
                                 }
@@ -2796,7 +2801,10 @@ mod tests {
         assert_eq!(resolved[1], Some(160.));
         assert_eq!(resolved[4], None);
         let explicit_sum: f32 = resolved.iter().flatten().sum();
-        assert!((explicit_sum - (850. - COLUMN_MIN_W)).abs() < 0.01, "{resolved:?}");
+        assert!(
+            (explicit_sum - (850. - COLUMN_MIN_W)).abs() < 0.01,
+            "{resolved:?}"
+        );
         assert!(resolved.iter().flatten().all(|&w| w >= COLUMN_MIN_W));
     }
 
