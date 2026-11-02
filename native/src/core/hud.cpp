@@ -146,6 +146,19 @@ bool killed(const char *what)
     return kill_has(list, "all") || kill_has(list, what);
 }
 
+bool before_fg_wanted()
+{
+    static const bool on = [] {
+        char v[8] = {};
+        DWORD n = GetEnvironmentVariableA("SWOFTY_OVERLAY_FG", v, sizeof v);
+        if (n && n < sizeof v)
+            return v[0] != '0' && v[0] != '\0';
+        const json::Value &j = runtime::config()["overlay_fg"];
+        return j.type == json::Value::Bool && j.b;
+    }();
+    return on;
+}
+
 std::vector<std::pair<void *, bool>> told;
 std::vector<void *> unknown_told;
 
@@ -1625,12 +1638,13 @@ void draw_frame(IDXGISwapChain3 *sc, const d3d12hooks::Swapchain *known, void *)
             if (fg_named) {
                 if (fresh)
                     swofty::log("[overlay] frame generation (%s) owns swapchain %p and the core's D3D12 device hooks "
-                                "did not arm; the overlay does not draw on it",
+                                "did not arm (drawing before frame generation is opt-in: SWOFTY_OVERLAY_FG=1); the overlay "
+                                "does not draw on it",
                                 c.fg.c_str(), static_cast<void *>(sc));
             } else if (!fg_watch.told || fresh) {
                 swofty::log("[overlay] swapchain %p was created through Streamline's frame generation hook "
-                            "(sl.dlss_g.dll), frame generation is not off in the game's settings and the core's D3D12 "
-                            "device hooks did not arm; the overlay does not draw on it",
+                            "(sl.dlss_g.dll), frame generation is not off in the game's settings and drawing before frame "
+                            "generation is not on (opt-in: SWOFTY_OVERLAY_FG=1); the overlay does not draw on it",
                             static_cast<void *>(sc));
             }
             return;
@@ -1730,14 +1744,18 @@ bool arm()
         return false;
     d3d12hooks::on_present(draw_frame);
     d3d12hooks::on_presented(presented);
-    d3d12hooks::on_setname(on_setname);
-    d3d12hooks::on_barrier(on_barrier);
-    d3d12hooks::on_exec(on_exec);
-    d3d12hooks::ProbeScope probe;
-    device_hooked = d3d12hooks::arm_device();
-    if (!device_hooked)
-        swofty::log("[overlay] the core's D3D12 device hooks did not arm; the overlay cannot draw when frame generation "
-                    "owns the swapchain");
+    if (before_fg_wanted()) {
+        d3d12hooks::on_setname(on_setname);
+        d3d12hooks::on_barrier(on_barrier);
+        d3d12hooks::on_exec(on_exec);
+        d3d12hooks::ProbeScope probe;
+        device_hooked = d3d12hooks::arm_device();
+        if (!device_hooked)
+            swofty::log("[overlay] the core's D3D12 device hooks did not arm; the overlay cannot draw when frame "
+                        "generation owns the swapchain");
+        else
+            swofty::log("[overlay] drawing before frame generation is on (SWOFTY_OVERLAY_FG or \"overlay_fg\")");
+    }
     return d3d12hooks::arm_swapchain();
 }
 
