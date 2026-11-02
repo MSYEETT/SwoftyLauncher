@@ -753,6 +753,20 @@ fn replaced_operations<'a>(
         .collect()
 }
 
+/// The tables the `add-row` ops of the database operations file at `path` add rows to.
+fn added_tables(path: &Path) -> BTreeSet<String> {
+    let Ok(file) = crate::read_json::<serde_json::Value>(path) else {
+        return BTreeSet::new();
+    };
+    file.get("ops")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|op| op.get("op").and_then(serde_json::Value::as_str) == Some("add-row"))
+        .filter_map(|op| op.get("table")?.as_str().map(str::to_owned))
+        .collect()
+}
+
 /// A `checking` build gives addon build hooks a host that lists addons but
 /// cannot install, remove, turn on or move them.
 pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool) -> Result<Built> {
@@ -1054,6 +1068,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
             if replaced.get(id.as_str()).is_some_and(|r| r.replaces(rel)) {
                 left_to_core = true;
+                planner.add_core_rows(id, added_tables(&dir.join(rel)));
                 hasher.update(format!("replaced {rel};"));
                 built.lines.push(format!(
                     "registry: {}: {rel} is applied by the core from the addon's registry records",
@@ -3610,6 +3625,29 @@ mod tests {
             e.contains("applying t.grid (grid-editor): t.list[_metadata_=cs_f1_2016]: no row matches, even after every addon's changes"),
             "{e}"
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_tables_a_records_file_adds_rows_to_are_the_add_row_tables() {
+        let root = std::env::temp_dir().join(format!("swofty-added-tables-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("records.json");
+        std::fs::write(
+            &file,
+            r#"{ "schema_version": 1, "ops": [
+                 { "op": "set", "select": "a.b[_metadata_=x]", "field": "f", "value": "v" },
+                 { "op": "add-row", "table": "entrants.entrant_lists", "from": "entrants.entrant_lists.entrant_list[_metadata_=f1]", "set": {} },
+                 { "op": "add-row", "table": "entrants.drivers", "from": "entrants.drivers.driver[_metadata_=d]", "set": {} },
+                 { "op": "add-row", "table": "entrants.drivers", "from": "entrants.drivers.driver[_metadata_=d]", "set": {} } ] }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            added_tables(&file).into_iter().collect::<Vec<_>>(),
+            ["entrants.drivers", "entrants.entrant_lists"]
+        );
+        assert!(added_tables(&root.join("gone.json")).is_empty());
         std::fs::remove_dir_all(&root).ok();
     }
 

@@ -267,6 +267,7 @@ pub struct Planner<'a> {
     kept_lists: BTreeMap<String, Vec<String>>,
     copies: Vec<Copy>,
     lenient: BTreeMap<String, String>,
+    core_rows: BTreeMap<String, BTreeSet<String>>,
     touched: BTreeMap<String, Touched>,
     overlays: Option<&'a OverlayNames<'a>>,
     row_ids: Option<RefCell<crate::row_ids::Store>>,
@@ -362,6 +363,7 @@ impl<'a> Planner<'a> {
             kept_lists: BTreeMap::new(),
             copies: Vec::new(),
             lenient: BTreeMap::new(),
+            core_rows: BTreeMap::new(),
             touched: BTreeMap::new(),
             overlays: None,
             row_ids: None,
@@ -391,6 +393,32 @@ impl<'a> Planner<'a> {
         self.lenient
             .entry(id.to_owned())
             .or_insert_with(|| name.to_owned());
+    }
+
+    /// Records that the core adds rows to `tables` at the game's start, from
+    /// the records of `addon` that the build leaves to it. An op that selects
+    /// such a row finds none while the build runs.
+    pub fn add_core_rows(&mut self, addon: &str, tables: impl IntoIterator<Item = String>) {
+        self.core_rows.entry(addon.to_owned()).or_default().extend(tables);
+    }
+
+    fn core_row_adders(&self, e: &swofty_addon::Error) -> Vec<&str> {
+        let swofty_addon::Error::Resolve(m) = e else {
+            return Vec::new();
+        };
+        if !no_row(e) {
+            return Vec::new();
+        }
+        let path = m.split(['[', ':']).next().unwrap_or_default();
+        self.core_rows
+            .iter()
+            .filter(|(_, tables)| {
+                tables
+                    .iter()
+                    .any(|t| path == t || path.strip_prefix(t.as_str()).is_some_and(|r| r.starts_with('.')))
+            })
+            .map(|(addon, _)| addon.as_str())
+            .collect()
     }
 
     pub fn route(&self, kind: Kind) -> Route {
@@ -846,7 +874,21 @@ impl<'a> Planner<'a> {
     }
 
     // A lenient addon's failures are skipped with a warning; another's first fails the build.
+    // An op on a row that only the core adds at the game's start cannot apply in the build: it is skipped with a warning.
     fn settle(&mut self, origin: &Origin, errors: Vec<swofty_addon::Error>, last: bool) -> Result<()> {
+        let mut errors = errors;
+        if last {
+            let (core, rest): (Vec<_>, Vec<_>) = errors
+                .into_iter()
+                .partition(|e| !self.core_row_adders(e).is_empty());
+            for e in &core {
+                let adders = self.core_row_adders(e).join(", ");
+                self.skipped.push(format!(
+                    "{origin}: change skipped: {e}; the core adds that row from {adders}'s records when the game starts, after the build"
+                ));
+            }
+            errors = rest;
+        }
         let line = |e: &swofty_addon::Error| match last && no_row(e) {
             true => format!("{e}, even after every addon's changes"),
             false => e.to_string(),
@@ -1379,6 +1421,41 @@ mod tests {
             winner(&planned, "t.list_1.colour"),
             ("late".to_owned(), vec!["simplified (grid-editor)".to_owned()])
         );
+    }
+
+    #[test]
+    fn an_op_on_a_row_the_core_adds_at_the_start_is_skipped_with_a_warning() {
+        let features = Features::default();
+        let opt_in = BTreeSet::new();
+        let grid = Origin {
+            addon: "simplified".into(),
+            item: Some("grid-editor".into()),
+        };
+        let mut p = Planner::new(&features, &opt_in);
+        list_fields(&mut p, "cs");
+        p.add_core_rows("cs", ["t.list".to_owned()]);
+        for json in [set("cs_f1_2020", "name", "edited"), set("f1", "name", "grid")] {
+            p.push(Op {
+                op: serde_json::from_str(&json).unwrap(),
+                origin: grid.clone(),
+            });
+        }
+        let mut db = lists();
+        p.apply_db(&mut db).unwrap();
+        assert_eq!(db.get_text("t.list_0.name").as_deref(), Some("grid"));
+        assert_eq!(
+            p.take_skipped(),
+            [
+                "simplified (grid-editor): change skipped: t.list[_metadata_=cs_f1_2020]: no row matches; the core adds that row from cs's records when the game starts, after the build"
+            ]
+        );
+
+        let mut p = Planner::new(&features, &opt_in);
+        list_fields(&mut p, "cs");
+        p.add_core_rows("cs", ["t.other".to_owned(), "t.lis".to_owned()]);
+        p.push(op("simplified", &set("cs_f1_2020", "name", "edited")));
+        let e = p.apply_db(&mut lists()).unwrap_err();
+        assert!(e.to_string().contains("no row matches, even after"), "{e}");
     }
 
     #[test]
