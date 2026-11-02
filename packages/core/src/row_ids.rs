@@ -397,6 +397,7 @@ pub struct Store {
     existed: bool,
     by_id: HashMap<String, BTreeMap<i64, String>>,
     pinned: HashMap<String, HashMap<i64, String>>,
+    career_held: HashMap<String, HashSet<i64>>,
     seed: Seed,
     claimed: HashSet<String>,
     building: HashSet<String>,
@@ -486,6 +487,7 @@ impl Store {
             .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
         {
             store.pinned = registry_ids(&ids);
+            store.career_held = career_ids(&ids);
         }
         store.profile = profile.to_owned();
         if store.seeded.insert(profile.to_owned()) {
@@ -625,6 +627,18 @@ impl Store {
         self.lent = wanted;
         self.read_only = true;
         Ok(self.lent.len())
+    }
+
+    /// Whether `record`, which `ids.json` holds `id` for, belongs to an addon this build leaves out and no career
+    /// uses `id`: a full table may give the id to a row, and the core's registry moves the record when its addon
+    /// is turned on.
+    fn spare_pin(&self, table: &str, id: i64, record: &str) -> bool {
+        let addon = addon_of(record);
+        record.contains('/')
+            && addon != "game"
+            && !self.building.contains(addon)
+            && !self.lent_build.contains(addon)
+            && !self.career_held.get(table).is_some_and(|ids| ids.contains(&id))
     }
 
     /// Whether a registry record keeps its id from this build. While a host's ids are lent, a record of an
@@ -850,6 +864,28 @@ impl Store {
     }
 }
 
+// The ids the careers in `ids.json` use, by the table whose rows they are ids of.
+fn career_ids(doc: &Value) -> HashMap<String, HashSet<i64>> {
+    let mut out: HashMap<String, HashSet<i64>> = HashMap::new();
+    let Some(careers) = doc["careers"].as_object() else {
+        return out;
+    };
+    for (registry, table) in REGISTRY_TABLES {
+        let ids = out.entry((*table).to_owned()).or_default();
+        for career in careers.values() {
+            if let Some(records) = career[*registry].as_object() {
+                ids.extend(
+                    records
+                        .values()
+                        .filter_map(|e| e.as_i64().or_else(|| e["id"].as_i64())),
+                );
+            }
+        }
+    }
+    out.retain(|_, ids| !ids.is_empty());
+    out
+}
+
 // The ids `ids.json` holds and its careers use, by the table whose rows they are ids of.
 fn registry_ids(doc: &Value) -> HashMap<String, HashMap<i64, String>> {
     let mut out: HashMap<String, HashMap<i64, String>> = HashMap::new();
@@ -918,7 +954,14 @@ impl RowIds for Scoped<'_> {
             || s.pinned
                 .get(&table)
                 .and_then(|ids| ids.get(&id))
-                .is_some_and(|record| s.pin_holds(record))
+                .is_some_and(|record| {
+                    s.pin_holds(record)
+                        && !(s.spare_pin(&table, id, record)
+                            && s.by_id
+                                .get(&table)
+                                .and_then(|ids| ids.get(&id))
+                                .is_some_and(|k| k == key))
+                })
     }
 
     fn keep(&self, _: &str, _: &str, key: &str, id: i64, from: IdFrom) {
@@ -936,14 +979,28 @@ impl RowIds for Scoped<'_> {
         let spare: Vec<(i64, String)> = {
             let s = self.store.borrow();
             let pinned = s.pinned.get(&table);
-            s.by_id
-                .get(&table)?
-                .iter()
+            let mut spare: Vec<(i64, String)> = s
+                .by_id
+                .get(&table)
+                .into_iter()
+                .flatten()
                 .filter(|(id, k)| {
                     !s.building.contains(addon_of(k)) && pinned.is_none_or(|p| !p.contains_key(id))
                 })
                 .map(|(id, k)| (*id, k.clone()))
-                .collect()
+                .collect();
+            let mut released: Vec<(i64, String)> = pinned
+                .into_iter()
+                .flatten()
+                .filter(|(id, record)| {
+                    s.spare_pin(&table, **id, record)
+                        && !s.by_id.get(&table).is_some_and(|ids| ids.contains_key(*id))
+                })
+                .map(|(id, record)| (*id, record.clone()))
+                .collect();
+            released.sort();
+            spare.extend(released);
+            spare
         };
         let (id, from) = spare.into_iter().find(|(id, _)| free(*id))?;
         let mut s = self.store.borrow_mut();
@@ -1447,7 +1504,9 @@ mod tests {
         assert_eq!(first.ids["a1"], want);
         let mut kept = Store::default();
         kept.put(&key("a", VEHICLES, "a1"), 13, IdFrom::Next);
-        kept.pinned = Store::load(&data, None, "p", None).0.pinned;
+        let loaded = Store::load(&data, None, "p", None).0;
+        kept.pinned = loaded.pinned;
+        kept.career_held = loaded.career_held;
         let moved = build(VEHICLES, 10, &[("a", &["a1"])], kept);
         assert_eq!(moved.ids["a1"], want);
         assert!(
@@ -1459,6 +1518,52 @@ mod tests {
         );
         assert_eq!(moved.store.get(&key("a", VEHICLES, "a1")), Some(want));
         assert_eq!(moved.store.from[&key("a", VEHICLES, "a1")], IdFrom::Moved);
+        std::fs::remove_dir_all(&data).ok();
+    }
+
+    #[test]
+    fn a_full_table_takes_an_id_ids_json_holds_for_an_addon_the_build_leaves_out_but_never_one_a_career_uses()
+    {
+        let data = data_dir("registry-full");
+        let records: Vec<String> = (1..=254).map(|id| format!(r#""gone.x/pkg_{id}":{id}"#)).collect();
+        put(
+            &reports::path(&data, reports::IDS),
+            &format!(
+                r#"{{"version":1,"ids":{{"vehicle.package":{{{}}}}},
+                "careers":{{"dc-1":{{"vehicle.package":{{"gone.x/pkg_1":1}}}}}}}}"#,
+                records.join(",")
+            ),
+        );
+        let (store, _) = Store::load(&data, None, "p", None);
+        let first = build(PACKAGES, 0, &[("a", &["a1", "a2"])], store);
+        assert_eq!((first.ids["a1"], first.ids["a2"]), (2, 3));
+        assert_eq!(first.store.from[&key("a", PACKAGES, "a1")], IdFrom::Reused);
+        assert!(
+            first.lines.iter().any(|l| l.contains("stat_id 2 (the source's is 0; no other id up to 254 is free; reused from gone.x/pkg_2, which this build leaves out)")),
+            "{:?}",
+            first.lines
+        );
+        first.store.save(&data).unwrap();
+        let (store, _) = Store::load(&data, None, "p", None);
+        let again = build(PACKAGES, 0, &[("a", &["a1", "a2"])], store);
+        assert_eq!(again.ids, first.ids);
+        std::fs::remove_dir_all(&data).ok();
+    }
+
+    #[test]
+    fn a_full_table_leaves_the_ids_ids_json_holds_for_addons_the_build_has() {
+        let data = data_dir("registry-full-building");
+        let records: Vec<String> = (1..=254).map(|id| format!(r#""a/pkg_{id}":{id}"#)).collect();
+        put(
+            &reports::path(&data, reports::IDS),
+            &format!(
+                r#"{{"version":1,"ids":{{"vehicle.package":{{{}}}}}}}"#,
+                records.join(",")
+            ),
+        );
+        let (store, _) = Store::load(&data, None, "p", None);
+        let e = try_build(PACKAGES, 0, &[("a", &["a1"])], store).err().unwrap();
+        assert!(e.to_string().contains("has no free stat_id up to 254"), "{e}");
         std::fs::remove_dir_all(&data).ok();
     }
 
