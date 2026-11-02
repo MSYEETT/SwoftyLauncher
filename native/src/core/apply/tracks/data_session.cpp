@@ -274,7 +274,7 @@ private:
         std::vector<std::pair<std::string, float>> out;
         for (auto &n : pf::kSets) {
             registry::Record r = store.get("track.data", track + "/" + n.name);
-            if (r.status != registry::Status::ok || !burn_from_addon(r.origins))
+            if (r.status != registry::Status::ok || !burn_from_addon(r.origins, r.owner))
                 continue;
             const swofty::json::Value &f = r.value["fuel"];
             if (f.is_object() && f["burn_per_lap"].is_number() && f["burn_per_lap"].as_double() > 0)

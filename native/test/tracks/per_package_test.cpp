@@ -89,6 +89,8 @@ int main()
     expect(trk::burn_from_addon({{"", "a"}}) && trk::burn_from_addon({{"/fuel", "a"}}) &&
                !trk::burn_from_addon({{"/laps", "a"}}),
            "an origin on the record, its fuel or the burn counts; one on another field does not");
+    expect(trk::burn_from_addon({}, "mod.okayama") && !trk::burn_from_addon({}, "game"),
+           "an addon's own track.data record counts with no origins; the game's seeded one does not");
 
     std::vector<trk::fuel::Set> stock(5);
     auto masks = [](trk::fuel::Set &x, uint32_t modes, uint32_t seasons, uint32_t formats) {
