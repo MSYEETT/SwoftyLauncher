@@ -72,6 +72,16 @@ impl Edited {
                      {puts}, and then Play works."
                 )
             }
+            Self::NotStock(r) if r.mixed() => {
+                let (changed, missing) = stock::split_absent(&r.detail);
+                format!(
+                    "{} changed outside Swofty and {} missing from the F1 25 folder, so it stopped before \
+                     changing anything. {} puts them back, and then Play works.",
+                    count(changed.len(), "was", "were"),
+                    count(missing.len(), "is", "are"),
+                    repair.restores
+                )
+            }
             Self::NotStock(r) => {
                 let (changed, them) = match r.files.len() {
                     1 => ("1 game file was".to_owned(), "it"),
@@ -103,6 +113,13 @@ impl Edited {
             Some(_) => MISSING_TITLE,
             None => TITLE,
         }
+    }
+}
+
+fn count(n: usize, one: &str, many: &str) -> String {
+    match n {
+        1 => format!("1 game file {one}"),
+        n => format!("{n} game files {many}"),
     }
 }
 
@@ -561,6 +578,31 @@ mod tests {
         assert_eq!(
             notice(&report, Some(Source::Steam)),
             "F1 25 is missing game files; update it in Steam or the EA app"
+        );
+    }
+
+    #[test]
+    fn changed_and_missing_files_are_both_counted() {
+        let detail = |rel: &str, size| stock::Foreign {
+            rel: rel.to_owned(),
+            measured: rel.to_owned(),
+            size,
+            steam: 10,
+            modified: None,
+        };
+        let report = stock::Report::new(
+            vec!["a.erp".into(), "b.erp".into(), "c.erp".into()],
+            std::path::Path::new("/games/F1 25"),
+        )
+        .with_detail(vec![
+            detail("a.erp", None),
+            detail("b.erp", Some(3)),
+            detail("c.erp", None),
+        ]);
+        let why = Edited::NotStock(report).why(&repair(Source::Steam));
+        assert!(
+            why.starts_with("1 game file was changed outside Swofty and 2 game files are missing"),
+            "{why}"
         );
     }
 

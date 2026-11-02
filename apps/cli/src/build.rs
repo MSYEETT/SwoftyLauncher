@@ -473,10 +473,30 @@ fn check_stock(store: &Store, g: &Game, out: &dyn Fn(&str)) -> Result<Option<Dep
                 f.modified.map_or("unknown".to_owned(), |t| format!("{t:.0}"))
             ));
         }
+        let (changed, missing) = stock::split_absent(&checked.detail);
+        let version = swofty_core::exe_version::read(&g.dir.join(swofty_core::GAME_EXE));
+        if changed.is_empty() && !missing.is_empty() {
+            stock::Report::missing(missing.clone(), &g.dir, version.clone())
+                .with_detail(checked.detail.clone())
+                .write(&store.root)?;
+            return Err(swofty_core::Error::MissingStock {
+                files: missing,
+                version,
+            }
+            .into());
+        }
         stock::Report::new(checked.foreign.clone(), &g.dir)
             .with_detail(checked.detail.clone())
             .write(&store.root)?;
-        return Err(swofty_core::Error::NotStock(checked.foreign).into());
+        if missing.is_empty() {
+            return Err(swofty_core::Error::NotStock(checked.foreign).into());
+        }
+        return Err(swofty_core::Error::NotStockAndMissing {
+            changed,
+            missing,
+            version,
+        }
+        .into());
     }
     Ok(Some(depots))
 }

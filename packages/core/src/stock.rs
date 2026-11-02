@@ -465,6 +465,14 @@ impl Report {
         }
     }
 
+    pub fn mixed(&self) -> bool {
+        if self.missing {
+            return false;
+        }
+        let (changed, missing) = split_absent(&self.detail);
+        !changed.is_empty() && !missing.is_empty()
+    }
+
     pub fn fix(&self) -> Fix {
         fix_for(self.version.as_deref())
     }
@@ -499,6 +507,21 @@ impl Report {
     }
 
     pub fn text(&self) -> String {
+        let (changed, missing) = split_absent(&self.detail);
+        if self.missing || (!missing.is_empty() && changed.is_empty() && missing.len() == self.files.len()) {
+            return format!(
+                "F1 25 was not started. {}. {}.",
+                missing_subject(&self.files),
+                capitalise(&missing_fix(self.files.len(), self.version.as_deref()))
+            );
+        }
+        if !missing.is_empty() {
+            return format!(
+                "F1 25 was not started. {} changed outside the launcher and {}. Verifying the game files in Steam puts Steam's copies back: open {STEAM_VERIFY_URL}, or right-click F1 25 in Steam > Properties > Installed Files > Verify integrity of game files. Then press Play again.",
+                changed_count(changed.len()),
+                missing_subject(&missing)
+            );
+        }
         format!(
             "F1 25 was not started. {} {} changed outside the launcher, usually by a mod copied \
              into the game folder by hand. Verifying the game files in Steam puts Steam's copies \
@@ -507,6 +530,20 @@ impl Report {
             names(&self.files),
             if self.files.len() == 1 { "was" } else { "were" }
         )
+    }
+}
+
+fn capitalise(s: &str) -> String {
+    let mut c = s.chars();
+    c.next()
+        .map(|f| f.to_uppercase().chain(c).collect())
+        .unwrap_or_default()
+}
+
+fn changed_count(n: usize) -> String {
+    match n {
+        1 => "1 game file was".to_owned(),
+        n => format!("{n} game files were"),
     }
 }
 
@@ -531,12 +568,44 @@ pub fn fix_for(version: Option<&str>) -> Fix {
 }
 
 pub fn missing_text(files: &[String], version: Option<&str>) -> String {
-    let are = if files.len() == 1 { "is" } else { "are" };
     format!(
-        "{} {are} missing from the game folder; nothing in the game folder was changed; {}, then try again",
-        names(files),
+        "{} from the game folder; nothing in the game folder was changed; {}, then try again",
+        missing_subject(files),
         missing_fix(files.len(), version)
     )
+}
+
+fn missing_subject(files: &[String]) -> String {
+    match files.len() {
+        1 => format!("{} is missing", names(files)),
+        2 | 3 => format!("{} are missing", names(files)),
+        n => format!("{n} game files are missing"),
+    }
+}
+
+/// Split the files a check flagged into those whose bytes differ from Steam's
+/// and those that are not in the game folder at all.
+pub fn split_absent(detail: &[Foreign]) -> (Vec<String>, Vec<String>) {
+    let (absent, changed): (Vec<&Foreign>, Vec<&Foreign>) = detail.iter().partition(|f| f.size.is_none());
+    let rels = |v: Vec<&Foreign>| v.into_iter().map(|f| f.rel.clone()).collect();
+    (rels(changed), rels(absent))
+}
+
+pub fn changed_and_missing_text(changed: &[String], missing: &[String], version: Option<&str>) -> String {
+    format!(
+        "{} not the copy Steam installed, usually after a mod was copied into the game folder by hand, and {}; nothing in the game folder was changed; {}, then try again",
+        changed_subject(changed),
+        missing_subject(missing),
+        missing_fix(changed.len() + missing.len(), version)
+    )
+}
+
+fn changed_subject(files: &[String]) -> String {
+    match files.len() {
+        1 => format!("{} is", names(files)),
+        2 | 3 => format!("{} are", names(files)),
+        n => format!("{n} game files are"),
+    }
 }
 
 /// How to put `n` missing game files back on a game of `version`.

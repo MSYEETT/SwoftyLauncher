@@ -120,6 +120,12 @@ pub enum Error {
         files: Vec<String>,
         version: Option<String>,
     },
+    #[error("{}", stock::changed_and_missing_text(changed, missing, version.as_deref()))]
+    NotStockAndMissing {
+        changed: Vec<String>,
+        missing: Vec<String>,
+        version: Option<String>,
+    },
     #[error("{}", .0.text())]
     Blocked(app_control::Block),
     #[error("{0}")]

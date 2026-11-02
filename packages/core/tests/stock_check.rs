@@ -515,3 +515,76 @@ fn without_steams_list_the_conflict_is_still_refused() {
     assert!(matches!(&err, swofty_core::Error::Leftovers(c) if c.len() == 1 && !c[0].owned));
     assert_eq!(std::fs::read(f.game.dir.join(DB)).unwrap(), b"stock db");
 }
+
+fn foreign(rel: &str, size: Option<u64>) -> stock::Foreign {
+    stock::Foreign {
+        rel: rel.to_owned(),
+        measured: rel.to_owned(),
+        size,
+        steam: 10,
+        modified: None,
+    }
+}
+
+#[test]
+fn many_missing_files_are_counted_not_named() {
+    let files: Vec<String> = (0..7772).map(|i| format!("a/f{i}.erp")).collect();
+    let text = stock::missing_text(&files, Some("1.0.141.7865"));
+    assert!(
+        text.starts_with("7772 game files are missing from the game folder;"),
+        "{text}"
+    );
+    assert!(text.contains("verify the game files in Steam"), "{text}");
+    assert!(!text.contains("copied into the game folder by hand"), "{text}");
+}
+
+#[test]
+fn absent_files_are_split_from_changed_ones() {
+    let detail = vec![
+        foreign("a.erp", None),
+        foreign("b.erp", Some(3)),
+        foreign("c.erp", None),
+    ];
+    let (changed, missing) = stock::split_absent(&detail);
+    assert_eq!(changed, ["b.erp"]);
+    assert_eq!(missing, ["a.erp", "c.erp"]);
+}
+
+#[test]
+fn a_report_of_only_absent_files_says_missing_and_a_mixed_one_says_both() {
+    let game = Path::new("/games/F1 25");
+    let only = stock::Report::new(vec!["a.erp".into(), "c.erp".into()], game)
+        .with_detail(vec![foreign("a.erp", None), foreign("c.erp", None)]);
+    let text = only.text();
+    assert!(text.contains("a.erp and c.erp are missing"), "{text}");
+    assert!(!text.contains("changed outside"), "{text}");
+    assert!(!only.mixed());
+
+    let mixed = stock::Report::new(vec!["a.erp".into(), "b.erp".into()], game)
+        .with_detail(vec![foreign("a.erp", None), foreign("b.erp", Some(3))]);
+    assert!(mixed.mixed());
+    let text = mixed.text();
+    assert!(
+        text.contains("1 game file was changed outside the launcher"),
+        "{text}"
+    );
+    assert!(text.contains("a.erp is missing"), "{text}");
+
+    let edited = stock::Report::new(vec!["b.erp".into()], game).with_detail(vec![foreign("b.erp", Some(3))]);
+    assert!(edited.text().contains("b.erp was changed outside the launcher"));
+}
+
+#[test]
+fn a_mixed_error_names_both_counts() {
+    let err = swofty_core::Error::NotStockAndMissing {
+        changed: vec!["b.erp".into()],
+        missing: (0..5).map(|i| format!("m{i}.erp")).collect(),
+        version: Some("1.0.141.7865".into()),
+    };
+    let text = err.to_string();
+    assert!(
+        text.starts_with("b.erp is not the copy Steam installed"),
+        "{text}"
+    );
+    assert!(text.contains("5 game files are missing"), "{text}");
+}
