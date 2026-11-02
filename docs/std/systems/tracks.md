@@ -165,7 +165,7 @@ The records and their ids:
 - **`track.data`:** `<track id>/<data set>`. The core seeds `game/<code>/<data set>` for every stock block. An added track's blocks are variants of its base's, so a layer on `game/austria/f1_2026` reaches `mod.hockenheim/hockenheim/f1_2026` until it sets that field itself.
 - **`track.per_package`:** `<package id>/<key>`, applied while that box is picked and put back when it's left.
 
-`track.data` applies at boot in 1.6.5: the core writes each block's registered values into the database before it loads. At session load it writes fuel again into the data set the session reads. A layer added after boot on another field is logged as taking effect at the next start.
+`track.data` applies at boot in 1.6.5: the core writes each block's registered values into the database before it loads. At session load it writes fuel again into the data set the session reads, only for a record whose `fuel.burn_per_lap` an addon set; a seeded value no addon changed leaves the live value alone, so another writer's fuel for the track stays. A layer added after boot on another field is logged as taking effect at the next start.
 
 ## The venues
 

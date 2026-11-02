@@ -22,7 +22,7 @@
 // (entity +0x2b0 setup mode stat id byte +0x80, entity +0xe18 the selected entrant list's u16 season at +0xb0;
 // Trk_ChampionshipEntity_TrackDataQuery_Body, V1631) and writes the session's track again in those sets and the
 // ones the query picks; at the session's end it logs when the query changed during the session. Without a box
-// entry, a track.data record <track>/<data set> whose fuel differs from the set's is written into that named set.
+// entry, a track.data record <track>/<data set> whose fuel an addon set and that differs from the set's is written into that named set.
 // Box writes are put back on the next box press, on leaving the box and on career unload; track.data writes when
 // the session ends. Each write keeps the bytes it found and puts back only what still holds the bytes the core
 // wrote. Only fuel is written: the other track.data fields take effect at the next start (D4).
@@ -274,7 +274,7 @@ private:
         std::vector<std::pair<std::string, float>> out;
         for (auto &n : pf::kSets) {
             registry::Record r = store.get("track.data", track + "/" + n.name);
-            if (r.status != registry::Status::ok)
+            if (r.status != registry::Status::ok || !burn_from_addon(r.origins))
                 continue;
             const swofty::json::Value &f = r.value["fuel"];
             if (f.is_object() && f["burn_per_lap"].is_number() && f["burn_per_lap"].as_double() > 0)

@@ -74,6 +74,22 @@ int main()
     plan = trk::plan_box_fuel(base, e, {&set}, "");
     expect(plan.empty(), "a track whose fuel rows don't read as fuel is not written");
 
+    set.tracks[0].fuel.count = 1;
+    set.tracks[0].fuel.burn = 1.74f;
+    std::vector<trk::FuelWrite> data_plan;
+    std::map<std::string, std::string> seeded_only;
+    if (trk::burn_from_addon(seeded_only))
+        trk::plan_burn(data_plan, set, "melbourne", 1.30f, "game/melbourne/f1_2026");
+    expect(data_plan.empty(), "a seeded track.data record no addon changed plans no burn write over another writer's value");
+    std::map<std::string, std::string> changed = {{"/fuel/burn_per_lap", "mod.hockenheim"}};
+    if (trk::burn_from_addon(changed))
+        trk::plan_burn(data_plan, set, "melbourne", 1.62f, "game/melbourne/f1_2026");
+    expect(data_plan.size() == 1 && data_plan[0].after.burn > 1.61f && data_plan[0].before.burn > 1.73f,
+           "a record an addon changed still writes its burn");
+    expect(trk::burn_from_addon({{"", "a"}}) && trk::burn_from_addon({{"/fuel", "a"}}) &&
+               !trk::burn_from_addon({{"/laps", "a"}}),
+           "an origin on the record, its fuel or the burn counts; one on another field does not");
+
     std::vector<trk::fuel::Set> stock(5);
     auto masks = [](trk::fuel::Set &x, uint32_t modes, uint32_t seasons, uint32_t formats) {
         x.modes = modes, x.seasons = seasons, x.formats = formats;
