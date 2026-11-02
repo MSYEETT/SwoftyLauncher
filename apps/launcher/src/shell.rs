@@ -1458,21 +1458,35 @@ impl Shell {
                 .ok_variant(ButtonVariant::Danger)
                 .show_cancel(true)
                 .on_ok(move |_, window, cx| {
-                    match store.remove_addon(&id) {
-                        Ok(()) => {
-                            window.push_notification(Notification::success(format!("Removed {name}")), cx);
-                            shell
-                                .update(cx, |s, cx| {
-                                    s.open_addon = None;
-                                    s.reload(cx);
-                                })
-                                .ok();
-                        }
-                        Err(e) => {
-                            crate::app_log::action("remove addon").addon(&id).failed(&e);
-                            window.push_notification(Notification::error(e.to_string()), cx);
-                        }
-                    }
+                    let (shell, store, id, name) = (shell.clone(), store.clone(), id.clone(), name.clone());
+                    window
+                        .spawn(cx, async move |cx| {
+                            let removing = id.clone();
+                            let removed = cx
+                                .background_executor()
+                                .spawn(async move { store.remove_addon(&removing) })
+                                .await;
+                            cx.update(|window, cx| match removed {
+                                Ok(()) => {
+                                    window.push_notification(
+                                        Notification::success(format!("Removed {name}")),
+                                        cx,
+                                    );
+                                    shell
+                                        .update(cx, |s, cx| {
+                                            s.open_addon = None;
+                                            s.reload_in_background(cx);
+                                        })
+                                        .ok();
+                                }
+                                Err(e) => {
+                                    crate::app_log::action("remove addon").addon(&id).failed(&e);
+                                    window.push_notification(Notification::error(e.to_string()), cx);
+                                }
+                            })
+                            .ok();
+                        })
+                        .detach();
                     true
                 })
         });
