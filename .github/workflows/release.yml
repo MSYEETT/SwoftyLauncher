@@ -136,7 +136,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: native
-          path: native
+          path: native/dist
 
       - name: Fetch dxc
         env:
@@ -183,7 +183,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: native
-          path: native
+          path: native/dist
 
       - name: Fetch dxc
         shell: bash
