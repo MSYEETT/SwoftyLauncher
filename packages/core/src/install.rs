@@ -218,6 +218,28 @@ fn link_replacing(src: &Path, path: &Path) -> std::io::Result<()> {
     renamed
 }
 
+fn copy_replacing(src: &Path, path: &Path) -> std::io::Result<()> {
+    let tmp = path.with_file_name(format!(
+        ".{}.swofty-copy",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ));
+    std::fs::remove_file(&tmp).ok();
+    if let Err(e) = std::fs::copy(src, &tmp) {
+        std::fs::remove_file(&tmp).ok();
+        return Err(e);
+    }
+    let renamed = match std::fs::rename(&tmp, path) {
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && crate::clear_readonly(path) => {
+            std::fs::rename(&tmp, path)
+        }
+        r => r,
+    };
+    if renamed.is_err() {
+        std::fs::remove_file(&tmp).ok();
+    }
+    renamed
+}
+
 fn rel_parts(rel: &str) -> Vec<String> {
     let parts: Vec<&str> = rel.split('/').collect();
     (1..parts.len()).map(|i| parts[..i].join("/")).collect()
@@ -1016,16 +1038,8 @@ impl<'a> Installer<'a> {
                         linked += 1;
                         hashes.wrote(src, e.after.as_deref().expect("a placed file has after"));
                     } else {
-                        match std::fs::copy(src, &path) {
-                            Err(err)
-                                if err.kind() == std::io::ErrorKind::PermissionDenied
-                                    && crate::clear_readonly(&path) =>
-                            {
-                                std::fs::copy(src, &path)
-                            }
-                            r => r,
-                        }
-                        .map_err(|err| crate::quarantine::copy_error(&e.path, &path, err))?;
+                        copy_replacing(src, &path)
+                            .map_err(|err| crate::quarantine::copy_error(&e.path, &path, err))?;
                         crate::clear_readonly(&path);
                     }
                 }
@@ -1040,7 +1054,7 @@ impl<'a> Installer<'a> {
                         linked += 1;
                         hashes.wrote(src, e.after.as_deref().expect("a placed file has after"));
                     } else {
-                        match std::fs::copy(src, &path) {
+                        match copy_replacing(src, &path) {
                             Err(err) if crate::quarantine::is_virus_error(&err) => continue,
                             r => {
                                 r.map_err(io_err(&path))?;

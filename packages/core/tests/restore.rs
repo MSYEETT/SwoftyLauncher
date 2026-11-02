@@ -610,3 +610,25 @@ fn a_build_output_on_another_volume_than_the_game_is_copied() {
     );
     assert_eq!(std::fs::read_to_string(&plan.data[GVDB]).unwrap(), "db-B");
 }
+
+#[cfg(unix)]
+#[test]
+fn the_copy_fallback_never_writes_through_a_hard_link_in_the_game_folder() {
+    let f = Fixture::new("copy-through");
+    let game = f.game("1");
+    let cache = f.src.join("cache-twin");
+    std::fs::hard_link(f.game.join(GVDB), &cache).unwrap();
+    let mut plan = f.plan("b");
+    f.built(&mut plan);
+    let inst = Installer {
+        copy_only: true,
+        ..Installer::new(&f.data, &game)
+    };
+    inst.apply(&plan).unwrap();
+    assert_eq!(f.read(GVDB), "db-B");
+    assert_eq!(std::fs::read_to_string(&cache).unwrap(), "db-v1");
+    assert_ne!(inode(&f.game.join(GVDB)), inode(&cache));
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(f.read(GVDB), "db-v1");
+    assert_eq!(std::fs::read_to_string(&cache).unwrap(), "db-v1");
+}
