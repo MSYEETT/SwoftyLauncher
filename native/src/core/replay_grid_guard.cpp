@@ -235,7 +235,9 @@ void after_record(SwoftyContext *c)
 
 constexpr uint32_t STORED_SIZE = 0xa8;
 
-const runtime::Sig S_FULL{"site_Ne_ReplayReadFullApply", "49 8B 4C 24 10 48 8B 01 48 89 FA FF 50 38 E9", 0x45cdcc0};
+const runtime::Sig S_FULL{"site_Ne_ReplayReadFullApply",
+                          "48 89 F9 48 89 F2 E8 ?? ?? ?? ?? 49 8B 4C 24 10 48 8B 01 48 89 FA FF 50 38 E9", 0x45cdcc0,
+                          runtime::Sig::addr, 0, 11, 0};
 constexpr uintptr_t FULL_SKIP = 14;
 const runtime::Sig S_DELTA{
     "site_Ne_ReplayReadDeltaApply",
