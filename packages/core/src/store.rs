@@ -13,7 +13,7 @@ use crate::settings::{self, Merge, Requests, SessionSettings};
 use crate::{Error, Result, io_err};
 
 pub const DEFAULT_PROFILE: &str = "default";
-pub const DATA_VERSION: u32 = 3;
+pub const DATA_VERSION: u32 = 4;
 const LEGACY_ADDONS_DIR: &str = "mods";
 
 static PROFILE_WRITE: Mutex<()> = Mutex::new(());
@@ -319,7 +319,23 @@ impl Store {
                 Err(e) => return Err(Error::Other(format!("migrating {id}: {e}"))),
             }
         }
+        let backfilled = match config
+            .as_ref()
+            .map_or(Ok(Vec::new()), |_| self.backfill_profile_addons(from))
+        {
+            Ok(n) => {
+                notes.extend(n);
+                true
+            }
+            Err(e) => {
+                let text = format!("couldn't list installed addons in the profiles, will retry: {e}");
+                warn(text.clone());
+                notes.push(text);
+                false
+            }
+        };
         match config {
+            Ok(_) if !backfilled => {}
             Ok(mut config) => {
                 config.data_version = DATA_VERSION;
                 self.save_config(&config)?;
@@ -327,6 +343,64 @@ impl Store {
             Err(e) => notes.push(format!("data_version not recorded: {e}")),
         }
         Ok(notes)
+    }
+
+    /// Data version 4: a profile lists every installed addon, as the Addons page showed
+    /// them before profiles listed their own. Each one a profile doesn't list is added off,
+    /// at the end, in the order that page showed them; the profile's own entries stay as
+    /// they are.
+    fn backfill_profile_addons(&self, from: u32) -> Result<Vec<String>> {
+        let mut notes = Vec::new();
+        if from >= 4 {
+            return Ok(notes);
+        }
+        let mut installed: Vec<AddonManifest> = self
+            .addons()?
+            .into_values()
+            .filter(|m| {
+                !m.is_builtin() && !self.is_builtin(&m.id) && m.id != crate::managed::ID && m.id != CORE_ID
+            })
+            .collect();
+        installed.sort_by_cached_key(|m| m.name.to_lowercase());
+        if installed.is_empty() {
+            return Ok(notes);
+        }
+        for name in self.profile_names()? {
+            if name == profile::VANILLA {
+                continue;
+            }
+            let added = self.update_profile_if(&name, |p| {
+                let mut added = Vec::new();
+                for m in &installed {
+                    if !p.has(&m.id) {
+                        p.add_addon(&m.id)?;
+                        added.push(m.id.clone());
+                    }
+                }
+                Ok(added)
+            })?;
+            if !added.is_empty() {
+                notes.push(format!(
+                    "listed {} installed addons in the {name} profile",
+                    added.len()
+                ));
+            }
+        }
+        Ok(notes)
+    }
+
+    fn update_profile_if(
+        &self,
+        name: &str,
+        f: impl FnOnce(&mut Profile) -> Result<Vec<String>>,
+    ) -> Result<Vec<String>> {
+        let _write = profile_write();
+        let mut p = self.profile(name)?;
+        let added = f(&mut p)?;
+        if !added.is_empty() {
+            self.save_profile(&p)?;
+        }
+        Ok(added)
     }
 
     /// Finishes addon updates and removals an earlier run left: an old copy
@@ -564,7 +638,7 @@ impl Store {
             return;
         }
         if let Err(e) = self.update_profile(&name, |p| p.add_addon(id)) {
-            eprintln!("couldn't add {id} to the {name} profile: {e}");
+            warn(format!("couldn't add {id} to the {name} profile: {e}"));
         }
     }
 
@@ -1043,6 +1117,20 @@ fn unknown_part(message: &str) -> Option<String> {
 }
 
 /// Prints a warning to stderr once per process.
+static WARNING_SINK: std::sync::OnceLock<fn(&str)> = std::sync::OnceLock::new();
+
+/// Sends the store's warnings to `sink` as well as stderr; the launcher uses its app log.
+pub fn set_warning_sink(sink: fn(&str)) {
+    WARNING_SINK.set(sink).ok();
+}
+
+fn warn(text: String) {
+    eprintln!("swofty: warning: {text}");
+    if let Some(sink) = WARNING_SINK.get() {
+        sink(&text);
+    }
+}
+
 fn warn_once(text: String) {
     static SEEN: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
     let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
@@ -1478,7 +1566,7 @@ mod tests {
         let store = Store::new(&root);
         write_addon(&root.join("mods/a.one"), "a.one");
         std::fs::write(store.config_path(), r#"{"active_profile":"grid"}"#).unwrap();
-        assert_eq!(store.migrate().unwrap().len(), 1);
+        assert_eq!(store.migrate().unwrap().len(), 2);
         assert!(!root.join("mods").exists());
         assert!(store.addons().unwrap().contains_key("a.one"));
         let config = store.config();
@@ -1513,10 +1601,90 @@ mod tests {
         std::fs::remove_dir_all(root.join("mods/stray")).unwrap();
         write_addon(&root.join("mods/a.three"), "a.three");
         std::fs::remove_file(store.config_path()).unwrap();
-        assert_eq!(store.migrate().unwrap().len(), 2);
+        assert_eq!(store.migrate().unwrap().len(), 3);
         assert!(!root.join("mods").exists());
         assert!(root.join("addons/a.three").is_dir());
         assert_eq!(store.config().data_version, DATA_VERSION);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn v3_store(name: &str, ids: &[&str]) -> (PathBuf, Store) {
+        let root = tmp(name);
+        let store = Store::new(&root);
+        for id in ids {
+            write_addon(&root.join("addons").join(id), id);
+        }
+        std::fs::write(
+            store.config_path(),
+            r#"{"data_version":3,"active_profile":"grid"}"#,
+        )
+        .unwrap();
+        (root, store)
+    }
+
+    fn listed(store: &Store, name: &str) -> Vec<(String, bool)> {
+        store
+            .profile(name)
+            .unwrap()
+            .addons
+            .iter()
+            .filter(|a| a.id != CORE_ID && !store.is_builtin(&a.id))
+            .map(|a| (a.id.clone(), a.enabled))
+            .collect()
+    }
+
+    #[test]
+    fn migrate_lists_the_installed_addons_a_profile_lacks() {
+        let (root, store) = v3_store("backfill", &["a.e", "a.b", "a.d", "a.a", "a.c"]);
+        store
+            .update_profile("grid", |p| {
+                p.set_enabled("a.d", true)?;
+                p.set_enabled("a.b", false)
+            })
+            .unwrap();
+        store.save_profile(&Profile::new("other")).unwrap();
+        let builtins_before = store.profile("grid").unwrap().addons.len() - 2;
+        store.migrate().unwrap();
+        assert_eq!(store.config().data_version, DATA_VERSION);
+        let want = [
+            ("a.d", true),
+            ("a.b", false),
+            ("a.a", false),
+            ("a.c", false),
+            ("a.e", false),
+        ];
+        let got = listed(&store, "grid");
+        assert_eq!(got, want.map(|(i, e)| (i.to_owned(), e)));
+        assert_eq!(store.profile("grid").unwrap().addons.len(), builtins_before + 5);
+        assert_eq!(listed(&store, "other").len(), 5);
+        assert!(store.profile(profile::VANILLA).unwrap().is_vanilla());
+        assert!(!store.profiles_dir().join("vanilla.json").exists());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn migrate_backfill_runs_once() {
+        let (root, store) = v3_store("backfill-once", &["a.one", "a.two"]);
+        store.save_profile(&Profile::new("grid")).unwrap();
+        store.migrate().unwrap();
+        let path = store.profiles_dir().join("grid.json");
+        let after = std::fs::read(&path).unwrap();
+        assert!(store.migrate().unwrap().is_empty());
+        assert_eq!(std::fs::read(&path).unwrap(), after);
+
+        store.update_profile("grid", |p| p.remove_addon("a.two")).unwrap();
+        let removed = std::fs::read(&path).unwrap();
+        assert!(store.migrate().unwrap().is_empty());
+        assert_eq!(std::fs::read(&path).unwrap(), removed);
+        assert_eq!(listed(&store, "grid"), [("a.one".to_owned(), false)]);
+
+        std::fs::write(store.config_path(), r#"{"data_version":3}"#).unwrap();
+        store.migrate().unwrap();
+        assert_eq!(listed(&store, "grid").len(), 2);
+        let again = std::fs::read(&path).unwrap();
+        std::fs::write(store.config_path(), r#"{"data_version":3}"#).unwrap();
+        store.migrate().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), again);
         std::fs::remove_dir_all(&root).ok();
     }
 

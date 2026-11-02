@@ -210,6 +210,7 @@ pub(crate) struct Prepared {
 impl Prepared {
     pub(crate) fn load() -> Self {
         crate::app_log::step("opening the store");
+        swofty_core::store::set_warning_sink(crate::app_log::note);
         let store = Store::open_default().with_builtins(swofty_builtins::all());
         let migrated = store.migrate();
         crate::app_log::step("store migrated");
@@ -224,7 +225,10 @@ impl Prepared {
         let mut library = Library::load(&store);
         crate::app_log::step("library loaded");
         match migrated {
-            Ok(notes) => notes.iter().for_each(|n| eprintln!("swofty-launcher: {n}")),
+            Ok(notes) => notes.iter().for_each(|n| {
+                eprintln!("swofty-launcher: {n}");
+                crate::app_log::note(n);
+            }),
             Err(e) => library.error = Some(e.to_string()),
         }
         let config = store.config();
