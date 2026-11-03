@@ -19,7 +19,7 @@ To stop following the logs while keeping the game running, press **Ctrl-C**. Whe
 | `--profile <name>` | Choose a profile; otherwise, use the active profile |
 | `--game <dir>` | Play this game folder instead of the [active copy](/using/game-copies) |
 | `--restart` | Close the copy's running F1 25 first. Another copy's game, or one the launcher can't match to a copy, is left running |
-| `--direct` | Launch directly instead of asking Steam |
+| `--direct` | Launch a Steam copy directly instead of asking Steam. An EA app copy always starts through the EA app |
 | `--no-start-store` | Don't start Steam or the EA app when it's closed. `--no-start-steam` still works. The launcher's **Start Steam automatically** setting does the same for every launch |
 | `--vr` | Start the game in VR, like Steam's **Launch in SteamVR mode**: passes `-vr` to the game and, on Linux, starts SteamVR first. See [Playing in VR](/using/vr) |
 | `--winedebug <channels>` | Choose Wine log channels |
