@@ -6,7 +6,7 @@ mod authors;
 pub(crate) use authors::View;
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -56,6 +56,19 @@ const HELMET: &[u8] = include_bytes!("../assets/helmet.svg");
 const NATIVE: &str = "Runs code in the game";
 const VERIFYING: u8 = 1;
 const INSTALLING: u8 = 2;
+
+/// The updates for addons in `on` that haven't failed at the version offered in `held`.
+fn due_updates<'a>(
+    updates: &'a [Update],
+    on: &HashSet<&str>,
+    held: &BTreeMap<String, (semver::Version, String)>,
+) -> Vec<&'a Update> {
+    updates
+        .iter()
+        .filter(|u| on.contains(u.id.as_str()))
+        .filter(|u| held.get(&u.id).is_none_or(|(v, _)| *v != u.to.version))
+        .collect()
+}
 
 fn day(iso: &str) -> String {
     format_date(iso.get(..10).unwrap_or(iso))
@@ -1267,19 +1280,20 @@ impl Shell {
         }
     }
 
-    /// The addon updates the play bar offers: every outdated registry addon
-    /// except the ones that failed at this version.
+    /// The addon updates the play bar offers: every outdated registry addon that's on in the active
+    /// profile, except the ones that failed at this version.
     fn addon_updates(&self) -> Vec<&Update> {
-        self.browser
-            .updates
-            .iter()
-            .filter(|u| {
-                self.browser
-                    .held
-                    .get(&u.id)
-                    .is_none_or(|(v, _)| *v != u.to.version)
-            })
-            .collect()
+        let on: HashSet<&str> = if self.vanilla() {
+            HashSet::new()
+        } else {
+            self.library
+                .addons
+                .iter()
+                .filter(|a| a.enabled || a.locked)
+                .map(|a| a.manifest.id.as_str())
+                .collect()
+        };
+        due_updates(&self.browser.updates, &on, &self.browser.held)
     }
 
     fn updating_addons(&self) -> bool {
@@ -3542,8 +3556,10 @@ impl Shell {
 #[cfg(test)]
 mod tests {
     use super::{
-        Event, Job, Progress, Stage, compact, host, shelf_columns, shelved, shelves, size_text, tile_faces,
+        Event, Job, Progress, Stage, compact, due_updates, host, shelf_columns, shelved, shelves, size_text,
+        tile_faces,
     };
+    use std::collections::{BTreeMap, HashSet};
     use swofty_core::catalog::requires::{Plan, Step};
     use swofty_core::catalog::{Addon, Version};
     use swofty_core::manifest::Category;
@@ -3646,5 +3662,37 @@ mod tests {
         assert_eq!(compact(999), "999");
         assert_eq!(compact(3412), "3.4k");
         assert_eq!(compact(41_000), "41k");
+    }
+
+    fn update(id: &str, to: &str) -> super::Update {
+        super::Update {
+            id: id.into(),
+            name: id.into(),
+            installed: semver::Version::new(1, 0, 0),
+            to: serde_json::from_value(serde_json::json!({
+                "version": to, "size": 1, "sha256": "", "url": ""
+            }))
+            .unwrap(),
+        }
+    }
+
+    #[test]
+    fn only_addons_that_are_on_hold_up_play() {
+        let updates = [update("on", "1.1.0"), update("off", "1.1.0")];
+        let on = HashSet::from(["on"]);
+        let due = due_updates(&updates, &on, &BTreeMap::new());
+        assert_eq!(due.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(), ["on"]);
+        assert!(due_updates(&updates, &HashSet::new(), &BTreeMap::new()).is_empty());
+    }
+
+    #[test]
+    fn an_update_that_failed_at_that_version_is_skipped() {
+        let updates = [update("on", "1.1.0")];
+        let on = HashSet::from(["on"]);
+        let mut held = BTreeMap::new();
+        held.insert("on".to_owned(), (semver::Version::new(1, 1, 0), "x".to_owned()));
+        assert!(due_updates(&updates, &on, &held).is_empty());
+        held.insert("on".to_owned(), (semver::Version::new(1, 0, 5), "x".to_owned()));
+        assert_eq!(due_updates(&updates, &on, &held).len(), 1);
     }
 }
