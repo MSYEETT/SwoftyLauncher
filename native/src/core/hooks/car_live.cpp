@@ -265,11 +265,18 @@ void frame(double, void *)
         Ops::flush();
     }
     Ops::unlock_tick();
-    for (const auto &p : Ops::take()) {
+    uint32_t profiled = 0, applied = 0;
+    for (const auto &p : Ops::take_frame()) {
         swofty::cars::live::Car car(p.index, reinterpret_cast<void *>(p.car));
-        if (p.what != Ops::What::setup)
+        uint32_t bit = 1u << p.index;
+        if (p.what != Ops::What::setup && !(profiled & bit)) {
+            profiled |= bit;
             apply_profiles(p.index);
-        Ops::apply_car(p.index);
+        }
+        if (!(applied & bit)) {
+            applied |= bit;
+            Ops::apply_car(p.index);
+        }
         switch (p.what) {
         case Ops::What::built: events::car_built(car); break;
         case Ops::What::reset: events::car_reset(car, false); break;

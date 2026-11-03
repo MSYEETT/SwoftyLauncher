@@ -509,7 +509,18 @@ template <class Tag> struct Ops {
     }
 
     // Writes one value into a located field and re-runs what the game derives from it.
-    static int write_value(uintptr_t car, uint32_t index, const Field &f, uintptr_t sys, uintptr_t at, float value)
+    static bool rerun_fuel(uintptr_t sys)
+    {
+        int32_t mode = 1;
+        if (!rd(sys + FUEL_ECU_MODE, mode) || mode < 0 || mode > 3)
+            return false;
+        env.fuel_set_mode(sys, mode == 0 ? 1 : 0);
+        env.fuel_set_mode(sys, mode);
+        return true;
+    }
+
+    static int write_value(uintptr_t car, uint32_t index, const Field &f, uintptr_t sys, uintptr_t at, float value,
+                           bool rerun = true)
     {
         if ((f.rederive == Rederive::engine && !env.engine_derived) ||
             (f.rederive == Rederive::gearbox && !env.gearbox_reset) ||
@@ -530,11 +541,8 @@ template <class Tag> struct Ops {
         else if (f.rederive == Rederive::gearbox)
             env.gearbox_reset(sys, GEARBOX_REBUILD);
         else if (f.rederive == Rederive::fuel) {
-            int32_t mode = 1;
-            if (!rd(sys + FUEL_ECU_MODE, mode) || mode < 0 || mode > 3)
+            if (rerun && !rerun_fuel(sys))
                 return SWOFTY_ASSET_LATE;
-            env.fuel_set_mode(sys, mode == 0 ? 1 : 0);
-            env.fuel_set_mode(sys, mode);
         } else if (f.rederive == Rederive::chassis) {
             if (!store(sys + CHASSIS_SQRT_MASS, Kind::obf, std::sqrt(std::max(value, 0.f))))
                 return SWOFTY_ASSET_LATE;
@@ -604,6 +612,7 @@ template <class Tag> struct Ops {
         uintptr_t car = 0;
         if (car_at(index, nullptr, car) != SWOFTY_ASSET_OK)
             return;
+        uintptr_t fuel_sys = 0;
         for (size_t i = 0; i < FIELD_COUNT; i++) {
             const Field &f = FIELDS[i];
             if (f.kind == Kind::virt || !ready(f))
@@ -620,21 +629,31 @@ template <class Tag> struct Ops {
                 continue;
             }
             float base = s.valid && bitwise_equal(current, s.written) ? s.base : current;
+            bool deferred = f.rederive == Rederive::fuel;
             if (!want) {
-                if (s.valid && bitwise_equal(current, s.written))
-                    write_value(car, index, f, sys, at, base);
+                if (s.valid && bitwise_equal(current, s.written) && !bitwise_equal(base, current) &&
+                    write_value(car, index, f, sys, at, base, !deferred) == SWOFTY_ASSET_OK && deferred)
+                    fuel_sys = sys;
                 s = Slot{};
                 continue;
             }
             float target = f.relative ? base + clamp(f, composed(index, f, 0)) : clamp(f, composed(index, f, base));
-            if (!std::isfinite(target) || write_value(car, index, f, sys, at, target) != SWOFTY_ASSET_OK) {
+            if (s.valid && bitwise_equal(current, s.written) && bitwise_equal(target, current)) {
+                s.base = base;
+                continue;
+            }
+            if (!std::isfinite(target) || write_value(car, index, f, sys, at, target, !deferred) != SWOFTY_ASSET_OK) {
                 s = Slot{};
                 continue;
             }
+            if (deferred)
+                fuel_sys = sys;
             float written = target;
             load(at, f.kind, written);
             s = Slot{true, base, written};
         }
+        if (fuel_sys)
+            rerun_fuel(fuel_sys);
     }
 
     static void apply_all()
@@ -836,6 +855,27 @@ template <class Tag> struct Ops {
         });
         return out;
     }
+
+    static std::vector<Pending> coalesce(std::vector<Pending> in)
+    {
+        std::vector<Pending> out;
+        for (const Pending &p : in) {
+            auto it = std::find_if(out.begin(), out.end(), [&](const Pending &o) {
+                return o.index == p.index && o.what == p.what && o.part == p.part;
+            });
+            if (it == out.end())
+                out.push_back(p);
+            else if (p.what == What::damage)
+                it->progress += p.progress;
+            else {
+                it->car = p.car;
+                it->progress = p.progress;
+            }
+        }
+        return out;
+    }
+
+    static std::vector<Pending> take_frame() { return coalesce(take()); }
 
     static inline std::mutex unlock_lock;
     static inline std::vector<std::pair<std::string, uint32_t>> unlocks;

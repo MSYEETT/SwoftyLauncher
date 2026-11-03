@@ -604,6 +604,41 @@ static void v3_fuel()
     expect(Ops::op_unlock_fuel_mixes("a", 0) == SWOFTY_ASSET_OK && Ops::unlocked_mask() == 0, "withdrawing the mask stops the writes");
 }
 
+static void replay_frames()
+{
+    build_world();
+    for (int i = 0; i < CARS; i++) {
+        attach(car_mem[i], cl::FUEL_ECU, ecu[i]);
+        for (int k = 0; k < 16; k++)
+            put_obf(ecu[i], 0x28 + 0x10 * k, 1.0f, 0x7000u + k + i);
+        at<int32_t>(ecu[i], cl::FUEL_ECU_MODE) = 1;
+    }
+    static int calls;
+    calls = 0;
+    cl::Env e = make_env();
+    e.fuel_set_mode = [](uintptr_t, int) { calls++; };
+    Ops::bind(std::move(e));
+    for (uint32_t k = 0; k < 16; k++)
+        Ops::op_layer("rfm", SWOFTY_CAR_ALL, SWOFTY_CAR_FUEL_BASE + k, SWOFTY_CAR_OP_SCALE, 1.05f, 0, nullptr);
+    Ops::flush();
+    Ops::apply_all();
+    calls = 0;
+    for (int frame = 0; frame < 3; frame++) {
+        for (int c = 0; c < CARS; c++)
+            Ops::replayed(reinterpret_cast<uintptr_t>(car_mem[c]) + cl::CAR_LOADER, 0.5f);
+        for (int c = 0; c < CARS; c++)
+            Ops::replayed(reinterpret_cast<uintptr_t>(car_mem[c]) + cl::CAR_LOADER, 0.75f);
+        auto batch = Ops::take_frame();
+        expect(batch.size() == size_t(CARS) && batch[0].progress == 0.75f, "a replay frame queues each car once, with its last progress");
+        for (auto &p : batch)
+            Ops::apply_car(p.index);
+    }
+    expect(calls == 0, "unchanged fuel layers are not re-run on every replay frame");
+    at<uint32_t>(ecu[0], 0x28) ^= 0x1;
+    Ops::apply_car(0);
+    expect(calls == 2, "a game reset of a fuel entry re-runs the mix once for the car, not once per entry");
+}
+
 int main()
 {
     core_ops();
@@ -617,6 +652,7 @@ int main()
     v2_gating();
     v2_refit();
     v3_fuel();
+    replay_frames();
     if (fails) {
         printf("car_live_test: %d failure(s)\n", fails);
         return 1;
