@@ -5,7 +5,6 @@ use serde_json::{Map, Value};
 use swofty_formats::bxml::{Document, Element, Kind};
 use swofty_formats::erp::{Entry, ErpFile, Resource};
 
-use crate::activation::wheel_check;
 use crate::{Result, io_err};
 
 pub const REGISTRY: &str = "vehicle.handling";
@@ -867,9 +866,7 @@ pub fn edit_archive(src: &Path, maps: &[&HandlingMap], out: &Path, lines: &mut V
             continue;
         }
         let mut res = file.load(r)?;
-        let stock = res.fragments[0].data()?;
         let mut changed = false;
-        let mut by: Vec<&str> = Vec::new();
         for m in maps {
             if let Some(names) = &m.resources
                 && !names.iter().any(|n| r.name.ends_with(n.as_str()))
@@ -892,16 +889,9 @@ pub fn edit_archive(src: &Path, maps: &[&HandlingMap], out: &Path, lines: &mut V
                 );
                 res = new;
                 changed = true;
-                by.push(m.id.as_str());
             }
         }
         if changed {
-            let moved = wheel_check::changes_in_data(&stock, &res.fragments[0].data()?).unwrap_or_default();
-            let vehicle = r.name.rsplit('/').next().unwrap_or(&r.name);
-            lines.extend(
-                wheel_check::warning(&by.join(", "), vehicle, &moved)
-                    .map(|w| format!("{}{w}", wheel_check::WARNING_PREFIX)),
-            );
             replace.insert(i, res);
         }
     }

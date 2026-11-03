@@ -81,7 +81,6 @@ void flow_mid(safetyhook::Context &)
     runtime::netplay_tick();
     runtime::career_content_tick();
     runtime::hub_tick();
-    runtime::tyre_models_tick();
     runtime::testagent_tick();
     runtime::direct_start_tick();
     if (!perf::frame_claim())
@@ -289,8 +288,6 @@ void events_setup()
 
 void session_emit(const session_life::Emit &e)
 {
-    if (e.end || e.unload)
-        tyre_models_drop();
     if (e.end) {
         swofty::log("[events] session.end (%s)", e.reason == session_life::END_RESTART  ? "restart"
                                                  : e.reason == session_life::END_UNLOAD ? "ended as the unload began"

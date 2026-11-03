@@ -1767,12 +1767,7 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
     {
         let hb = handling::build_stock(&handling_maps, &resolve, &store.root.join("cache/handling"))?;
         caches.extend(hb.dir.clone());
-        for line in hb.lines {
-            match line.strip_prefix(crate::activation::wheel_check::WARNING_PREFIX) {
-                Some(w) => built.warnings.push(w.to_owned()),
-                None => built.lines.push(line),
-            }
-        }
+        built.lines.extend(hb.lines);
         handled = hb.replaced;
     }
     let current = |rel: &str| handled.get(rel).cloned().unwrap_or_else(|| resolve(rel));
@@ -1961,7 +1956,6 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 _ => {}
             }
         }
-        built.warnings.extend(erps.wheel_warnings());
         if !ers_maps.is_empty() {
             let edited = erps.edit_written(|rel, r| match ers::in_teams(rel) && r.kind() == "VTF" {
                 true => ers::edit_vtf(r, &ers_maps),

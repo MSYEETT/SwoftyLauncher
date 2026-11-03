@@ -7,4 +7,3 @@ pub mod grid;
 pub mod handling;
 pub mod place;
 pub mod ui;
-pub mod wheel_check;

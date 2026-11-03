@@ -5,7 +5,6 @@ use swofty_formats::erp::{self, Entry, Erp, ErpFile, Resource};
 use swofty_formats::pkg::{Node, Pkg, Value};
 use swofty_formats::texarray::Array;
 
-use crate::activation::wheel_check;
 use crate::asset::Source;
 use crate::builtin::loader_files;
 use crate::manifest::relative_inside;
@@ -1111,35 +1110,6 @@ impl<'a> ErpBuild<'a> {
         edit(&mut pkg.root).map_err(|err| fail(format!("{resource}: {err}")))?;
         res.set_fragment(fragment, &pkg.to_bytes()?)?;
         Ok(())
-    }
-
-    /// The warnings for the handling files addons wrote that move a stock car's wheels: its render positions,
-    /// visual height offsets or tyre sizes, beyond [`wheel_check::TOLERANCE`].
-    pub fn wheel_warnings(&self) -> Vec<String> {
-        let mut out = Vec::new();
-        for (rel, a) in &self.erps {
-            for slot in &a.slots {
-                let Slot::Owned(r) = slot else { continue };
-                if !is_handling(r) {
-                    continue;
-                }
-                let Some(stock) = a.file.erp.resources.iter().find(|s| s.name == r.name) else {
-                    continue;
-                };
-                let moved = (|| -> Result<Vec<wheel_check::Change>> {
-                    let before = a.file.load(stock)?.fragments[0].data()?;
-                    wheel_check::changes_in_data(&before, &r.fragments[0].data()?)
-                })()
-                .unwrap_or_default();
-                let by = self
-                    .writers
-                    .get(&(rel.clone(), r.name.clone()))
-                    .map_or("an addon", String::as_str);
-                let car = r.name.rsplit('/').next().unwrap_or(&r.name);
-                out.extend(wheel_check::warning(by, car, &moved));
-            }
-        }
-        out
     }
 
     pub fn changed(&self) -> impl Iterator<Item = &str> {
