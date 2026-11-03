@@ -777,6 +777,16 @@ fn compile_loaded(store: &Store, loaded: &Loaded, target: Target) -> (Vec<Compil
         };
         let blobs = match swofty_shaders::compile(effect, &dir, target, &dxc, crate::postfx::HEADER, &cache) {
             Ok(b) => b,
+            Err(e) if target == Target::Spirv && e.contains("SPIR-V CodeGen not available") => {
+                // Every effect fails the same way: say it once.
+                warnings.clear();
+                warnings.push(
+                    "This launcher's shader compiler can't build effects for the preview (it has no SPIR-V). \
+                     Shaders still work in game; updating Swofty Launcher brings a compiler that can."
+                        .to_owned(),
+                );
+                return (Vec::new(), warnings);
+            }
             Err(e) => {
                 warnings.push(format!("the effect {} did not compile: {e}", effect.id));
                 continue;
