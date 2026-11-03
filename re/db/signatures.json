@@ -161590,6 +161590,60 @@
    "used_by": [
     "native/src/core/standings_drop.cpp"
    ]
+  },
+  {
+   "id": "game.career_events_sequencer_first_record",
+   "section": ".xtls",
+   "pattern": "48 8B 84 24 A0 00 00 00 48 8B 10 48 83 C2 50",
+   "match": "0x140c72e98",
+   "anchor": "0x8",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140c72ea0",
+   "kind": "mid",
+   "expect": "48 8B 10 48",
+   "names": [
+    "site_Game_CareerEventsSequencerFirstRecord"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-11-03",
+     "by": "seqagree",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/sequencer_records_guard.cpp"
+   ]
+  },
+  {
+   "id": "game.career_events_sequencer_records_join",
+   "section": ".xtls",
+   "pattern": "48 8B 01 FF 50 38 48 8B AC 24 90 00 00 00",
+   "match": "0x140c72edc",
+   "anchor": "0x6",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140c72ee2",
+   "kind": "mid",
+   "expect": "48 8B AC 24",
+   "names": [
+    "site_Game_CareerEventsSequencerRecordsJoin"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-11-03",
+     "by": "seqagree",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/sequencer_records_guard.cpp"
+   ]
   }
  ]
 }

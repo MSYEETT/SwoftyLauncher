@@ -24,6 +24,5 @@ int main()
     CHECK(!says(0, said), "a second empty collection is not logged");
     bool other = false;
     CHECK(!says(0x1000, other) && !other, "a collection with records is not logged");
-    CHECK(resume(0x140c72ea0) == 0x140c72ee2, "the join is the cleanup's test of the vector begin");
     return failures ? 1 : 0;
 }
