@@ -491,15 +491,3 @@ impl Render for ShadersView {
 pub(super) const fn list_width() -> f32 {
     LIST_WIDTH
 }
-
-/// An addon whose only content is shader configs and effects.
-pub(crate) fn is_shader_only(m: &swofty_core::manifest::AddonManifest) -> bool {
-    m.postfx.is_empty()
-        && m.shader.is_none()
-        && m.options.is_empty()
-        && m.operations == Default::default()
-        && m.launcher.is_none()
-        && m.career_setup.is_none()
-        && m.hub_tab.is_none()
-        && m.hud.is_none()
-}

@@ -2150,7 +2150,7 @@ impl Shell {
         let selected = self.open_addon.as_ref() == Some(&id);
         let draggable = self.movable(m);
         let has_configs = self.shaders.read(cx).has_configs(&id);
-        let shader_only = has_configs && crate::shaders::is_shader_only(man);
+        let shader_only = man.is_shader_only();
         let off = !self.vanilla() && !self.addon_on(m) && !shader_only;
         let pairs = self.live_pairs(m);
         let lost = pairs.iter().filter(|pr| pr.loser == id).count();

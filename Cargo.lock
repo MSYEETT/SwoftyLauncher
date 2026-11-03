@@ -7121,14 +7121,12 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "sha2 0.11.1",
  "swofty-builtins",
  "swofty-core",
  "swofty-preview",
  "swofty-shaders",
  "ureq",
  "winresource",
- "zip",
 ]
 
 [[package]]

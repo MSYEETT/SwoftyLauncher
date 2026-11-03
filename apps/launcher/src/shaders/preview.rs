@@ -12,8 +12,8 @@ use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
-use swofty_preview::{ActiveInstance, Clip, ClipInfo, CompiledEffect, Frame, Preview};
-use swofty_shaders::{Catalog, Target};
+use swofty_preview::{ActiveInstance, Clip, ClipInfo, Frame, Preview};
+use swofty_shaders::{Catalog, CompiledEffect, Target};
 
 use super::ShadersView;
 use super::clips::{self, ClipItem};
@@ -166,7 +166,13 @@ fn work(jobs: Receiver<Job>, done: Sender<Done>) {
                         Ok(opened) => {
                             let info = opened.info.clone();
                             clip = Some(opened);
-                            Done::Opened(Ok(info))
+                            match gpu(&mut preview, &mut gpu_error) {
+                                Ok(p) => {
+                                    p.set_clip(&info);
+                                    Done::Opened(Ok(info))
+                                }
+                                Err(message) => Done::Failed { message, gpu: true },
+                            }
                         }
                         Err(e) => {
                             clip = None;
@@ -268,13 +274,26 @@ fn render(
     }
 }
 
-/// Library and addon effects compiled for the preview.
+/// Library and addon effects compiled to SPIR-V for the preview.
 fn compile_effects(
-    _store: &swofty_core::store::Store,
-    catalog: &Catalog,
+    store: &swofty_core::store::Store,
+    _catalog: &Catalog,
 ) -> Result<Vec<CompiledEffect>, String> {
-    let _ = (catalog, Target::Spirv);
-    Err("Effect compiling for the preview isn't available yet".into())
+    let (effects, warnings) = swofty_core::shaders::compile_all(store, Target::Spirv);
+    if effects.is_empty() {
+        return Err(warnings
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| "There are no effects to preview".into()));
+    }
+    Ok(effects
+        .into_iter()
+        .map(|e| CompiledEffect {
+            effect: e.effect,
+            blobs: e.blobs,
+            images: e.images,
+        })
+        .collect())
 }
 
 fn png_image(bytes: Vec<u8>) -> Arc<Image> {
