@@ -445,6 +445,7 @@ impl ShadersView {
         }
         self.preview.status = Status::Downloading;
         let root = self.store.root.clone();
+        let later = root.clone();
         let progress = self.preview.progress.clone();
         if let Ok(mut p) = progress.lock() {
             *p = (0., "Looking for clips".into());
@@ -467,7 +468,7 @@ impl ShadersView {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    clips::download(&root, &|f, label| {
+                    clips::download(&root, true, &|f, label| {
                         if let Ok(mut p) = progress.lock() {
                             *p = (f, label.to_owned());
                         }
@@ -476,6 +477,7 @@ impl ShadersView {
                 })
                 .await;
             drop(ticker);
+            let rest = result.is_ok();
             this.update(cx, |v, cx| {
                 match result {
                     Ok(found) if !found.is_empty() => {
@@ -486,6 +488,24 @@ impl ShadersView {
                     Err(e) => v.preview.status = Status::DownloadFailed(e),
                 }
                 cx.notify();
+            })
+            .ok();
+            if !rest {
+                return;
+            }
+            // The other clips come in quietly while the first one plays, and join the clip picker.
+            let found = cx
+                .background_executor()
+                .spawn(async move {
+                    clips::download(&later, false, &|_, _| {}).ok();
+                    clips::scan(&later)
+                })
+                .await;
+            this.update(cx, |v, cx| {
+                if found.len() > v.preview.clips.len() {
+                    v.preview.clips = found;
+                    cx.notify();
+                }
             })
             .ok();
         }));

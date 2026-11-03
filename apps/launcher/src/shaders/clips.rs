@@ -12,16 +12,20 @@ pub(super) fn scan(root: &Path) -> Vec<ClipItem> {
     store(root).cached()
 }
 
-/// Downloads every clip in the CDN index that isn't cached yet, reporting `(fraction, label)`.
-pub(super) fn download(root: &Path, progress: &dyn Fn(f32, &str)) -> Result<(), String> {
+/// Downloads clips from the CDN index that aren't cached yet, reporting `(fraction, label)`: only the
+/// first missing one with `first_only`, so the preview can start while the rest come in.
+pub(super) fn download(root: &Path, first_only: bool, progress: &dyn Fn(f32, &str)) -> Result<(), String> {
     progress(0., "Looking for clips");
     let clips = store(root);
     let cached: Vec<String> = clips.cached().into_iter().map(|c| c.id).collect();
-    let todo: Vec<_> = clips
+    let mut todo: Vec<_> = clips
         .index()?
         .into_iter()
         .filter(|e| !cached.contains(&e.id))
         .collect();
+    if first_only {
+        todo.truncate(1);
+    }
     let count = todo.len().max(1) as f32;
     for (i, entry) in todo.iter().enumerate() {
         let base = i as f32 / count;
