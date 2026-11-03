@@ -65,6 +65,8 @@ postfx: Vignette Pass's pass glow-up runs as pass 3 before the HUD (6464 bytes o
 
 The **Addons** page tags the addon **Changes the picture**.
 
+Passes in an addon's manifest keep running. They run after the effects of the active [shader config](./shaders), in the same frame. For new work, write an [effect](./shaders#an-effect-in-full) with declared params and let players combine it in a config on the Shaders page. An effect's passes follow the contract on this page.
+
 ## Passes
 
 `postfx` is a list of passes, run in order: every addon's passes sorted by `order`, equal values in load order. It needs `"postfx"` in `experimental_features`.
@@ -75,7 +77,7 @@ The **Addons** page tags the addon **Changes the picture**.
     "shader": "fx/glow.hlsl",         // the .hlsl file, a path inside the addon
     "name": "glow-up",                // the name in the build output and loader.log; defaults to the file name without .hlsl
     "entry": "up",                    // the function to run; defaults to effect
-    "options": ["{{glow}}", 100],     // up to 16 values, read with option(0) to option(15)
+    "options": ["{{glow}}", 100],     // up to 16 values, read with option(0) to option(15); an effect reads option(16) to option(31) too
     "order": 0,                       // lower runs first; default 0
     "budget_ms": 1.5                  // GPU milliseconds a frame, above 0 and at most 16; default 1.5
   }
@@ -270,7 +272,7 @@ uint2  input_size(uint i);
 bool   has_previous();
 
 // values
-float  option(uint i);             // the pass's options[i], 0 when not set
+float  option(uint i);             // the pass's options[i], 0 when not set; i from 0 to 31 (0 to 15 for a manifest pass)
 uint2  swofty_size;                // the output's size in pixels
 float2 swofty_texel;               // 1 over it
 uint2  swofty_scene_size;          // the picture's size
