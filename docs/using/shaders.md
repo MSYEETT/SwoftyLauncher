@@ -93,6 +93,23 @@ The Preview plays a short clip from the game with the config applied.
 
 The Preview updates as you type. It runs the same effects as the game, so the picture is close to what you see in game, though not pixel for pixel.
 
+The clips are dry and wet races at Melbourne: the race start, an onboard camera and a chase camera, plus a wet onboard and a wet chase camera.
+
+## Documentation
+
+The **Documentation** tab lists every effect a config can use: the core library's and those of your installed addons. Each effect shows its options with their defaults, ranges and what they do. **Copy** puts the effect's table in your clipboard with every option at its default:
+
+```toml
+[vignette]
+amount = 0.4  # Amount
+radius = 0.75  # Radius
+softness = 0.5  # Softness
+roundness = 1  # Roundness
+color = [0, 0, 0]  # Colour
+```
+
+Paste it into a config and change the values you want. **Full documentation** opens the [effect library](/reference/addons/shader-effects) page.
+
 ## Your configs
 
 Your configs are files in the launcher's data folder, under `shaders/`.
