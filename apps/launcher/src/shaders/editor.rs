@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use gpui_kit::assets::IconName;
-use gpui_kit::base::input::{Diagnostic as EditorDiagnostic, DiagnosticSeverity as EditorSeverity};
+use gpui_kit::base::input::{TextDecoration, TextDecorationCollection};
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{
     CodeActionProvider, CompletionProvider, Editor, EditorState, FoldRange, HighlightStyleResolver,
@@ -21,7 +21,7 @@ use lsp_types::{
 use swofty_shaders::{ActiveInstance, Catalog, CompletionKind, Config, Severity, TokenKind};
 
 use super::{Mode, ShadersView};
-use crate::theme::{Palette, ScrollArea};
+use crate::theme::{Palette, ScrollArea, palette};
 
 const LINT_DEBOUNCE: Duration = Duration::from_millis(120);
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
@@ -71,6 +71,7 @@ pub(super) struct EditorPane {
     pub lint: LintView,
     pub catalog: SharedCatalog,
     pub problems: SharedProblems,
+    pub squiggles: TextDecorationCollection,
     pub lint_task: Option<Task<()>>,
     pub save_task: Option<Task<()>>,
     pub saving: bool,
@@ -95,11 +96,13 @@ impl EditorPane {
             }));
             lsp.hover_provider = Some(Rc::new(Hoverer {
                 catalog: catalog.clone(),
+                problems: problems.clone(),
             }));
             lsp.code_action_providers.push(Rc::new(Fixer {
                 problems: problems.clone(),
             }));
         });
+        let squiggles = state.update(cx, |s, cx| s.create_decorations_collection(Vec::new(), cx));
         let events = cx.subscribe_in(&state, window, |this, _, ev: &InputEvent, _window, cx| {
             if matches!(ev, InputEvent::Change) {
                 this.edited(cx);
@@ -114,6 +117,7 @@ impl EditorPane {
             lint: LintView::default(),
             catalog,
             problems,
+            squiggles,
             lint_task: None,
             save_task: None,
             saving: false,
@@ -258,6 +262,7 @@ impl CompletionProvider for Completer {
 
 struct Hoverer {
     catalog: SharedCatalog,
+    problems: SharedProblems,
 }
 
 impl HoverProvider for Hoverer {
@@ -270,17 +275,30 @@ impl HoverProvider for Hoverer {
     ) -> Task<anyhow::Result<Option<lsp_types::Hover>>> {
         let catalog = self.catalog.borrow().clone();
         let source = text.to_string();
-        let hover =
-            swofty_shaders::hover(&source, offset.min(source.len()), &catalog).map(|h| lsp_types::Hover {
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: h.text,
-                }),
-                range: Some(lsp_types::Range {
-                    start: lsp_position(text, h.range.start),
-                    end: lsp_position(text, h.range.end),
-                }),
-            });
+        let docs = swofty_shaders::hover(&source, offset.min(source.len()), &catalog);
+        let notes: Vec<String> = self
+            .problems
+            .borrow()
+            .iter()
+            .filter(|p| squiggle_range(&source, &p.range).is_some_and(|r| r.contains(&offset)))
+            .map(|p| format!("**{}** {}", severity_label(p.severity), p.message))
+            .collect();
+        let range = docs.as_ref().map(|h| h.range.clone());
+        let value = notes
+            .into_iter()
+            .chain(docs.map(|h| h.text))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let hover = (!value.is_empty()).then(|| lsp_types::Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value,
+            }),
+            range: range.map(|r| lsp_types::Range {
+                start: lsp_position(text, r.start),
+                end: lsp_position(text, r.end),
+            }),
+        });
         Task::ready(Ok(hover))
     }
 }
@@ -367,15 +385,6 @@ fn problem_of(d: swofty_shaders::Diagnostic) -> Problem {
     }
 }
 
-fn editor_severity(s: Severity) -> EditorSeverity {
-    match s {
-        Severity::Error => EditorSeverity::Error,
-        Severity::Warning => EditorSeverity::Warning,
-        Severity::Info => EditorSeverity::Info,
-        Severity::Hint => EditorSeverity::Hint,
-    }
-}
-
 impl ShadersView {
     pub(super) fn edited(&mut self, cx: &mut Context<Self>) {
         let text = self.editor.state.read(cx).value().to_string();
@@ -423,22 +432,39 @@ impl ShadersView {
         if rev != self.editor.lint.rev {
             return;
         }
-        let state = self.editor.state.clone();
-        state.update(cx, |s, cx| {
-            let rope = s.text().clone();
-            if let Some(set) = s.diagnostics_mut() {
-                set.reset(&rope);
-                set.extend(problems.iter().map(|p| {
-                    EditorDiagnostic::new(
-                        Position::new(p.line, p.column)..lsp_end(&rope, p),
-                        p.message.clone(),
-                    )
-                    .with_severity(editor_severity(p.severity))
-                    .with_source("swfx")
-                }));
-            }
-            cx.notify();
-        });
+        let p = palette(cx);
+        let squiggles: Vec<TextDecoration> = problems
+            .iter()
+            .filter_map(|problem| {
+                let range = squiggle_range(&text, &problem.range)?;
+                let color = match problem.severity {
+                    Severity::Error => p.error,
+                    Severity::Warning => p.warning,
+                    Severity::Info => p.text_muted,
+                    Severity::Hint => p.text_placeholder,
+                };
+                Some(TextDecoration::new(
+                    range,
+                    HighlightStyle {
+                        underline: Some(UnderlineStyle {
+                            color: Some(color),
+                            thickness: px(1.),
+                            wavy: true,
+                        }),
+                        ..Default::default()
+                    },
+                ))
+            })
+            .fold(Vec::<TextDecoration>::new(), |mut out, d| {
+                if !out
+                    .iter()
+                    .any(|o| o.range.start < d.range.end && d.range.start < o.range.end)
+                {
+                    out.push(d);
+                }
+                out
+            });
+        self.editor.squiggles.set(squiggles, cx);
         *self.editor.problems.borrow_mut() = problems.clone();
         let valid = config.is_some();
         self.editor.lint = LintView {
@@ -831,12 +857,25 @@ impl ShadersView {
     }
 }
 
-fn lsp_end(rope: &Rope, p: &Problem) -> Position {
-    let end = rope.offset_to_position(p.range.end.min(rope.len()));
-    if (end.line, end.character) == (p.line, p.column) {
-        Position::new(p.line, p.column + 1)
-    } else {
-        end
+fn squiggle_range(text: &str, range: &Range<usize>) -> Option<Range<usize>> {
+    let start = range.start.min(text.len());
+    let end = range.end.min(text.len());
+    if start < end {
+        return Some(start..end);
+    }
+    if let Some(c) = text.get(start..).and_then(|t| t.chars().next()) {
+        return Some(start..start + c.len_utf8());
+    }
+    let c = text.get(..start)?.chars().next_back()?;
+    Some(start - c.len_utf8()..start)
+}
+
+fn severity_label(s: Severity) -> &'static str {
+    match s {
+        Severity::Error => "Error",
+        Severity::Warning => "Warning",
+        Severity::Info => "Info",
+        Severity::Hint => "Hint",
     }
 }
 
