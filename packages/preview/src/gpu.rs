@@ -402,15 +402,15 @@ impl Preview {
             .get(id)
             .ok_or_else(|| format!("effect {id} is not loaded in the preview"))?;
         let effect = &source.effect;
-        if source.spirv.len() != effect.passes.len() {
+        if source.blobs.len() != effect.passes.len() {
             return Err(format!(
                 "effect {id}: {} blobs for {} passes",
-                source.spirv.len(),
+                source.blobs.len(),
                 effect.passes.len()
             ));
         }
         let mut passes = Vec::new();
-        for (decl, blob) in effect.passes.iter().zip(&source.spirv) {
+        for (decl, blob) in effect.passes.iter().zip(&source.blobs) {
             let spirv = words(blob).map_err(|e| format!("effect {id}, pass {}: {e}", decl.name))?;
             let threads = decl.threads.map_or((8, 8), |t| (t[0].max(1), t[1].max(1)));
             let label = format!("{id}/{}", decl.name);

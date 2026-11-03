@@ -9,13 +9,4 @@ mod gpu;
 
 pub use clip::{CachedClip, Clip, ClipEntry, ClipInfo, ClipStore, Frame, INDEX_URL};
 pub use gpu::Preview;
-pub use swofty_shaders::ActiveInstance;
-
-/// One compiled effect for the preview: SPIR-V per pass, in pass order.
-#[derive(Debug, Clone)]
-pub struct CompiledEffect {
-    pub effect: swofty_shaders::Effect,
-    pub spirv: Vec<Vec<u8>>,
-    /// Decoded image textures by texture name (RGBA8, width, height).
-    pub images: Vec<(String, u32, u32, Vec<u8>)>,
-}
+pub use swofty_shaders::{ActiveInstance, CompiledEffect};

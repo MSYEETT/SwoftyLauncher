@@ -133,7 +133,7 @@ fn compiled(dxc: &Path, dir: &Path) -> CompiledEffect {
     ];
     CompiledEffect {
         effect: fx,
-        spirv,
+        blobs: spirv,
         images: Vec::new(),
     }
 }
@@ -341,7 +341,7 @@ fn ten_passes_at_720p_stay_under_a_frame() {
     let fx = effect("temporal", Vec::new(), passes);
     let compiled = CompiledEffect {
         effect: fx,
-        spirv: vec![blob; 10],
+        blobs: vec![blob; 10],
         images: Vec::new(),
     };
     let Some(mut preview) = preview(vec![compiled], 0.0) else {
@@ -390,7 +390,7 @@ fn raw_passes_write_the_picture() {
     p.raw = true;
     let compiled = CompiledEffect {
         effect: effect("temporal", Vec::new(), vec![p]),
-        spirv: vec![blob],
+        blobs: vec![blob],
         images: Vec::new(),
     };
     let Some(mut preview) = preview(vec![compiled], 0.0) else {
