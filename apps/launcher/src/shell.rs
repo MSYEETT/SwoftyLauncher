@@ -844,7 +844,14 @@ impl Shell {
                     .spawn(async move {
                         if !crashed {
                             let stall =
-                                swofty_core::known_problems::stall(&session, game_dir.as_deref(), &store);
+                                swofty_core::known_problems::stall(&session, game_dir.as_deref(), &store)
+                                    .or_else(|| {
+                                        swofty_core::known_problems::tyres(
+                                            &session,
+                                            game_dir.as_deref(),
+                                            &store,
+                                        )
+                                    });
                             return (Ok(String::new()), stall);
                         }
                         let summary = game::crash_summary(&session, game_dir.as_deref());

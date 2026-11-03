@@ -267,6 +267,12 @@ pub fn stall(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Opt
     stalled(&evidence(session, game, store))
 }
 
+/// Why `session`, which ended without a crash, ran with cars that had no
+/// tyres, when its log names them.
+pub fn tyres(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Option<Diagnosis> {
+    unplaced_tyres(&evidence(session, game, store))
+}
+
 fn evidence(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Evidence {
     let addons = store.addons().unwrap_or_default();
     let names = addons
@@ -1323,6 +1329,76 @@ pub fn stalled(e: &Evidence) -> Option<Diagnosis> {
     })
 }
 
+/// The log line the core writes for a car whose fitted tyre models were never
+/// placed on its wheels.
+const TYRES_UNPLACED: &str = "fitted tyres were never placed on the wheels";
+
+/// The car numbers, humans first, the core's tyre check found without placed
+/// tyres: from `[tyres] car 24 (team 7, AI): fitted tyres were never placed ...`.
+fn unplaced_cars(loader: &str) -> (BTreeSet<u32>, BTreeSet<u32>) {
+    let (mut human, mut ai) = (BTreeSet::new(), BTreeSet::new());
+    for line in loader.lines().filter(|l| l.contains(TYRES_UNPLACED)) {
+        let Some(rest) = line.split_once("[tyres] car ").map(|(_, r)| r) else {
+            continue;
+        };
+        let Some((number, rest)) = rest.split_once(' ') else {
+            continue;
+        };
+        let Ok(number) = number.parse::<u32>() else {
+            continue;
+        };
+        if rest
+            .split_once("):")
+            .is_some_and(|(who, _)| who.ends_with(", human"))
+        {
+            human.insert(number);
+        } else {
+            ai.insert(number);
+        }
+    }
+    (human, ai)
+}
+
+fn car_numbers(cars: &BTreeSet<u32>) -> String {
+    cars.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")
+}
+
+/// A session whose cars drove without tyres: the core's tyre check logged the
+/// cars whose fitted tyre models were never placed on their wheels.
+pub fn unplaced_tyres(e: &Evidence) -> Option<Diagnosis> {
+    let (human, ai) = unplaced_cars(&e.loader);
+    if human.is_empty() && ai.is_empty() {
+        return None;
+    }
+    let who = match (human.is_empty(), ai.is_empty()) {
+        (false, true) => format!("your car (car {})", car_numbers(&human)),
+        (false, false) => format!(
+            "your car (car {}) and {} other car(s)",
+            car_numbers(&human),
+            ai.len()
+        ),
+        _ => format!("{} car(s) (cars {})", ai.len(), car_numbers(&ai)),
+    };
+    Some(Diagnosis {
+        id: "tyres_not_placed",
+        title: "Cars drove without any tyres".to_owned(),
+        what: format!(
+            "In this session the tyres of {who} were never put on the wheels, so they were invisible. The \
+             car is not damaged and drives normally. This happens when an addon's car or handling data moves \
+             the wheels away from where the car's tyre models sit, or when a grid has more cars than F1 25 \
+             sets tyres up for."
+        ),
+        steps: vec![
+            "If you installed or updated a car or handling addon just before this, turn it off in your \
+             profile, then press Play again."
+                .to_owned(),
+            "If it keeps happening with every addon off, press Send Logs so the tyre lines in this \
+             session's log reach support."
+                .to_owned(),
+        ],
+    })
+}
+
 /// F1 25's Insufficient Storage dialog: the drive it names, and the MiB free
 /// and needed there.
 fn low_disk(loader: &str) -> Option<(String, u64, u64)> {
@@ -2103,6 +2179,41 @@ fn matched(e: &Evidence) -> Option<Diagnosis> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TYRES_LOG: &str = "\
+2026-11-03 10:00:10.000 [1] [tyres] car 23 (team 4, AI): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 10 s in); the car has no visible tyres
+2026-11-03 10:00:10.000 [1] [tyres] car 24 (team 4, human): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 10 s in); the car has no visible tyres
+2026-11-03 10:00:10.000 [1] [tyres] fitted tyre check (10 s in), session 12: 2 of 26 car(s) have unplaced tyres (cars 23, 24)
+2026-11-03 10:01:00.000 [1] [tyres] car 23 (team 4, AI): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 60 s in); the car has no visible tyres
+";
+
+    #[test]
+    fn unplaced_tyres_name_the_cars() {
+        let d = unplaced_tyres(&ev(TYRES_LOG, &[])).expect("the tyre lines are recognised");
+        assert_eq!(d.id, "tyres_not_placed");
+        assert!(
+            d.what.contains("your car (car 24) and 1 other car(s)"),
+            "{}",
+            d.what
+        );
+        let (human, ai) = unplaced_cars(TYRES_LOG);
+        assert_eq!(human, BTreeSet::from([24]));
+        assert_eq!(ai, BTreeSet::from([23]));
+    }
+
+    #[test]
+    fn unplaced_ai_cars_are_listed() {
+        let log = "2026-11-03 10:00:10.000 [1] [tyres] car 25 (team 9, AI): fitted tyres were never placed on the wheels (3 of 3 x)\n";
+        let d = unplaced_tyres(&ev(log, &[])).unwrap();
+        assert!(d.what.contains("1 car(s) (cars 25)"), "{}", d.what);
+    }
+
+    #[test]
+    fn a_healthy_tyre_check_is_not_a_problem() {
+        let log = "2026-11-03 10:00:10.000 [1] [tyres] fitted tyre check (10 s in), session 12: all 26 car(s) have their fitted tyres placed\n";
+        assert!(unplaced_tyres(&ev(log, &[])).is_none());
+        assert!(unplaced_tyres(&ev("", &[])).is_none());
+    }
 
     const GPU: &str = "\
 2026-10-24 02:52:26.633 [33008] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 33008, 463 s after load, at F1_25.exe+0x39182a4 .xtls Ne_FatalAbort+0x4
