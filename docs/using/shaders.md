@@ -69,6 +69,7 @@ radius = 3         # warning: `radius` is above its maximum of 1.5; it is clampe
 - **Completions** open after `[` with effect ids, inside a table with that effect's options, and after `=` with an option's values.
 - **Hover** over an effect for its description, and over an option for its label, what it does, its range and its default.
 - The status pill reads **Valid · live in game**, **Valid**, **Valid · 1 warning**, or **2 problems · not applied**. A config with an error is not applied; the last valid version stays live.
+- Edits reach the game while it runs when the game started with a config on. A game started with shaders off runs no shader code at all; a config you pick then applies the next time you press **Play**.
 
 A config of yours saves by itself whenever it is valid (the header says "Saved automatically"). A config from an addon opens read-only with **Copy to personal to edit**. When it is the active config and a game started from this launcher is running, every valid change reaches the game within a moment, so you can tune a value and watch the picture.
 
@@ -87,7 +88,7 @@ The [authoring reference](/reference/addons/shaders) lists every rule the checke
 The Preview plays a short clip from the game with the config applied.
 
 - Play and pause, and a scrub bar with a frame counter.
-- The clip picker switches between clips. The launcher downloads the preview clips the first time you open the Preview.
+- The clip picker switches between clips. The first time you open the Preview, the launcher downloads one clip (about 15 MB) and starts playing it; the other clips download while it plays and join the picker.
 - **Compare** puts a vertical line over the picture. Drag it: the left side is the original, the right side has your config.
 
 The Preview updates as you type. It runs the same effects as the game, so the picture is close to what you see in game, though not pixel for pixel.
