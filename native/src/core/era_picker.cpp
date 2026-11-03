@@ -1069,16 +1069,21 @@ int api_count()
 
 const SwoftyEra table = {api_available, api_add_box, api_count};
 
-std::vector<uint16_t> teams_of(uintptr_t begin, uintptr_t end)
+std::vector<uint16_t> ids_of(uintptr_t begin, uintptr_t end, size_t field)
 {
     std::vector<uint16_t> out;
     int64_t n = logic::entrant_count(begin, end);
     for (int64_t i = 0; i < n; ++i) {
-        uint16_t team = logic::NO_TEAM;
-        if (mem::read(begin + size_t(i) * logic::ENTRANT_RECORD + logic::ENTRANT_TEAM, team))
-            out.push_back(team);
+        uint16_t id = logic::NO_TEAM;
+        if (mem::read(begin + size_t(i) * logic::ENTRANT_RECORD + field, id))
+            out.push_back(id);
     }
     return out;
+}
+
+std::vector<uint16_t> teams_of(uintptr_t begin, uintptr_t end)
+{
+    return ids_of(begin, end, logic::ENTRANT_TEAM);
 }
 
 logic::IdAliases id_aliases()
@@ -1141,7 +1146,8 @@ int entrant_vector_entry(void *vector, void *bag)
     uintptr_t at = reinterpret_cast<uintptr_t>(vector), begin = 0, end = 0;
     if (!mem::read(at + VECTOR_BEGIN, begin) || !mem::read(at + VECTOR_END, end) || logic::entrant_count(begin, end) <= 0)
         return result;
-    if (!logic::saved_predates(aliases, teams_of(begin, end)))
+    if (!logic::saved_predates(aliases, teams_of(begin, end), ids_of(begin, end, logic::ENTRANT_VEHICLE_ID),
+                               ids_of(begin, end, logic::ENTRANT_DRIVER)))
         return result;
     uint32_t n = remap_entrants(begin, end, aliases);
     if (n && logged++ < LOG_FIRST)

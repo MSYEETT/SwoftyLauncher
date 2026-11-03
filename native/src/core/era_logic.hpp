@@ -623,6 +623,20 @@ inline bool saved_predates(const IdAliases &aliases, const std::vector<uint16_t>
     return false;
 }
 
+inline bool saved_predates(const IdAliases &aliases, const std::vector<uint16_t> &teams,
+                           const std::vector<uint16_t> &vehicles, const std::vector<uint16_t> &drivers)
+{
+    if (saved_predates(aliases, teams))
+        return true;
+    for (uint16_t v : vehicles)
+        if (v && v != NO_TEAM && aliases.vehicles.count(v))
+            return true;
+    for (uint16_t d : drivers)
+        if (d && d != NO_TEAM && aliases.drivers.count(d))
+            return true;
+    return false;
+}
+
 inline std::vector<uint16_t> distinct_teams(const std::vector<uint16_t> &teams)
 {
     std::vector<uint16_t> out;
