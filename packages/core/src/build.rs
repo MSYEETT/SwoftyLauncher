@@ -7432,7 +7432,7 @@ mod tests {
         if loader_dir().is_some() || crate::postfx::dxc().is_none() {
             return;
         }
-        let root = std::env::temp_dir().join(format!("swofty-build-shaders-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("swofty-build-shaders-effects-{}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         let dir = root.join("game");
         std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
