@@ -81,6 +81,12 @@ int main()
     }
     {
         Memory m = build(5);
+        m.words[RECORDS + 4 * al::RECORD_SIZE + 0x78] = 0;
+        al::Repair r = al::repair(read, write, &m, BUILDER);
+        expect(r.filled == 0 && r.missing == 0 && slot(m, 4, 0x78) == 0, "a listed car's empty optional table (+0x78) is left alone");
+    }
+    {
+        Memory m = build(5);
         m.words[RECORDS + 4 * al::RECORD_SIZE + 0x60] = 0;
         m.words[RECORDS + 0 * al::RECORD_SIZE + 0x60] = 0;
         al::Repair r = al::repair(read, write, &m, BUILDER);

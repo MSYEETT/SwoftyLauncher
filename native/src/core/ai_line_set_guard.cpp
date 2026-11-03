@@ -24,7 +24,8 @@
 // site_Ai_BuildSystem_RecordPushed is the join after the record was appended (inc bpl, builder in rbx, both the in
 // place and the regrown path land here). The last record is [rbx + 0xb0] - 0x508. For each of its six pointers that is
 // 0, the guard copies the pointer of the earliest record that has one, so the car races on that car's line and tables
-// instead of faulting. The pointers are shared, read only objects the maps own, and every car keeps its own cursors in
+// instead of faulting. +0x78 is the one table the update checks for 0 itself, so it is borrowed only when +0x58 was
+// empty too (a name no map lists); a listed car's empty +0x78 stays empty. The pointers are shared, read only objects the maps own, and every car keeps its own cursors in
 // its record. A record with all six pointers runs the game's code unchanged.
 //
 // SWOFTY_AI_LINE_SET_GUARD=0 turns it off.

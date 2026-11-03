@@ -10,6 +10,8 @@ constexpr uint64_t RECORDS_END_AT = 0xb0;
 constexpr uint64_t RECORD_SIZE = 0x508;
 constexpr size_t SLOT_COUNT = 6;
 constexpr uint64_t SLOTS[SLOT_COUNT] = {0x58, 0x60, 0x68, 0x70, 0x78, 0x80};
+constexpr uint64_t LINE_CACHE_SLOT = 0x58;
+constexpr uint64_t OPTIONAL_SLOT = 0x78;
 constexpr uint64_t USER_BASE = 0x10000;
 constexpr uint64_t USER_END = 0x800000000000ull;
 constexpr uint64_t MAX_RECORDS = 64;
@@ -48,9 +50,13 @@ inline Repair repair(Read read, Write write, void *user, uint64_t builder)
     uint64_t last = end - RECORD_SIZE;
     r.ran = true;
     r.index = static_cast<uint32_t>((last - begin) / RECORD_SIZE);
+    uint64_t line_cache = 0;
+    bool unlisted = word(read, user, last + LINE_CACHE_SLOT, &line_cache) && line_cache == 0;
     for (uint64_t slot : SLOTS) {
         uint64_t value = 0;
         if (!word(read, user, last + slot, &value) || value != 0)
+            continue;
+        if (slot == OPTIONAL_SLOT && !unlisted)
             continue;
         uint64_t donor = 0;
         for (uint64_t at = begin; at < last && donor == 0; at += RECORD_SIZE) {
