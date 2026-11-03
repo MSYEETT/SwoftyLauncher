@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use sha2::{Digest, Sha256};
-pub use swofty_shaders::{Active, ActiveInstance, Catalog, Effect, Target};
+pub use swofty_shaders::{Active, ActiveInstance, Catalog, CompiledEffect, Effect, Target};
 use swofty_shaders::{Origin, Severity};
 
 use crate::builtin::CORE_ID;
@@ -681,15 +681,6 @@ pub fn push_live(game_dir: &Path, active: &Active) -> Result<()> {
 }
 
 const ACTIVE_FILE: &str = "shaders/active.json";
-
-/// One catalog effect compiled for a target: a blob per pass, and its image textures decoded to
-/// RGBA8 as `(texture name, width, height, pixels)`.
-#[derive(Debug, Clone)]
-pub struct CompiledEffect {
-    pub effect: Effect,
-    pub blobs: Vec<Vec<u8>>,
-    pub images: Vec<(String, u32, u32, Vec<u8>)>,
-}
 
 /// The library extracted to the cache, named by its content.
 fn extract_library(store: &Store) -> Result<PathBuf> {
