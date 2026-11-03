@@ -60,25 +60,33 @@ float expanded_nits(float y)
     return shoulder(out_nits, param_auto_hdr_shoulder_start_alpha() * max_nits, max_nits, param_auto_hdr_shoulder_pow());
 }
 
+float sdr_remap(float y)
+{
+    float mid = 0.18;
+    float depth = max(param_shadow_tuning() - 1, 0);
+    float below = pow(saturate(y / mid), min(depth, 2));
+    float shadow_gain = lerp(1, 0.5 + 0.5 * below, saturate(depth));
+    float x = y * shadow_gain;
+    float start = param_auto_hdr_shoulder_start_alpha();
+    float top = 1 + (1 - start) * 0.25;
+    float power = max(param_auto_hdr_shoulder_pow(), 1);
+    float rolled = shoulder(x, start, top, power);
+    float reference = shoulder(1.0, start, top, power);
+    return rolled / lerp(1, reference, smoothstep(start, 1, x));
+}
+
 float remap(float y)
 {
     if (y <= param_black_floor_luminance())
         return y;
+    if (!is_hdr())
+        return sdr_remap(y);
     float nits = expanded_nits(y);
-    if (is_hdr())
-    {
-        if (param_hdr_tonemap())
-        {
-            float display_peak = param_hdr_peak_white();
-            nits = shoulder(nits, param_hdr_highlights_shoulder_start_alpha() * display_peak, display_peak,
-                            param_auto_hdr_shoulder_pow());
-        }
-        return nits / 80.0;
-    }
-    float peak = source_peak_nits();
-    float white = param_tonemapper_white_level();
-    float reference = forward_tonemap(expanded_nits(1.0) / peak, white);
-    return forward_tonemap(nits / peak, white) / max(reference, 1e-4);
+    float display_peak = param_hdr_peak_white();
+    if (param_hdr_tonemap())
+        nits = shoulder(nits, param_hdr_highlights_shoulder_start_alpha() * display_peak, display_peak,
+                        param_auto_hdr_shoulder_pow());
+    return nits / 80.0;
 }
 
 float4 effect(float2 uv, uint2 pixel)
@@ -91,7 +99,7 @@ float4 effect(float2 uv, uint2 pixel)
     float3 o = lerp(per_channel, by_luminance, saturate(param_inverse_tonemap_color_conservation()));
 
     float grey = luminance(o);
-    float highlight = smoothstep(0.5, 1.0, expansion_input(y));
+    float highlight = is_hdr() ? smoothstep(0.5, 1.0, expansion_input(y)) : smoothstep(0.3, 0.9, y);
     float sat = lerp(1, param_highlight_saturation(), highlight);
     if (is_hdr())
         sat *= param_extra_hdr_saturation();

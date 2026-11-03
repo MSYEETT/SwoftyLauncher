@@ -42,7 +42,7 @@
       "max": 1,
       "step": 0.01,
       "label": "Shoulder start",
-      "doc": "Where the highlight shoulder begins, as a fraction of the peak brightness."
+      "doc": "Where the highlight shoulder begins, as a fraction of the peak brightness; in SDR as a fraction of white."
     },
     {
       "id": "black_floor_luminance",
@@ -150,7 +150,7 @@
       "max": 3,
       "step": 0.01,
       "label": "Shadow tuning",
-      "doc": "1 leaves the shadows alone; above 1 deepens them, below 1 lifts them."
+      "doc": "1 leaves the shadows alone; above 1 deepens everything darker than mid grey, down to half its brightness at most, and mid grey stays where it is; below 1 lifts them."
     },
     {
       "id": "source_hdr_white_level_nits",
