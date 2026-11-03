@@ -50,6 +50,7 @@ cbuffer SwoftyPostFx : register(b0)
     uint swofty_view_valid;
     uint swofty_has_previous;
     uint swofty_reserved;
+    float4 swofty_params[4];
 };
 
 Texture2D<float4> swofty_scene : register(t0);
@@ -63,7 +64,7 @@ SamplerState swofty_point_wrap : register(s3);
 
 float option(uint i)
 {
-    return swofty_options[i >> 2][i & 3];
+    return i < 16 ? swofty_options[i >> 2][i & 3] : swofty_params[(i - 16) >> 2][i & 3];
 }
 
 // The picture this pass works on: the game's picture after the passes before this one.
