@@ -11,12 +11,12 @@ float3 decoded(float2 uv)
 float3 bright_part(float3 c)
 {
     float peak = max(c.r, max(c.g, c.b));
-    float knee = max(param_al_threshold(), 0.05) * 0.5;
-    float over = clamp(peak - param_al_threshold(), 0, 8);
-    float soft = clamp(peak - param_al_threshold() + knee, 0, 2 * knee);
-    soft = soft * soft / (4 * knee + 1e-4);
-    float weight = max(soft, over);
-    return c * weight / max(peak, 1e-4);
+    float edge = lerp(0.5, 1.0, param_al_threshold());
+    float knee = 0.2;
+    float soft = clamp(peak - edge + knee, 0, 2 * knee);
+    soft = soft * soft / (4 * knee);
+    float weight = max(soft, peak - edge);
+    return c * max(weight, 0) / max(peak, 1e-4);
 }
 
 float4 bright(float2 uv, uint2 pixel)
@@ -57,31 +57,33 @@ float4 up(float2 uv, uint2 pixel)
 
 float3 flare_sample(float2 uv, float thresh)
 {
-    return max(input(0, uv).rgb - thresh, 0);
+    float3 c = input(0, uv).rgb;
+    float peak = max(c.r, max(c.g, c.b));
+    return c * saturate((peak - thresh) / max(peak, 1e-4));
 }
 
 float4 flare(float2 uv, uint2 pixel)
 {
     float2 dir = 0.5 - uv;
-    float thresh = param_al_lens_thresh();
+    float thresh = lerp(0.1, 0.8, param_al_lens_thresh());
     float3 sum = 0;
     [unroll] for (int i = 0; i < 4; i++)
     {
         float2 o = uv + dir * (0.35 * (i + 1));
-        float w = pow(saturate(1 - length(o - 0.5) / 0.7071), 3);
+        float w = pow(saturate(1 - length(o - 0.5) / 0.7071), 3) / (1 + i);
         float3 s;
-        s.r = flare_sample(o + dir * 0.01, thresh).r;
+        s.r = flare_sample(o + dir * 0.004, thresh).r;
         s.g = flare_sample(o, thresh).g;
-        s.b = flare_sample(o - dir * 0.01, thresh).b;
+        s.b = flare_sample(o - dir * 0.004, thresh).b;
         sum += s * w;
     }
     float2 ring = uv + normalize(dir + 1e-5) * 0.4;
     float halo_w = pow(saturate(1 - length(ring - 0.5) / 0.5), 3);
     float3 halo;
-    halo.r = flare_sample(ring + dir * 0.02, thresh).r;
+    halo.r = flare_sample(ring + dir * 0.006, thresh).r;
     halo.g = flare_sample(ring, thresh).g;
-    halo.b = flare_sample(ring - dir * 0.02, thresh).b;
-    sum += halo * halo_w * 1.5;
+    halo.b = flare_sample(ring - dir * 0.006, thresh).b;
+    sum += halo * halo_w * 0.25;
     return float4(sum, 1);
 }
 
@@ -117,7 +119,7 @@ float4 adapt_calc(float2 uv, uint2 pixel)
             sum += input_at(0, int2(x, y)).r;
     float average = exp2(sum / float(size.x * size.y));
     float strength = param_al_adapt() / 8;
-    float target = log2(clamp(pow(0.18 / max(average, 1e-4), strength), 0.35, 3.0));
+    float target = clamp(strength * 0.2 * log2(0.18 / max(average, 1e-4)), -0.5, 0.5);
     float4 state = input_at(1, int2(0, 0));
     float dt = clamp(swofty_frametime, 0, 0.1);
     float speed = target < state.x ? 3.0 : 1.2;
@@ -175,9 +177,9 @@ float4 apply(float2 uv, uint2 pixel)
 
     float3 glow = input(0, uv).rgb;
     float mask = param_al_dirt() ? dirt(uv) * param_al_dirt_ov_int() : 0;
-    float3 add = glow * (param_al_int() * 0.5 + param_al_dirt_int() * 0.5 * mask);
+    float3 add = glow * (param_al_int() * 0.2 + param_al_dirt_int() * 0.2 * mask);
     if (param_al_lens())
-        add += input(1, uv).rgb * (param_al_lens_int() * 0.01) * (1 + mask * 2);
+        add += input(1, uv).rgb * (param_al_lens_int() * 0.01) * (1 + mask);
     if (param_al_adaptive())
         add *= clamp(gain, 0.5, 2.0);
     if (param_al_vibrance())

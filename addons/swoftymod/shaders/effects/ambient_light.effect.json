@@ -21,7 +21,7 @@
       "max": 1,
       "step": 0.01,
       "label": "Bloom threshold",
-      "doc": "How bright a pixel has to be to bloom; 0 lets everything bloom, weighted towards the brightest parts."
+      "doc": "How bright a pixel has to be to bloom; 0 blooms only the brighter half of the picture, 1 only the very brightest areas."
     },
     {
       "id": "al_adaptation",
@@ -38,7 +38,7 @@
       "max": 8,
       "step": 0.01,
       "label": "Adaptation strength",
-      "doc": "How far the exposure follows the scene's brightness; 0 is none."
+      "doc": "How far the exposure follows the scene's brightness, within about half a stop; 0 is none."
     },
     {
       "id": "al_adapt_base_mult",
@@ -129,7 +129,7 @@
       "max": 1,
       "step": 0.01,
       "label": "Lens flare threshold",
-      "doc": "How bright a pixel has to be to cause a flare."
+      "doc": "How bright a pixel has to be to cause a flare; 0 flares from fairly bright areas, 1 only from the brightest."
     },
     {
       "id": "al_dither",
