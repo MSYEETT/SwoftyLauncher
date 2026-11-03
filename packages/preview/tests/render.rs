@@ -211,10 +211,10 @@ fn passes_previous_and_persistent_textures() {
     ];
     near(&f1, out1);
 
-    let jump = preview.render(&solid(5, 64, 48, b)).unwrap();
+    let jump = preview.render(&solid(20, 64, 48, b)).unwrap();
     near(&jump, [0.5 * 0.2 + 0.1, 0.5 * 1.0, 0.5 * 0.6]);
 
-    let again = preview.render(&solid(6, 64, 48, b)).unwrap();
+    let again = preview.render(&solid(21, 64, 48, b)).unwrap();
     near(
         &again,
         [
