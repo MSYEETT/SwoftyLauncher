@@ -38,6 +38,7 @@ pub enum Page {
     News,
     Addons,
     Browser,
+    Shaders,
     Importer,
     Tools,
     Profiles,
@@ -53,6 +54,7 @@ impl Page {
             Self::News => "News",
             Self::Addons => "Addons",
             Self::Browser => "Addon Browser",
+            Self::Shaders => "Shaders",
             Self::Importer => "Simplified Importer",
             Self::Tools => "Tools",
             Self::Profiles => "Profiles",
@@ -76,6 +78,7 @@ impl Page {
             Self::News => IconName::Newspaper,
             Self::Addons => IconName::Puzzle,
             Self::Browser => IconName::PackageSearch,
+            Self::Shaders => IconName::Palette,
             Self::Importer => IconName::FolderInput,
             Self::Tools => IconName::Wrench,
             Self::Profiles => IconName::Layers,
@@ -187,6 +190,8 @@ pub struct Shell {
     pub(crate) news: crate::news::News,
     pub(crate) news_scroll: crate::news::NewsScroll,
     pub(crate) browser: crate::browser::Browser,
+    pub(crate) shaders: Entity<crate::shaders::ShadersView>,
+    _shaders_events: Subscription,
     pub(crate) tools: crate::tools::Carousel,
     _console_closed: Subscription,
     _poll: Task<()>,
@@ -474,6 +479,8 @@ impl Shell {
             shell.update(cx, |s, cx| s.console_closed(id, cx)).ok();
         });
         let browser = crate::browser::Browser::new(&store.root, window, cx);
+        let shaders = cx.new(|cx| crate::shaders::ShadersView::new(store.clone(), window, cx));
+        let shaders_events = cx.subscribe(&shaders, Self::shaders_event);
         let catalog = Self::watch_catalog(cx);
         let mp = swofty_core::mpauth::load(&store.root);
         if let Some(current) = mp.clone() {
@@ -595,6 +602,8 @@ impl Shell {
             news,
             news_scroll: Default::default(),
             browser,
+            shaders,
+            _shaders_events: shaders_events,
             tools: Default::default(),
             _console_closed: console_closed,
             _poll: poll,
@@ -603,8 +612,11 @@ impl Shell {
             _catalog: catalog,
         };
         shell.refresh_views(cx);
-        if std::env::var("SWOFTY_LAUNCHER_OPEN_PAGE").is_ok_and(|v| v == "saves") {
-            shell.open_page(Page::Careers, cx);
+        match std::env::var("SWOFTY_LAUNCHER_OPEN_PAGE").as_deref() {
+            Ok("saves") => shell.open_page(Page::Careers, cx),
+            Ok("shaders") => shell.open_page(Page::Shaders, cx),
+            Ok("addons") => shell.open_page(Page::Addons, cx),
+            _ => {}
         }
         shell.fetch_news(cx);
         shell.sync_catalog_updates();
@@ -784,6 +796,7 @@ impl Shell {
         }
         self.build = probe.busy;
         self.processes = probe.processes;
+        self.sync_shaders(false, cx);
         self.attribute();
         if let Some(launch) = self.launch.as_mut() {
             launch.saw_game |= self.owners.iter().any(|o| !matches!(o, Owner::Other(_)));
@@ -933,7 +946,45 @@ impl Shell {
         self.refresh_views(cx);
         self.db_profile_changed(cx);
         self.sync_catalog_updates();
+        self.sync_shaders(true, cx);
         cx.notify();
+    }
+
+    pub(crate) fn sync_shaders(&mut self, refresh: bool, cx: &mut Context<Self>) {
+        let dir = self.install.as_ref().map(|i| i.dir.clone());
+        let running = dir
+            .as_ref()
+            .is_some_and(|d| self.processes.iter().any(|g| g.is_in(d)));
+        let info = crate::shaders::Info {
+            profile: self.library.profile.name.clone(),
+            game_dir: dir,
+            running,
+        };
+        self.shaders.update(cx, |v, cx| v.sync(info, refresh, cx));
+    }
+
+    fn shaders_event(
+        &mut self,
+        _: Entity<crate::shaders::ShadersView>,
+        event: &crate::shaders::Event,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            crate::shaders::Event::Browse => {
+                self.open_page(Page::Browser, cx);
+                self.show_shader_addons(cx);
+            }
+            crate::shaders::Event::OpenAddon(id) => {
+                self.highlight = Some((id.clone(), Instant::now()));
+                self.open_page(Page::Addons, cx);
+            }
+            crate::shaders::Event::ActiveChanged => self.reload_in_background(cx),
+        }
+    }
+
+    pub(crate) fn open_shaders_for(&mut self, addon: &str, cx: &mut Context<Self>) {
+        self.shaders.update(cx, |v, cx| v.select_addon(addon, cx));
+        self.open_page(Page::Shaders, cx);
     }
 
     /// The copy addon panels work with: the one a running game belongs to,
@@ -1992,6 +2043,9 @@ impl Shell {
         self.db_page_change(page, cx);
         let was = self.page;
         self.page = page;
+        if page == Page::Shaders {
+            self.sync_shaders(true, cx);
+        }
         if page == Page::Careers && was != Page::Careers {
             self.refresh_saves_in_background(cx);
         }
@@ -2227,11 +2281,12 @@ impl Shell {
             (Page::News, None),
             (Page::Addons, Some(self.library.listed().count())),
             (Page::Browser, None),
+            (Page::Shaders, None),
             (Page::Profiles, Some(self.library.profiles.len())),
             (Page::Careers, None),
         ];
         if self.developer_mode {
-            big.insert(3, (Page::Tools, None));
+            big.insert(4, (Page::Tools, None));
         }
         if self.mp_allowed() {
             big.push((Page::Multiplayer, None));
@@ -2382,6 +2437,7 @@ impl Render for Shell {
             },
             Page::Addons => self.addons_page(p, cx),
             Page::Browser => self.browser_page(p, cx),
+            Page::Shaders => self.shaders.clone().into_any_element(),
             Page::Database => self.db_page(p, cx),
             Page::Profiles => self.profiles_page(p, wide, cx),
             Page::Careers => self.careers_page(p, wide, cx),

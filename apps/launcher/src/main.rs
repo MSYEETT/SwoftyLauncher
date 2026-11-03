@@ -27,6 +27,7 @@ mod scroll;
 mod sections;
 mod send_logs;
 mod setup;
+mod shaders;
 mod shell;
 mod tasks;
 mod theme;

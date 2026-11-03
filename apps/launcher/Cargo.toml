@@ -13,11 +13,16 @@ path = "src/main.rs"
 
 [dependencies]
 gpui-kit = "=0.8.1"
+anyhow.workspace = true
+lsp-types = { version = "0.97", features = ["proposed"] }
+png.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 swofty-builtins.workspace = true
 swofty-core.workspace = true
+swofty-preview.workspace = true
+swofty-shaders.workspace = true
 ureq.workspace = true
 
 [build-dependencies]
