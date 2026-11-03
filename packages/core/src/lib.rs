@@ -18,6 +18,7 @@ pub mod dbedit;
 pub mod disk;
 pub mod ea_app;
 pub mod ea_diag;
+pub mod entitlement;
 pub mod entrant_lists;
 pub mod erpbuild;
 pub mod exe_version;
@@ -128,6 +129,8 @@ pub enum Error {
     },
     #[error("{}", .0.text())]
     Blocked(app_control::Block),
+    #[error("{}", .0.text())]
+    NotEntitled(entitlement::Refusal),
     #[error("{0}")]
     Requires(catalog::requires::Refusal),
     /// The dependency check of the 1.6 standard library stopped Play.
