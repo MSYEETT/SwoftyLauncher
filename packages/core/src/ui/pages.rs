@@ -124,6 +124,19 @@ impl Entry<'_> {
     }
 }
 
+/// The game's strings hold at most 255 bytes: a longer one is cut at a character and ends with "…".
+fn fit(s: String) -> String {
+    const MAX: usize = 255;
+    if s.len() <= MAX {
+        return s;
+    }
+    let mut end = MAX - '…'.len_utf8();
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", s[..end].trim_end())
+}
+
 pub fn home_screen(page: usize) -> String {
     match page {
         0 => HOME.to_owned(),
@@ -386,11 +399,11 @@ fn adjust_tip(fr: &mut Frame) -> Result<()> {
 }
 
 fn panel(src: &Sources, sname: &str, e: &Entry, first_title: &str, first_body: &str) -> Result<[Node; 2]> {
-    let body = [e.details(), e.description.to_owned()]
+    let body = fit([e.details(), e.description.to_owned()]
         .into_iter()
         .filter(|x| !x.is_empty())
         .collect::<Vec<_>>()
-        .join("\n");
+        .join("\n"));
     let upper = e.upper();
     let mut cat = instance(
         src.t("settings_edit_description_category")?,
@@ -765,10 +778,11 @@ fn vm_page(scr: &mut Node, e: &Entry) -> Result<()> {
 
 fn tile(src: &Sources, style: &TileStyle, parent: &str, name: &str, row: usize, e: &Entry) -> Result<Node> {
     let title = tagged(&e.upper(), e.kind.tag(), TAG_STYLE);
+    let description = fit(e.description.to_owned());
     let text = TileText {
         title: &title,
         by: &e.details(),
-        description: e.description,
+        description: &description,
     };
     tile_with(src, style, parent, name, row, (style.icon)(e.kind), &text)
 }
@@ -1382,6 +1396,15 @@ pub fn state_entries(flow: &[Entry]) -> Result<Vec<(String, Node)>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_long_description_is_cut_to_fit_the_games_strings() {
+        let long = format!("by Swofty, v0.4.0\n{}", "é".repeat(200));
+        let cut = fit(long);
+        assert!(cut.len() <= 255, "{}", cut.len());
+        assert!(cut.ends_with('…'));
+        assert_eq!(fit("short".into()), "short");
+    }
 
     fn map(code: &str, name: &str) -> SessionMap {
         SessionMap {
