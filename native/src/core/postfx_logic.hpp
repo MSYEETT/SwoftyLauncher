@@ -1,11 +1,15 @@
 #pragma once
 
+#include "json.hpp"
+
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
 #include <string_view>
+#include <vector>
 #include <type_traits>
 
 // The parts of the post-process passes that are plain logic: which views a pass runs in, the key
@@ -239,6 +243,328 @@ template <class T> void hold(T *&at, std::type_identity_t<T> *r)
     if (at)
         at->Release();
     at = r;
+}
+
+
+inline constexpr int IN_NONE = -1, IN_ORIGINAL = -2, IN_PREVIOUS = -3;
+inline constexpr size_t MAX_INPUTS = 8, SLOTS = 32;
+
+// Root constant indices of swofty_options and swofty_params in the SwoftyPostFx cbuffer.
+inline constexpr size_t OPTIONS_AT = 8, PARAMS_AT = 36, CONSTANT_COUNT = 56;
+
+struct TexDecl {
+    std::string name, file;
+    double scale = 1;
+    uint32_t width = 0, height = 0;
+    int format = 10;
+    bool persistent = false;
+
+    bool operator==(const TexDecl &o) const
+    {
+        return name == o.name && file == o.file && scale == o.scale && width == o.width && height == o.height &&
+               format == o.format && persistent == o.persistent;
+    }
+};
+
+struct PassDecl {
+    std::string name, dxil, output;
+    std::vector<std::string> inputs;
+    uint32_t threads[2] = {8, 8};
+    bool raw = false;
+    double budget_ms = 1.5;
+};
+
+struct EffectDecl {
+    std::string id, name, addon;
+    unsigned slots = 0;
+    std::vector<TexDecl> textures;
+    std::vector<PassDecl> passes;
+};
+
+// The effects of swofty/shaders/effects.json by id; an entry without an id or without passes is left out.
+inline std::vector<EffectDecl> parse_effects(const std::string &text)
+{
+    std::vector<EffectDecl> out;
+    json::Value root;
+    if (!json::parse(text, root))
+        return out;
+    for (auto &e : root["effects"].a) {
+        EffectDecl d;
+        d.id = e["id"].str();
+        d.name = e["name"].str(d.id.c_str());
+        d.addon = e["addon"].str();
+        d.slots = unsigned(e["slots"].num());
+        for (auto &t : e["textures"].a) {
+            TexDecl x;
+            x.name = t["name"].str();
+            x.file = t["file"].str();
+            if (t["scale"].type == json::Value::Num)
+                x.scale = t["scale"].n;
+            if (t["width"].type == json::Value::Num && t["height"].type == json::Value::Num) {
+                x.width = uint32_t(t["width"].n);
+                x.height = uint32_t(t["height"].n);
+            }
+            x.persistent = t["persistent"].type == json::Value::Bool && t["persistent"].b;
+            int f = format_of(t["format"].str("rgba16f"));
+            x.format = f ? f : 10;
+            d.textures.push_back(std::move(x));
+        }
+        for (auto &p : e["passes"].a) {
+            PassDecl x;
+            x.name = p["name"].str("pass");
+            x.dxil = p["dxil"].str();
+            x.output = p["output"].str();
+            for (auto &in : p["inputs"].a)
+                x.inputs.push_back(in.str());
+            const auto &th = p["threads"].a;
+            if (th.size() == 2 && th[0].n >= 1 && th[1].n >= 1) {
+                x.threads[0] = uint32_t(th[0].n);
+                x.threads[1] = uint32_t(th[1].n);
+            }
+            x.raw = p["raw"].type == json::Value::Bool && p["raw"].b;
+            if (p["budget_ms"].type == json::Value::Num && p["budget_ms"].n > 0)
+                x.budget_ms = p["budget_ms"].n;
+            d.passes.push_back(std::move(x));
+        }
+        if (!d.id.empty() && !d.passes.empty())
+            out.push_back(std::move(d));
+    }
+    return out;
+}
+
+struct InstanceSpec {
+    std::string effect, label;
+    std::vector<float> params;
+};
+
+// The config swofty/shaders/active.json says runs now.
+struct ActiveSpec {
+    uint64_t serial = 0;
+    std::string name, source, forced_by, toggle_key;
+    std::vector<InstanceSpec> instances;
+};
+
+inline bool parse_active(const std::string &text, ActiveSpec &out)
+{
+    json::Value root;
+    if (!json::parse(text, root) || root.type != json::Value::Obj)
+        return false;
+    out = {};
+    out.serial = uint64_t(root["serial"].num());
+    out.name = root["name"].str();
+    out.source = root["source"].str();
+    out.forced_by = root["forced_by"].str();
+    out.toggle_key = root["toggle_key"].str();
+    for (auto &i : root["instances"].a) {
+        InstanceSpec s;
+        s.effect = i["effect"].str();
+        s.label = i["label"].str();
+        for (auto &v : i["params"].a)
+            s.params.push_back(v.type == json::Value::Num ? float(v.n) : 0.0f);
+        if (!s.effect.empty())
+            out.instances.push_back(std::move(s));
+    }
+    return true;
+}
+
+// An instance's params as the 32 option slots: missing ones are 0, extra ones are dropped.
+inline void pack_slots(const std::vector<float> &params, float out[SLOTS])
+{
+    for (size_t i = 0; i < SLOTS; i++)
+        out[i] = i < params.size() ? params[i] : 0.0f;
+}
+
+// One texture of one instance. Its name is "<instance>/<texture>".
+struct PlanTex {
+    int instance = 0;
+    std::string effect, name;
+    TexDecl decl;
+};
+
+// One pass of one instance. Inputs and output index the plan's textures, or are IN_ORIGINAL /
+// IN_PREVIOUS / IN_NONE (an output of IN_NONE writes the picture).
+struct PlanPass {
+    int instance = 0;
+    const PassDecl *decl = nullptr;
+    int inputs[MAX_INPUTS] = {IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE};
+    size_t n_inputs = 0;
+    int output = IN_NONE;
+};
+
+struct PlanInstance {
+    std::string effect, label;
+    const EffectDecl *decl = nullptr;
+    float options[SLOTS] = {};
+};
+
+struct Plan {
+    std::vector<PlanInstance> instances;
+    std::vector<PlanTex> textures;
+    std::vector<PlanPass> passes;
+    std::vector<std::string> dropped;
+
+    bool uses_previous() const
+    {
+        for (auto &p : passes)
+            for (size_t i = 0; i < p.n_inputs; i++)
+                if (p.inputs[i] == IN_PREVIOUS)
+                    return true;
+        return false;
+    }
+};
+
+inline std::string instance_name(const std::string &effect, const std::string &label)
+{
+    return label.empty() ? effect : effect + "." + label;
+}
+
+// The instance plan for an active config. An instance whose effect is unknown, or has a pass that names
+// an input that is not there, reads its own output or writes a texture from a file, is dropped with the
+// reason in dropped; the rest keep their order. Instance numbers are positions among the kept instances.
+inline Plan make_plan(const ActiveSpec &active, const std::vector<EffectDecl> &effects)
+{
+    Plan plan;
+    for (size_t n = 0; n < active.instances.size(); n++) {
+        const InstanceSpec &spec = active.instances[n];
+        std::string who = instance_name(spec.effect, spec.label);
+        const EffectDecl *fx = nullptr;
+        for (auto &e : effects)
+            if (e.id == spec.effect) {
+                fx = &e;
+                break;
+            }
+        if (!fx) {
+            plan.dropped.push_back(who + ": no such effect");
+            continue;
+        }
+        size_t tex_base = plan.textures.size(), pass_base = plan.passes.size();
+        const char *bad = nullptr;
+        auto texture_named = [&](const std::string &name) {
+            if (name == "original")
+                return IN_ORIGINAL;
+            if (name == "previous")
+                return IN_PREVIOUS;
+            for (size_t i = tex_base; i < plan.textures.size(); i++)
+                if (plan.textures[i].decl.name == name)
+                    return int(i);
+            return IN_NONE;
+        };
+        for (auto &t : fx->textures) {
+            PlanTex x;
+            x.effect = fx->id;
+            x.decl = t;
+            plan.textures.push_back(std::move(x));
+        }
+        for (auto &pd : fx->passes) {
+            PlanPass p;
+            p.decl = &pd;
+            for (auto &in : pd.inputs) {
+                int t = texture_named(in);
+                if (t == IN_NONE || p.n_inputs >= MAX_INPUTS)
+                    bad = "a pass names an input that is not there";
+                else
+                    p.inputs[p.n_inputs++] = t;
+            }
+            if (!pd.output.empty()) {
+                p.output = texture_named(pd.output);
+                if (p.output < 0 || !plan.textures[size_t(p.output)].decl.file.empty())
+                    bad = "a pass writes a texture that is not there or comes from a file";
+                for (size_t i = 0; i < p.n_inputs; i++)
+                    if (p.output >= 0 && p.inputs[i] == p.output)
+                        bad = "a pass reads the texture it writes";
+            }
+            plan.passes.push_back(p);
+        }
+        if (fx->slots > SLOTS)
+            bad = "it needs more than 32 option slots";
+        if (bad) {
+            plan.dropped.push_back(who + ": " + bad);
+            plan.textures.resize(tex_base);
+            plan.passes.resize(pass_base);
+            continue;
+        }
+        PlanInstance inst;
+        inst.effect = spec.effect;
+        inst.label = spec.label;
+        inst.decl = fx;
+        pack_slots(spec.params, inst.options);
+        plan.instances.push_back(std::move(inst));
+        for (size_t i = pass_base; i < plan.passes.size(); i++)
+            plan.passes[i].instance = int(plan.instances.size() - 1);
+        for (size_t i = tex_base; i < plan.textures.size(); i++) {
+            plan.textures[i].instance = int(plan.instances.size() - 1);
+            plan.textures[i].name = std::to_string(plan.instances.size() - 1) + "/" + plan.textures[i].decl.name;
+        }
+    }
+    return plan;
+}
+
+// What decides the passes, textures and pipelines a plan needs: two plans with the same shape differ
+// only in their option values.
+inline std::string plan_shape(const Plan &plan)
+{
+    std::string out;
+    for (auto &i : plan.instances) {
+        out += instance_name(i.effect, i.label) + "{";
+        for (auto &p : i.decl->passes)
+            out += p.dxil + ";";
+        out += "}";
+    }
+    return out;
+}
+
+// For each texture of a new plan, the texture of the old plan it takes over (-1 for none): the same
+// instance position running the same effect with the same texture declaration.
+inline std::vector<int> reuse_textures(const Plan &old, const Plan &now)
+{
+    std::vector<int> from(now.textures.size(), -1);
+    for (size_t i = 0; i < now.textures.size(); i++)
+        for (size_t j = 0; j < old.textures.size(); j++)
+            if (old.textures[j].name == now.textures[i].name && old.textures[j].effect == now.textures[i].effect &&
+                old.textures[j].decl == now.textures[i].decl) {
+                from[i] = int(j);
+                break;
+            }
+    return from;
+}
+
+// Pass title for logs: "<config> · <effect>[.<label>] · <pass>".
+inline std::string pass_title(const std::string &config, const std::string &effect, const std::string &label,
+                              const std::string &pass)
+{
+    return config + " \xC2\xB7 " + instance_name(effect, label) + " \xC2\xB7 " + pass;
+}
+
+// Scales an RGB24 picture to dw x dh by area-weighted averaging: every output pixel is the mean of the
+// source area it covers, partial pixels by their share.
+inline void box_scale_rgb(const uint8_t *src, uint32_t sw, uint32_t sh, uint8_t *dst, uint32_t dw, uint32_t dh)
+{
+    if (!sw || !sh || !dw || !dh)
+        return;
+    std::vector<float> row(size_t(sw) * 3);
+    double fx = double(sw) / dw, fy = double(sh) / dh;
+    for (uint32_t dy = 0; dy < dh; dy++) {
+        std::fill(row.begin(), row.end(), 0.0f);
+        double y0 = dy * fy, y1 = y0 + fy;
+        for (uint32_t sy = uint32_t(y0); sy < sh && sy < y1; sy++) {
+            double w = std::min<double>(sy + 1, y1) - std::max<double>(sy, y0);
+            const uint8_t *line = src + size_t(sy) * sw * 3;
+            for (size_t i = 0; i < size_t(sw) * 3; i++)
+                row[i] += float(w) * line[i];
+        }
+        for (uint32_t dx = 0; dx < dw; dx++) {
+            double x0 = dx * fx, x1 = x0 + fx, acc[3] = {};
+            for (uint32_t sx = uint32_t(x0); sx < sw && sx < x1; sx++) {
+                double w = std::min<double>(sx + 1, x1) - std::max<double>(sx, x0);
+                for (int c = 0; c < 3; c++)
+                    acc[c] += w * row[size_t(sx) * 3 + c];
+            }
+            for (int c = 0; c < 3; c++) {
+                double v = acc[c] / (fx * fy) + 0.5;
+                dst[(size_t(dy) * dw + dx) * 3 + c] = uint8_t(v > 255 ? 255 : v);
+            }
+        }
+    }
 }
 
 }
