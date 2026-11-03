@@ -845,8 +845,18 @@ typedef struct SwoftyServices {
    driver.identity id) wears the look (a look reference: "game/<label>" or an addon's driver.look id) in Driver
    Career: his entrant row's look, which every place that shows his body reads (grid presentation, portraits,
    cutscenes, the garage). The call refuses a look the game did not load (SWOFTY_ASSET_INVALID) and a driver the
-   career does not seat. The report is one [career-ops] log line. */
-#define SWOFTY_CAREER_OPS_VERSION 6
+   career does not seat. The report is one [career-ops] log line.
+   Table version 7 adds current_round and team_stat. current_round: the loaded Driver Career's Championship
+   season (season_index, 0 the first) and its current race weekend: round is the 1-based position of the weekend
+   the career is at (the next race to run) and rounds the season's weekend count; SWOFTY_ASSET_LATE when no
+   career is loaded or its season has no built weekends yet (also while the career is busy). team_stat: a team
+   reference ("game/<label>", or an addon's team.identity id) to the stat id of the teams table row with that
+   label; SWOFTY_ASSET_INVALID when the game has no such row. Version 7 also adds
+   set_dropped_scores(data_group, best): while the loaded career is filed under data_group, the drivers'
+   championship counts each driver's best `best` results (0 counts every result): the cumulative totals, and so
+   the order, use the counted sum of the best per-round totals; the constructors' championship and the
+   per-session points stay gross. */
+#define SWOFTY_CAREER_OPS_VERSION 7
 enum { SWOFTY_REFUSED = 5 };
 enum { SWOFTY_NUMBER_SWAP = 1 };
 
@@ -865,6 +875,9 @@ typedef struct SwoftyCareerOps {
     int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_logo)(const char *team_id, const char *logo_id);
     int (*set_look)(const char *driver_ref, const char *look_ref);
+    int (*current_round)(int32_t *season_index, int32_t *round, int32_t *rounds);
+    int (*team_stat)(const char *team_ref, uint32_t *out);
+    int (*set_dropped_scores)(const char *data_group, uint32_t best);
 } SwoftyCareerOps;
 
 /* Career saves (standard library 1.7.0, experimental), from the core export SwoftyCoreCareerSaves; not a
@@ -959,7 +972,7 @@ typedef struct SwoftySessionOps {
    SWOFTY_CAR_CHASSIS_BALLAST_KG rebuilds the mass without fuel until the next fuel update.
    Virtual fields (engine.power_scale, engine.limiter_offset_rpm, ai.grip_scale) write nothing to game data: the
    core's handlers on site_Car_EngineDriveTorque and site_Ai_TableGripInput read them per car. */
-#define SWOFTY_CAR_OPS_VERSION 2
+#define SWOFTY_CAR_OPS_VERSION 3
 #define SWOFTY_CAR_ALL 0xffffffffu
 
 #define SWOFTY_CAR_STEERING_LOCK 1u
@@ -1002,6 +1015,21 @@ typedef struct SwoftySessionOps {
 #define SWOFTY_CAR_SUSP_REAR_ANTI_ROLL 46u
 #define SWOFTY_CAR_SUSP_REAR_RIDE_HEIGHT_OFFSET 47u
 
+/* Version 3: the FuelECU mode tables (CarFuelEcu +0x28, stride 0x10 per mode, 0x40 per kind), 16 ids from
+   SWOFTY_CAR_FUEL_BASE: base + kind * 4 + mode, kind 0 burn, 1 power, 2 revs, 3 temperature; mode 0 lean, 1 standard,
+   2 rich, 3 max. Paths "fuel_ecu.fuel_burn_scale.lean" ... "fuel_ecu.temperature_scale.max". A write re-runs the
+   active mode (Car_FuelEcu_SetMode_Thunk to another mode and back), so the car's engine and fuel flow follow. */
+#define SWOFTY_CAR_FUEL_BASE 48u
+#define SWOFTY_CAR_FUEL_BURN_LEAN 48u
+#define SWOFTY_CAR_FUEL_POWER_LEAN 52u
+#define SWOFTY_CAR_FUEL_REVS_LEAN 56u
+#define SWOFTY_CAR_FUEL_TEMPERATURE_LEAN 60u
+
+#define SWOFTY_CAR_FUEL_MIX_LEAN 1u
+#define SWOFTY_CAR_FUEL_MIX_STANDARD 2u
+#define SWOFTY_CAR_FUEL_MIX_RICH 4u
+#define SWOFTY_CAR_FUEL_MIX_MAX 8u
+
 #define SWOFTY_CAR_OP_SET 0u
 #define SWOFTY_CAR_OP_SCALE 1u
 #define SWOFTY_CAR_OP_ADD 2u
@@ -1019,6 +1047,12 @@ typedef struct SwoftyCarOps {
                  uint32_t *token);
     int (*unlayer)(uint32_t token);
     int (*refit_tyres)(uint32_t index, const char *group);
+    /* version 3. unlock_fuel_mixes: the mixes in mask (SWOFTY_CAR_FUEL_MIX_*) are offered on the MFD of every car
+       while the owner's mask stays set; the core clears EngineModeAvail's entry of each (car, mix) every frame.
+       A mask of 0 withdraws the owner's request. SWOFTY_ASSET_UNAVAILABLE when the table or the exe build is not
+       the KB's. fuel_mix: the car's current mix (0 lean .. 3 max) in *mode. */
+    int (*unlock_fuel_mixes)(const char *owner, uint32_t mask);
+    int (*fuel_mix)(uint32_t index, uint32_t *mode);
 } SwoftyCarOps;
 
 typedef struct SwoftyApi {
