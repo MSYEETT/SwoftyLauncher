@@ -21,8 +21,9 @@ pub const CATALOG: &str = "catalog.json";
 pub const ROOM: &str = "room.json";
 /// The core's stat-id store (docs/std/dependencies.md "Tracks have stable identities").
 pub const IDS: &str = "ids.json";
-/// The reports Send Logs adds, by their name in `$DATA/registry/`.
-pub const SENT: [&str; 4] = [EFFECTIVE, CONFLICTS, CATALOG, ROOM];
+/// The reports Send Logs adds, by their name in `$DATA/registry/`; with the stat-id
+/// allocations `ids.json` and `row-ids.json`.
+pub const SENT: [&str; 6] = [EFFECTIVE, CONFLICTS, CATALOG, ROOM, IDS, crate::row_ids::FILE];
 
 pub fn dir(data: &Path) -> PathBuf {
     data.join(DIR)

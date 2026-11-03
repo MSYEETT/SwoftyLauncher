@@ -15212,6 +15212,16 @@ pub mod bindings {
         kind: "call",
         status: Status::Experimental,
     };
+    pub const site_Game_CareerEventsSequencerFirstRecord: Binding = Binding {
+        id: "site_Game_CareerEventsSequencerFirstRecord",
+        kind: "site",
+        status: Status::Experimental,
+    };
+    pub const site_Game_CareerEventsSequencerRecordsJoin: Binding = Binding {
+        id: "site_Game_CareerEventsSequencerRecordsJoin",
+        kind: "site",
+        status: Status::Experimental,
+    };
     pub const site_Game_CareerWizardConfirm_NextRoute: Binding = Binding {
         id: "site_Game_CareerWizardConfirm_NextRoute",
         kind: "site",

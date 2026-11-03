@@ -267,6 +267,12 @@ pub fn stall(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Opt
     stalled(&evidence(session, game, store))
 }
 
+/// Why `session`, which ended without a crash, ran with cars that had no
+/// tyres, when its log names them.
+pub fn tyres(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Option<Diagnosis> {
+    unplaced_tyres(&evidence(session, game, store))
+}
+
 fn evidence(session: &SessionRecord, game: Option<&Path>, store: &Store) -> Evidence {
     let addons = store.addons().unwrap_or_default();
     let names = addons
@@ -756,6 +762,8 @@ const PITLANE_CRASH: &str = "F1_25.exe+0x389a1d7 ";
 const ENTRANT_LIST_SEARCH: &str = "F1_25.exe+0x1738f30 ";
 /// Where F1 25 sets up the track for a session it loads.
 const SETUP_TRACK: &str = "Sess_Loader_SetupTrackAssets";
+/// The fault in the career hub's set-up: the read of the first record of a calendar event that matched nothing.
+const SEQUENCER_RECORD: &str = "Game_CareerEventsSequencer_Initialise+0x1020";
 /// How long after a career loaded a crash counts as loading its next session.
 const CAREER_LOAD_SECS: f64 = 10.0;
 /// How long before the crash Manual Pit Lane's lines count, and after it.
@@ -1321,6 +1329,76 @@ pub fn stalled(e: &Evidence) -> Option<Diagnosis> {
     })
 }
 
+/// The log line the core writes for a car whose fitted tyre models were never
+/// placed on its wheels.
+const TYRES_UNPLACED: &str = "fitted tyres were never placed on the wheels";
+
+/// The car numbers, humans first, the core's tyre check found without placed
+/// tyres: from `[tyres] car 24 (team 7, AI): fitted tyres were never placed ...`.
+fn unplaced_cars(loader: &str) -> (BTreeSet<u32>, BTreeSet<u32>) {
+    let (mut human, mut ai) = (BTreeSet::new(), BTreeSet::new());
+    for line in loader.lines().filter(|l| l.contains(TYRES_UNPLACED)) {
+        let Some(rest) = line.split_once("[tyres] car ").map(|(_, r)| r) else {
+            continue;
+        };
+        let Some((number, rest)) = rest.split_once(' ') else {
+            continue;
+        };
+        let Ok(number) = number.parse::<u32>() else {
+            continue;
+        };
+        if rest
+            .split_once("):")
+            .is_some_and(|(who, _)| who.ends_with(", human"))
+        {
+            human.insert(number);
+        } else {
+            ai.insert(number);
+        }
+    }
+    (human, ai)
+}
+
+fn car_numbers(cars: &BTreeSet<u32>) -> String {
+    cars.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")
+}
+
+/// A session whose cars drove without tyres: the core's tyre check logged the
+/// cars whose fitted tyre models were never placed on their wheels.
+pub fn unplaced_tyres(e: &Evidence) -> Option<Diagnosis> {
+    let (human, ai) = unplaced_cars(&e.loader);
+    if human.is_empty() && ai.is_empty() {
+        return None;
+    }
+    let who = match (human.is_empty(), ai.is_empty()) {
+        (false, true) => format!("your car (car {})", car_numbers(&human)),
+        (false, false) => format!(
+            "your car (car {}) and {} other car(s)",
+            car_numbers(&human),
+            ai.len()
+        ),
+        _ => format!("{} car(s) (cars {})", ai.len(), car_numbers(&ai)),
+    };
+    Some(Diagnosis {
+        id: "tyres_not_placed",
+        title: "Cars drove without any tyres".to_owned(),
+        what: format!(
+            "In this session the tyres of {who} were never put on the wheels, so they were invisible. The \
+             car is not damaged and drives normally. This happens when an addon's car or handling data moves \
+             the wheels away from where the car's tyre models sit, or when a grid has more cars than F1 25 \
+             sets tyres up for."
+        ),
+        steps: vec![
+            "If you installed or updated a car or handling addon just before this, turn it off in your \
+             profile, then press Play again."
+                .to_owned(),
+            "If it keeps happening with every addon off, press Send Logs so the tyre lines in this \
+             session's log reach support."
+                .to_owned(),
+        ],
+    })
+}
+
 /// F1 25's Insufficient Storage dialog: the drive it names, and the MiB free
 /// and needed there.
 fn low_disk(loader: &str) -> Option<(String, u64, u64)> {
@@ -1451,6 +1529,60 @@ fn career_track_crash(e: &Evidence, f: &Fatal) -> bool {
         .filter_map(|l| Some((stamp(l)?, l)))
         .find(|(t, _)| *t <= end)
         .is_some_and(|(t, l)| l.contains("career.loaded: ") && end - t <= CAREER_LOAD_SECS)
+}
+
+/// Whether F1 25 faulted reading the first calendar event record while a career session was entered: the
+/// nearest frame is [`SEQUENCER_RECORD`].
+fn sequencer_record_crash(f: &Fatal) -> bool {
+    f.module.as_deref() == Some("f1_25.exe") && f.frames.first().is_some_and(|l| l.contains(SEQUENCER_RECORD))
+}
+
+/// The enabled addons that change a career's calendar: calendar and schedule packages, and DB Editor packages.
+fn calendar_addons(e: &Evidence) -> Vec<String> {
+    e.enabled
+        .iter()
+        .filter(|id| {
+            let id = id.to_ascii_lowercase();
+            id.contains("calend") || id.contains("schedule") || id.starts_with("dbedit.")
+        })
+        .map(|id| name(e, id))
+        .collect()
+}
+
+fn calendar_event_missing(e: &Evidence) -> Diagnosis {
+    let calendar = calendar_addons(e);
+    let (title, cause) = match calendar.as_slice() {
+        [] => (
+            "Your career's calendar has a round F1 25 can't find".to_owned(),
+            "A round of your career's calendar is not in the game's calendar, usually because an addon changed the \
+             calendar or a track it uses is missing."
+                .to_owned(),
+        ),
+        _ => (
+            format!("{} changed your career's calendar", list(&calendar)),
+            format!(
+                "{} changed the rounds of the calendar, and a round of your career now points at a track or event \
+                 the game can't find.",
+                list(&calendar)
+            ),
+        ),
+    };
+    let off = match calendar.as_slice() {
+        [] => "Turn off the addon that changes your calendar (a calendar or DB Editor package), or one that adds a track the calendar uses."
+            .to_owned(),
+        _ => format!(
+            "Turn off {}, or make sure every track it points the calendar at is installed and on.",
+            list(&calendar)
+        ),
+    };
+    Diagnosis {
+        id: "calendar_event_missing",
+        title,
+        what: format!(
+            "F1 25 crashed as your career's first session loaded, while it set up the career hub for that round. {cause}"
+        ),
+        steps: vec![off, "Press Play again.".to_owned()],
+    }
 }
 
 /// The text `rdi` points at in the crash report's memory dump, the name the game looked up.
@@ -1681,6 +1813,138 @@ fn quit_fault_diagnosis() -> Diagnosis {
     }
 }
 
+/// The stat ids of `vehicle_packages` rows, as `ids.json` and `row-ids.json` in the data folder hold them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PackageIds {
+    /// Every id held, by the addon that holds it.
+    pub held: BTreeMap<i64, String>,
+}
+
+pub const PACKAGE_ID_MAX: i64 = 254;
+const PACKAGE_TABLE: &str = "entrants.vehicles.vehicle_packages.vehicle_package";
+const PACKAGE_LOW: i64 = 8;
+
+impl PackageIds {
+    pub fn read(data: &Path) -> Option<Self> {
+        let load = |name: &str| -> Option<serde_json::Value> {
+            let text = std::fs::read_to_string(crate::stdlib::reports::path(data, name)).ok()?;
+            serde_json::from_str(&text).ok()
+        };
+        let ids = load(crate::stdlib::reports::IDS);
+        let rows = load(crate::row_ids::FILE);
+        if ids.is_none() && rows.is_none() {
+            return None;
+        }
+        let mut held = BTreeMap::new();
+        let mut records = |doc: &serde_json::Value| {
+            if let Some(map) = doc["vehicle.package"].as_object() {
+                for (record, e) in map {
+                    if let Some(id) = e.as_i64().or_else(|| e["id"].as_i64()) {
+                        let addon = record.split_once('/').map_or(record.as_str(), |(a, _)| a);
+                        held.insert(id, addon.to_owned());
+                    }
+                }
+            }
+        };
+        if let Some(ids) = &ids {
+            records(&ids["ids"]);
+            if let Some(careers) = ids["careers"].as_object() {
+                careers.values().for_each(&mut records);
+            }
+        }
+        if let Some(rows) = &rows {
+            let mut take = |map: &serde_json::Value| {
+                for (key, e) in map.as_object().into_iter().flatten() {
+                    let mut parts = key.splitn(3, '/');
+                    let (Some(addon), Some(table)) = (parts.next(), parts.next()) else {
+                        continue;
+                    };
+                    if table.starts_with(PACKAGE_TABLE)
+                        && let Some(id) = e["id"].as_i64()
+                    {
+                        held.insert(id, addon.to_owned());
+                    }
+                }
+            };
+            take(&rows["rows"]);
+            for p in rows["profiles"].as_object().into_iter().flat_map(|m| m.values()) {
+                take(&p["rows"]);
+            }
+        }
+        held.retain(|id, _| (1..=PACKAGE_ID_MAX).contains(id));
+        Some(Self { held })
+    }
+
+    pub fn used(&self) -> usize {
+        self.held.len()
+    }
+
+    pub fn highest(&self) -> Option<i64> {
+        self.held.keys().next_back().copied()
+    }
+
+    pub fn free(&self) -> usize {
+        PACKAGE_ID_MAX as usize - self.used()
+    }
+
+    /// The ids held by addons that aren't in `installed`, by addon.
+    pub fn orphaned(&self, installed: &BTreeSet<String>) -> BTreeMap<&str, usize> {
+        let mut out = BTreeMap::new();
+        for addon in self.held.values().filter(|a| !installed.contains(*a)) {
+            *out.entry(addon.as_str()).or_insert(0) += 1;
+        }
+        out
+    }
+
+    pub fn summary(&self, installed: &BTreeSet<String>) -> String {
+        let orphans: usize = self.orphaned(installed).values().sum();
+        format!(
+            "{} of {PACKAGE_ID_MAX} used, highest {}, {orphans} held by addons not installed",
+            self.used(),
+            self.highest().unwrap_or(0)
+        )
+    }
+
+    /// A diagnosis when few ids are left: the addons not installed whose ids could be freed come first.
+    pub fn diagnosis(
+        &self,
+        installed: &BTreeSet<String>,
+        names: &BTreeMap<String, String>,
+    ) -> Option<Diagnosis> {
+        if self.free() as i64 > PACKAGE_LOW {
+            return None;
+        }
+        let orphans = self.orphaned(installed);
+        let mut what = format!(
+            "The car package ids (vehicle_packages stat_id) are nearly used up: {}.",
+            self.summary(installed)
+        );
+        let mut steps = Vec::new();
+        if orphans.is_empty() {
+            steps.push(
+                "Every held id belongs to an installed addon: turn off or remove car addons you don't use, then press Play again."
+                    .to_owned(),
+            );
+        } else {
+            let list: Vec<String> = orphans
+                .iter()
+                .map(|(a, n)| format!("{} ({n})", names.get(*a).map_or(*a, String::as_str)))
+                .collect();
+            what.push_str(&format!(
+                " Ids are held by addons that are not installed: {}.",
+                list.join(", ")
+            ));
+            steps.push("Their ids are reused once a build needs them; if a build still fails, remove car addons you don't use.".to_owned());
+        }
+        Some(Diagnosis {
+            id: "package_ids_full",
+            title: "Car package ids are nearly used up".to_owned(),
+            what,
+            steps,
+        })
+    }
+}
+
 /// The cause of a crash, from the first rule that recognises it. A crash no
 /// rule recognises, on an F1 25 older than [`LATEST_GAME_VERSION`], is put down
 /// to the old build.
@@ -1757,6 +2021,9 @@ fn matched(e: &Evidence) -> Option<Diagnosis> {
     }
     if (!e.off.is_empty() || missing_track_stat(&e.loader).is_some()) && career_track_crash(e, &f) {
         return Some(career_content_off(e));
+    }
+    if sequencer_record_crash(&f) {
+        return Some(calendar_event_missing(e));
     }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
@@ -1912,6 +2179,41 @@ fn matched(e: &Evidence) -> Option<Diagnosis> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TYRES_LOG: &str = "\
+2026-11-03 10:00:10.000 [1] [tyres] car 23 (team 4, AI): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 10 s in); the car has no visible tyres
+2026-11-03 10:00:10.000 [1] [tyres] car 24 (team 4, human): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 10 s in); the car has no visible tyres
+2026-11-03 10:00:10.000 [1] [tyres] fitted tyre check (10 s in), session 12: 2 of 26 car(s) have unplaced tyres (cars 23, 24)
+2026-11-03 10:01:00.000 [1] [tyres] car 23 (team 4, AI): fitted tyres were never placed on the wheels (3 of 3 fitted tyre model(s) still at the spawn position -1000 and size 60/30, session 12, 60 s in); the car has no visible tyres
+";
+
+    #[test]
+    fn unplaced_tyres_name_the_cars() {
+        let d = unplaced_tyres(&ev(TYRES_LOG, &[])).expect("the tyre lines are recognised");
+        assert_eq!(d.id, "tyres_not_placed");
+        assert!(
+            d.what.contains("your car (car 24) and 1 other car(s)"),
+            "{}",
+            d.what
+        );
+        let (human, ai) = unplaced_cars(TYRES_LOG);
+        assert_eq!(human, BTreeSet::from([24]));
+        assert_eq!(ai, BTreeSet::from([23]));
+    }
+
+    #[test]
+    fn unplaced_ai_cars_are_listed() {
+        let log = "2026-11-03 10:00:10.000 [1] [tyres] car 25 (team 9, AI): fitted tyres were never placed on the wheels (3 of 3 x)\n";
+        let d = unplaced_tyres(&ev(log, &[])).unwrap();
+        assert!(d.what.contains("1 car(s) (cars 25)"), "{}", d.what);
+    }
+
+    #[test]
+    fn a_healthy_tyre_check_is_not_a_problem() {
+        let log = "2026-11-03 10:00:10.000 [1] [tyres] fitted tyre check (10 s in), session 12: all 26 car(s) have their fitted tyres placed\n";
+        assert!(unplaced_tyres(&ev(log, &[])).is_none());
+        assert!(unplaced_tyres(&ev("", &[])).is_none());
+    }
 
     const GPU: &str = "\
 2026-10-24 02:52:26.633 [33008] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 33008, 463 s after load, at F1_25.exe+0x39182a4 .xtls Ne_FatalAbort+0x4
@@ -2917,6 +3219,44 @@ mod tests {
         );
     }
 
+    const SEQUENCER: &str = "\
+2026-11-03 09:03:51.484 [12700] [era] session trace Sess_Setup_VehicleComponents (driver_career_progressive): session vehicles 22
+2026-11-03 09:03:51.486 [12700] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 12700, 119 s after load, at F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020
+2026-11-03 09:03:51.486 [12700] [crash]   reading 0x0
+2026-11-03 09:03:51.486 [12700] [crash]   stack:
+2026-11-03 09:03:51.486 [12700] [crash]   #0  F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020
+2026-11-03 09:03:51.486 [12700] [crash]   #1  F1_25.exe+0x7bef38 .xtls fn base+0x7bec10+0x328
+2026-11-03 09:03:51.487 [12700] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020 reached the top-level filter; passing it to the game's filter
+";
+
+    #[test]
+    fn a_crash_reading_the_first_calendar_event_record_names_the_calendar_addon() {
+        let mut e = with_names(
+            ev(SEQUENCER, &[]),
+            &[
+                ("dbedit.new-calender", "New calender"),
+                ("swofty.progressive", "Progressive Career"),
+            ],
+        );
+        e.enabled = vec!["swofty.progressive".to_owned(), "dbedit.new-calender".to_owned()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "calendar_event_missing");
+        assert_eq!(d.title, "New calender changed your career's calendar");
+        assert!(d.steps[0].starts_with("Turn off New calender"), "{}", d.steps[0]);
+
+        e.enabled = vec!["swofty.progressive".to_owned()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "calendar_event_missing");
+        assert_eq!(d.title, "Your career's calendar has a round F1 25 can't find");
+
+        let other = SEQUENCER.replace("Initialise+0x1020", "Initialise+0x44");
+        assert_eq!(
+            diagnose(&ev(&other, &[])).map(|d| d.id),
+            None,
+            "another offset of the function"
+        );
+    }
+
     #[test]
     fn a_track_stat_id_with_no_row_is_a_missing_track_even_with_nothing_off() {
         let line =
@@ -3213,5 +3553,46 @@ mod tests {
     fn modules_the_offline_hook_lists_are_read() {
         let log = "2026-10-25 19:18:28.000 [1] [offline] module: RTSSHooks64.dll @ 0x7dd50000\n";
         assert_eq!(loaded_modules(log), ["RTSSHooks64.dll"]);
+    }
+}
+
+#[cfg(test)]
+mod package_ids_tests {
+    use super::*;
+
+    fn data(name: &str, ids: &str, rows: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("swofty-pkgids-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(dir.join("registry")).unwrap();
+        std::fs::write(dir.join("registry/ids.json"), ids).unwrap();
+        std::fs::write(dir.join("registry/row-ids.json"), rows).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_nearly_full_table_names_the_ids_addons_that_are_gone_hold() {
+        let records: Vec<String> = (1..=250).map(|i| format!(r#""gone.x/p{i}":{i}"#)).collect();
+        let ids = format!(r#"{{"ids":{{"vehicle.package":{{{}}}}}}}"#, records.join(","));
+        let rows = r#"{"rows":{"here/entrants.vehicles.vehicle_packages.vehicle_package/a":{"id":254,"from":"new"}}}"#;
+        let dir = data("full", &ids, rows);
+        let held = PackageIds::read(&dir).unwrap();
+        let installed = BTreeSet::from(["here".to_owned()]);
+        assert_eq!(held.used(), 251);
+        assert_eq!(held.highest(), Some(254));
+        assert_eq!(held.orphaned(&installed).get("gone.x"), Some(&250));
+        let d = held.diagnosis(&installed, &BTreeMap::new()).unwrap();
+        assert_eq!(d.id, "package_ids_full");
+        assert!(
+            d.what
+                .contains("251 of 254 used, highest 254, 250 held by addons not installed")
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_table_with_room_has_no_diagnosis() {
+        let dir = data("room", r#"{"ids":{"vehicle.package":{"a/p":{"id":5}}}}"#, "{}");
+        let held = PackageIds::read(&dir).unwrap();
+        assert!(held.diagnosis(&BTreeSet::new(), &BTreeMap::new()).is_none());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

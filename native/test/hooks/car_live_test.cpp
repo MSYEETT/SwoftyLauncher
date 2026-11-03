@@ -319,6 +319,7 @@ static void build_v2()
         attach(c, cl::SUSPENSION, suspension[i]);
         at<float>(aero[i], 0x19a4) = 1.0f;
         at<float>(aero[i], 0x19a0) = 1.0f;
+        put_obf(aero[i], 0x118, 0.65f, 0x2468ace0u);
         at<float>(brake[i], 0x21d8) = 0.4f;
         at<float>(brake[i], 0x21dc) = 1.0f;
         put_obf(chassis[i], 0x28, 800.0f, 0x31415926u);
@@ -360,6 +361,12 @@ static void v2_fields()
                Ops::op_set(0, nullptr, SWOFTY_CAR_AERO_DRAG_SCALE, 0.96f) == SWOFTY_ASSET_OK &&
                plain(aero[0], 0x19a0) == 0.96f,
            "the aero scales are plain floats at +0x19a4 and +0x19a0 of F1Aero");
+    expect(Ops::op_get(0, nullptr, SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, &v) == SWOFTY_ASSET_OK && std::fabs(v - 0.65f) < 1e-6f &&
+               Ops::op_set(0, nullptr, SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, 0.6f) == SWOFTY_ASSET_OK &&
+               Ops::op_get(0, nullptr, SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, &v) == SWOFTY_ASSET_OK && std::fabs(v - 0.6f) < 1e-6f &&
+               Ops::op_get(1, nullptr, SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, &v) == SWOFTY_ASSET_OK && std::fabs(v - 0.65f) < 1e-6f &&
+               Ops::op_set(0, nullptr, SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, 1.5f) == SWOFTY_ASSET_INVALID,
+           "the slipstream drag scale is an obfuscated float at +0x118 of F1Aero, per car, refused above 1");
     expect(Ops::op_get(0, nullptr, SWOFTY_CAR_BRAKES_BIAS, &v) == SWOFTY_ASSET_OK && v == 0.4f &&
                Ops::op_set(0, nullptr, SWOFTY_CAR_BRAKES_PRESSURE, 0.9f) == SWOFTY_ASSET_OK && plain(brake[0], 0x21dc) == 0.9f,
            "brake bias and pressure are plain floats at +0x21d8 and +0x21dc of the BrakeECU");

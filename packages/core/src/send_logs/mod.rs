@@ -568,6 +568,16 @@ impl Bundle {
         } else {
             &self.message
         });
+        if let Some(ids) = crate::known_problems::PackageIds::read(&store.root) {
+            let installed = store
+                .addons()
+                .map(|a| a.into_keys().collect())
+                .unwrap_or_default();
+            s.push_str(&format!("\n\nCar package ids\n  {}\n", ids.summary(&installed)));
+            if let Some(d) = ids.diagnosis(&installed, &std::collections::BTreeMap::new()) {
+                s.push_str(&format!("  found: {}\n", d.text()));
+            }
+        }
         s.push_str("\n\nMod loader\n");
         if let Some(r) = crate::quarantine::Report::read(&store.root) {
             s.push_str(&format!(

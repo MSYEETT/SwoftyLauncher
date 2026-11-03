@@ -180,6 +180,17 @@ inline constexpr Field FIELDS[] = {
      Via::system, "Car_FuelEcu_SetMode_Thunk"},
     {SWOFTY_CAR_FUEL_BASE + 15, "fuel_ecu.temperature_scale.max", FUEL_ECU, 0x118, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
      Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    // Version 4: the F1Aero slipstream scales. A value below 1 makes the tow stronger; the car width widens the wake.
+    {SWOFTY_CAR_AERO_SLIPSTREAM_DRAG, "aero.slipstream_drag", F1_AERO, 0x118, Kind::obf, 0, 1, Rederive::none,
+     Via::system, "CarF1Aero.slipstream"},
+    {SWOFTY_CAR_AERO_SLIPSTREAM_FRONT_WING, "aero.slipstream_front_wing", F1_AERO, 0xe8, Kind::obf, 0, 1, Rederive::none,
+     Via::system, "CarF1Aero.slipstream"},
+    {SWOFTY_CAR_AERO_SLIPSTREAM_REAR_WING, "aero.slipstream_rear_wing", F1_AERO, 0xf8, Kind::obf, 0, 1, Rederive::none,
+     Via::system, "CarF1Aero.slipstream"},
+    {SWOFTY_CAR_AERO_SLIPSTREAM_LIFT, "aero.slipstream_lift", F1_AERO, 0x108, Kind::obf, 0, 1, Rederive::none,
+     Via::system, "CarF1Aero.slipstream"},
+    {SWOFTY_CAR_AERO_SLIPSTREAM_CAR_WIDTH, "aero.slipstream_car_width", F1_AERO, 0x128, Kind::obf, 0.1f, 10, Rederive::none,
+     Via::system, "CarF1Aero.slipstream"},
 };
 
 inline constexpr size_t FIELD_COUNT = sizeof FIELDS / sizeof FIELDS[0];

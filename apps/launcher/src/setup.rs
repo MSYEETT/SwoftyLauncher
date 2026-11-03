@@ -300,9 +300,9 @@ impl SetupWizard {
             ),
             Source::EaApp => (repair.title, "EA app > Library > F1 25 > Manage > Repair."),
             Source::Unknown => (
-                "Take out other mods",
-                "This copy isn't from Steam or the EA app, so it can't be verified. Remove any mod files \
-                 Swofty didn't add.",
+                "Play a copy from Steam or the EA app",
+                "This copy isn't from Steam or the EA app, so Swofty can't play it modded. Swofty runs only \
+                 on a copy you own on Steam or the EA app.",
             ),
         };
         v_flex()

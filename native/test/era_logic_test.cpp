@@ -233,6 +233,9 @@ static void continue_tests()
     expect(era::saved_predates(aliases, {9, 646, 4}) && !era::saved_predates(aliases, {9, 4, 510}) &&
                !era::saved_predates(aliases, {0, era::NO_TEAM}) && !era::saved_predates(era::IdAliases{}, hashed),
            "a career vector is mapped only when one of its teams is an earlier id");
+    expect(era::saved_predates(aliases, {9, 4}, {700, 5}, {}) && !era::saved_predates(aliases, {9, 4}, {701, 5}, {}) &&
+               !era::saved_predates(aliases, {9, 4}, {era::NO_TEAM, 0}, {era::NO_TEAM}),
+           "a career vector whose teams kept their ids is mapped when one of its vehicles is an earlier id");
     std::vector<uint16_t> stray{646, 4000};
     ap = era::continue_list_aliased(lists, stray, "cs_f1_2017", "swofty_f1", aliases);
     expect(!ap.remapped && ap.pick.index == 1, "a mapping no list holds falls back to the pressed box as before");

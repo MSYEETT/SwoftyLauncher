@@ -59,6 +59,7 @@ constexpr Row ROWS[] = {
     {"site_Ai_TableGripInput", true},
     {"CarF1Aero.lift_scale", true},
     {"CarF1Aero.drag_scale", true},
+    {"CarF1Aero.slipstream", true},
     {"CarBrakeEcu.brake_bias", true},
     {"CarBrakeEcu.brake_pressure", true},
     {"CarSuspTyreType.grip_multiplier", false},

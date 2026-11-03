@@ -60,6 +60,7 @@ t "ERS new-lap site unit test" native/test/run_ers_newlap_test.sh
 t "Round track record guard unit test" native/test/run_track_record_test.sh
 t "Team HQ track guard unit test" native/test/run_teamhq_track_test.sh
 t "Activity resume guard unit test" native/test/run_activity_resume_test.sh
+t "Events sequencer record guard unit test" native/test/run_sequencer_records_test.sh
 t "Standings dropped scores unit test" native/test/run_standings_drop_test.sh
 t "AI team curves guard unit test" native/test/run_ai_curves_test.sh
 t "Teammate pairs guard unit test" native/test/run_teammate_pairs_test.sh
@@ -68,6 +69,7 @@ t "AI corner start guard unit test" native/test/run_ai_corner_test.sh
 t "Replay recorder grid guard unit test" native/test/run_replay_grid_test.sh
 t "placed record bound unit test" native/test/run_placed_record_test.sh
 t "Tyre slot guard unit test" native/test/run_tyre_slots_test.sh
+t "Tyre model check unit test" native/test/run_tyre_models_test.sh
 t "Pit slot guard unit test" native/test/run_pit_slots_test.sh
 t "Pit box guard unit test" native/test/run_pit_box_test.sh
 t "Garage slot guard unit test" native/test/run_garage_slots_test.sh

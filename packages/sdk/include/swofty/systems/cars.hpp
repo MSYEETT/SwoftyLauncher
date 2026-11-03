@@ -438,6 +438,11 @@ enum class Field : uint32_t {
     susp_rear_toe = SWOFTY_CAR_SUSP_REAR_TOE,
     susp_rear_anti_roll = SWOFTY_CAR_SUSP_REAR_ANTI_ROLL,
     susp_rear_ride_height_offset = SWOFTY_CAR_SUSP_REAR_RIDE_HEIGHT_OFFSET,
+    aero_slipstream_drag = SWOFTY_CAR_AERO_SLIPSTREAM_DRAG,
+    aero_slipstream_front_wing = SWOFTY_CAR_AERO_SLIPSTREAM_FRONT_WING,
+    aero_slipstream_rear_wing = SWOFTY_CAR_AERO_SLIPSTREAM_REAR_WING,
+    aero_slipstream_lift = SWOFTY_CAR_AERO_SLIPSTREAM_LIFT,
+    aero_slipstream_car_width = SWOFTY_CAR_AERO_SLIPSTREAM_CAR_WIDTH,
 };
 
 }
