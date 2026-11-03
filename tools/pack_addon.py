@@ -7,7 +7,7 @@
 (swofty dev pack passes the paths its SWOFTY_REGISTER records name).
 
 Only swofty.json, LICENSE, README.md, the icon, the shaders beside postfx passes and shader pack looks,
-their image textures, the launcher plugin's programs, the standard library's
+their image textures, shader configs and effects with the shaders and image textures beside them, the launcher plugin's programs, the standard library's
 registry.json, registry.lock.json and registry/ data files, and the files the manifest's operations name go in,
 plus every
 file an operation file names in a "source" or "sources" field (texture fragments, VTFs, UI files). Entries are
@@ -32,6 +32,8 @@ def wanted(m):
     program = m.get('launcher', {}).get('program')
     out += list(program.values()) if isinstance(program, dict) else [program]
     out += [t['file'] for t in m.get('postfx_textures', []) if t.get('file')]
+    out += [s['config'] for s in m.get('shaders', []) if s.get('config')]
+    out += m.get('effects', [])
     return [r.rstrip('/') for r in out if r]
 
 
@@ -43,11 +45,20 @@ def shader_files(addon, m):
     exts = {d: ('.hlsl', '.hlsli') for d in dirs}
     if lut:
         exts[os.path.dirname(lut)] = ('.cube',)
+    for rel in m.get('effects', []):
+        exts[os.path.dirname(rel)] = ('.hlsl', '.hlsli')
     out = []
     for d, ext in exts.items():
         full = os.path.join(addon, d)
         if os.path.isdir(full):
             out += [os.path.join(d, f) for f in sorted(os.listdir(full)) if f.lower().endswith(ext)]
+    for rel in m.get('effects', []):
+        try:
+            effect = json.load(open(os.path.join(addon, rel), encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        d = os.path.dirname(rel)
+        out += [os.path.join(d, t['file']) for t in effect.get('textures', []) if t.get('file')]
     return out
 
 
