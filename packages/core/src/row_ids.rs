@@ -666,6 +666,9 @@ impl Store {
         let mut out = IdAliases::default();
         let mut seen: HashMap<(&str, i64), Option<i64>> = HashMap::new();
         for (key, olds) in &self.aliases {
+            if !self.building.is_empty() && !self.building.contains(addon_of(key)) {
+                continue;
+            }
             let Some(&now) = self.rows.get(key).filter(|_| !self.lent.contains_key(key)) else {
                 continue;
             };
@@ -1485,6 +1488,20 @@ mod tests {
         let (store, _) = Store::load(&data, None, "a", None);
         assert!(store.id_aliases().is_empty());
         std::fs::remove_dir_all(&data).ok();
+    }
+
+    #[test]
+    fn aliases_of_addons_outside_the_build_do_not_hide_the_builds_own() {
+        let mut store = Store::default();
+        let ours = key("x", VEHICLES, "x1");
+        let theirs = key("y", VEHICLES, "y1");
+        store.insert(ours.clone(), 20);
+        store.insert(theirs.clone(), 21);
+        store.aliases.entry(ours).or_default().insert(12);
+        store.aliases.entry(theirs).or_default().insert(12);
+        assert!(store.id_aliases().is_empty());
+        store.building(["x".to_owned()]);
+        assert_eq!(store.id_aliases().tables["vehicles"][&12], 20);
     }
 
     #[test]
