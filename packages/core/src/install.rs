@@ -478,7 +478,11 @@ impl<'a> Installer<'a> {
                     let path = self.path(&e.path);
                     match hashes.sha256_opt(&path)? {
                         None => {}
-                        Some(now) if e.state == State::Pending || Some(&now) == e.after.as_ref() => {
+                        Some(now)
+                            if e.state == State::Pending
+                                || Some(&now) == e.after.as_ref()
+                                || e.path == crate::shaders::LIVE_FILE =>
+                        {
                             with_retry(&path, || crate::remove_placed(&path))?;
                         }
                         Some(_) => report.push(Drift::LeftInPlace(e.path.clone())),
@@ -726,6 +730,17 @@ impl<'a> Installer<'a> {
 
     fn apply_with(&self, plan: &Plan, hashes: &mut Hashes) -> Result<()> {
         self.roll_back_with(false, hashes)?;
+        // A live shader config left behind by a session that ended without its rollback is the launcher's
+        // own; no session runs during an apply.
+        let live = self.path(crate::shaders::LIVE_FILE);
+        if live.is_file() {
+            with_retry(&live, || crate::remove_placed(&live))?;
+            for dir in live.ancestors().skip(1).take(2) {
+                if std::fs::remove_dir(dir).is_err() {
+                    break;
+                }
+            }
+        }
         if plan.is_vanilla() {
             return Ok(());
         }

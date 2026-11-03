@@ -246,6 +246,37 @@ fn profile_switches_return_to_the_baseline() {
 }
 
 #[test]
+fn the_live_shader_config_comes_out_whatever_the_session_rewrote_it_to() {
+    let f = Fixture::new("live-shader");
+    let original = f.snapshot();
+    let game = f.game("1");
+    let inst = Installer::new(&f.data, &game);
+    let live = swofty_core::shaders::LIVE_FILE;
+    write(&f.src.join("active"), "{\"serial\": 1}");
+    let mut plan = f.plan("a");
+    plan.loader.insert(live.into(), f.src.join("active"));
+
+    inst.apply(&plan).unwrap();
+    write(&f.game.join(live), "{\"serial\": 2}");
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(
+        f.snapshot(),
+        original,
+        "the rewritten live file is the launcher's own"
+    );
+
+    write(&f.game.join(live), "{\"serial\": 3}");
+    inst.apply(&plan).unwrap();
+    assert_eq!(
+        f.read(live),
+        "{\"serial\": 1}",
+        "a leftover live file never blocks the next session"
+    );
+    inst.apply(&Plan::vanilla()).unwrap();
+    assert_eq!(f.snapshot(), original);
+}
+
+#[test]
 fn a_kill_between_any_two_steps_rolls_back_to_the_baseline() {
     let total = 8;
     for k in 0..=total {

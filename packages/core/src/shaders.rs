@@ -682,6 +682,10 @@ pub fn push_live(game_dir: &Path, active: &Active) -> Result<()> {
 
 const ACTIVE_FILE: &str = "shaders/active.json";
 
+/// The game path of the live config file. The launcher rewrites it while a session runs, so its bytes
+/// differ from what the build placed; it is the launcher's own whatever it holds.
+pub const LIVE_FILE: &str = "swofty/shaders/active.json";
+
 /// The library extracted to the cache, named by its content.
 fn extract_library(store: &Store) -> Result<PathBuf> {
     let mut h = Sha256::new();
