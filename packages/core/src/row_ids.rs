@@ -401,6 +401,7 @@ pub struct Store {
     seed: Seed,
     claimed: HashSet<String>,
     building: HashSet<String>,
+    adds_to: HashSet<(String, String)>,
     added: usize,
     moved: usize,
     reused: usize,
@@ -629,6 +630,15 @@ impl Store {
         Ok(self.lent.len())
     }
 
+    /// Whether the row `key` holds `id` of `table` without this build giving it that id: its addon is
+    /// left out of the build, or is in it but adds no rows to the table, and no career uses `id`.
+    fn spare_row(&self, table: &str, id: i64, key: &str) -> bool {
+        let addon = addon_of(key);
+        let adds = self.adds_to.contains(&(addon.to_owned(), table.to_owned()));
+        (!self.building.contains(addon) || (!adds && !self.claimed.contains(key)))
+            && !self.career_held.get(table).is_some_and(|ids| ids.contains(&id))
+    }
+
     /// Whether `record`, which `ids.json` holds `id` for, belongs to an addon this build leaves out and no career
     /// uses `id`: a full table may give the id to a row, and the core's registry moves the record when its addon
     /// is turned on.
@@ -720,12 +730,16 @@ impl Store {
         files: impl IntoIterator<Item = (&'a str, &'a DbOps)>,
     ) {
         let _ = tracks;
+        self.adds_to.clear();
         let mut tables: BTreeSet<(String, String)> = BTreeSet::new();
-        for (_, ops) in files {
+        for (addon, ops) in files {
             for op in &ops.ops {
                 let DbOp::AddRow { table, from, .. } = op else {
                     continue;
                 };
+                if let Some(row) = add_row_name(table, from) {
+                    self.adds_to.insert((addon.to_owned(), format!("{table}.{row}")));
+                }
                 if table.contains(['[', '{']) || row_shape(table).contains("_N") {
                     continue;
                 }
@@ -995,9 +1009,7 @@ impl RowIds for Scoped<'_> {
                 .get(&table)
                 .into_iter()
                 .flatten()
-                .filter(|(id, k)| {
-                    !s.building.contains(addon_of(k)) && pinned.is_none_or(|p| !p.contains_key(id))
-                })
+                .filter(|(id, k)| s.spare_row(&table, **id, k) && pinned.is_none_or(|p| !p.contains_key(id)))
                 .map(|(id, k)| (*id, k.clone()))
                 .collect();
             let mut released: Vec<(i64, String)> = pinned
@@ -1661,6 +1673,90 @@ mod tests {
             b.store.summary().as_deref(),
             Some("database: row-ids.json keeps 4 added-row id(s) (2 new, 2 reused)")
         );
+    }
+
+    fn leaves_out_rows(
+        labels: &[&str],
+        career: Option<i64>,
+    ) -> crate::Result<(BTreeMap<String, i64>, Store)> {
+        let mut store = Store::default();
+        for (i, id) in (251..=254).enumerate() {
+            store.put(&key("b", PACKAGES, &format!("old{i}")), id, IdFrom::Seeded);
+        }
+        if let Some(id) = career {
+            store
+                .career_held
+                .entry("entrants.vehicles.vehicle_packages.vehicle_package".to_owned())
+                .or_default()
+                .insert(id);
+        }
+        let features = Features::default();
+        let opt_in = BTreeSet::new();
+        let mut p = Planner::new(&features, &opt_in);
+        let (table, row) = PACKAGES;
+        p.add_fields(
+            "a",
+            BTreeMap::from([(
+                format!("{table}.{row}"),
+                vec!["_metadata_".to_owned(), "stat_id".to_owned()],
+            )]),
+        );
+        for label in labels {
+            let json = format!(
+                r#"{{"op":"db.add-row","table":"{table}","from":"{table}.{row}_0","set":{{"_metadata_":"{label}"}}}}"#
+            );
+            p.push(Op {
+                op: serde_json::from_str(&json).unwrap(),
+                origin: Origin {
+                    addon: "a".to_owned(),
+                    item: None,
+                },
+            });
+        }
+        p.push(Op {
+            op: serde_json::from_str(&format!(
+                r#"{{"op":"db.set","select":"{table}.{row}_0","field":"_metadata_","value":"base"}}"#
+            ))
+            .unwrap(),
+            origin: Origin {
+                addon: "b".to_owned(),
+                item: None,
+            },
+        });
+        p.keep_row_ids(store);
+        let mut gvdb = db(PACKAGES, 250);
+        let stock_keys = gvdb.records.iter().map(|r| r.key).collect();
+        p.apply_db_report(&mut gvdb, &stock_keys, &HashSet::new(), &mut DbReport::default())?;
+        let n = gvdb.instance_count(table, row).unwrap();
+        let ids = (1..n)
+            .map(|i| {
+                let label = gvdb.get_text(&format!("{table}.{row}_{i}._metadata_")).unwrap();
+                let id = gvdb.get_text(&format!("{table}.{row}_{i}.stat_id")).unwrap();
+                (label, id.parse().unwrap())
+            })
+            .collect();
+        Ok((ids, p.take_row_ids().unwrap()))
+    }
+
+    #[test]
+    fn a_full_table_takes_ids_kept_for_rows_an_addon_in_the_build_no_longer_adds() {
+        let (ids, store) = leaves_out_rows(&["a1", "a2", "a3", "a4"], None).unwrap();
+        assert_eq!(
+            ids.values().copied().collect::<BTreeSet<_>>(),
+            BTreeSet::from([251, 252, 253, 254])
+        );
+        assert_eq!(store.reused, 4);
+        assert_eq!(store.get(&key("b", PACKAGES, "old0")), None);
+    }
+
+    #[test]
+    fn a_full_table_never_takes_an_id_a_career_uses_from_an_addon_in_the_build() {
+        let (ids, _) = leaves_out_rows(&["a1", "a2", "a3"], Some(254)).unwrap();
+        assert!(ids.values().all(|id| *id != 254), "{ids:?}");
+        let e = leaves_out_rows(&["a1", "a2", "a3", "a4"], Some(254))
+            .err()
+            .unwrap();
+        assert!(e.to_string().contains("has no free stat_id up to 254"), "{e}");
     }
 
     #[test]
