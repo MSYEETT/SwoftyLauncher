@@ -70,15 +70,17 @@ bool read_ptr(uintptr_t at, uintptr_t &out)
 
 uintptr_t tyre_component_of(uintptr_t car_list, uint8_t v)
 {
-    namespace g = swofty::game;
     uintptr_t begin = 0, end = 0, slot = 0, obj = 0;
     if (!car_list || !mem::read(car_list + CARS_BEGIN, begin) || !mem::read(car_list + CARS_END, end) || !begin ||
         end <= begin || (end - begin) / sizeof(uintptr_t) <= v || !read_ptr(begin + v * sizeof(uintptr_t), slot) ||
         !read_ptr(slot + CAR_ENTITY, obj))
         return 0;
-    auto type = reinterpret_cast<const uint8_t *>(g::k_Sess_TyreComponentType.address());
-    auto base = reinterpret_cast<const uint8_t *>(g::k_Ne_TypeRoot.address());
-    auto chain_end = reinterpret_cast<const uint8_t *>(g::k_Ne_TypeChainEnd.address());
+    auto type = reinterpret_cast<const uint8_t *>(swofty::api->resolve("k_Sess_TyreComponentType"));
+    auto base = reinterpret_cast<const uint8_t *>(swofty::api->resolve("k_Ne_TypeRoot"));
+    auto chain_end = reinterpret_cast<const uint8_t *>(swofty::api->resolve("k_Ne_TypeChainEnd"));
+    auto find = reinterpret_cast<void *(*)(void *, const void *)>(swofty::api->resolve("Ne_Entity_FindComponent"));
+    if (!type || !base || !chain_end || !find)
+        return 0;
     bool is_component = type == base || type == chain_end;
     for (const uint8_t *n = type + 8; !is_component && n && mem::readable(n + 0x10, 8);) {
         if (!mem::read(n + 0x10, n))
@@ -88,7 +90,7 @@ uintptr_t tyre_component_of(uintptr_t car_list, uint8_t v)
             break;
     }
     if (is_component)
-        obj = uintptr_t(g::Ne_Entity_FindComponent(reinterpret_cast<void *>(obj), type));
+        obj = uintptr_t(find(reinterpret_cast<void *>(obj), type));
     uint64_t probe = 0;
     return obj && mem::read(obj + TC_PROBE, probe) ? obj : 0;
 }
