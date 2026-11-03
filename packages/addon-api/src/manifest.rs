@@ -70,6 +70,13 @@ pub struct AddonManifest {
     /// A native `choice` option whose value is the key that turns the addon's passes on and off.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub postfx_toggle: Option<String>,
+    /// Shader configs (`.swfx`) the addon ships; they are listed in Shaders whether the addon is on
+    /// or off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shaders: Vec<ShaderConfigDecl>,
+    /// Shader effects (`<id>.effect.json`) the addon adds to the effect library.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<String>,
     /// A settings page in game between a Driver Career tile and the new-career wizard.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub career_setup: Option<CareerSetup>,
@@ -83,6 +90,28 @@ pub struct AddonManifest {
     /// What the addon adds to the race HUD.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hud: Option<Hud>,
+}
+
+/// A shader config an addon ships.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ShaderConfigDecl {
+    /// Path of the `.swfx` file.
+    pub config: String,
+    /// Whether the config is on, and locked, while the addon is enabled.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub force: bool,
+}
+
+impl ShaderConfigDecl {
+    /// The file name without `.swfx`: the config's id within its addon.
+    pub fn stem(&self) -> &str {
+        Path::new(&self.config)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".swfx"))
+            .unwrap_or(&self.config)
+    }
 }
 
 /// What an addon, or one of its options, is to a multiplayer session.
@@ -821,6 +850,22 @@ impl AddonManifest {
         self.id == crate::CORE_ID
     }
 
+    /// Whether the addon ships shader configs or effects and nothing else, so it has no switch.
+    pub fn is_shader_only(&self) -> bool {
+        (!self.shaders.is_empty() || !self.effects.is_empty())
+            && self.operations == Operations::default()
+            && self.options.is_empty()
+            && self.launcher.is_none()
+            && self.hud.is_none()
+            && self.hub_tab.is_none()
+            && self.career_setup.is_none()
+            && self.multiplayer.is_none()
+            && self.shader.is_none()
+            && self.postfx.is_empty()
+            && self.postfx_textures.is_empty()
+            && self.postfx_toggle.is_none()
+    }
+
     /// `multiplayer` when set; otherwise cosmetic for a `helmets`, `shaders` or `performance`
     /// addon and for one that ships only a `shader` look or `postfx` passes, and gameplay for the
     /// rest.
@@ -913,6 +958,30 @@ impl AddonManifest {
             .chain(&self.icon);
         if let Some(p) = paths.into_iter().find(|p| !relative_inside(p)) {
             return fail(format!("{p} must be a relative path inside the addon"));
+        }
+        for (i, s) in self.shaders.iter().enumerate() {
+            if !relative_inside(&s.config) || !s.config.ends_with(".swfx") {
+                return fail(format!(
+                    "shaders[{i}]: {} must be a relative .swfx path inside the addon",
+                    s.config
+                ));
+            }
+            if self.shaders[..i].iter().any(|o| o.stem() == s.stem()) {
+                return fail(format!(
+                    "shaders[{i}]: a config named {} is listed twice",
+                    s.stem()
+                ));
+            }
+        }
+        if self.shaders.iter().filter(|s| s.force).count() > 1 {
+            return fail("shaders: only one config may be forced".into());
+        }
+        for (i, e) in self.effects.iter().enumerate() {
+            if !relative_inside(e) || !e.ends_with(".effect.json") {
+                return fail(format!(
+                    "effects[{i}]: {e} must be a relative .effect.json path inside the addon"
+                ));
+            }
         }
         if let Some(c) = &self.career_setup {
             c.validate(&self.options)
@@ -2019,5 +2088,34 @@ mod tests {
         assert_eq!(m.compat.game, crate::GAME_ID);
         assert!(m.compat.accepts_build(25251167));
         assert!(m.compat.accepts_launcher(&Version::new(1, 7, 3)));
+    }
+
+    const SHADER_ONLY: &str = r#"{"schema_version":1,"id":"t.look","name":"Look","version":"1.0.0","author":"t",
+        "shaders":[{"config":"shaders/look.swfx","force":true}],"effects":["fx/spark.effect.json"]}"#;
+
+    #[test]
+    fn shader_configs_and_effects_parse_and_a_shader_only_addon_is_recognised() {
+        let m = AddonManifest::parse(SHADER_ONLY).unwrap();
+        assert_eq!(m.shaders[0].stem(), "look");
+        assert!(m.shaders[0].force);
+        assert!(m.is_shader_only());
+        let back = serde_json::to_value(&m).unwrap();
+        assert_eq!(back["effects"][0], "fx/spark.effect.json");
+        let mixed = SHADER_ONLY.replace(r#""shaders""#, r#""operations":{"erp":["a.erp"]},"shaders""#);
+        assert!(!AddonManifest::parse(&mixed).unwrap().is_shader_only());
+        let plain = r#"{"schema_version":1,"id":"t.plain","name":"Plain","version":"1.0.0","author":"t"}"#;
+        assert!(!AddonManifest::parse(plain).unwrap().is_shader_only());
+    }
+
+    #[test]
+    fn shader_paths_must_be_relative_and_typed() {
+        for bad in [
+            SHADER_ONLY.replace("shaders/look.swfx", "../look.swfx"),
+            SHADER_ONLY.replace("shaders/look.swfx", "shaders/look.txt"),
+            SHADER_ONLY.replace("fx/spark.effect.json", "/fx/spark.effect.json"),
+            SHADER_ONLY.replace("fx/spark.effect.json", "fx/spark.json"),
+        ] {
+            assert!(AddonManifest::parse(&bad).is_err(), "{bad}");
+        }
     }
 }

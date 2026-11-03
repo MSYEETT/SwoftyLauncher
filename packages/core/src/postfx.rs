@@ -1,14 +1,11 @@
 //! Post-process passes: HLSL compute shaders compiled with dxc against `swofty/postfx.hlsli`.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use sha2::{Digest, Sha256};
 
 /// The pass contract, on the include path of every pass as `swofty/postfx.hlsli`.
 pub const HEADER: &str = include_str!("../../sdk/include/swofty/postfx.hlsli");
 /// The shader model passes compile to.
-pub const PROFILE: &str = "cs_6_0";
+pub const PROFILE: &str = swofty_shaders::PROFILE;
 
 /// The folder of a release that holds dxc, beside `bin/` and `loader/`.
 pub const DXC_DIR: &str = "dxc";
@@ -117,109 +114,33 @@ impl<'a> Entry<'a> {
             raw: pass.raw,
         }
     }
-
-    fn args(&self) -> Vec<String> {
-        match (self.raw, self.name) {
-            (true, name) => vec![
-                "-D".into(),
-                "SWOFTY_RAW=1".into(),
-                "-E".into(),
-                name.unwrap_or("main").into(),
-            ],
-            (false, Some(name)) => vec![
-                "-D".into(),
-                format!("SWOFTY_EFFECT={name}"),
-                "-E".into(),
-                "main".into(),
-            ],
-            (false, None) => vec!["-E".into(), "main".into()],
-        }
-    }
 }
 
-fn key(source: &Path, entry: Entry) -> Result<String, String> {
-    let mut h = Sha256::new();
-    h.update(PROFILE);
-    h.update(HEADER);
-    h.update(format!("{:?};", entry.args()));
-    let dir = source.parent().unwrap_or(Path::new("."));
-    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map_err(|e| format!("{}: {e}", dir.display()))?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| {
-            p.extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("hlsl") || x.eq_ignore_ascii_case("hlsli"))
-        })
-        .collect();
-    files.sort();
-    for f in files {
-        h.update(f.file_name().unwrap_or_default().to_string_lossy().as_bytes());
-        h.update(std::fs::read(&f).map_err(|e| format!("{}: {e}", f.display()))?);
-    }
-    h.update(
-        source
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .as_bytes(),
-    );
-    Ok(crate::baseline::hex(&h.finalize()))
-}
-
-/// Compiles `source` to signed DXIL, reusing `cache` when the source, the files beside it and
-/// the contract and the entry are unchanged.
+/// Compiles `source` to signed DXIL, reusing `cache` when the source, the files it includes, the
+/// contract and the entry are unchanged.
 pub fn compile(source: &Path, cache: &Path, entry: Entry) -> Result<Compiled, CompileError> {
-    let key = key(source, entry)?;
-    let cached = cache.join(format!("{key}.dxil"));
-    if let Ok(dxil) = std::fs::read(&cached)
-        && signed(&dxil)
-    {
-        return Ok(Compiled {
-            dxil,
-            log: String::new(),
-        });
-    }
     let dxc = dxc().ok_or_else(|| "dxc was not found (set SWOFTY_DXC, or put dxc on PATH)".to_owned())?;
-    let include = cache.join("include");
-    let header = include.join("swofty").join("postfx.hlsli");
-    std::fs::create_dir_all(header.parent().expect("has parent"))
-        .map_err(|e| format!("{}: {e}", include.display()))?;
-    std::fs::write(&header, HEADER).map_err(|e| format!("{}: {e}", header.display()))?;
-    let out = cache.join(format!("{key}.tmp"));
-    let run = Command::new(&dxc)
-        .args(["-nologo", "-T", PROFILE, "-HV", "2021", "-O3"])
-        .args(entry.args())
-        .arg("-I")
-        .arg(&include)
-        .arg("-Fo")
-        .arg(&out)
-        .arg(source)
-        .output()
-        .map_err(|e| format!("{}: {e}", dxc.display()))?;
-    let log = String::from_utf8_lossy(&run.stderr).trim().to_owned();
-    if !run.status.success() {
-        let _ = std::fs::remove_file(&out);
-        let first = log.lines().find(|l| l.contains("error")).unwrap_or(&log).trim();
-        return Err(CompileError {
-            summary: format!("dxc: {first}"),
-            log,
-        });
-    }
-    let dxil = std::fs::read(&out).map_err(|e| format!("{}: {e}", out.display()))?;
-    if !dxil.starts_with(b"DXBC") {
-        return Err("dxc wrote no DXIL container".to_owned().into());
-    }
-    if !signed(&dxil) {
-        let _ = std::fs::remove_file(&out);
-        return Err(format!(
-            "{} wrote unsigned DXIL, which D3D12 refuses; its validator ({}) is missing beside it",
-            dxc.display(),
-            if cfg!(windows) { "dxil.dll" } else { "libdxil.so" }
-        )
-        .into());
-    }
-    std::fs::rename(&out, &cached).map_err(|e| format!("{}: {e}", cached.display()))?;
-    Ok(Compiled { dxil, log })
+    std::fs::create_dir_all(cache).map_err(|e| format!("{}: {e}", cache.display()))?;
+    let pass = swofty_shaders::PassEntry {
+        name: entry.name,
+        raw: entry.raw,
+    };
+    swofty_shaders::compile_pass(
+        source,
+        pass,
+        swofty_shaders::Target::Dxil,
+        &dxc,
+        &[("swofty/postfx.hlsli", HEADER)],
+        cache,
+    )
+    .map(|dxil| Compiled {
+        dxil,
+        log: String::new(),
+    })
+    .map_err(|e| CompileError {
+        summary: e.summary,
+        log: e.log,
+    })
 }
 
 #[cfg(test)]

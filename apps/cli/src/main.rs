@@ -11,6 +11,7 @@ mod run;
 mod saves;
 mod send_logs;
 mod setup;
+mod shaders;
 mod testing;
 mod time;
 mod update;
@@ -144,6 +145,11 @@ enum Command {
         )]
         start: bool,
     },
+    #[command(
+        subcommand,
+        about = "Shader configs and effects: list, edit, check and choose the profile's config"
+    )]
+    Shaders(shaders::ShadersCommand),
     #[command(
         subcommand,
         about = "Post-process passes: compile an addon's shaders to check them"
@@ -574,6 +580,7 @@ fn dispatch(store: &Store, cli: Cli) -> Result<ExitCode> {
         Command::Saves(cmd) => saves::command(&store, cmd),
         Command::Steam { start } => run::steam_check(&store, start),
         Command::Postfx(cmd) => postfx::command(cmd),
+        Command::Shaders(cmd) => shaders::command(&store, &profile, cmd),
         Command::Test(cmd) => testing::command(&store, named.as_deref(), &profile, cmd),
         Command::Dev(cmd) => dev::command(&store, &profile, cmd),
         Command::Update { check } => update::update(check),

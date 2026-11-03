@@ -1029,6 +1029,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
     }
+    let shader_files = crate::shaders::build_files(store, &p);
+    hasher.update(format!("shaders {};", shader_files.digest));
+    built.lines.extend(shader_files.line);
+    built.warnings.extend(shader_files.warnings);
     let mut head_puts = crate::heads::Puts::default();
     let mut outputs = BTreeMap::new();
     let replaced = replaced_operations(&std16, loader_dir().as_deref());
@@ -2238,6 +2242,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 return Err(Error::Other(format!("{rel} is placed twice")));
             }
         }
+    }
+    for (rel, bytes) in shader_files.files {
+        let path = built.overlay.join(crate::runtime::SWOFTY).join(&rel);
+        let dir = path.parent().expect("has parent");
+        std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+        std::fs::write(&path, bytes).map_err(io_err(&path))?;
+        built
+            .plan
+            .loader
+            .insert(format!("{}/{rel}", crate::runtime::SWOFTY), path);
     }
     built.warnings.extend(waiting_lines(&planned.waiting, &features));
     for (_, _, origin) in &tracks {
@@ -7411,6 +7425,128 @@ mod tests {
             built.lines
         );
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn shader_effects_and_the_active_config_build_into_the_loader_plan() {
+        if loader_dir().is_some() || crate::postfx::dxc().is_none() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-shaders-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        crate::shaders::tests::addon(
+            &store,
+            "t.look",
+            "",
+            &[(
+                "forced.swfx",
+                "name = \"Forced look\"\n[spark]\nintensity = 3\n\n[vignette]\n",
+            )],
+            true,
+        );
+        let library = crate::shaders::catalog(&store).effects.len();
+        assert!(library > 1);
+        let built = build(&store, "default", &game).unwrap();
+        let read = |rel: &str| std::fs::read(&built.plan.loader[&format!("swofty/{rel}")]).unwrap();
+        let effects: serde_json::Value = serde_json::from_slice(&read("shaders/effects.json")).unwrap();
+        let list = effects["effects"].as_array().unwrap();
+        assert_eq!(list.len(), library, "{:?}", built.warnings);
+        let spark = list.iter().find(|e| e["id"] == "spark").unwrap();
+        assert_eq!(
+            (spark["addon"].as_str(), spark["slots"].as_u64()),
+            (Some("t.look"), Some(1))
+        );
+        assert_eq!(spark["passes"][0]["dxil"], "shaders/fx/spark-00.dxil");
+        assert!(read("shaders/fx/spark-00.dxil").starts_with(b"DXBC"));
+        let active: serde_json::Value = serde_json::from_slice(&read("shaders/active.json")).unwrap();
+        assert_eq!(active["name"], "Forced look");
+        assert_eq!(active["forced_by"], "t.look name");
+        assert_eq!(active["source"], "addon:t.look/forced");
+        assert_eq!(active["toggle_key"], "B");
+        assert_eq!(active["instances"][0]["effect"], "spark");
+        assert_eq!(active["instances"][0]["params"], serde_json::json!([3.0]));
+        assert_eq!(active["instances"][1]["effect"], "vignette");
+        assert!(
+            built
+                .lines
+                .iter()
+                .any(|l| l.starts_with("shaders: config \"Forced look\" runs 2 effect(s) (")),
+            "{:?}",
+            built.lines
+        );
+        assert!(
+            !built.warnings.iter().any(|w| w.starts_with("shaders")),
+            "{:?}",
+            built.warnings
+        );
+
+        let again = build(&store, "default", &game).unwrap();
+        assert_eq!(
+            again.buildhash, built.buildhash,
+            "the live serial is not part of the hash"
+        );
+        crate::shaders::set_toggle_key(&store, "F9").unwrap();
+        assert_ne!(
+            build(&store, "default", &game).unwrap().buildhash,
+            built.buildhash
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_config_with_errors_builds_with_a_warning_and_shaders_off() {
+        if loader_dir().is_some() || crate::postfx::dxc().is_none() {
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("swofty-build-shaders-bad-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        let dir = root.join("game");
+        std::fs::create_dir_all(dir.join("game_package/gamedatabases")).unwrap();
+        std::fs::write(dir.join(crate::GAME_EXE), "exe").unwrap();
+        std::fs::write(dir.join(GVDB), Gvdb { records: Vec::new() }.to_bytes()).unwrap();
+        let game = Game {
+            identity: Identity::detect(&dir, Some(1)).unwrap(),
+            dir,
+            user_reg: None,
+        };
+        let store = Store::new(root.join("data"));
+        let r = crate::shaders::create(&store, "Broken", Some("[no_such_effect]\n")).unwrap();
+        let mut p = store.profile("default").unwrap();
+        crate::shaders::set_active(&store, &mut p, Some(r)).unwrap();
+        let built = build(&store, "default", &game).unwrap();
+        let active: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&built.plan.loader["swofty/shaders/active.json"]).unwrap())
+                .unwrap();
+        assert_eq!(active["instances"], serde_json::json!([]));
+        assert!(
+            built
+                .warnings
+                .iter()
+                .any(|w| w.starts_with("shaders: Broken line 2") && w.ends_with("shaders are off")),
+            "{:?}",
+            built.warnings
+        );
+        assert!(built.lines.iter().any(|l| l == "shaders: off"));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_vanilla_profile_builds_no_shader_files() {
+        let store = Store::new(
+            std::env::temp_dir().join(format!("swofty-build-shaders-vanilla-{}", std::process::id())),
+        );
+        let files = crate::shaders::build_files(&store, &crate::profile::Profile::vanilla());
+        assert!(files.files.is_empty() && files.line.is_none() && files.warnings.is_empty());
     }
 
     #[test]

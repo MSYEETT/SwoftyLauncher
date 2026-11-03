@@ -11,7 +11,7 @@ use crate::manifest::relative_inside;
 use crate::{Error, Result, io_err};
 
 pub const ASSETS_FILE: &str = "swofty/assets.json";
-const SWOFTY: &str = "swofty";
+pub(crate) const SWOFTY: &str = "swofty";
 const RESOURCES_DIR: &str = "assets/resources";
 const LANG_DIR: &str = "assets/lang";
 const OVERLAY_DIR: &str = "overlay";

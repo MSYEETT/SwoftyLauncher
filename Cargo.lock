@@ -7066,6 +7066,7 @@ dependencies = [
  "swofty-builtins",
  "swofty-core",
  "swofty-formats",
+ "swofty-shaders",
 ]
 
 [[package]]
