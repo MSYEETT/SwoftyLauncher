@@ -373,6 +373,10 @@ fn install_checked(
     crate::setup::gate(store)?;
     Blocked::clear(&store.root).ok();
     stock::Report::clear(&store.root).ok();
+    // A session's wrapper checked the copy before it got here.
+    if !session {
+        check_entitled(store, g)?;
+    }
     let depots = check_stock(store, g, out)?;
     let inst = Installer {
         session,
@@ -399,6 +403,26 @@ fn install_checked(
         Err(swofty_core::Error::Leftovers(found)) => Err(crate::recover::blocked(store, g, &found)),
         r => Ok(not_stock(store, g, r)?),
     }
+}
+
+/// Refuse a modded build or session on a copy no store checks the
+/// ownership of, and on a Steam copy whose game or Steam API files are not
+/// the ones Steam installed. Steam's list is only read here; a copy whose
+/// list can't be read is checked without it.
+pub fn check_entitled(store: &Store, g: &Game) -> Result<()> {
+    let depots = steam::find_game()
+        .filter(|i| i.dir == g.dir)
+        .and_then(|i| Depots::load(&i).ok());
+    swofty_core::entitlement::check(&g.dir, depots.as_ref())?;
+    let Some(depots) = depots else {
+        return Ok(());
+    };
+    let changed = swofty_core::entitlement::changed_files(&store.root, &g.dir, &depots)?;
+    if !changed.is_empty() {
+        stock::Report::new(changed.clone(), &g.dir).write(&store.root)?;
+        return Err(swofty_core::Error::NotStock(changed).into());
+    }
+    Ok(())
 }
 
 /// Check the game against Steam's manifests before anything is built from
