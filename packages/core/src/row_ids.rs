@@ -677,6 +677,14 @@ impl Store {
                 if old == now || self.by_id.get(table).is_some_and(|ids| ids.contains_key(&old)) {
                     continue;
                 }
+                if self
+                    .base_ids
+                    .get(table)
+                    .and_then(|ids| ids.get(&old))
+                    .is_some_and(|holder| holder != key)
+                {
+                    continue;
+                }
                 match seen.entry((table, old)) {
                     std::collections::hash_map::Entry::Vacant(v) => {
                         v.insert(Some(now));
@@ -1502,6 +1510,23 @@ mod tests {
         assert!(store.id_aliases().is_empty());
         store.building(["x".to_owned()]);
         assert_eq!(store.id_aliases().tables["vehicles"][&12], 20);
+    }
+
+    #[test]
+    fn an_old_id_another_row_holds_in_the_shared_ids_is_that_rows_alias() {
+        let mut store = Store::default();
+        let owner = key("x", VEHICLES, "x1");
+        let stale = key("x", VEHICLES, "x2");
+        store.insert(owner.clone(), 30);
+        store.insert(stale.clone(), 31);
+        store
+            .base_ids
+            .entry("entrants.vehicles.vehicle".to_owned())
+            .or_default()
+            .insert(12, owner.clone());
+        store.aliases.entry(owner).or_default().insert(12);
+        store.aliases.entry(stale).or_default().insert(12);
+        assert_eq!(store.id_aliases().tables["vehicles"][&12], 30);
     }
 
     #[test]
