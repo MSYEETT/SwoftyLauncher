@@ -264,6 +264,8 @@ void thrustmaster_lcd_commit();
 std::vector<CoreMixins> garage_setup_mixins();
 void garage_setup_commit();
 std::vector<CoreMixins> session_enter_mixins();
+std::vector<CoreMixins> ai_line_set_mixins();
+void ai_line_set_commit();
 void session_enter_commit();
 void hud_setup();
 void focus_setup();

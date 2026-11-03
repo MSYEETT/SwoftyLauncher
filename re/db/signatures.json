@@ -161644,6 +161644,33 @@
    "used_by": [
     "native/src/core/sequencer_records_guard.cpp"
    ]
+  },
+  {
+   "id": "ai.build_system_record_pushed",
+   "section": ".xtls",
+   "pattern": "40 FE C5 40 0F B6 C5 39 43 08 0F 86",
+   "match": "0x1406004dd",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x1406004dd",
+   "kind": "mid",
+   "expect": "40 FE C5 40",
+   "names": [
+    "site_Ai_BuildSystem_RecordPushed"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-11-03",
+     "by": "thirdcarai",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/ai_line_set_guard.cpp"
+   ]
   }
  ]
 }

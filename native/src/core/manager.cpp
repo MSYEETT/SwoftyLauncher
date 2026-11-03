@@ -110,6 +110,8 @@ void thrustmaster_lcd_commit();
 std::vector<CoreMixins> garage_setup_mixins();
 void garage_setup_commit();
 std::vector<CoreMixins> session_enter_mixins();
+std::vector<CoreMixins> ai_line_set_mixins();
+void ai_line_set_commit();
 void session_enter_commit();
 std::vector<CoreMixins> characters_mixins();
 std::vector<CoreMixins> wizard_mixins();
@@ -1798,7 +1800,7 @@ size_t offer_core_sets()
                        runtime::save_splice_mixins, runtime::ers_newlap_mixins, runtime::ers_mode_mixins, runtime::car_levers_mixins,
                        runtime::garage_crew_mixins, runtime::pit_slots_mixins, runtime::pit_box_mixins, runtime::garage_slots_mixins, runtime::chassis_registry_mixins, runtime::standings_guard_mixins, runtime::ai_corner_guard_mixins, runtime::replay_grid_guard_mixins, runtime::fe_tile_guard_mixins, runtime::tyre_slots_mixins, runtime::tyre_models_mixins, runtime::track_acclim_mixins,
                        runtime::audio_queue_mixins, runtime::heap_sizes_mixins, runtime::team_slots_mixins, runtime::track_select_mixins, runtime::netplay_icons_mixins,
-                       runtime::leaderboard_guard_mixins, runtime::thrustmaster_lcd_mixins, runtime::watchdog_grace_mixins, runtime::garage_setup_mixins, runtime::session_enter_mixins})
+                       runtime::leaderboard_guard_mixins, runtime::thrustmaster_lcd_mixins, runtime::watchdog_grace_mixins, runtime::garage_setup_mixins, runtime::session_enter_mixins, runtime::ai_line_set_mixins})
         add_core_sets(sets());
     return addons.size() - before;
 }
@@ -1840,6 +1842,7 @@ void settle_core_sets()
     runtime::thrustmaster_lcd_commit();
     runtime::garage_setup_commit();
     runtime::session_enter_commit();
+    runtime::ai_line_set_commit();
 }
 
 void install_groups(size_t from, bool late, size_t *count)

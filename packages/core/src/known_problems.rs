@@ -764,6 +764,10 @@ const ENTRANT_LIST_SEARCH: &str = "F1_25.exe+0x1738f30 ";
 const SETUP_TRACK: &str = "Sess_Loader_SetupTrackAssets";
 /// The fault in the career hub's set-up: the read of the first record of a calendar event that matched nothing.
 const SEQUENCER_RECORD: &str = "Game_CareerEventsSequencer_Initialise+0x1020";
+/// The game function that reads a car's racing line, which a car with no line of its own faults in.
+const LINE_CACHE: &str = "Ai_LineCache_UpdateIfChanged+";
+/// What the core logs for a car that is the third of its team.
+const THIRD_CAR: &str = "is the third car of its garage";
 /// How long after a career loaded a crash counts as loading its next session.
 const CAREER_LOAD_SECS: f64 = 10.0;
 /// How long before the crash Manual Pit Lane's lines count, and after it.
@@ -1537,6 +1541,50 @@ fn sequencer_record_crash(f: &Fatal) -> bool {
     f.module.as_deref() == Some("f1_25.exe") && f.frames.first().is_some_and(|l| l.contains(SEQUENCER_RECORD))
 }
 
+/// Whether F1 25 faulted in the AI's racing line update, the crash of a third car in a team that has no line.
+fn third_car_line_crash(e: &Evidence, f: &Fatal) -> bool {
+    f.module.as_deref() == Some("f1_25.exe")
+        && f.frames.first().is_some_and(|l| l.contains(LINE_CACHE))
+        && e.loader.contains(THIRD_CAR)
+}
+
+/// The enabled addons that add drivers or cars to a team.
+fn third_car_addons(e: &Evidence) -> Vec<String> {
+    e.enabled
+        .iter()
+        .filter(|id| {
+            let id = id.to_ascii_lowercase();
+            id.contains("more-driver") || id.contains("third") || id.contains("extra-car")
+        })
+        .map(|id| name(e, id))
+        .collect()
+}
+
+fn third_car_line(e: &Evidence) -> Diagnosis {
+    let addons = third_car_addons(e);
+    let by = match addons.as_slice() {
+        [] => "a team with three cars".to_owned(),
+        _ => format!("{} giving a team a third car", list(&addons)),
+    };
+    let off = match addons.as_slice() {
+        [] => "Go back to two cars in every team of My Team, or turn off the addon that adds the third car."
+            .to_owned(),
+        _ => format!(
+            "Turn off {}, or go back to two cars in every team of My Team.",
+            list(&addons)
+        ),
+    };
+    Diagnosis {
+        id: "third_car_line",
+        title: "A third car in a team crashed F1 25".to_owned(),
+        what: format!(
+            "F1 25 crashed a moment after the session started, while the AI steered the cars. The cause is {by}: \
+             the game gives the AI's racing line and tables to two cars per team, and a third car has none to read."
+        ),
+        steps: vec![off, "Press Play again.".to_owned()],
+    }
+}
+
 /// The enabled addons that change a career's calendar: calendar and schedule packages, and DB Editor packages.
 fn calendar_addons(e: &Evidence) -> Vec<String> {
     e.enabled
@@ -2024,6 +2072,9 @@ fn matched(e: &Evidence) -> Option<Diagnosis> {
     }
     if sequencer_record_crash(&f) {
         return Some(calendar_event_missing(e));
+    }
+    if third_car_line_crash(e, &f) {
+        return Some(third_car_line(e));
     }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
@@ -3255,6 +3306,53 @@ mod tests {
             None,
             "another offset of the function"
         );
+    }
+
+    const THIRD_CAR_LINE: &str = "\
+2026-11-03 10:27:30.114 [3516] [garage] garage 8: team 8 car #3 (driver 41) is the third car of its garage; its crew is not spawned, the car still races
+2026-11-03 10:27:56.399 [3516] [session] vehicle slot 22 (hash 5c0e1d2a) is in no AI asset group; using 3b1f0a77 for its AI record
+2026-11-03 10:27:56.420 [3516] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 3516, 217 s after load, at F1_25.exe+0x686a9e .xtls Ai_LineCache_UpdateIfChanged+0x5e
+2026-11-03 10:27:56.420 [3516] [crash]   reading 0x178
+2026-11-03 10:27:56.420 [3516] [crash]   stack:
+2026-11-03 10:27:56.420 [3516] [crash]   #0  F1_25.exe+0x686a9e .xtls Ai_LineCache_UpdateIfChanged+0x5e
+2026-11-03 10:27:56.420 [3516] [crash]   #1  F1_25.exe+0x63ece8 .xtls Ai_Job_UpdateCarsParallel+0x978
+2026-11-03 10:27:56.421 [3516] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0x686a9e .xtls Ai_LineCache_UpdateIfChanged+0x5e reached the top-level filter; passing it to the game's filter
+";
+
+    #[test]
+    fn a_line_cache_crash_with_a_third_car_names_the_addon_that_adds_it() {
+        let mut e = with_names(
+            ev(THIRD_CAR_LINE, &[]),
+            &[
+                ("mildtdesign.more-driver-models", "More Driver Models"),
+                ("swofty.progressive", "Progressive Career"),
+            ],
+        );
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "third_car_line");
+        assert!(
+            d.what.contains("More Driver Models giving a team a third car"),
+            "{}",
+            d.what
+        );
+        assert!(
+            d.steps[0].starts_with("Turn off More Driver Models"),
+            "{}",
+            d.steps[0]
+        );
+
+        e.enabled = vec!["swofty.progressive".to_owned()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "third_car_line");
+        assert!(d.what.contains("a team with three cars"), "{}", d.what);
+
+        let no_third = THIRD_CAR_LINE.replace("is the third car of its garage", "is a car of its garage");
+        assert_ne!(
+            diagnose(&ev(&no_third, &[])).map(|d| d.id),
+            Some("third_car_line")
+        );
+        let other = THIRD_CAR_LINE.replace("Ai_LineCache_UpdateIfChanged+0x5e", "Ai_LineCache_Other+0x5e");
+        assert_ne!(diagnose(&ev(&other, &[])).map(|d| d.id), Some("third_car_line"));
     }
 
     #[test]
