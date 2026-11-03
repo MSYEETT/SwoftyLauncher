@@ -165,6 +165,11 @@ fuel_ecu.temperature_scale.<mix>       0 .. 4
 
 aero.lift_scale                        0 .. 10, multiplies the body lift, read every step
 aero.drag_scale                        0 .. 10, multiplies the body drag
+aero.slipstream_drag                   0 .. 1, the air density the body drag sees in a full tow (lower: a stronger tow); read every step
+aero.slipstream_front_wing             0 .. 1, the same for the front wing
+aero.slipstream_rear_wing              0 .. 1, the same for the rear wing
+aero.slipstream_lift                   0 .. 1, the same for the body lift
+aero.slipstream_car_width              0.1 .. 10, the width of the wake the car leaves
 engine.power_scale                     0 .. 4, the engine drive torque, written to no game data
 engine.limiter_offset_rpm              negative: the torque is cut that many rpm under the limiter
 ai.grip_scale                          0 .. 4, the AI's table grip input, dry weather only
@@ -376,7 +381,7 @@ These fields are on; each rests on a verified row:
 
 ```text
 engine.power_scale, engine.limiter_offset_rpm, ai.grip_scale
-aero.lift_scale, aero.drag_scale
+aero.lift_scale, aero.drag_scale, aero.slipstream_*
 brakes.bias, brakes.pressure
 suspension.front/rear.camber, toe, anti_roll, ride_height_offset
 chassis.ballast_kg
