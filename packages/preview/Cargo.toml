@@ -1,0 +1,14 @@
+[package]
+name = "swofty-preview"
+description = "Runs shader configs on preview clips for the launcher's Shaders page"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+swofty-shaders.workspace = true
+
+[lints]
+workspace = true

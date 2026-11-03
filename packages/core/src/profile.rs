@@ -36,6 +36,9 @@ pub struct Profile {
     /// on Steam's saves.
     #[serde(default = "enabled", skip_serializing_if = "is_true")]
     pub launcher_saves: bool,
+    /// The active shader config (`personal:<slug>` or `addon:<id>/<file stem>`); `None` is shaders off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shader: Option<String>,
     #[serde(flatten, default, skip_serializing_if = "BTreeMap::is_empty")]
     pub unknown: BTreeMap<String, serde_json::Value>,
 }
@@ -68,6 +71,7 @@ impl Profile {
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
             launcher_saves: true,
+            shader: None,
             unknown: BTreeMap::new(),
         };
         p.normalise();
@@ -84,6 +88,7 @@ impl Profile {
             applied: BTreeMap::new(),
             state: BTreeMap::new(),
             launcher_saves: true,
+            shader: None,
             unknown: BTreeMap::new(),
         }
     }

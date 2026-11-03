@@ -7087,6 +7087,7 @@ dependencies = [
  "swofty-addon",
  "swofty-formats",
  "swofty-sdk",
+ "swofty-shaders",
  "tar",
  "thiserror 2.0.21",
  "tungstenite",
@@ -7135,8 +7136,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "swofty-preview"
+version = "1.7.28"
+dependencies = [
+ "swofty-shaders",
+]
+
+[[package]]
 name = "swofty-sdk"
 version = "1.7.28"
+
+[[package]]
+name = "swofty-shaders"
+version = "1.7.28"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "syn"
