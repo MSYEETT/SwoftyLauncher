@@ -67,7 +67,8 @@ fn distance(a: &str, b: &str) -> usize {
 }
 
 /// The candidate a mistyped word most likely meant: the only candidate it is a prefix of, or the
-/// closest within two edits.
+/// closest within two edits (three for words of ten characters or more), ties going to the longest
+/// shared prefix.
 pub(crate) fn did_you_mean<'a>(word: &str, candidates: impl Iterator<Item = &'a str>) -> Option<&'a str> {
     let word = word.to_ascii_lowercase();
     if word.is_empty() {
@@ -80,12 +81,22 @@ pub(crate) fn did_you_mean<'a>(word: &str, candidates: impl Iterator<Item = &'a 
     if let (Some(first), None) = (prefixed.next(), prefixed.next()) {
         return Some(first);
     }
+    let len = word.chars().count();
+    let limit = if len >= 10 { 3 } else { 2 };
     candidates
         .into_iter()
-        .map(|c| (distance(&word, &c.to_ascii_lowercase()), c))
-        .filter(|(d, _)| *d <= 2 && *d < word.chars().count())
-        .min_by_key(|(d, _)| *d)
-        .map(|(_, c)| c)
+        .map(|c| {
+            let lower = c.to_ascii_lowercase();
+            let shared = word
+                .chars()
+                .zip(lower.chars())
+                .take_while(|(a, b)| a == b)
+                .count();
+            (distance(&word, &lower), std::cmp::Reverse(shared), c)
+        })
+        .filter(|(d, _, _)| *d <= limit && *d < len)
+        .min_by_key(|(d, shared, _)| (*d, *shared))
+        .map(|(_, _, c)| c)
 }
 
 /// A number the way a config states it: whole numbers without a fraction for ints, `1.0` for
@@ -173,6 +184,46 @@ mod tests {
         assert_eq!(did_you_mean("bl", c.iter().copied()), None);
         assert_eq!(did_you_mean("zzzzz", c.iter().copied()), None);
         assert_eq!(did_you_mean("GRAIN", c.iter().copied()), Some("grain"));
+    }
+
+    #[test]
+    fn long_words_allow_three_edits() {
+        let c = ["highlight_saturation", "highlight_tint", "shadow_saturation"];
+        assert_eq!(
+            did_you_mean("highlite_saturation", c.iter().copied()),
+            Some("highlight_saturation")
+        );
+        assert_eq!(
+            did_you_mean("shadw_saturtion", c.iter().copied()),
+            Some("shadow_saturation")
+        );
+        assert_eq!(did_you_mean("hilite_sat", c.iter().copied()), None);
+    }
+
+    #[test]
+    fn near_miss_effect_ids_resolve() {
+        let c = [
+            "ambient_light",
+            "auto_hdr",
+            "contrast_stretch",
+            "curved_monitor",
+            "color_mod",
+        ];
+        assert_eq!(
+            did_you_mean("ambiant_light", c.iter().copied()),
+            Some("ambient_light")
+        );
+        assert_eq!(
+            did_you_mean("contrast_strech", c.iter().copied()),
+            Some("contrast_stretch")
+        );
+        assert_eq!(
+            did_you_mean("curved_monitr", c.iter().copied()),
+            Some("curved_monitor")
+        );
+        assert_eq!(did_you_mean("colour_mod", c.iter().copied()), Some("color_mod"));
+        assert_eq!(did_you_mean("autohdr", c.iter().copied()), Some("auto_hdr"));
+        assert_eq!(did_you_mean("qqqq", c.iter().copied()), None);
     }
 
     #[test]
