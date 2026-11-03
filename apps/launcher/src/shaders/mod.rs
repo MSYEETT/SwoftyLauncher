@@ -1,4 +1,5 @@
 mod clips;
+mod docs;
 mod editor;
 mod list;
 mod preview;
@@ -51,6 +52,7 @@ pub(crate) enum Event {
 pub(super) enum Mode {
     Editor,
     Preview,
+    Documentation,
 }
 
 struct Snapshot {
@@ -78,6 +80,8 @@ pub(crate) struct ShadersView {
     editor: editor::EditorPane,
     list: list::ListState,
     preview: preview::PreviewState,
+    /// The effect whose table the Documentation tab last copied.
+    docs_copied: Option<String>,
 }
 
 impl EventEmitter<Event> for ShadersView {}
@@ -98,6 +102,7 @@ impl ShadersView {
             key: "B".into(),
             selected: None,
             mode: Mode::Editor,
+            docs_copied: None,
             error: None,
             busy: false,
             refreshed: false,
@@ -233,7 +238,7 @@ impl ShadersView {
         self.mode = mode;
         match mode {
             Mode::Preview => self.preview_open(cx),
-            Mode::Editor => self.preview_pause(cx),
+            Mode::Editor | Mode::Documentation => self.preview_pause(cx),
         }
         cx.notify();
     }
@@ -463,6 +468,7 @@ impl Render for ShadersView {
         let left = match self.mode {
             Mode::Editor => self.editor_pane(p, cx),
             Mode::Preview => self.preview_pane(p, cx),
+            Mode::Documentation => self.docs_pane(p, cx),
         };
         v_flex()
             .size_full()

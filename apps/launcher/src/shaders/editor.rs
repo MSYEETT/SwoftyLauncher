@@ -853,6 +853,7 @@ impl ShadersView {
             .bg(p.surface)
             .child(seg(Mode::Editor, "Editor", IconName::SquarePen))
             .child(seg(Mode::Preview, "Preview", IconName::Play))
+            .child(seg(Mode::Documentation, "Documentation", IconName::BookOpen))
             .into_any_element()
     }
 }
