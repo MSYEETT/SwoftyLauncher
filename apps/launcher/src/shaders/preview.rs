@@ -503,7 +503,11 @@ impl ShadersView {
                 .await;
             this.update(cx, |v, cx| {
                 if found.len() > v.preview.clips.len() {
+                    let playing = v.preview.clips.get(v.preview.clip).map(|c| c.id.clone());
                     v.preview.clips = found;
+                    if let Some(i) = playing.and_then(|id| v.preview.clips.iter().position(|c| c.id == id)) {
+                        v.preview.clip = i;
+                    }
                     cx.notify();
                 }
             })
