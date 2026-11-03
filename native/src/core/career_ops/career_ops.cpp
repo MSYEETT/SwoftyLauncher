@@ -2062,10 +2062,17 @@ int api_current_round(int32_t *season_index, int32_t *round, int32_t *rounds)
     return SWOFTY_ASSET_OK;
 }
 
+int api_set_dropped_scores(const char *data_group, uint32_t best)
+{
+    if (!data_group || !*data_group || best > 64)
+        return SWOFTY_ASSET_INVALID;
+    return runtime::standings_drop_set(data_group, best);
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
     api_swap_drivers,          api_report_season, api_apply_teams, api_set_seat,  api_set_car_number, api_set_track_fuel,
-    api_set_logo, api_set_look, api_current_round, api_team_stat,
+    api_set_logo, api_set_look, api_current_round, api_team_stat, api_set_dropped_scores,
 };
 
 void setup()

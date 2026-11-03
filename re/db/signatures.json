@@ -161538,6 +161538,58 @@
    "used_by": [
     "native/src/core/teammate_pairs_guard.cpp"
    ]
+  },
+  {
+   "id": "career.recompute_season_standings",
+   "section": ".xtls",
+   "pattern": "E9 ?? ?? ?? ?? 84 F4 0F 83 ?? ?? ?? ?? 8C AB 0F",
+   "match": "0x140b2fa60",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140b2fa60",
+   "kind": "func_start",
+   "names": [
+    "Career_Recompute_SeasonStandings"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-11-03",
+     "by": "dropscores",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/standings_drop.cpp"
+   ]
+  },
+  {
+   "id": "career.compare_standings_entries",
+   "section": ".xtls",
+   "pattern": "41 56 56 57 53 48 81 EC 08 01 00 00 41 8B 40 04",
+   "match": "0x140b317a0",
+   "anchor": "0x0",
+   "resolve": {
+    "kind": "addr"
+   },
+   "target": "0x140b317a0",
+   "kind": "func_start",
+   "names": [
+    "Career_Compare_StandingsEntries"
+   ],
+   "verified": [
+    {
+     "build": "d873a1c8d2044cef",
+     "date": "2026-11-03",
+     "by": "dropscores",
+     "how": "static"
+    }
+   ],
+   "used_by": [
+    "native/src/core/standings_drop.cpp"
+   ]
   }
  ]
 }

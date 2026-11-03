@@ -327,7 +327,7 @@ Result set_seat_of_team(uint32_t team_stat, int seat, Ref<drivers::Identity> dri
 Result set_driver_ratings(Ref<drivers::Identity> driver, const DriverRatings &ratings);
 Result set_car_number(Ref<drivers::Identity> driver, int number, bool swap = false);
 Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b);   // the game's full move sequence
-Result apply_dropped_scores(const events::StandingsRebuild &, int);   // unavailable
+Result set_dropped_scores(std::string_view data_group, int best);   // the loaded career counts each driver's best N results
 Result report_season(int year, int season_index);   // the career's owner: the season at season_index is year
 
 } // namespace swofty::career
@@ -840,7 +840,7 @@ career::swap_drivers(drivers::identities["game/alex_albon"], drivers::identities
 career::report_season(2017, 1);
 ```
 
-The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `SwoftyCareerOps` in `swofty_api.h`, `SWOFTY_CAREER_OPS_VERSION` 7). A call returns `unavailable` on a core whose table is older than the version that added it. `apply_dropped_scores` returns `unavailable` on every core.
+The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `SwoftyCareerOps` in `swofty_api.h`, `SWOFTY_CAREER_OPS_VERSION` 7). A call returns `unavailable` on a core whose table is older than the version that added it.
 
 | Table version | Adds | Header call |
 | --- | --- | --- |
@@ -850,13 +850,14 @@ The calls run on the core's career operations table (`SwoftyCoreCareerOps`, `Swo
 | 4 | `set_seat`, `set_car_number`, `set_track_fuel` | `career::set_seat`, `career::set_seat_of_team`, `career::set_car_number`, `tracks::set_track_fuel` |
 | 5 | `set_logo` | `teams::set_logo` |
 | 6 | `set_look` | `drivers::set_look` |
-| 7 | `current_round`, `team_stat` | `career::current_round`, `career::set_slots` (by team references) |
+| 7 | `current_round`, `team_stat`, `set_dropped_scores` | `career::current_round`, `career::set_slots` (by team references), `career::set_dropped_scores` |
 
 `set_seat` takes a 1-based `slot` of the loaded career's data group, `set_seat_of_team` a team stat id; `set_car_number` takes `swap`, which gives the driver who held the number the caller's old one. `set_driver_ratings` writes experience, racecraft, awareness and pace by game stat id 0, 1, 3 and 4.
 
 - **Slots:** a season's `slot` is one of the data group's career team slots. `set_slots` names the team each slot races as, by team stat id, and `apply_lineup` reads the table of the season's `data_group`. Without a table every seat is refused.
 - **`apply_teams`:** each slot the season lists (1-12) races as its team; a team with no career rows gets them, built from its donor's. An empty team leaves the slot out of the Championship, and a slot the season doesn't list keeps its team. Call it before `apply_lineup`. It reads only the records of the season's `data_group` and dresses only the rows of that group's slot table. A dressed slot row's loaded team record takes the season team's names, code, colours, base and principal (`team.identity` 1.1); its logo stays the slot row's. When the career unloads, every dressed record goes back to its own. Twelve slots work in Driver Career; twelve with My Team are refused (see [A season's teams](/std/systems/teams#a-season-s-teams)).
 - **Added teams in the new-career wizard:** a season whose slot names a team an addon made (its own `team.identity`, not a `game/` row) is an added team. The career's team rows are the ones its career list holds for every start season, so the added team wears its slot's row: the request `{"start": {"data_group": "<group>", "year": <start season>}}` dresses those rows (names, colours) while the wizard shows that start season, and `"year": 0` takes the dress off. The season start dresses the same row the same way, so the career never gets a second row for the team. At boot, each new driver (a `driver.identity` with a donor) of an added team gets a teamless entrant in the first teamless list the career list references, so the career has a row to seat him in.
+- **`set_dropped_scores`:** while the loaded career is filed under the data group, the drivers' championship counts each driver's best `best` results; 0 counts every result. The cumulative totals, and so the order, use the counted sum of the best per-round totals, taken from the per-session points, which stay gross. The countback of finishing positions still reads every result, and the constructors' championship counts every result.
 - **`set_seat`:** the driver takes race seat 0 or 1 of a slot in Driver Career. A race driver exchanges seats with the seat's driver; a free agent takes the seat and the seat's driver leaves the grid.
 - **What `apply_lineup` changes:** each seat's driver moves to it; a race-seat driver whose seat goes to someone else, and who has no seat in the record, leaves the grid. Mid-season `changes` aren't applied by it; `career::apply_round` applies them (see below).
 - **What it refuses:** a driver not in the drivers table, a driver without a single career row, a driver named on two seats (the second), the player (never moved) and the player's seat (never given away). The refused seats keep their drivers.

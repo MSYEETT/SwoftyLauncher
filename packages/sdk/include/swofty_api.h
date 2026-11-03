@@ -851,7 +851,11 @@ typedef struct SwoftyServices {
    the career is at (the next race to run) and rounds the season's weekend count; SWOFTY_ASSET_LATE when no
    career is loaded or its season has no built weekends yet (also while the career is busy). team_stat: a team
    reference ("game/<label>", or an addon's team.identity id) to the stat id of the teams table row with that
-   label; SWOFTY_ASSET_INVALID when the game has no such row. */
+   label; SWOFTY_ASSET_INVALID when the game has no such row. Version 7 also adds
+   set_dropped_scores(data_group, best): while the loaded career is filed under data_group, the drivers'
+   championship counts each driver's best `best` results (0 counts every result): the cumulative totals, and so
+   the order, use the counted sum of the best per-round totals; the constructors' championship and the
+   per-session points stay gross. */
 #define SWOFTY_CAREER_OPS_VERSION 7
 enum { SWOFTY_REFUSED = 5 };
 enum { SWOFTY_NUMBER_SWAP = 1 };
@@ -873,6 +877,7 @@ typedef struct SwoftyCareerOps {
     int (*set_look)(const char *driver_ref, const char *look_ref);
     int (*current_round)(int32_t *season_index, int32_t *round, int32_t *rounds);
     int (*team_stat)(const char *team_ref, uint32_t *out);
+    int (*set_dropped_scores)(const char *data_group, uint32_t best);
 } SwoftyCareerOps;
 
 /* Career saves (standard library 1.7.0, experimental), from the core export SwoftyCoreCareerSaves; not a

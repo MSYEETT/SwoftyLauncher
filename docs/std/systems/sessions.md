@@ -272,11 +272,7 @@ SWOFTY_REGISTER
 
 SWOFTY_ON_LOAD
 {
-    // best 11 results: the core rebuilds the standings, then drops the rest
-    events::on<career::events::StandingsRebuild>().in(events::content("swofty.f1-1990/f1_career_1990"))
-        .after([](const career::events::StandingsRebuild &s, const events::Context &) {
-            career::apply_dropped_scores(s, 11);           // keeps the gross totals for the UI
-        });
+    career::set_dropped_scores("f1_career_1990", 11);     // best 11 results for the drivers, every result for the teams
 }
 
 SWOFTY_ADDON()

@@ -21,8 +21,8 @@
 // Career: modes, contents, seasons and their boxes, calendars, ratings, characters and wizards. The 1.x career library (swofty/career.hpp) keeps
 // its names in this namespace: its Result is the operations' result here, and its Mode enum stays the 1.x
 // mode, so the career.mode record struct is ModeRecord. apply_teams, apply_lineup, set_driver_ratings,
-// swap_drivers, report_season, set_seat and set_car_number call the core's career operations
-// (SwoftyCoreCareerOps) and return unavailable on a core without them; apply_dropped_scores returns unavailable.
+// swap_drivers, report_season, set_seat, set_car_number and set_dropped_scores call the core's career operations
+// (SwoftyCoreCareerOps) and return unavailable on a core without them.
 // A season's teams name team.identity records (new teams included) in up to 12 career team slots.
 
 namespace swofty::career {
@@ -648,7 +648,17 @@ inline Result swap_drivers(Ref<drivers::Identity> a, Ref<drivers::Identity> b)
     return detail::ops_result(t->swap_drivers(sa, sb));
 }
 
-inline Result apply_dropped_scores(const events::StandingsRebuild &, int) { return Result::unavailable; }
+// While the loaded career is filed under data_group, the drivers' championship counts each driver's best `best`
+// results (the constructors' championship counts every result); 0 counts every result. unavailable on a core
+// without the call (table version 7).
+inline Result set_dropped_scores(std::string_view data_group, int best)
+{
+    auto t = detail::live_ops();
+    if (!t || t->version < 7 || !t->set_dropped_scores)
+        return Result::unavailable;
+    std::string group(data_group);
+    return detail::ops_result(t->set_dropped_scores(group.c_str(), best < 0 ? 0u : uint32_t(best)));
+}
 
 // The season at the Championship's season_index is year, from the addon that owns the active career's data
 // group: the core fires career.season.start once per career and year, activates the season's records and

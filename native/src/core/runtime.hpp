@@ -197,6 +197,10 @@ bool test_run_live();
 void snapshots_start(bool splice_live);
 // career::report_season from caller (an addon id): SWOFTY_ASSET_OK, _LATE, _INVALID or SWOFTY_REFUSED.
 int snapshots_report_season(const std::string &caller, int year, int season_index);
+
+// Dropped scores (standings_drop.cpp): while the loaded career is filed under data_group, the drivers' championship counts
+// each driver's best N results; 0 counts every result.
+int standings_drop_set(const std::string &data_group, uint32_t best);
 // The addon that registered the career content of data_group (and its save container name), or empty.
 std::string career_content_owner(const std::string &data_group, std::string *save_name = nullptr);
 // The save slot a career load selects (site_Game_SaveSlot_Selected), the career id committed when the
