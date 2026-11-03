@@ -756,6 +756,8 @@ const PITLANE_CRASH: &str = "F1_25.exe+0x389a1d7 ";
 const ENTRANT_LIST_SEARCH: &str = "F1_25.exe+0x1738f30 ";
 /// Where F1 25 sets up the track for a session it loads.
 const SETUP_TRACK: &str = "Sess_Loader_SetupTrackAssets";
+/// The fault in the career hub's set-up: the read of the first record of a calendar event that matched nothing.
+const SEQUENCER_RECORD: &str = "Game_CareerEventsSequencer_Initialise+0x1020";
 /// How long after a career loaded a crash counts as loading its next session.
 const CAREER_LOAD_SECS: f64 = 10.0;
 /// How long before the crash Manual Pit Lane's lines count, and after it.
@@ -1453,6 +1455,60 @@ fn career_track_crash(e: &Evidence, f: &Fatal) -> bool {
         .is_some_and(|(t, l)| l.contains("career.loaded: ") && end - t <= CAREER_LOAD_SECS)
 }
 
+/// Whether F1 25 faulted reading the first calendar event record while a career session was entered: the
+/// nearest frame is [`SEQUENCER_RECORD`].
+fn sequencer_record_crash(f: &Fatal) -> bool {
+    f.module.as_deref() == Some("f1_25.exe") && f.frames.first().is_some_and(|l| l.contains(SEQUENCER_RECORD))
+}
+
+/// The enabled addons that change a career's calendar: calendar and schedule packages, and DB Editor packages.
+fn calendar_addons(e: &Evidence) -> Vec<String> {
+    e.enabled
+        .iter()
+        .filter(|id| {
+            let id = id.to_ascii_lowercase();
+            id.contains("calend") || id.contains("schedule") || id.starts_with("dbedit.")
+        })
+        .map(|id| name(e, id))
+        .collect()
+}
+
+fn calendar_event_missing(e: &Evidence) -> Diagnosis {
+    let calendar = calendar_addons(e);
+    let (title, cause) = match calendar.as_slice() {
+        [] => (
+            "Your career's calendar has a round F1 25 can't find".to_owned(),
+            "A round of your career's calendar is not in the game's calendar, usually because an addon changed the \
+             calendar or a track it uses is missing."
+                .to_owned(),
+        ),
+        _ => (
+            format!("{} changed your career's calendar", list(&calendar)),
+            format!(
+                "{} changed the rounds of the calendar, and a round of your career now points at a track or event \
+                 the game can't find.",
+                list(&calendar)
+            ),
+        ),
+    };
+    let off = match calendar.as_slice() {
+        [] => "Turn off the addon that changes your calendar (a calendar or DB Editor package), or one that adds a track the calendar uses."
+            .to_owned(),
+        _ => format!(
+            "Turn off {}, or make sure every track it points the calendar at is installed and on.",
+            list(&calendar)
+        ),
+    };
+    Diagnosis {
+        id: "calendar_event_missing",
+        title,
+        what: format!(
+            "F1 25 crashed as your career's first session loaded, while it set up the career hub for that round. {cause}"
+        ),
+        steps: vec![off, "Press Play again.".to_owned()],
+    }
+}
+
 /// The text `rdi` points at in the crash report's memory dump, the name the game looked up.
 fn searched_name(report: &str) -> Option<String> {
     let mut lines = report
@@ -1757,6 +1813,9 @@ fn matched(e: &Evidence) -> Option<Diagnosis> {
     }
     if (!e.off.is_empty() || missing_track_stat(&e.loader).is_some()) && career_track_crash(e, &f) {
         return Some(career_content_off(e));
+    }
+    if sequencer_record_crash(&f) {
+        return Some(calendar_event_missing(e));
     }
     if windows && gpu_removed(e) {
         let overlay = SessionOverlay::scan(&e.loader).unwrap_or_default();
@@ -2914,6 +2973,44 @@ mod tests {
             diagnose(&career_off(&no_career, &["mod.bahrain24"])),
             None,
             "no career"
+        );
+    }
+
+    const SEQUENCER: &str = "\
+2026-11-03 09:03:51.484 [12700] [era] session trace Sess_Setup_VehicleComponents (driver_career_progressive): session vehicles 22
+2026-11-03 09:03:51.486 [12700] [crash] #1 first-chance (the game may still handle it) ACCESS_VIOLATION (0xc0000005) on thread 12700, 119 s after load, at F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020
+2026-11-03 09:03:51.486 [12700] [crash]   reading 0x0
+2026-11-03 09:03:51.486 [12700] [crash]   stack:
+2026-11-03 09:03:51.486 [12700] [crash]   #0  F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020
+2026-11-03 09:03:51.486 [12700] [crash]   #1  F1_25.exe+0x7bef38 .xtls fn base+0x7bec10+0x328
+2026-11-03 09:03:51.487 [12700] [crash] unhandled ACCESS_VIOLATION (0xc0000005) at F1_25.exe+0xc72ea0 .xtls Game_CareerEventsSequencer_Initialise+0x1020 reached the top-level filter; passing it to the game's filter
+";
+
+    #[test]
+    fn a_crash_reading_the_first_calendar_event_record_names_the_calendar_addon() {
+        let mut e = with_names(
+            ev(SEQUENCER, &[]),
+            &[
+                ("dbedit.new-calender", "New calender"),
+                ("swofty.progressive", "Progressive Career"),
+            ],
+        );
+        e.enabled = vec!["swofty.progressive".to_owned(), "dbedit.new-calender".to_owned()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "calendar_event_missing");
+        assert_eq!(d.title, "New calender changed your career's calendar");
+        assert!(d.steps[0].starts_with("Turn off New calender"), "{}", d.steps[0]);
+
+        e.enabled = vec!["swofty.progressive".to_owned()];
+        let d = diagnose(&e).unwrap();
+        assert_eq!(d.id, "calendar_event_missing");
+        assert_eq!(d.title, "Your career's calendar has a round F1 25 can't find");
+
+        let other = SEQUENCER.replace("Initialise+0x1020", "Initialise+0x44");
+        assert_eq!(
+            diagnose(&ev(&other, &[])).map(|d| d.id),
+            None,
+            "another offset of the function"
         );
     }
 
