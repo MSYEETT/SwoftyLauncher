@@ -12,8 +12,9 @@ use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
+use swofty_core::shaders::CompiledEffect;
 use swofty_preview::{ActiveInstance, Clip, ClipInfo, Frame, Preview};
-use swofty_shaders::{Catalog, CompiledEffect, Target};
+use swofty_shaders::{Catalog, Target};
 
 use super::clips::{self, ClipItem};
 use super::{Mode, ShadersView};
@@ -286,14 +287,7 @@ fn compile_effects(
             .next()
             .unwrap_or_else(|| "There are no effects to preview".into()));
     }
-    Ok(effects
-        .into_iter()
-        .map(|e| CompiledEffect {
-            effect: e.effect,
-            blobs: e.blobs,
-            images: e.images,
-        })
-        .collect())
+    Ok(effects)
 }
 
 fn png_image(bytes: Vec<u8>) -> Arc<Image> {
