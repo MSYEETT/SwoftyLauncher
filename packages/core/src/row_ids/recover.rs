@@ -421,6 +421,7 @@ mod tests {
             r.lines
         );
         let teams = BTreeMap::from([(646, 518), (652, 524)]);
+        store.claimed.extend([a.to_owned(), b.to_owned()]);
         assert_eq!(store.id_aliases().tables["teams"], teams);
         store.save(&data).unwrap();
         let (mut again, _) = Store::load(&data, None, "default", None);
@@ -429,6 +430,7 @@ mod tests {
             "the recovery runs once"
         );
         assert_eq!(again.get(a), Some(518));
+        again.claimed.extend([a.to_owned(), b.to_owned()]);
         let aliases = again.id_aliases();
         assert_eq!(
             aliases.tables["teams"], teams,
