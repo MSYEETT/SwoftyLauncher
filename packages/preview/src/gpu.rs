@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::sync::{Arc, Mutex};
 
+/// The most frames playback may skip between two renders and still count as continuing.
+const STEP: usize = 8;
+
 use swofty_shaders::{ActiveInstance, TextureDecl};
 
 use crate::{ClipInfo, CompiledEffect, Frame};
@@ -546,7 +549,8 @@ impl Preview {
         self.last_frame = None;
     }
 
-    /// The frame with the instances applied. A frame that does not follow the last one rendered
+    /// The frame with the instances applied. A frame up to `STEP` frames after the last one rendered
+    /// continues it, as playback that drops frames does; any other frame (a scrub back or a long jump)
     /// resets `previous` and the persistent textures.
     pub fn render(&mut self, frame: &Frame) -> Result<Frame, String> {
         if frame.rgba.len() != (frame.width * frame.height * 4) as usize {
@@ -556,7 +560,11 @@ impl Preview {
         if self.instances_dirty {
             self.build_instances(frame.width, frame.height)?;
         }
-        let consecutive = self.last_frame.is_some_and(|l| l + 1 == frame.index);
+        let step = self
+            .last_frame
+            .filter(|&l| frame.index > l && frame.index - l <= STEP)
+            .map(|l| frame.index - l);
+        let consecutive = step.is_some();
 
         let total_passes: usize = self
             .instances
@@ -652,7 +660,7 @@ impl Preview {
         let mut steps: Vec<Step> = Vec::new();
 
         let time = frame.index as f32 / self.fps;
-        let frametime = 1.0 / self.fps;
+        let frametime = step.unwrap_or(1) as f32 / self.fps;
         let random = (frame.index as u32)
             .wrapping_mul(2_654_435_761)
             .wrapping_add(0x9e37_79b9);

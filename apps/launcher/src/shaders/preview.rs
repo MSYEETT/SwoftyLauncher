@@ -54,8 +54,8 @@ enum Done {
     Skipped,
     Frame {
         index: usize,
-        config: Vec<u8>,
-        original: Option<Vec<u8>>,
+        config: Arc<RenderImage>,
+        original: Option<Arc<RenderImage>>,
     },
     Failed {
         message: String,
@@ -76,8 +76,8 @@ pub(super) struct PreviewState {
     info: Option<ClipInfo>,
     frame: usize,
     playing: bool,
-    config_image: Option<Arc<Image>>,
-    original_image: Option<Arc<Image>>,
+    config_image: Option<Arc<RenderImage>>,
+    original_image: Option<Arc<RenderImage>>,
     compare: bool,
     split: f32,
     dragging: bool,
@@ -126,32 +126,26 @@ impl PreviewState {
     }
 }
 
-fn png_of(frame: &Frame) -> Result<Vec<u8>, String> {
+/// A frame as an image the window draws as it is: gpui takes BGRA.
+fn image_of(frame: &Frame) -> Result<Arc<RenderImage>, String> {
     let (w, h) = (frame.width as usize, frame.height as usize);
     if frame.rgba.len() < w * h * 4 || w == 0 || h == 0 {
         return Err("The frame is empty".into());
     }
-    let mut rgb = Vec::with_capacity(w * h * 3);
-    for px in frame.rgba[..w * h * 4].chunks_exact(4) {
-        rgb.extend_from_slice(&px[..3]);
+    let mut bgra = frame.rgba[..w * h * 4].to_vec();
+    for px in bgra.chunks_exact_mut(4) {
+        px.swap(0, 2);
+        px[3] = 255;
     }
-    let mut out = Vec::new();
-    {
-        let mut encoder = png::Encoder::new(&mut out, frame.width, frame.height);
-        encoder.set_color(png::ColorType::Rgb);
-        encoder.set_depth(png::BitDepth::Eight);
-        encoder.set_compression(png::Compression::Fast);
-        let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
-        writer.write_image_data(&rgb).map_err(|e| e.to_string())?;
-    }
-    Ok(out)
+    let buffer = image::RgbaImage::from_raw(frame.width, frame.height, bgra).ok_or("The frame is empty")?;
+    Ok(Arc::new(RenderImage::new(vec![image::Frame::new(buffer)])))
 }
 
 fn work(jobs: Receiver<Job>, done: Sender<Done>) {
     let mut clip: Option<Clip> = None;
     let mut preview: Option<Preview> = None;
     let mut gpu_error: Option<String> = None;
-    let mut original: Option<(usize, Vec<u8>)> = None;
+    let mut original: Option<(usize, Arc<RenderImage>)> = None;
     while let Ok(first) = jobs.recv() {
         let mut batch = vec![first];
         while let Ok(job) = jobs.try_recv() {
@@ -231,7 +225,7 @@ fn render(
     clip: &mut Option<Clip>,
     preview: &mut Option<Preview>,
     gpu_error: &mut Option<String>,
-    original: &mut Option<(usize, Vec<u8>)>,
+    original: &mut Option<(usize, Arc<RenderImage>)>,
     index: usize,
     compare: bool,
 ) -> Done {
@@ -250,17 +244,17 @@ fn render(
         Ok(f) => f,
         Err(message) => return Done::Failed { message, gpu: false },
     };
-    let out = match p.render(&frame).and_then(|f| png_of(&f)) {
+    let out = match p.render(&frame).and_then(|f| image_of(&f)) {
         Ok(b) => b,
         Err(message) => return Done::Failed { message, gpu: false },
     };
     let original_png = if compare {
         match original {
-            Some((i, bytes)) if *i == index => Some(bytes.clone()),
-            _ => match png_of(&frame) {
-                Ok(bytes) => {
-                    *original = Some((index, bytes.clone()));
-                    Some(bytes)
+            Some((i, image)) if *i == index => Some(image.clone()),
+            _ => match image_of(&frame) {
+                Ok(image) => {
+                    *original = Some((index, image.clone()));
+                    Some(image)
                 }
                 Err(message) => return Done::Failed { message, gpu: false },
             },
@@ -290,8 +284,13 @@ fn compile_effects(
     Ok(effects)
 }
 
-fn png_image(bytes: Vec<u8>) -> Arc<Image> {
-    Arc::new(Image::from_bytes(ImageFormat::Png, bytes))
+/// Shows `next` in `slot` and frees the image it replaces from the window's texture atlas.
+fn show(slot: &mut Option<Arc<RenderImage>>, next: Option<Arc<RenderImage>>, cx: &mut App) {
+    if let Some(old) = std::mem::replace(slot, next)
+        && slot.as_ref().is_none_or(|n| !Arc::ptr_eq(n, &old))
+    {
+        cx.drop_image(old, None);
+    }
 }
 
 fn clock(frame: usize, fps: f32) -> String {
@@ -382,9 +381,9 @@ impl ShadersView {
                 config,
                 original,
             } => {
-                self.preview.config_image = Some(png_image(config));
+                show(&mut self.preview.config_image, Some(config), cx);
                 if let Some(o) = original {
-                    self.preview.original_image = Some(png_image(o));
+                    show(&mut self.preview.original_image, Some(o), cx);
                 }
                 self.preview.render_error = None;
                 let _ = index;
@@ -432,8 +431,8 @@ impl ShadersView {
         };
         self.preview.clip = i;
         self.preview.status = Status::Opening;
-        self.preview.config_image = None;
-        self.preview.original_image = None;
+        show(&mut self.preview.config_image, None, cx);
+        show(&mut self.preview.original_image, None, cx);
         self.preview.tick = None;
         self.send(Job::Open(item.dir), cx);
         cx.notify();
