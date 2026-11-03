@@ -2,16 +2,17 @@ name: DXC
 
 # Builds dxc, dxcompiler and the open-source DXIL validator (dxil) from microsoft/DirectXShaderCompiler at
 # the tag in tools/dxc/version, for the dxc/ folder of a release, which compiles addons' post-process
-# passes to DXIL for the game and shader effects to SPIR-V for the Shaders page's preview. These builds are under the University of Illinois/NCSA licence; Microsoft's own binary
-# releases carry other terms. tools/dxc/SHA256SUMS pins the archives of one run of this workflow. A
-# dispatch with publish and that run's id attaches those archives to this repository's dxc-<tag>
-# pre-release, which release.yml downloads; the archives must match the pinned hashes.
+# passes to DXIL for the game and shader effects to SPIR-V for the Shaders page's preview. These builds
+# are under the University of Illinois/NCSA licence; Microsoft's own binary releases carry other terms.
+# tools/dxc/SHA256SUMS pins the archives of one run of this workflow. A dispatch with publish and that run's id attaches those archives to this repository's dxc-<tag>-<pin>
+# pre-release (<pin>: the first 8 hex digits of the sha256 of tools/dxc/SHA256SUMS), which release.yml
+# downloads; the archives must match the pinned hashes.
 
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Attach the archives to the dxc-<tag> pre-release
+        description: Attach the archives to the dxc-<tag>-<pin> pre-release
         type: boolean
         default: false
       run_id:
@@ -137,7 +138,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="dxc-$(cat tools/dxc/version)"
+          tag="dxc-$(cat tools/dxc/version)-$(sha256sum tools/dxc/SHA256SUMS | cut -c1-8)"
           cp tools/dxc/SHA256SUMS artefacts/SHA256SUMS
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease --latest=false \
             --title "dxc $(cat tools/dxc/version) for post-process passes" \
