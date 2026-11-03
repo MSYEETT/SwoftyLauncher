@@ -4,7 +4,7 @@ float curve(float x, float contrast)
 {
     float smooth_x = x * x * (3 - 2 * x);
     float flat_x = 0.5 - sin(asin(clamp(1 - 2 * x, -1, 1)) / 3);
-    return contrast >= 0 ? lerp(x, smooth_x, contrast) : lerp(x, flat_x, -contrast);
+    return contrast >= 0 ? lerp(x, smooth_x, contrast) : lerp(x, flat_x, -contrast * 0.45);
 }
 
 float3 rgb_to_hsv(float3 c)
@@ -67,12 +67,15 @@ float4 effect(float2 uv, uint2 pixel)
 
     float y = dot(p, float3(0.2126, 0.7152, 0.0722));
     float shaped = curve(saturate(y), contrast);
-    shaped = shaped + brightness * 0.5 * (1 - shaped);
-    p *= max(shaped, 0) / max(y, 1e-4);
+    shaped = shaped + brightness * 0.35 * (1 - shaped);
+    shaped = max(shaped, 0);
+    p *= min(shaped / max(y, 1e-4), 1.3);
+    p += shaped - dot(p, float3(0.2126, 0.7152, 0.0722));
 
     float3 hsv = rgb_to_hsv(saturate(p));
-    float s = saturation + hue_saturation(hsv.x) * smoothstep(0.02, 0.2, hsv.y);
-    s += vibrance * (1 - hsv.y);
+    float s = saturation + hue_saturation(hsv.x) * 1.5 * smoothstep(0.02, 0.2, hsv.y);
+    float dull = 1 - hsv.y;
+    s += vibrance * 0.3 * dull * dull;
     float luma = dot(p, float3(0.2126, 0.7152, 0.0722));
     p = luma + (p - luma) * max(1 + s, 0);
     p.r *= 1 + 0.1 * param_tint();
