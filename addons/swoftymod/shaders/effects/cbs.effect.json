@@ -71,7 +71,7 @@
       "max": 1,
       "step": 0.001,
       "label": "Red saturation",
-      "doc": "Saturation of red colours only."
+      "doc": "Saturation of red colours only; negative values calm the colour, positive ones push it."
     },
     {
       "id": "sat_y",

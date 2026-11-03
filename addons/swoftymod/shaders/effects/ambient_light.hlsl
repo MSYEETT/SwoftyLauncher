@@ -119,7 +119,7 @@ float4 adapt_calc(float2 uv, uint2 pixel)
             sum += input_at(0, int2(x, y)).r;
     float average = exp2(sum / float(size.x * size.y));
     float strength = param_al_adapt() / 8;
-    float target = clamp(strength * 0.3 * log2(0.18 / max(average, 1e-4)), -0.5, 0.5);
+    float target = clamp(strength * 0.2 * log2(0.18 / max(average, 1e-4)), -0.5, 0.5);
     float4 state = input_at(1, int2(0, 0));
     float dt = clamp(swofty_frametime, 0, 0.1);
     float speed = target < state.x ? 3.0 : 1.2;
@@ -177,7 +177,7 @@ float4 apply(float2 uv, uint2 pixel)
 
     float3 glow = input(0, uv).rgb;
     float mask = param_al_dirt() ? dirt(uv) * param_al_dirt_ov_int() : 0;
-    float3 add = glow * (param_al_int() * 0.24 + param_al_dirt_int() * 0.24 * mask);
+    float3 add = glow * (param_al_int() * 0.2 + param_al_dirt_int() * 0.2 * mask);
     if (param_al_lens())
         add += input(1, uv).rgb * (param_al_lens_int() * 0.01) * (1 + mask);
     if (param_al_adaptive())

@@ -65,7 +65,7 @@ float sdr_remap(float y)
     float mid = 0.18;
     float depth = max(param_shadow_tuning() - 1, 0);
     float below = pow(saturate(y / mid), min(depth, 2));
-    float shadow_gain = lerp(1, 0.5 + 0.5 * below, saturate(depth));
+    float shadow_gain = lerp(1, 0.35 + 0.65 * below, saturate(depth));
     float x = y * shadow_gain;
     float start = param_auto_hdr_shoulder_start_alpha();
     float top = 1 + (1 - start) * 0.25;

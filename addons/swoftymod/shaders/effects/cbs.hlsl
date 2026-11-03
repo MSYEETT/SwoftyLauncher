@@ -7,6 +7,12 @@ float curve(float x, float contrast)
     return contrast >= 0 ? lerp(x, smooth_x, contrast) : lerp(x, flat_x, -contrast * 0.45);
 }
 
+float3 rolloff(float3 x, float knee)
+{
+    float3 over = max(x - knee, 0);
+    return min(x, knee) + (1 - knee) * (1 - exp(-over / (1 - knee)));
+}
+
 float3 rgb_to_hsv(float3 c)
 {
     float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
@@ -62,18 +68,19 @@ float4 effect(float2 uv, uint2 pixel)
     float vibrance = lerp(param_vibrance(), param_vibrance_d(), far);
 
     float3 rgb = max(to_linear(c.rgb), 0) * exp2(exposure);
+    rgb = lerp(rgb, rolloff(rgb, 0.3), saturate(exposure * 2));
     float peak = max(1.0, max(rgb.r, max(rgb.g, rgb.b)));
     float3 p = pow(rgb / peak, 1.0 / 2.2);
 
     float y = dot(p, float3(0.2126, 0.7152, 0.0722));
     float shaped = curve(saturate(y), contrast);
-    shaped = shaped + brightness * 0.35 * (1 - shaped);
+    shaped = shaped + brightness * 0.2 * (1 - shaped);
     shaped = max(shaped, 0);
     p *= min(shaped / max(y, 1e-4), 1.3);
     p += shaped - dot(p, float3(0.2126, 0.7152, 0.0722));
 
     float3 hsv = rgb_to_hsv(saturate(p));
-    float s = saturation + hue_saturation(hsv.x) * 1.5 * smoothstep(0.02, 0.2, hsv.y);
+    float s = saturation + hue_saturation(hsv.x) * 1.1 * smoothstep(0.02, 0.2, hsv.y);
     float dull = 1 - hsv.y;
     s += vibrance * 0.3 * dull * dull;
     float luma = dot(p, float3(0.2126, 0.7152, 0.0722));
