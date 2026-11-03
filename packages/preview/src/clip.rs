@@ -155,6 +155,9 @@ pub struct CachedClip {
 }
 
 /// The clips cached under `<data>/cache/preview/` and the index of the ones on the CDN.
+/// The clip ids in the order of the last index read, which `cached` lists them in.
+const ORDER: &str = "order.txt";
+
 pub struct ClipStore {
     cache: PathBuf,
     index_url: String,
@@ -195,7 +198,11 @@ impl ClipStore {
                 })
             })
             .collect();
-        clips.sort_by(|a, b| a.id.cmp(&b.id));
+        let order: Vec<String> = fs::read_to_string(self.cache.join(ORDER))
+            .map(|t| t.lines().map(str::to_owned).collect())
+            .unwrap_or_default();
+        let rank = |id: &str| order.iter().position(|o| o == id).unwrap_or(usize::MAX);
+        clips.sort_by(|a, b| rank(&a.id).cmp(&rank(&b.id)).then_with(|| a.id.cmp(&b.id)));
         clips
     }
 
@@ -208,7 +215,11 @@ impl ClipStore {
             .body_mut()
             .read_to_string()
             .map_err(|e| format!("clip index: {e}"))?;
-        serde_json::from_str(&text).map_err(|e| format!("clip index: {e}"))
+        let entries: Vec<ClipEntry> = serde_json::from_str(&text).map_err(|e| format!("clip index: {e}"))?;
+        let order: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        fs::create_dir_all(&self.cache).ok();
+        fs::write(self.cache.join(ORDER), order.join("\n")).ok();
+        Ok(entries)
     }
 
     /// Downloads a clip zip, checks its sha256 and unpacks it into `<cache>/<id>/`.

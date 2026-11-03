@@ -421,6 +421,7 @@ impl ShadersView {
             self.preview_download(cx);
         } else {
             self.preview_pick(0, cx);
+            self.preview_fetch_rest(cx);
         }
         cx.notify();
     }
@@ -444,7 +445,6 @@ impl ShadersView {
         }
         self.preview.status = Status::Downloading;
         let root = self.store.root.clone();
-        let later = root.clone();
         let progress = self.preview.progress.clone();
         if let Ok(mut p) = progress.lock() {
             *p = (0., "Looking for clips".into());
@@ -489,19 +489,27 @@ impl ShadersView {
                 cx.notify();
             })
             .ok();
-            if !rest {
-                return;
+            if rest {
+                this.update(cx, |v, cx| v.preview_fetch_rest(cx)).ok();
             }
-            // The other clips come in quietly while the first one plays, and join the clip picker.
+        }));
+    }
+
+    /// Fetches the clips of the CDN index that aren't cached, quietly while one plays; they join the
+    /// clip picker.
+    fn preview_fetch_rest(&mut self, cx: &mut Context<Self>) {
+        let root = self.store.root.clone();
+        cx.spawn(async move |this, cx| {
             let found = cx
                 .background_executor()
                 .spawn(async move {
-                    clips::download(&later, false, &|_, _| {}).ok();
-                    clips::scan(&later)
+                    clips::download(&root, false, &|_, _| {}).ok();
+                    clips::scan(&root)
                 })
                 .await;
             this.update(cx, |v, cx| {
-                if found.len() > v.preview.clips.len() {
+                let ids = |c: &[ClipItem]| c.iter().map(|c| c.id.clone()).collect::<Vec<_>>();
+                if ids(&found) != ids(&v.preview.clips) {
                     let playing = v.preview.clips.get(v.preview.clip).map(|c| c.id.clone());
                     v.preview.clips = found;
                     if let Some(i) = playing.and_then(|id| v.preview.clips.iter().position(|c| c.id == id)) {
@@ -511,7 +519,8 @@ impl ShadersView {
                 }
             })
             .ok();
-        }));
+        })
+        .detach();
     }
 
     pub(super) fn preview_catalog_changed(&mut self, cx: &mut Context<Self>) {
