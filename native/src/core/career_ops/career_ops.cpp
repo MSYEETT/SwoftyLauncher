@@ -1990,10 +1990,82 @@ int api_set_look(const char *driver_ref, const char *look_ref)
     return r == SWOFTY_TOO_SMALL ? SWOFTY_ASSET_OK : r;
 }
 
+int resolve_team(const std::string &ref)
+{
+    size_t slash = ref.find('/');
+    if (ref.empty() || slash == std::string::npos || !labels())
+        return -1;
+    std::string label = ref.substr(0, slash) == "game" ? ref.substr(slash + 1) : record_label_of("team.identity", ref);
+    std::lock_guard<std::mutex> l(g_lock);
+    for (auto &[stat, name] : g_labels.team_by_stat)
+        if (name == label)
+            return static_cast<int>(stat);
+    return -1;
+}
+
+int api_team_stat(const char *ref, uint32_t *out)
+{
+    if (!ref || !out)
+        return SWOFTY_ASSET_INVALID;
+    if (!labels())
+        return SWOFTY_ASSET_LATE;
+    int s = resolve_team(ref);
+    if (s < 0)
+        return SWOFTY_ASSET_INVALID;
+    *out = static_cast<uint32_t>(s);
+    return SWOFTY_ASSET_OK;
+}
+
+int api_current_round(int32_t *season_index, int32_t *round, int32_t *rounds)
+{
+    if (!season_index || !round || !rounds)
+        return SWOFTY_ASSET_INVALID;
+    if (!on_flow_thread())
+        return SWOFTY_ASSET_LATE;
+    uintptr_t e = entity();
+    uintptr_t champ_vt = bind("vt_Career_Championship"), season_vt = bind("vt_Career_Season"),
+              weekend_vt = bind("vt_Career_Weekend");
+    if (!champ_vt || !season_vt || !weekend_vt)
+        return SWOFTY_ASSET_UNAVAILABLE;
+    if (!e)
+        return SWOFTY_ASSET_LATE;
+    g::CareerEntity ent{};
+    if (!mem::read(e, ent) || ent.entrant_update_busy)
+        return SWOFTY_ASSET_LATE;
+    uintptr_t ch = rdv<uintptr_t>(e + offsetof(g::CareerEntity, current_championship));
+    g::Championship champ{};
+    if (!ch || rdv<uintptr_t>(ch) != champ_vt || !mem::read(ch, champ))
+        return SWOFTY_ASSET_LATE;
+    auto b = reinterpret_cast<uintptr_t>(champ.seasons_begin), en = reinterpret_cast<uintptr_t>(champ.seasons_end);
+    size_t n = en > b && !((en - b) % sizeof(g::ChampionshipSeasonEntry)) ? (en - b) / sizeof(g::ChampionshipSeasonEntry) : 0;
+    if (!n || n > 64 || champ.season_index >= n)
+        return SWOFTY_ASSET_LATE;
+    g::ChampionshipSeasonEntry entry{};
+    if (!mem::read(b + champ.season_index * sizeof entry, entry) || !entry.season ||
+        rdv<uintptr_t>(reinterpret_cast<uintptr_t>(entry.season)) != season_vt)
+        return SWOFTY_ASSET_LATE;
+    g::Season season{};
+    if (!mem::read(reinterpret_cast<uintptr_t>(entry.season), season))
+        return SWOFTY_ASSET_LATE;
+    auto wb = reinterpret_cast<uintptr_t>(season.weekends_begin), we = reinterpret_cast<uintptr_t>(season.weekends_end);
+    size_t weekends = wb && we > wb && !((we - wb) % sizeof(void *)) ? (we - wb) / sizeof(void *) : 0;
+    if (!weekends || weekends > 64 || season.current_weekend >= weekends)
+        return SWOFTY_ASSET_LATE;
+    for (size_t i = 0; i < weekends; ++i) {
+        uintptr_t w = rdv<uintptr_t>(wb + i * sizeof(void *));
+        if (!w || rdv<uintptr_t>(w) != weekend_vt)
+            return SWOFTY_ASSET_LATE;
+    }
+    *season_index = static_cast<int32_t>(champ.season_index);
+    *round = static_cast<int32_t>(season.current_weekend) + 1;
+    *rounds = static_cast<int32_t>(weekends);
+    return SWOFTY_ASSET_OK;
+}
+
 const SwoftyCareerOps g_table = {
     SWOFTY_CAREER_OPS_VERSION, api_available,  api_driver_stat, api_set_slots, api_apply_lineup, api_set_driver_ratings,
     api_swap_drivers,          api_report_season, api_apply_teams, api_set_seat,  api_set_car_number, api_set_track_fuel,
-    api_set_logo, api_set_look,
+    api_set_logo, api_set_look, api_current_round, api_team_stat,
 };
 
 void setup()

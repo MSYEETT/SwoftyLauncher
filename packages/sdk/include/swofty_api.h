@@ -845,8 +845,14 @@ typedef struct SwoftyServices {
    driver.identity id) wears the look (a look reference: "game/<label>" or an addon's driver.look id) in Driver
    Career: his entrant row's look, which every place that shows his body reads (grid presentation, portraits,
    cutscenes, the garage). The call refuses a look the game did not load (SWOFTY_ASSET_INVALID) and a driver the
-   career does not seat. The report is one [career-ops] log line. */
-#define SWOFTY_CAREER_OPS_VERSION 6
+   career does not seat. The report is one [career-ops] log line.
+   Table version 7 adds current_round and team_stat. current_round: the loaded Driver Career's Championship
+   season (season_index, 0 the first) and its current race weekend: round is the 1-based position of the weekend
+   the career is at (the next race to run) and rounds the season's weekend count; SWOFTY_ASSET_LATE when no
+   career is loaded or its season has no built weekends yet (also while the career is busy). team_stat: a team
+   reference ("game/<label>", or an addon's team.identity id) to the stat id of the teams table row with that
+   label; SWOFTY_ASSET_INVALID when the game has no such row. */
+#define SWOFTY_CAREER_OPS_VERSION 7
 enum { SWOFTY_REFUSED = 5 };
 enum { SWOFTY_NUMBER_SWAP = 1 };
 
@@ -865,6 +871,8 @@ typedef struct SwoftyCareerOps {
     int (*set_track_fuel)(SwoftyText request_json, char *report, size_t cap, size_t *len);
     int (*set_logo)(const char *team_id, const char *logo_id);
     int (*set_look)(const char *driver_ref, const char *look_ref);
+    int (*current_round)(int32_t *season_index, int32_t *round, int32_t *rounds);
+    int (*team_stat)(const char *team_ref, uint32_t *out);
 } SwoftyCareerOps;
 
 /* Career saves (standard library 1.7.0, experimental), from the core export SwoftyCoreCareerSaves; not a
