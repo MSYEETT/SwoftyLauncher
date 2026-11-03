@@ -7153,6 +7153,8 @@ version = "1.7.28"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "toml 0.8.23",
 ]
 
 [[package]]

@@ -61,11 +61,13 @@ constexpr wchar_t BACKBUFFER_NAME[] = L"BackBuffer";
 constexpr wchar_t HUDLESS_NAME[] = L"eaid://ego_package/hudless_backbuffer.image";
 constexpr wchar_t DEPTH_NAME[] = L"eaid://ego_package/gbuffer_depth_stencil.image";
 constexpr wchar_t UI_PREFIX[] = L"eaid://ui_package/";
-constexpr UINT FRAMES = 8, MAX_PASSES = 32, CONSTANTS = 40, BUDGET_FRAMES = 120, INPUTS = 8, TABLE = 2 + INPUTS + 1;
+constexpr UINT FRAMES = 8, MAX_PASSES = 64, CONSTANTS = postfx::CONSTANT_COUNT, BUDGET_FRAMES = 120, INPUTS = 8, TABLE = 2 + INPUTS + 1;
 constexpr D3D12_RESOURCE_STATES HOME = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 constexpr D3D12_RESOURCE_STATES READ_STATES =
     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-enum : int { IN_NONE = -1, IN_ORIGINAL = -2, IN_PREVIOUS = -3 };
+using postfx::IN_NONE;
+using postfx::IN_ORIGINAL;
+using postfx::IN_PREVIOUS;
 
 struct Live {
     UINT slot;
@@ -75,7 +77,7 @@ struct Live {
 struct Pass {
     std::string addon, addon_id, name, shader, enabled;
     std::vector<uint8_t> dxil;
-    float options[16] = {};
+    float options[postfx::SLOTS] = {};
     std::vector<Live> live;
     int inputs[INPUTS] = {IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE, IN_NONE};
     UINT n_inputs = 0;
@@ -88,6 +90,8 @@ struct Pass {
     const char *why = nullptr;
     double ms_sum = 0, ms_peak = 0;
     unsigned ms_frames = 0, over = 0;
+    int inst = -1;
+    std::string effect, label;
 };
 
 struct Tex {
@@ -303,7 +307,18 @@ std::recursive_mutex lock;
 std::vector<Pass> passes;
 std::vector<Tex> textures;
 std::vector<Toggle> toggles;
-bool uses_previous;
+bool uses_previous, legacy_previous;
+size_t legacy_passes, legacy_textures;
+std::vector<postfx::EffectDecl> effects;
+postfx::ActiveSpec active;
+postfx::Plan plan;
+std::unordered_map<std::string, ID3D12PipelineState *> effect_psos;
+std::wstring active_file;
+FILETIME active_at{};
+ULONGLONG active_checked;
+bool active_told, shaders_off, shader_key_down;
+int shader_vk;
+std::string clip_dir;
 ID3D12Resource *depth_res;
 D3D12_RESOURCE_STATES depth_state;
 bool depth_logged;
@@ -592,6 +607,8 @@ bool init(ID3D12Resource *res)
     if (SUCCEEDED(device->CreateQueryHeap(&qd, IID_PPV_ARGS(&queries))))
         query_readback = buffer(D3D12_HEAP_TYPE_READBACK, qd.Count * 8, D3D12_RESOURCE_STATE_COPY_DEST);
     for (auto &p : passes) {
+        if (p.inst >= 0)
+            continue;
         D3D12_COMPUTE_PIPELINE_STATE_DESC pd{};
         pd.pRootSignature = root;
         pd.CS.pShaderBytecode = p.dxil.data();
@@ -651,6 +668,22 @@ bool read_tex_file(Tex &t)
     return true;
 }
 
+bool make_heaps()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC hd{};
+    hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    hd.NumDescriptors = FRAMES * MAX_PASSES * TABLE + UINT(textures.size()) * (FRAMES + 1) + 1;
+    hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    D3D12_DESCRIPTOR_HEAP_DESC cd = hd;
+    cd.NumDescriptors = UINT(textures.size()) * (FRAMES + 1) + 1;
+    cd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    if (FAILED(device->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&frame.heap))) ||
+        FAILED(device->CreateDescriptorHeap(&cd, IID_PPV_ARGS(&frame.cpu))))
+        return false;
+    frame.stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    return true;
+}
+
 // Makes the textures for a picture of desc's size; the ones being replaced go once the GPU is past them.
 bool make_frame(const D3D12_RESOURCE_DESC &d)
 {
@@ -691,18 +724,8 @@ bool make_frame(const D3D12_RESOURCE_DESC &d)
         }
     }
     retire(std::move(old));
-    D3D12_DESCRIPTOR_HEAP_DESC hd{};
-    hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    hd.NumDescriptors = FRAMES * MAX_PASSES * TABLE + UINT(textures.size()) * (FRAMES + 1) + 1;
-    hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    D3D12_DESCRIPTOR_HEAP_DESC cd = hd;
-    cd.NumDescriptors = UINT(textures.size()) * (FRAMES + 1) + 1;
-    cd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    if ((uses_previous && !frame.prev) ||
-        FAILED(device->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&frame.heap))) ||
-        FAILED(device->CreateDescriptorHeap(&cd, IID_PPV_ARGS(&frame.cpu))))
+    if ((uses_previous && !frame.prev) || !make_heaps())
         return false;
-    frame.stride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     if (!capture_dir.empty() && !capture_pending) {
         retire({capture_rb[0], capture_rb[1]});
         UINT rows = 0;
@@ -858,6 +881,11 @@ void grid_mean(const uint8_t *src, UINT pitch, UINT w, UINT h, DXGI_FORMAT f, do
     out[0] = r / n, out[1] = g / n, out[2] = bl / n, out[3] = sat / n;
 }
 
+std::string describe(const Pass &p)
+{
+    return p.inst >= 0 ? postfx::pass_title(active.name, p.effect, p.label, p.name) : p.addon + "'s pass " + p.name;
+}
+
 void read_times(Slot &s)
 {
     if (!ticks_per_ms || !s.passes)
@@ -868,6 +896,8 @@ void read_times(Slot &s)
     if (FAILED(query_readback->Map(0, &r, reinterpret_cast<void **>(&t))))
         return;
     for (UINT i = 0; i < s.passes; i++) {
+        if (size_t(s.pass_of[i]) >= passes.size())
+            continue;
         Pass &p = passes[size_t(s.pass_of[i])];
         uint64_t a = t[base + i * 2], b = t[base + i * 2 + 1];
         if (b < a)
@@ -881,14 +911,14 @@ void read_times(Slot &s)
         if (avg > p.budget_ms) {
             if (++p.over >= 3 && !p.off) {
                 p.off = true;
-                swofty::log("[postfx] %s's pass %s is off: it took %.3f ms of GPU time a frame, over its %.2f ms budget",
-                            p.addon.c_str(), p.name.c_str(), avg, p.budget_ms);
+                swofty::log("[postfx] %s is off: it took %.3f ms of GPU time a frame, over its %.2f ms budget",
+                            describe(p).c_str(), avg, p.budget_ms);
             }
         } else
             p.over = 0;
         if (ran_total <= 4 * BUDGET_FRAMES)
-            swofty::log("[postfx] %s's pass %s: %.3f ms of GPU time a frame on average, %.3f ms at most", p.addon.c_str(),
-                        p.name.c_str(), avg, p.ms_peak);
+            swofty::log("[postfx] %s: %.3f ms of GPU time a frame on average, %.3f ms at most", describe(p).c_str(), avg,
+                        p.ms_peak);
         p.ms_sum = 0;
         p.ms_peak = 0;
         p.ms_frames = 0;
@@ -943,22 +973,66 @@ bool addon_off(const std::string &id)
     return std::any_of(toggles.begin(), toggles.end(), [&](const Toggle &t) { return t.off && t.addon_id == id; });
 }
 
+ID3D12PipelineState *effect_pso(const std::string &path)
+{
+    auto it = effect_psos.find(path);
+    if (it != effect_psos.end())
+        return it->second;
+    ID3D12PipelineState *pso = nullptr;
+    std::string bytes = runtime::read_file(runtime::under_swofty(path), size_t(4) << 20);
+    if (bytes.size() < 32 || memcmp(bytes.data(), "DXBC", 4) != 0)
+        swofty::log("[shaders] %s %s", path.c_str(), bytes.empty() ? "has no DXIL" : "is not a DXIL container");
+    else {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pd{};
+        pd.pRootSignature = root;
+        pd.CS.pShaderBytecode = bytes.data();
+        pd.CS.BytecodeLength = bytes.size();
+        HRESULT hr = device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&pso));
+        if (FAILED(hr))
+            swofty::log("[shaders] the pipeline of %s could not be made (0x%08lx)", path.c_str(), hr);
+    }
+    effect_psos[path] = pso;
+    return pso;
+}
+
+void drop_instance(int inst)
+{
+    for (auto &p : passes)
+        if (p.inst == inst)
+            p.off = true;
+    swofty::log("[shaders] instance %d (%s) is off: a pipeline of its effect could not be made", inst,
+                inst >= 0 && size_t(inst) < plan.instances.size()
+                    ? postfx::instance_name(plan.instances[size_t(inst)].effect, plan.instances[size_t(inst)].label).c_str()
+                    : "?");
+}
+
 std::vector<int> live_passes(const view::State &v)
 {
     std::vector<int> live;
-    for (size_t i = 0; i < passes.size() && live.size() < MAX_PASSES; i++) {
+    if (shaders_off)
+        return live;
+    auto consider = [&](size_t i) {
         Pass &p = passes[i];
+        if (p.inst >= 0 && !p.pso && !p.off) {
+            p.pso = effect_pso(p.shader);
+            if (!p.pso)
+                drop_instance(p.inst);
+        }
         const char *why = p.off            ? "off"
                           : !p.on          ? "its option turns it off"
                           : addon_off(p.addon_id) ? "its addon's key turned it off"
                                            : postfx::ineligible(p.when, v.kind, v.flags, v.valid);
         if (!why) {
             live.push_back(int(i));
-            continue;
+            return;
         }
         if (!p.off && trace_left)
             trace.skipped += (trace.skipped.empty() ? "" : ", ") + p.name + " (" + why + ")";
-    }
+    };
+    for (size_t i = legacy_passes; i < passes.size() && live.size() < MAX_PASSES; i++)
+        consider(i);
+    for (size_t i = 0; i < legacy_passes && live.size() < MAX_PASSES; i++)
+        consider(i);
     return live;
 }
 
@@ -1007,6 +1081,138 @@ void upload(ID3D12GraphicsCommandList *l, Tex &t)
     t.pixels.shrink_to_fit();
     retire({t.upload});
     t.upload = nullptr;
+}
+
+constexpr UINT CLIP_W = 1280, CLIP_H = 720, CLIP_RING = 4, CLIP_DELAY = 6;
+
+struct ClipEntry {
+    ID3D12Resource *rb = nullptr;
+    int slot = -1;
+    unsigned land = 0, index = 0;
+    bool pending = false;
+};
+
+ClipEntry clip_ring[CLIP_RING];
+D3D12_PLACED_SUBRESOURCE_FOOTPRINT clip_fp;
+UINT clip_w, clip_h;
+DXGI_FORMAT clip_view;
+unsigned clip_left, clip_issued, clip_written;
+bool clip_running;
+std::wstring clip_file;
+
+bool clip_busy()
+{
+    return clip_left || std::any_of(std::begin(clip_ring), std::end(clip_ring), [](const ClipEntry &e) { return e.pending; });
+}
+
+// A free readback entry for this frame's picture while a clip is being captured; none when the ring is
+// full, so the frame is not stalled and the capture tries again on the next one.
+ClipEntry *clip_begin(const D3D12_RESOURCE_DESC &d, int k)
+{
+    if (!clip_left)
+        return nullptr;
+    if (frame.view != DXGI_FORMAT_R8G8B8A8_UNORM && frame.view != DXGI_FORMAT_R10G10B10A2_UNORM) {
+        swofty::log("[shaders] clip: the picture has format %d, which the capture does not take; clip stopped",
+                    int(frame.view));
+        clip_left = 0;
+        return nullptr;
+    }
+    if (!clip_ring[0].rb || clip_w != d.Width || clip_h != d.Height) {
+        std::vector<IUnknown *> old;
+        for (auto &e : clip_ring) {
+            old.push_back(e.rb);
+            e = {};
+        }
+        retire(std::move(old));
+        UINT rows = 0;
+        UINT64 row_bytes = 0, total = 0;
+        device->GetCopyableFootprints(&d, 0, 1, 0, &clip_fp, &rows, &row_bytes, &total);
+        for (auto &e : clip_ring)
+            if (!(e.rb = buffer(D3D12_HEAP_TYPE_READBACK, total, D3D12_RESOURCE_STATE_COPY_DEST))) {
+                swofty::log("[shaders] clip: the readback buffers could not be made; clip stopped");
+                clip_left = 0;
+                return nullptr;
+            }
+        clip_w = UINT(d.Width);
+        clip_h = d.Height;
+    }
+    for (auto &e : clip_ring)
+        if (!e.pending) {
+            e.pending = true;
+            e.slot = k;
+            e.land = frame_count + CLIP_DELAY;
+            e.index = clip_issued++;
+            clip_left--;
+            clip_view = frame.view;
+            return &e;
+        }
+    return nullptr;
+}
+
+void clip_copy(ID3D12GraphicsCommandList *l, ID3D12Resource *back, const ClipEntry &e)
+{
+    D3D12_TEXTURE_COPY_LOCATION rb{}, from{};
+    rb.pResource = e.rb;
+    rb.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    rb.PlacedFootprint = clip_fp;
+    from.pResource = back;
+    from.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    l->CopyTextureRegion(&rb, 0, 0, 0, &from, nullptr);
+}
+
+void clip_write(const uint8_t *src, UINT pitch, unsigned index)
+{
+    std::vector<uint8_t> rgb(size_t(clip_w) * clip_h * 3), out(size_t(CLIP_W) * CLIP_H * 3);
+    for (UINT y = 0; y < clip_h; y++)
+        for (UINT x = 0; x < clip_w; x++) {
+            uint32_t v;
+            memcpy(&v, src + size_t(y) * pitch + size_t(x) * 4, 4);
+            uint8_t *o = &rgb[(size_t(y) * clip_w + x) * 3];
+            if (clip_view == DXGI_FORMAT_R10G10B10A2_UNORM) {
+                o[0] = uint8_t((v & 1023) >> 2), o[1] = uint8_t(((v >> 10) & 1023) >> 2), o[2] = uint8_t(((v >> 20) & 1023) >> 2);
+            } else {
+                o[0] = uint8_t(v), o[1] = uint8_t(v >> 8), o[2] = uint8_t(v >> 16);
+            }
+        }
+    postfx::box_scale_rgb(rgb.data(), clip_w, clip_h, out.data(), CLIP_W, CLIP_H);
+    std::string file = "P6\n" + std::to_string(CLIP_W) + " " + std::to_string(CLIP_H) + "\n255\n";
+    file.append(reinterpret_cast<const char *>(out.data()), out.size());
+    char name[48];
+    snprintf(name, sizeof name, "\\clip-%08u.ppm", index);
+    runtime::write_file(runtime::wide(clip_dir + name), file);
+}
+
+// Writes the frames whose readback the GPU has finished, a few frames after they were copied.
+void clip_land()
+{
+    for (auto &e : clip_ring) {
+        if (!e.pending || frame_count < e.land || slots[e.slot].pending ||
+            slots[e.slot].fence->GetCompletedValue() < slots[e.slot].fence_value)
+            continue;
+        e.pending = false;
+        uint8_t *mapped = nullptr;
+        if (!e.rb || FAILED(e.rb->Map(0, nullptr, reinterpret_cast<void **>(&mapped))))
+            continue;
+        clip_write(mapped + clip_fp.Offset, clip_fp.Footprint.RowPitch, e.index);
+        D3D12_RANGE none{0, 0};
+        e.rb->Unmap(0, &none);
+        clip_written++;
+    }
+    if (clip_running && !clip_busy()) {
+        clip_running = false;
+        swofty::log("[shaders] clip: wrote %u frame(s) to %s", clip_written, clip_dir.c_str());
+    }
+}
+
+void clip_start(unsigned frames)
+{
+    if (clip_busy())
+        return;
+    CreateDirectoryW(runtime::wide(clip_dir).c_str(), nullptr);
+    clip_left = frames ? std::min(frames, 6000u) : 240u;
+    clip_issued = clip_written = 0;
+    clip_running = true;
+    swofty::log("[shaders] clip: writing the next %u frame(s) that run passes to %s", clip_left, clip_dir.c_str());
 }
 
 void capture_copy(ID3D12GraphicsCommandList *l, ID3D12Resource *back, int which)
@@ -1088,9 +1294,12 @@ bool record(const Where &w, int k)
         frame.prev && frame.prev_valid && frame.prev_serial == v.serial && frame_count - frame.prev_frame <= 1;
     UINT pw = UINT(d.Width), ph = d.Height;
 
+    ClipEntry *clip = clip_begin(d, k);
     transition(l, w.back, w.back_state, D3D12_RESOURCE_STATE_COPY_SOURCE);
     transition(l, wk.orig, HOME, D3D12_RESOURCE_STATE_COPY_DEST);
     l->CopyResource(wk.orig, w.back);
+    if (clip)
+        clip_copy(l, w.back, *clip);
     if (capture_now)
         capture_copy(l, w.back, 0);
     transition(l, wk.orig, D3D12_RESOURCE_STATE_COPY_DEST, HOME);
@@ -1183,7 +1392,8 @@ bool record(const Where &w, int k)
         float texel[2] = {1.0f / float(ow), 1.0f / float(oh)};
         memcpy(&c[2], texel, 8);
         c[7] = s.passes;
-        memcpy(&c[8], p.options, sizeof p.options);
+        memcpy(&c[postfx::OPTIONS_AT], p.options, 16 * sizeof(float));
+        memcpy(&c[postfx::PARAMS_AT], p.options + 16, 16 * sizeof(float));
         if (timed)
             l->EndQuery(queries, D3D12_QUERY_TYPE_TIMESTAMP, qbase + s.passes * 2);
         l->SetPipelineState(p.pso);
@@ -1869,6 +2079,178 @@ void refresh_live()
             t.vk = postfx::key_code(text);
 }
 
+
+void drop_textures(std::vector<IUnknown *> &dead, Tex &t)
+{
+    dead.push_back(t.res);
+    dead.push_back(t.upload);
+    t.res = t.upload = nullptr;
+}
+
+Tex fresh_texture(const postfx::PlanTex &pt)
+{
+    Tex t;
+    t.name = pt.name;
+    t.file = pt.decl.file;
+    t.scale = pt.decl.scale;
+    t.width = pt.decl.width;
+    t.height = pt.decl.height;
+    t.persistent = pt.decl.persistent;
+    t.format = DXGI_FORMAT(pt.decl.format);
+    if (!t.file.empty() && !read_tex_file(t)) {
+        swofty::log("[shaders] texture %s is left out: %s is missing or not a texture", t.name.c_str(), t.file.c_str());
+        t.file.clear();
+        t.name += " (missing)";
+    }
+    return t;
+}
+
+// Makes what the frame needs for the textures a new plan added, and a descriptor heap sized for them.
+bool fit_frame()
+{
+    UINT w = UINT(frame.desc.Width), h = frame.desc.Height;
+    for (size_t i = legacy_textures; i < textures.size(); i++) {
+        Tex &t = textures[i];
+        postfx::Size sz = postfx::texture_size(t.scale, t.width, t.height, w, h);
+        t.w = sz.w;
+        t.h = sz.h;
+        if (shared(t) && !t.res) {
+            t.res = texture(t.w, t.h, t.format, t.file.empty());
+            t.clear = t.file.empty();
+            if (!t.res)
+                return false;
+        }
+    }
+    for (auto &wk : frame.work) {
+        if (!wk.orig)
+            continue;
+        for (size_t i = 0; i < textures.size(); i++)
+            if (!shared(textures[i]) && !wk.tex[i] && !(wk.tex[i] = texture(textures[i].w, textures[i].h, textures[i].format, true)))
+                return false;
+        wk.clear = true;
+    }
+    if (uses_previous && !frame.prev && !(frame.prev = texture(w, h, frame.view, false)))
+        return false;
+    retire({frame.heap, frame.cpu});
+    frame.heap = frame.cpu = nullptr;
+    textures_made++;
+    return make_heaps();
+}
+
+// Replaces the instance passes and textures with a new plan's, keeping the textures of instances that
+// run the same effect where they did.
+void install_plan(postfx::Plan next)
+{
+    if (postfx::plan_shape(next) == postfx::plan_shape(plan) && next.instances.size() == plan.instances.size()) {
+        for (size_t i = 0; i < next.instances.size(); i++)
+            memcpy(plan.instances[i].options, next.instances[i].options, sizeof plan.instances[i].options);
+        for (size_t i = legacy_passes; i < passes.size(); i++)
+            memcpy(passes[i].options, plan.instances[size_t(passes[i].inst)].options, sizeof passes[i].options);
+        return;
+    }
+    std::vector<int> from = postfx::reuse_textures(plan, next);
+    std::vector<Tex> old_tex(std::make_move_iterator(textures.begin() + long(legacy_textures)),
+                             std::make_move_iterator(textures.end()));
+    std::vector<std::vector<ID3D12Resource *>> old_own(FRAMES);
+    for (UINT k = 0; k < FRAMES; k++)
+        if (frame.work[k].orig)
+            old_own[k].assign(frame.work[k].tex.begin() + long(legacy_textures), frame.work[k].tex.end());
+    textures.resize(legacy_textures);
+    passes.resize(legacy_passes);
+    std::vector<IUnknown *> dead;
+    std::vector<bool> taken(old_tex.size(), false);
+    for (size_t i = 0; i < next.textures.size(); i++) {
+        if (from[i] >= 0) {
+            taken[size_t(from[i])] = true;
+            textures.push_back(std::move(old_tex[size_t(from[i])]));
+        } else
+            textures.push_back(fresh_texture(next.textures[i]));
+    }
+    for (size_t j = 0; j < old_tex.size(); j++)
+        if (!taken[j])
+            drop_textures(dead, old_tex[j]);
+    for (UINT k = 0; k < FRAMES; k++) {
+        if (old_own[k].empty() && !frame.work[k].orig)
+            continue;
+        Work &wk = frame.work[k];
+        std::vector<ID3D12Resource *> own(wk.tex.begin(), wk.tex.begin() + long(legacy_textures));
+        for (size_t i = 0; i < next.textures.size(); i++)
+            own.push_back(from[i] >= 0 ? old_own[k][size_t(from[i])] : nullptr);
+        for (size_t j = 0; j < old_own[k].size(); j++)
+            if (!taken[j])
+                dead.push_back(old_own[k][j]);
+        wk.tex = std::move(own);
+    }
+    retire(std::move(dead));
+    for (auto &pp : next.passes) {
+        Pass p;
+        p.inst = pp.instance;
+        const postfx::PlanInstance &pi = next.instances[size_t(pp.instance)];
+        p.effect = pi.effect;
+        p.label = pi.label;
+        p.name = pp.decl->name;
+        p.shader = pp.decl->dxil;
+        p.budget_ms = pp.decl->budget_ms;
+        p.threads[0] = pp.decl->threads[0];
+        p.threads[1] = pp.decl->threads[1];
+        memcpy(p.options, pi.options, sizeof p.options);
+        for (size_t i = 0; i < pp.n_inputs; i++)
+            p.inputs[i] = pp.inputs[i] >= 0 ? int(legacy_textures) + pp.inputs[i] : pp.inputs[i];
+        p.n_inputs = UINT(pp.n_inputs);
+        p.output = pp.output >= 0 ? int(legacy_textures) + pp.output : -1;
+        passes.push_back(std::move(p));
+    }
+    plan = std::move(next);
+    uses_previous = legacy_previous || plan.uses_previous();
+    for (auto &sl : slots)
+        sl.passes = 0;
+    if (frame.heap && !fit_frame()) {
+        broken = true;
+        swofty::log("[shaders] the textures of the new config could not be made; post-processing is off");
+    }
+}
+
+void apply_active(postfx::ActiveSpec next)
+{
+    postfx::Plan p = postfx::make_plan(next, effects);
+    for (auto &d : p.dropped)
+        swofty::log("[shaders] %s; left out", d.c_str());
+    size_t n_passes = p.passes.size(), n_effects = p.instances.size();
+    shader_vk = postfx::key_code(next.toggle_key);
+    install_plan(std::move(p));
+    active = std::move(next);
+    swofty::log("[shaders] config \"%s\" (serial %llu): %zu effect(s), %zu pass(es)", active.name.c_str(),
+                (unsigned long long)active.serial, n_effects, n_passes);
+}
+
+void check_active(ULONGLONG now, bool force)
+{
+    if (active_file.empty() || (!force && now - active_checked < 250))
+        return;
+    active_checked = now;
+    WIN32_FILE_ATTRIBUTE_DATA fa{};
+    if (!GetFileAttributesExW(active_file.c_str(), GetFileExInfoStandard, &fa))
+        return;
+    if (active_told && !CompareFileTime(&fa.ftLastWriteTime, &active_at))
+        return;
+    postfx::ActiveSpec next;
+    if (!postfx::parse_active(runtime::read_file(active_file, size_t(8) << 20), next))
+        return;
+    active_at = fa.ftLastWriteTime;
+    active_told = true;
+    apply_active(std::move(next));
+}
+
+void load_effects()
+{
+    effects = postfx::parse_effects(runtime::read_file(runtime::under_swofty("shaders/effects.json"), size_t(16) << 20));
+    size_t n = 0;
+    for (auto &e : effects)
+        n += e.passes.size();
+    if (!effects.empty())
+        swofty::log("[shaders] effects: %zu effect(s), %zu pass(es) ready to load", effects.size(), n);
+}
+
 bool game_in_front()
 {
     DWORD pid = 0;
@@ -1888,6 +2270,13 @@ void poll_toggles()
         }
         t.down = down;
     }
+    bool down = shader_vk && front && (GetAsyncKeyState(shader_vk) & 0x8000);
+    if (down && !shader_key_down) {
+        shaders_off = !shaders_off;
+        swofty::log("[shaders] shaders are %s (the toggle key)", shaders_off ? "off" : "on");
+        runtime::hud_toast(shaders_off ? "SHADERS OFF" : "SHADERS ON", active.name, 2.0f, "");
+    }
+    shader_key_down = down;
 }
 
 void log_trace()
@@ -1916,6 +2305,11 @@ void check_trace_file(ULONGLONG now)
         unsigned lists = unsigned(std::strtoul(text.c_str(), nullptr, 10));
         order_left = lists ? lists : 200;
         swofty::log("[postfx] logging the barrier order of the next %u list(s) that draw the picture", order_left);
+    }
+    if (!clip_dir.empty() && GetFileAttributesW(clip_file.c_str()) != INVALID_FILE_ATTRIBUTES) {
+        std::string text = runtime::read_file(clip_file, 64);
+        DeleteFileW(clip_file.c_str());
+        clip_start(unsigned(std::strtoul(text.c_str(), nullptr, 10)));
     }
     std::wstring burst_file = swofty_root_dir + L"postfx.burst";
     if (GetFileAttributesW(burst_file.c_str()) != INVALID_FILE_ATTRIBUTES && !final_left) {
@@ -1974,10 +2368,12 @@ void on_present(IDXGISwapChain3 *, const d3d12hooks::Swapchain *known, void *)
     stats.without += trace.runs == 0;
     stats.doubled += trace.runs > 1;
     final_land();
+    clip_land();
     log_trace();
     trace = Trace{};
     check_trace_file(now);
     poll_toggles();
+    check_active(now, false);
     if (now - live_at >= 250) {
         live_at = now;
         refresh_live();
@@ -2098,6 +2494,9 @@ bool load_passes()
         if (!t.addon_id.empty() && !t.option.empty())
             toggles.push_back(std::move(t));
     }
+    legacy_passes = passes.size();
+    legacy_textures = textures.size();
+    legacy_previous = uses_previous;
     return !passes.empty();
 }
 
@@ -2117,13 +2516,21 @@ void postfx_setup()
     off_file = swofty_root() + L"postfx.off";
     trace_file = swofty_root() + L"postfx.trace";
     swofty_root_dir = swofty_root();
-    if (!load_passes()) {
-        swofty::log("[postfx] the postfx feature is on, but assets.json names no usable pass");
+    bool legacy = load_passes();
+    load_effects();
+    active_file = swofty_root() + L"shaders\\active.json";
+    if (!legacy && effects.empty() && GetFileAttributesW(active_file.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        swofty::log("[postfx] the postfx feature is on, but assets.json names no usable pass and there is no shader config");
         return;
     }
+    check_active(GetTickCount64(), true);
     if (GetEnvironmentVariableA("SWOFTY_POSTFX_CAPTURE", v, sizeof v) && v[0]) {
         capture_dir = v;
         capture_file = swofty_root() + L"postfx.capture";
+    }
+    if (GetEnvironmentVariableA("SWOFTY_POSTFX_CLIP", v, sizeof v) && v[0]) {
+        clip_dir = v;
+        clip_file = swofty_root() + L"postfx.clip";
     }
     if (GetEnvironmentVariableA("SWOFTY_POSTFX_BURST_DUMP", v, sizeof v) && v[0])
         burst_dir = v;
