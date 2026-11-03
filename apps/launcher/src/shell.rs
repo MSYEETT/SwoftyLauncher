@@ -954,7 +954,8 @@ impl Shell {
         let dir = self.install.as_ref().map(|i| i.dir.clone());
         let running = dir
             .as_ref()
-            .is_some_and(|d| self.processes.iter().any(|g| g.is_in(d)));
+            .is_some_and(|d| self.processes.iter().any(|g| g.is_in(d)))
+            && swofty_core::recovery::SessionLock::held_elsewhere(&self.store.root);
         let info = crate::shaders::Info {
             profile: self.library.profile.name.clone(),
             game_dir: dir,
