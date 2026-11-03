@@ -1777,6 +1777,10 @@ impl Shell {
         cx.notify();
     }
 
+    pub(crate) fn show_shader_addons(&mut self, cx: &mut Context<Self>) {
+        self.shelve(Some(Some(Category::Shaders)), cx);
+    }
+
     fn show_categories(&mut self, cx: &mut Context<Self>) {
         let b = &mut self.browser;
         b.landing = true;

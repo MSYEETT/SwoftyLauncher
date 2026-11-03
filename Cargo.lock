@@ -7112,14 +7112,21 @@ dependencies = [
 name = "swofty-launcher"
 version = "1.7.28"
 dependencies = [
+ "anyhow",
  "gpui-kit",
+ "lsp-types",
+ "png 0.18.1",
  "semver",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "swofty-builtins",
  "swofty-core",
+ "swofty-preview",
+ "swofty-shaders",
  "ureq",
  "winresource",
+ "zip",
 ]
 
 [[package]]
