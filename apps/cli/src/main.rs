@@ -658,6 +658,8 @@ fn addons(store: &Store, profile: &str, cmd: AddonsCommand) -> Result<()> {
             for (id, m) in store.addons()? {
                 let state = if m.is_builtin() {
                     "built in"
+                } else if m.is_shader_only() {
+                    "shaders"
                 } else if enabled.contains(&id.as_str()) {
                     "enabled"
                 } else {
