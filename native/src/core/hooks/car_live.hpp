@@ -31,6 +31,7 @@ constexpr uintptr_t ENGINE = 0x530, STEERING = 0x560, GEARBOX = 0x538,
                     WING_DAMAGE = 0x5c8, SUSPENSION_DAMAGE = 0x5d0, FUEL_ECU = 0x548;
 constexpr uintptr_t FUEL_ECU_MODE = 0x128;
 constexpr uintptr_t MODE_AVAIL_FUEL = 0x28, MODE_AVAIL_STRIDE = 0x20;
+constexpr uint32_t MODE_AVAIL_CARS = 26;
 
 enum class Kind { plain, obf, virt };
 
@@ -875,6 +876,7 @@ template <class Tag> struct Ops {
         uint32_t n = 0;
         if (cars(n) != SWOFTY_ASSET_OK)
             return;
+        n = std::min(n, MODE_AVAIL_CARS);
         uintptr_t base = env.mode_avail();
         if (!base)
             return;

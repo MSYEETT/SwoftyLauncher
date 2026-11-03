@@ -593,6 +593,14 @@ static void v3_fuel()
             ok = ok && (got == (m == 2 ? 0u : 0xffffffffu));
         }
     expect(ok, "only the rich entry of every car is cleared");
+    memset(avail_mem, 0xff, sizeof avail_mem);
+    count = 32;
+    Ops::unlock_tick();
+    count = CARS;
+    bool tail = true;
+    for (size_t i = cl::MODE_AVAIL_FUEL + cl::MODE_AVAIL_CARS * cl::MODE_AVAIL_STRIDE; i < sizeof avail_mem; i++)
+        tail = tail && avail_mem[i] == 0xff;
+    expect(tail, "the unlock never writes past the 26 car entries of the table");
     expect(Ops::op_unlock_fuel_mixes("a", 0) == SWOFTY_ASSET_OK && Ops::unlocked_mask() == 0, "withdrawing the mask stops the writes");
 }
 
