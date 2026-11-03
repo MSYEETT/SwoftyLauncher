@@ -135,6 +135,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
               { text: "News", link: "/using/news" },
               { text: "Addons", link: "/using/addons" },
               { text: "Addon Browser", link: "/using/addon-browser" },
+              { text: "Shaders", link: "/using/shaders" },
               { text: "Swofty's addons", link: "/using/swofty-addons" },
               { text: "Simplified Importer", link: "/using/mods" },
               { text: "Profiles", link: "/using/profiles" },
@@ -164,6 +165,7 @@ export default defineConfigWithTheme<DocsThemeConfig>({
           {
             text: "Releases",
             items: [
+              { text: "1.8.0", link: "/releases/1.8.0" },
               { text: "1.7.28", link: "/releases/1.7.28" },
               { text: "1.7.27", link: "/releases/1.7.27" },
               { text: "1.7.26", link: "/releases/1.7.26" },
@@ -535,6 +537,8 @@ export default defineConfigWithTheme<DocsThemeConfig>({
                   { text: "In-game UI", link: "/reference/addons/in-game-ui", icon: "file" },
                   { text: "Post-process passes", link: "/reference/addons/postfx", icon: "file" },
                   { text: "Shader packs", link: "/reference/addons/shader-packs", icon: "file" },
+                  { text: "Shader configs and effects", link: "/reference/addons/shaders", icon: "file" },
+                  { text: "Effect library", link: "/reference/addons/shader-effects", icon: "file" },
                   {
                     text: "Libraries",
                     link: "/reference/std/",
