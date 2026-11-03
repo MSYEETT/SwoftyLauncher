@@ -201,6 +201,16 @@ impl Store {
         self.root.join("addons")
     }
 
+    /// Personal shader configs and the shader settings.
+    pub fn shaders_dir(&self) -> PathBuf {
+        self.root.join("shaders")
+    }
+
+    /// Compiled effects and the extracted effect library.
+    pub fn shaders_cache_dir(&self) -> PathBuf {
+        self.root.join("cache/shaders")
+    }
+
     pub fn addon_data_dir(&self, id: &str) -> PathBuf {
         self.root.join("addon-data").join(id)
     }
