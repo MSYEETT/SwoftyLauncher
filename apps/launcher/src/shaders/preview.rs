@@ -15,8 +15,8 @@ use gpui_kit::*;
 use swofty_preview::{ActiveInstance, Clip, ClipInfo, Frame, Preview};
 use swofty_shaders::{Catalog, CompiledEffect, Target};
 
-use super::ShadersView;
 use super::clips::{self, ClipItem};
+use super::{Mode, ShadersView};
 use crate::theme::Palette;
 
 const POLL: Duration = Duration::from_millis(30);
@@ -376,6 +376,9 @@ impl ShadersView {
                 self.preview.info = Some(info);
                 self.preview_send_instances(cx);
                 self.preview_render(cx);
+                if self.preview.playing && self.mode == Mode::Preview {
+                    self.preview_play(cx);
+                }
             }
             Done::Opened(Err(e)) => {
                 self.preview.status = Status::Failed(format!("Couldn't open the clip: {e}"))
@@ -397,7 +400,7 @@ impl ShadersView {
         }
     }
 
-    pub(super) fn preview_open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn preview_open(&mut self, cx: &mut Context<Self>) {
         if !self.preview.scanned {
             self.preview.scanned = true;
             let root = self.store.root.clone();
@@ -410,8 +413,7 @@ impl ShadersView {
             })
             .detach();
         } else if self.preview.info.is_some() && self.preview.status == Status::Ready {
-            self.preview.playing = true;
-            self.preview_play(window, cx);
+            self.preview_play(cx);
         }
         self.preview_compile(cx);
     }
@@ -564,28 +566,26 @@ impl ShadersView {
         cx.notify();
     }
 
-    fn preview_play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn preview_play(&mut self, cx: &mut Context<Self>) {
         let Some(info) = self.preview.info.clone() else {
             return;
         };
         let frames = info.frames.max(1);
         let fps = info.fps.max(1.);
         let (from, started) = (self.preview.frame, Instant::now());
-        self.preview.tick = Some(cx.spawn_in(window, async move |this, cx| {
+        self.preview.tick = Some(cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
                     .timer(Duration::from_secs_f32((1. / fps).clamp(0.02, 0.1)))
                     .await;
                 let at = (from + (started.elapsed().as_secs_f32() * fps) as usize) % frames;
                 let alive = this
-                    .update_in(cx, |v, window, cx| {
+                    .update(cx, |v, cx| {
                         if !v.preview.playing || v.preview.dragging {
                             return v.preview.playing;
                         }
                         if v.preview.frame != at {
                             v.preview.frame = at;
-                            let slider = v.preview.slider.clone();
-                            slider.update(cx, |s, cx| s.set_value(at as f32, window, cx));
                             v.preview_render(cx);
                             cx.notify();
                         }
@@ -599,10 +599,18 @@ impl ShadersView {
         }));
     }
 
-    fn toggle_play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn sync_slider(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let at = self.preview.frame as f32;
+        let slider = self.preview.slider.clone();
+        if (slider.read(cx).value().start() - at).abs() > 0.5 {
+            slider.update(cx, |s, cx| s.set_value(at, window, cx));
+        }
+    }
+
+    fn toggle_play(&mut self, cx: &mut Context<Self>) {
         self.preview.playing = !self.preview.playing;
         if self.preview.playing {
-            self.preview_play(window, cx);
+            self.preview_play(cx);
         } else {
             self.preview.tick = None;
         }
@@ -960,7 +968,7 @@ impl ShadersView {
                     .small()
                     .icon(if playing { IconName::Pause } else { IconName::Play })
                     .disabled(!ready)
-                    .on_click(cx.listener(|this, _, window, cx| this.toggle_play(window, cx))),
+                    .on_click(cx.listener(|this, _, _, cx| this.toggle_play(cx))),
             )
             .child(
                 div()

@@ -226,13 +226,13 @@ impl ShadersView {
             .or_else(|| self.entries.first().map(|e| e.r#ref.clone()))
     }
 
-    pub(super) fn set_mode(&mut self, mode: Mode, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn set_mode(&mut self, mode: Mode, cx: &mut Context<Self>) {
         if self.mode == mode {
             return;
         }
         self.mode = mode;
         match mode {
-            Mode::Preview => self.preview_open(window, cx),
+            Mode::Preview => self.preview_open(cx),
             Mode::Editor => self.preview_pause(cx),
         }
         cx.notify();
@@ -459,6 +459,7 @@ impl Render for ShadersView {
         let p = palette(cx);
         self.ensure_loaded(window, cx);
         self.start_pending_rename(window, cx);
+        self.sync_slider(window, cx);
         let left = match self.mode {
             Mode::Editor => self.editor_pane(p, cx),
             Mode::Preview => self.preview_pane(p, cx),

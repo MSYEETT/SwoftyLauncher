@@ -816,7 +816,7 @@ impl ShadersView {
                 })
                 .child(Icon::new(icon).size(px(14.)))
                 .child(label)
-                .on_click(cx.listener(move |this, _, window, cx| this.set_mode(mode, window, cx)))
+                .on_click(cx.listener(move |this, _, _, cx| this.set_mode(mode, cx)))
         };
         h_flex()
             .p(px(2.))

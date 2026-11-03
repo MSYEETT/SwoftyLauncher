@@ -612,8 +612,11 @@ impl Shell {
             _catalog: catalog,
         };
         shell.refresh_views(cx);
-        if std::env::var("SWOFTY_LAUNCHER_OPEN_PAGE").is_ok_and(|v| v == "saves") {
-            shell.open_page(Page::Careers, cx);
+        match std::env::var("SWOFTY_LAUNCHER_OPEN_PAGE").as_deref() {
+            Ok("saves") => shell.open_page(Page::Careers, cx),
+            Ok("shaders") => shell.open_page(Page::Shaders, cx),
+            Ok("addons") => shell.open_page(Page::Addons, cx),
+            _ => {}
         }
         shell.fetch_news(cx);
         shell.sync_catalog_updates();
