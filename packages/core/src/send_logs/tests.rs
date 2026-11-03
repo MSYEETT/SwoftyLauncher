@@ -1860,3 +1860,22 @@ fn reads_both_ends_of_a_log_bigger_than_the_cap() {
     assert!(seen.armed && seen.drew);
     assert_eq!(read_ends(&path, 1 << 20, 1 << 20).unwrap(), log.as_bytes());
 }
+
+#[test]
+fn bundles_the_stat_id_files_and_summarises_the_package_ids() {
+    let root = tmp("registry-ids");
+    let (store, game) = fake_data(&root);
+    put(
+        &store.root.join("registry/ids.json"),
+        "{\"version\":1,\"ids\":{\"vehicle.package\":{\"gone.x/pkg_1\":1,\"gone.x/pkg_2\":2}}}\n",
+    );
+    put(
+        &store.root.join("registry/row-ids.json"),
+        "{\"version\":2,\"rows\":{\"b/entrants.vehicles.vehicle_packages.vehicle_package/p\":{\"id\":3,\"from\":\"new\"}}}\n",
+    );
+    let bundle = Bundle::collect_with(&store, &report(&game), Limits::default(), "20261028-120000");
+    let zip = bundle.zip().unwrap();
+    assert!(entry(&zip, "game/registry/ids.json").contains("gone.x/pkg_1"));
+    assert!(entry(&zip, "game/registry/row-ids.json").contains("\"id\":3"));
+    assert!(entry(&zip, "summary.txt").contains("3 of 254 used, highest 3, 3 held by addons not installed"));
+}
