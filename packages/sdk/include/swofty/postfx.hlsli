@@ -66,7 +66,11 @@ Texture2D<float4> swofty_input7 : register(t9);
 #else
 Texture2D<float4> swofty_inputs[SWOFTY_INPUTS] : register(t2);
 #endif
+#ifdef __spirv__
+[[vk::image_format("rgba16f")]] RWTexture2D<float4> swofty_output : register(u0);
+#else
 RWTexture2D<float4> swofty_output : register(u0);
+#endif
 SamplerState swofty_linear : register(s0);
 SamplerState swofty_point : register(s1);
 SamplerState swofty_linear_wrap : register(s2);
@@ -251,6 +255,12 @@ float luminance(float3 linear_rgb)
     return dot(linear_rgb, float3(0.2126, 0.7152, 0.0722));
 }
 
+#ifdef __spirv__
+#define SWOFTY_NOT_FINITE(c) (any(isnan(c)) || any(isinf(c)))
+#else
+#define SWOFTY_NOT_FINITE(c) any(!isfinite(c))
+#endif
+
 #ifndef SWOFTY_RAW
 #ifndef SWOFTY_EFFECT
 #define SWOFTY_EFFECT effect
@@ -266,7 +276,7 @@ float4 SWOFTY_EFFECT(float2 uv, uint2 pixel);
     float4 c = SWOFTY_EFFECT(uv, id.xy);
     // A pass that returns NaN or infinity keeps the pixel it was given: the picture where it writes the
     // picture, black in its own textures.
-    if (any(!isfinite(c)))
+    if (SWOFTY_NOT_FINITE(c))
         c = all(swofty_size == swofty_scene_size) ? scene_at(int2(id.xy)) : float4(0, 0, 0, 0);
     swofty_output[id.xy] = c;
 }
