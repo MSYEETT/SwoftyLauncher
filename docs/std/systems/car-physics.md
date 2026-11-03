@@ -158,6 +158,11 @@ engine.vtf_limiter_rotation_rate       rad/s, 100 .. 2500, re-runs the derived l
 f1_wing_damage.*                       speed_threshold, damage_scale, chassis_damage_multiple, side_detach_scale, full_detach_scale
 f1_suspension_damage.*                 speed_threshold, front/rear_damage_scale, wheel/parts_detach_scale, linear/angular_fracture_limit
 
+fuel_ecu.fuel_burn_scale.<mix>         0 .. 10, fuel flow of lean, standard, rich or max; a write re-runs the active mix
+fuel_ecu.fuel_power_scale.<mix>        0 .. 4, engine power
+fuel_ecu.fuel_revs_scale.<mix>         0.5 .. 2, divides the power spline's rev lookup and scales the limiter
+fuel_ecu.temperature_scale.<mix>       0 .. 4
+
 aero.lift_scale                        0 .. 10, multiplies the body lift, read every step
 aero.drag_scale                        0 .. 10, multiplies the body drag
 engine.power_scale                     0 .. 4, the engine drive torque, written to no game data
@@ -386,10 +391,26 @@ These stay off:
 tyres.*.grip_scale     the tyre solver (Car_Suspension_SolveWheels) never reads CarSuspTyreType.grip_multiplier;
                        only the AI snapshot (0x1405ee660) and force feedback do, so a write changes neither the car's grip nor the lap time
 refit_tyres            returns unavailable until a car-to-tyre-component lookup is bound
-fuel modes             Car_FuelEcu_SetMode_Thunk is verified, but no call is bound yet
 ```
 
 Credit: the front wing damage, suspension damage, fuel ECU and ERS layouts were cross-checked against findings shared by Will (william09leo), the author of Heavier Damage.
+
+## Fuel mixes
+
+Each car's FuelECU holds four values per mix (lean, standard, rich, max): fuel flow, engine power, a rev factor and a temperature factor. The `fuel_ecu.*` fields above write one value; the core then runs the car's active mix again so the engine and the fuel flow follow. Which mixes the MFD offers is the game's own: a mix is selectable while its availability entry is 0.
+
+```cpp
+using namespace swofty;
+
+static cars::live::Layer rich_power = cars::live::Layer::set(cars::live::Cars::all(), "fuel_ecu.fuel_power_scale.rich", 1.05f);
+
+SWOFTY_ON_LOAD
+{
+    cars::live::unlock_fuel_mixes("my.addon", uint32_t(cars::live::FuelMix::rich));
+}
+```
+
+`unlock_fuel_mixes` clears the availability entries of the mixes in the mask for every car, every frame, until the mask is 0 again. `fuel_mix(car)` reads a car's current mix. The availability table (`g_EngineModeAvail`, KB notes in car.md) has no independent verify row; the core reads it through checked memory and answers `Result::unavailable` on any other build.
 
 ## Handling records
 

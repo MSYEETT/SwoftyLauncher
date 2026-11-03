@@ -972,7 +972,7 @@ typedef struct SwoftySessionOps {
    SWOFTY_CAR_CHASSIS_BALLAST_KG rebuilds the mass without fuel until the next fuel update.
    Virtual fields (engine.power_scale, engine.limiter_offset_rpm, ai.grip_scale) write nothing to game data: the
    core's handlers on site_Car_EngineDriveTorque and site_Ai_TableGripInput read them per car. */
-#define SWOFTY_CAR_OPS_VERSION 2
+#define SWOFTY_CAR_OPS_VERSION 3
 #define SWOFTY_CAR_ALL 0xffffffffu
 
 #define SWOFTY_CAR_STEERING_LOCK 1u
@@ -1015,6 +1015,21 @@ typedef struct SwoftySessionOps {
 #define SWOFTY_CAR_SUSP_REAR_ANTI_ROLL 46u
 #define SWOFTY_CAR_SUSP_REAR_RIDE_HEIGHT_OFFSET 47u
 
+/* Version 3: the FuelECU mode tables (CarFuelEcu +0x28, stride 0x10 per mode, 0x40 per kind), 16 ids from
+   SWOFTY_CAR_FUEL_BASE: base + kind * 4 + mode, kind 0 burn, 1 power, 2 revs, 3 temperature; mode 0 lean, 1 standard,
+   2 rich, 3 max. Paths "fuel_ecu.fuel_burn_scale.lean" ... "fuel_ecu.temperature_scale.max". A write re-runs the
+   active mode (Car_FuelEcu_SetMode_Thunk to another mode and back), so the car's engine and fuel flow follow. */
+#define SWOFTY_CAR_FUEL_BASE 48u
+#define SWOFTY_CAR_FUEL_BURN_LEAN 48u
+#define SWOFTY_CAR_FUEL_POWER_LEAN 52u
+#define SWOFTY_CAR_FUEL_REVS_LEAN 56u
+#define SWOFTY_CAR_FUEL_TEMPERATURE_LEAN 60u
+
+#define SWOFTY_CAR_FUEL_MIX_LEAN 1u
+#define SWOFTY_CAR_FUEL_MIX_STANDARD 2u
+#define SWOFTY_CAR_FUEL_MIX_RICH 4u
+#define SWOFTY_CAR_FUEL_MIX_MAX 8u
+
 #define SWOFTY_CAR_OP_SET 0u
 #define SWOFTY_CAR_OP_SCALE 1u
 #define SWOFTY_CAR_OP_ADD 2u
@@ -1032,6 +1047,12 @@ typedef struct SwoftyCarOps {
                  uint32_t *token);
     int (*unlayer)(uint32_t token);
     int (*refit_tyres)(uint32_t index, const char *group);
+    /* version 3. unlock_fuel_mixes: the mixes in mask (SWOFTY_CAR_FUEL_MIX_*) are offered on the MFD of every car
+       while the owner's mask stays set; the core clears EngineModeAvail's entry of each (car, mix) every frame.
+       A mask of 0 withdraws the owner's request. SWOFTY_ASSET_UNAVAILABLE when the table or the exe build is not
+       the KB's. fuel_mix: the car's current mix (0 lean .. 3 max) in *mode. */
+    int (*unlock_fuel_mixes)(const char *owner, uint32_t mask);
+    int (*fuel_mix)(uint32_t index, uint32_t *mode);
 } SwoftyCarOps;
 
 typedef struct SwoftyApi {

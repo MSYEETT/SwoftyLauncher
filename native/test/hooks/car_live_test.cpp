@@ -535,6 +535,67 @@ static void v2_refit()
     expect(Ops::op_refit_tyres(0, "ThisGroupNameIsFarTooLongForTheStringXX") == SWOFTY_ASSET_INVALID, "a name past 31 characters is invalid");
 }
 
+alignas(16) static uint8_t ecu[CARS][0x170];
+alignas(16) static uint8_t avail_mem[0x400];
+
+static void v3_fuel()
+{
+    build_world();
+    for (int i = 0; i < CARS; i++) {
+        attach(car_mem[i], cl::FUEL_ECU, ecu[i]);
+        for (int k = 0; k < 16; k++)
+            put_obf(ecu[i], 0x28 + 0x10 * k, 1.0f, 0x7000u + k + i);
+        at<int32_t>(ecu[i], cl::FUEL_ECU_MODE) = 1;
+    }
+    static std::vector<std::pair<uintptr_t, int>> calls;
+    calls.clear();
+    cl::Env e = make_env();
+    e.fuel_set_mode = [](uintptr_t ecu_at, int mode) { calls.emplace_back(ecu_at, mode); };
+    e.mode_avail = [] { return reinterpret_cast<uintptr_t>(avail_mem); };
+    Ops::bind(std::move(e));
+
+    float v = 0;
+    uint32_t id = 0;
+    expect(Ops::op_field("fuel_ecu.fuel_power_scale.rich", &id) == SWOFTY_ASSET_OK && id == SWOFTY_CAR_FUEL_POWER_LEAN + 2,
+           "fuel_ecu.fuel_power_scale.rich is field 54");
+    expect(Ops::op_field("fuel_ecu.temperature_scale.max", &id) == SWOFTY_ASSET_OK && id == SWOFTY_CAR_FUEL_TEMPERATURE_LEAN + 3,
+           "fuel_ecu.temperature_scale.max is field 63");
+    expect(Ops::op_set(0, nullptr, SWOFTY_CAR_FUEL_POWER_LEAN + 2, 1.05f) == SWOFTY_ASSET_OK &&
+               (at<uint32_t>(ecu[0], 0x28 + 0x40 + 0x20) ^ (0x7000u + 6)) == bits(1.05f) &&
+               (at<uint32_t>(ecu[0], 0x28 + 0x40 + 0x10) ^ (0x7000u + 5)) == bits(1.0f),
+           "a mode table entry is written under its own key and only that entry");
+    expect(calls.size() == 2 && calls[0] == std::make_pair(reinterpret_cast<uintptr_t>(ecu[0]), 0) &&
+               calls[1] == std::make_pair(reinterpret_cast<uintptr_t>(ecu[0]), 1),
+           "the active mode is re-run: another mode and back");
+    calls.clear();
+    at<int32_t>(ecu[0], cl::FUEL_ECU_MODE) = 0;
+    expect(Ops::op_set(0, nullptr, SWOFTY_CAR_FUEL_BURN_LEAN, 0.9f) == SWOFTY_ASSET_OK && calls.size() == 2 &&
+               calls[0].second == 1 && calls[1].second == 0,
+           "from lean the toggle goes to standard and back");
+    expect(Ops::op_set(0, nullptr, SWOFTY_CAR_FUEL_REVS_LEAN, 0.1f) == SWOFTY_ASSET_INVALID &&
+               Ops::op_set(0, nullptr, SWOFTY_CAR_FUEL_BURN_LEAN, 11.0f) == SWOFTY_ASSET_INVALID,
+           "values outside the range are invalid");
+    expect(Ops::op_get(0, nullptr, SWOFTY_CAR_FUEL_BURN_LEAN, &v) == SWOFTY_ASSET_OK && std::fabs(v - 0.9f) < 1e-6f,
+           "a table entry reads back");
+
+    uint32_t mode = 9;
+    expect(Ops::op_fuel_mix(0, &mode) == SWOFTY_ASSET_OK && mode == 0, "fuel_mix reads the car's mode");
+
+    memset(avail_mem, 0xff, sizeof avail_mem);
+    expect(Ops::op_unlock_fuel_mixes("", 4) == SWOFTY_ASSET_INVALID && Ops::op_unlock_fuel_mixes("a", 16) == SWOFTY_ASSET_INVALID,
+           "an empty owner and an unknown mix bit are invalid");
+    expect(Ops::op_unlock_fuel_mixes("a", SWOFTY_CAR_FUEL_MIX_RICH) == SWOFTY_ASSET_OK, "an owner unlocks rich");
+    Ops::unlock_tick();
+    bool ok = true;
+    for (uint32_t c = 0; c < CARS; c++)
+        for (uint32_t m = 0; m < 4; m++) {
+            uint32_t got = at<uint32_t>(avail_mem, cl::MODE_AVAIL_FUEL + c * cl::MODE_AVAIL_STRIDE + m * 4);
+            ok = ok && (got == (m == 2 ? 0u : 0xffffffffu));
+        }
+    expect(ok, "only the rich entry of every car is cleared");
+    expect(Ops::op_unlock_fuel_mixes("a", 0) == SWOFTY_ASSET_OK && Ops::unlocked_mask() == 0, "withdrawing the mask stops the writes");
+}
+
 int main()
 {
     core_ops();
@@ -547,6 +608,7 @@ int main()
     v2_virtual();
     v2_gating();
     v2_refit();
+    v3_fuel();
     if (fails) {
         printf("car_live_test: %d failure(s)\n", fails);
         return 1;

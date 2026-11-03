@@ -28,7 +28,9 @@ constexpr uint32_t MAX_CARS = 32;
 
 constexpr uintptr_t ENGINE = 0x530, STEERING = 0x560, GEARBOX = 0x538,
                     DIFFERENTIAL = 0x578, TURBO = 0x5a0, FUEL_TANK = 0x540,
-                    WING_DAMAGE = 0x5c8, SUSPENSION_DAMAGE = 0x5d0;
+                    WING_DAMAGE = 0x5c8, SUSPENSION_DAMAGE = 0x5d0, FUEL_ECU = 0x548;
+constexpr uintptr_t FUEL_ECU_MODE = 0x128;
+constexpr uintptr_t MODE_AVAIL_FUEL = 0x28, MODE_AVAIL_STRIDE = 0x20;
 
 enum class Kind { plain, obf, virt };
 
@@ -36,7 +38,7 @@ enum class Kind { plain, obf, virt };
 // (Car_Engine_ComputeDerived_Thunk), the gearbox's ratio table (Car_Tuning_SetFinalDrive with 0x20|0x2000, which
 // leaves the current gear alone; 0x200 would shift to neutral) or the chassis' mass (sqrt_mass, then the system's
 // OnReset with 0x208, flag 0x8 being the slot's gate).
-enum class Rederive { none, engine, gearbox, chassis };
+enum class Rederive { none, engine, gearbox, chassis, fuel };
 // Where the field's storage is: in the system at Field::system, in the suspension's tyre record of an axle (found by
 // its name), or in the suspension's axle object (the rear one has the lower local rest position).
 enum class Via { system, tyre_front, tyre_rear, axle_front, axle_rear };
@@ -144,6 +146,39 @@ inline constexpr Field FIELDS[] = {
      Via::axle_rear, "CarSuspAxle.setup_anti_roll"},
     {SWOFTY_CAR_SUSP_REAR_RIDE_HEIGHT_OFFSET, "suspension.rear.ride_height_offset", 0, 0x15e4, Kind::plain, -1, 1,
      Rederive::none, Via::axle_rear, "CarSuspAxle.ride_height_offset"},
+    // Version 3: the FuelECU mode tables, burn, power, revs and temperature scale of lean, standard, rich, max.
+    {SWOFTY_CAR_FUEL_BASE + 0, "fuel_ecu.fuel_burn_scale.lean", FUEL_ECU, 0x28, Kind::obf, 0.0f, 10.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 1, "fuel_ecu.fuel_burn_scale.standard", FUEL_ECU, 0x38, Kind::obf, 0.0f, 10.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 2, "fuel_ecu.fuel_burn_scale.rich", FUEL_ECU, 0x48, Kind::obf, 0.0f, 10.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 3, "fuel_ecu.fuel_burn_scale.max", FUEL_ECU, 0x58, Kind::obf, 0.0f, 10.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 4, "fuel_ecu.fuel_power_scale.lean", FUEL_ECU, 0x68, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 5, "fuel_ecu.fuel_power_scale.standard", FUEL_ECU, 0x78, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 6, "fuel_ecu.fuel_power_scale.rich", FUEL_ECU, 0x88, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 7, "fuel_ecu.fuel_power_scale.max", FUEL_ECU, 0x98, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 8, "fuel_ecu.fuel_revs_scale.lean", FUEL_ECU, 0xa8, Kind::obf, 0.5f, 2.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 9, "fuel_ecu.fuel_revs_scale.standard", FUEL_ECU, 0xb8, Kind::obf, 0.5f, 2.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 10, "fuel_ecu.fuel_revs_scale.rich", FUEL_ECU, 0xc8, Kind::obf, 0.5f, 2.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 11, "fuel_ecu.fuel_revs_scale.max", FUEL_ECU, 0xd8, Kind::obf, 0.5f, 2.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 12, "fuel_ecu.temperature_scale.lean", FUEL_ECU, 0xe8, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 13, "fuel_ecu.temperature_scale.standard", FUEL_ECU, 0xf8, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 14, "fuel_ecu.temperature_scale.rich", FUEL_ECU, 0x108, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
+    {SWOFTY_CAR_FUEL_BASE + 15, "fuel_ecu.temperature_scale.max", FUEL_ECU, 0x118, Kind::obf, 0.0f, 4.0f, Rederive::fuel,
+     Via::system, "Car_FuelEcu_SetMode_Thunk"},
 };
 
 inline constexpr size_t FIELD_COUNT = sizeof FIELDS / sizeof FIELDS[0];
@@ -180,6 +215,9 @@ struct Env {
     std::function<void(uintptr_t engine)> engine_derived;
     std::function<void(uintptr_t gearbox, uint32_t flags)> gearbox_reset;
     std::function<void(uintptr_t chassis, uint32_t flags)> chassis_reset;
+    std::function<void(uintptr_t fuel_ecu, int mode)> fuel_set_mode;
+    // The address of the object g_EngineModeAvail points at (0x14606ec28 in the KB build), or 0.
+    std::function<uintptr_t()> mode_avail;
     std::function<uintptr_t(uint32_t index, uintptr_t car)> tyre_component;
     std::function<void(uintptr_t tyre_component)> tyre_refit;
     // Whether the KB row a field needs has its independent agree verify row; null means every row is ready.
@@ -474,7 +512,7 @@ template <class Tag> struct Ops {
     {
         if ((f.rederive == Rederive::engine && !env.engine_derived) ||
             (f.rederive == Rederive::gearbox && !env.gearbox_reset) ||
-            (f.rederive == Rederive::chassis && !env.chassis_reset))
+            (f.rederive == Rederive::chassis && !env.chassis_reset) || (f.rederive == Rederive::fuel && !env.fuel_set_mode))
             return SWOFTY_ASSET_UNAVAILABLE;
         uint8_t setup_ratios = 0;
         if (f.rederive == Rederive::gearbox && (!rd(sys + GEARBOX_USE_SETUP_RATIOS, setup_ratios) || setup_ratios))
@@ -490,7 +528,13 @@ template <class Tag> struct Ops {
             env.engine_derived(sys);
         else if (f.rederive == Rederive::gearbox)
             env.gearbox_reset(sys, GEARBOX_REBUILD);
-        else if (f.rederive == Rederive::chassis) {
+        else if (f.rederive == Rederive::fuel) {
+            int32_t mode = 1;
+            if (!rd(sys + FUEL_ECU_MODE, mode) || mode < 0 || mode > 3)
+                return SWOFTY_ASSET_LATE;
+            env.fuel_set_mode(sys, mode == 0 ? 1 : 0);
+            env.fuel_set_mode(sys, mode);
+        } else if (f.rederive == Rederive::chassis) {
             if (!store(sys + CHASSIS_SQRT_MASS, Kind::obf, std::sqrt(std::max(value, 0.f))))
                 return SWOFTY_ASSET_LATE;
             env.chassis_reset(sys, CHASSIS_REBUILD);
@@ -792,9 +836,74 @@ template <class Tag> struct Ops {
         return out;
     }
 
+    static inline std::mutex unlock_lock;
+    static inline std::vector<std::pair<std::string, uint32_t>> unlocks;
+
+    static int op_unlock_fuel_mixes(const char *owner, uint32_t mask)
+    {
+        if (!owner || !*owner || (mask & ~0xfu))
+            return SWOFTY_ASSET_INVALID;
+        if (!env.mode_avail || !env.write || (env.row_ready && !env.row_ready("EngineModeAvail.fuel")))
+            return SWOFTY_ASSET_UNAVAILABLE;
+        std::lock_guard<std::mutex> g(unlock_lock);
+        for (auto &u : unlocks)
+            if (u.first == owner) {
+                u.second = mask;
+                return SWOFTY_ASSET_OK;
+            }
+        unlocks.emplace_back(owner, mask);
+        return SWOFTY_ASSET_OK;
+    }
+
+    static uint32_t unlocked_mask()
+    {
+        std::lock_guard<std::mutex> g(unlock_lock);
+        uint32_t m = 0;
+        for (auto &u : unlocks)
+            m |= u.second;
+        return m;
+    }
+
+    // Marks each requested mix available (the entry 0) for every car on track. The MFD's mask and the controller
+    // read the entry (Game_Mfd_FuelMix_Refresh, Sess_ControllerSystem_ApplyRecord), so the game's own locks, such as
+    // the practice fuel programme's, are reasserted by the game and cleared again on the next frame.
+    static void unlock_tick()
+    {
+        uint32_t mask = unlocked_mask();
+        if (!mask || !env.mode_avail || !env.write)
+            return;
+        uint32_t n = 0;
+        if (cars(n) != SWOFTY_ASSET_OK)
+            return;
+        uintptr_t base = env.mode_avail();
+        if (!base)
+            return;
+        uint32_t zero = 0;
+        for (uint32_t c = 0; c < n; c++)
+            for (uint32_t m = 0; m < 4; m++)
+                if (mask & (1u << m))
+                    env.write(base + MODE_AVAIL_FUEL + c * MODE_AVAIL_STRIDE + m * 4, &zero, 4);
+    }
+
+    static int op_fuel_mix(uint32_t index, uint32_t *mode)
+    {
+        uintptr_t car = 0, ecu = 0;
+        int32_t m = 0;
+        if (!mode)
+            return SWOFTY_ASSET_INVALID;
+        if (int r = car_at(index, nullptr, car); r != SWOFTY_ASSET_OK)
+            return r;
+        if (int r = system_at(car, FUEL_ECU, ecu); r != SWOFTY_ASSET_OK)
+            return r;
+        if (!rd(ecu + FUEL_ECU_MODE, m) || m < 0 || m > 3)
+            return SWOFTY_ASSET_LATE;
+        *mode = uint32_t(m);
+        return SWOFTY_ASSET_OK;
+    }
+
     static inline const SwoftyCarOps table = {
         SWOFTY_CAR_OPS_VERSION, op_available, op_count, op_car, op_get, op_set, op_field, op_layer, op_unlayer,
-        op_refit_tyres,
+        op_refit_tyres, op_unlock_fuel_mixes, op_fuel_mix,
     };
 };
 

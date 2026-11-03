@@ -76,6 +76,7 @@ constexpr Row ROWS[] = {
     {"Game_Get_ModelNodeId", true},
     {"PitStopInstance.car", false},
     {"Car_FuelEcu_SetMode_Thunk", true},
+    {"EngineModeAvail.fuel", true},
 };
 
 bool row_ready(const char *name)
@@ -263,6 +264,7 @@ void frame(double, void *)
                 apply_profiles(i);
         Ops::flush();
     }
+    Ops::unlock_tick();
     for (const auto &p : Ops::take()) {
         swofty::cars::live::Car car(p.index, reinterpret_cast<void *>(p.car));
         if (p.what != Ops::What::setup)
@@ -333,7 +335,16 @@ void setup()
                 swofty::log("[cars] %s off: needs %s", f.name, f.needs);
         swofty::log("[session] session.pit_stop stationary time and tyre change off: needs PitStopInstance.car");
         swofty::log("[cars] refit_tyres off: needs Car_Tyre_SetWearFactor, CarChassis.tyre_physics_group and the car to tyre component path");
-        swofty::log("[cars] set_fuel_mode is not offered: the fuel mode call is not bound");
+        if (uintptr_t fn = swofty::api->resolve("Car_FuelEcu_SetMode_Thunk"))
+            e.fuel_set_mode = [fn](uintptr_t ecu, int mode) {
+                reinterpret_cast<void (*)(void *, int)>(fn)(reinterpret_cast<void *>(ecu), mode);
+            };
+        else
+            swofty::log("[cars] fuel_ecu fields off: Car_FuelEcu_SetMode_Thunk does not resolve");
+        e.mode_avail = [] {
+            uintptr_t at = swofty::api->module_base() + 0x606ec28, ptr = 0;
+            return mem::read(at, ptr) && mem::object_like(ptr) ? ptr : uintptr_t(0);
+        };
     }
     Ops::bind(std::move(e));
     const SwoftyEvents *ev = runtime::events_table();

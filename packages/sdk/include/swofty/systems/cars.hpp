@@ -492,6 +492,29 @@ namespace swofty::cars::live {
 
 class Car;
 
+enum class FuelMix : uint32_t { lean = SWOFTY_CAR_FUEL_MIX_LEAN, standard = SWOFTY_CAR_FUEL_MIX_STANDARD, rich = SWOFTY_CAR_FUEL_MIX_RICH, max = SWOFTY_CAR_FUEL_MIX_MAX };
+
+// Offers the mixes in mask (FuelMix bits) on the MFD of every car while the mask stays set; 0 withdraws the owner's
+// request. The mode tables themselves are fields: "fuel_ecu.fuel_burn_scale.rich", "fuel_ecu.fuel_power_scale.max",
+// "fuel_ecu.fuel_revs_scale.lean", "fuel_ecu.temperature_scale.standard" (burn, power, revs, temperature x lean,
+// standard, rich, max).
+inline Result unlock_fuel_mixes(std::string_view owner, uint32_t mask)
+{
+    auto t = swofty::detail::live_car_ops();
+    if (!t || t->version < 3 || !t->unlock_fuel_mixes)
+        return Result::unavailable;
+    return swofty::detail::result(t->unlock_fuel_mixes(std::string(owner).c_str(), mask));
+}
+
+inline std::optional<FuelMix> fuel_mix(uint32_t car_index)
+{
+    auto t = swofty::detail::live_car_ops();
+    uint32_t mode = 0;
+    if (!t || t->version < 3 || !t->fuel_mix || t->fuel_mix(car_index, &mode) != SWOFTY_ASSET_OK || mode > 3)
+        return std::nullopt;
+    return static_cast<FuelMix>(1u << mode);
+}
+
 inline std::optional<Field> field(std::string_view path)
 {
     auto t = swofty::detail::live_car_ops_v2();
