@@ -1029,6 +1029,10 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
             }
         }
     }
+    let shader_files = crate::shaders::build_files(store, &p);
+    hasher.update(format!("shaders {};", shader_files.digest));
+    built.lines.extend(shader_files.line);
+    built.warnings.extend(shader_files.warnings);
     let mut head_puts = crate::heads::Puts::default();
     let mut outputs = BTreeMap::new();
     let replaced = replaced_operations(&std16, loader_dir().as_deref());
@@ -2238,6 +2242,16 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
                 return Err(Error::Other(format!("{rel} is placed twice")));
             }
         }
+    }
+    for (rel, bytes) in shader_files.files {
+        let path = built.overlay.join(crate::runtime::SWOFTY).join(&rel);
+        let dir = path.parent().expect("has parent");
+        std::fs::create_dir_all(dir).map_err(io_err(dir))?;
+        std::fs::write(&path, bytes).map_err(io_err(&path))?;
+        built
+            .plan
+            .loader
+            .insert(format!("{}/{rel}", crate::runtime::SWOFTY), path);
     }
     built.warnings.extend(waiting_lines(&planned.waiting, &features));
     for (_, _, origin) in &tracks {
