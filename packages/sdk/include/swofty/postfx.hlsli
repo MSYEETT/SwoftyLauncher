@@ -55,8 +55,23 @@ cbuffer SwoftyPostFx : register(b0)
 
 Texture2D<float4> swofty_scene : register(t0);
 Texture2D<float> swofty_depth : register(t1);
+#ifdef __spirv__
+Texture2D<float4> swofty_input0 : register(t2);
+Texture2D<float4> swofty_input1 : register(t3);
+Texture2D<float4> swofty_input2 : register(t4);
+Texture2D<float4> swofty_input3 : register(t5);
+Texture2D<float4> swofty_input4 : register(t6);
+Texture2D<float4> swofty_input5 : register(t7);
+Texture2D<float4> swofty_input6 : register(t8);
+Texture2D<float4> swofty_input7 : register(t9);
+#else
 Texture2D<float4> swofty_inputs[SWOFTY_INPUTS] : register(t2);
+#endif
+#ifdef __spirv__
+[[vk::image_format("rgba16f")]] RWTexture2D<float4> swofty_output : register(u0);
+#else
 RWTexture2D<float4> swofty_output : register(u0);
+#endif
 SamplerState swofty_linear : register(s0);
 SamplerState swofty_point : register(s1);
 SamplerState swofty_linear_wrap : register(s2);
@@ -80,6 +95,55 @@ float4 scene_at(int2 pixel)
 
 // The pass's "inputs", in manifest order: the addon's own textures, "original" (the picture before
 // any pass this frame) or "previous" (the last frame's picture after every pass).
+#ifdef __spirv__
+float4 input(uint i, float2 uv)
+{
+    switch (i)
+    {
+    case 0: return swofty_input0.SampleLevel(swofty_linear, uv, 0);
+    case 1: return swofty_input1.SampleLevel(swofty_linear, uv, 0);
+    case 2: return swofty_input2.SampleLevel(swofty_linear, uv, 0);
+    case 3: return swofty_input3.SampleLevel(swofty_linear, uv, 0);
+    case 4: return swofty_input4.SampleLevel(swofty_linear, uv, 0);
+    case 5: return swofty_input5.SampleLevel(swofty_linear, uv, 0);
+    case 6: return swofty_input6.SampleLevel(swofty_linear, uv, 0);
+    default: return swofty_input7.SampleLevel(swofty_linear, uv, 0);
+    }
+}
+
+uint2 input_size(uint i)
+{
+    uint w, h;
+    switch (i)
+    {
+    case 0: swofty_input0.GetDimensions(w, h); break;
+    case 1: swofty_input1.GetDimensions(w, h); break;
+    case 2: swofty_input2.GetDimensions(w, h); break;
+    case 3: swofty_input3.GetDimensions(w, h); break;
+    case 4: swofty_input4.GetDimensions(w, h); break;
+    case 5: swofty_input5.GetDimensions(w, h); break;
+    case 6: swofty_input6.GetDimensions(w, h); break;
+    default: swofty_input7.GetDimensions(w, h); break;
+    }
+    return uint2(w, h);
+}
+
+float4 input_at(uint i, int2 pixel)
+{
+    int2 p = clamp(pixel, int2(0, 0), int2(input_size(i)) - 1);
+    switch (i)
+    {
+    case 0: return swofty_input0.Load(int3(p, 0));
+    case 1: return swofty_input1.Load(int3(p, 0));
+    case 2: return swofty_input2.Load(int3(p, 0));
+    case 3: return swofty_input3.Load(int3(p, 0));
+    case 4: return swofty_input4.Load(int3(p, 0));
+    case 5: return swofty_input5.Load(int3(p, 0));
+    case 6: return swofty_input6.Load(int3(p, 0));
+    default: return swofty_input7.Load(int3(p, 0));
+    }
+}
+#else
 float4 input(uint i, float2 uv)
 {
     return swofty_inputs[i].SampleLevel(swofty_linear, uv, 0);
@@ -98,6 +162,7 @@ uint2 input_size(uint i)
     swofty_inputs[i].GetDimensions(w, h);
     return uint2(w, h);
 }
+#endif
 
 // The game's depth buffer at uv, as stored: 1 at the near plane, falling towards 0 in the distance.
 // 0 everywhere when the depth buffer is not available (has_depth() is false).
@@ -191,6 +256,12 @@ float luminance(float3 linear_rgb)
     return dot(linear_rgb, float3(0.2126, 0.7152, 0.0722));
 }
 
+#ifdef __spirv__
+#define SWOFTY_NOT_FINITE(c) (any(isnan(c)) || any(isinf(c)))
+#else
+#define SWOFTY_NOT_FINITE(c) any(!isfinite(c))
+#endif
+
 #ifndef SWOFTY_RAW
 #ifndef SWOFTY_EFFECT
 #define SWOFTY_EFFECT effect
@@ -206,7 +277,7 @@ float4 SWOFTY_EFFECT(float2 uv, uint2 pixel);
     float4 c = SWOFTY_EFFECT(uv, id.xy);
     // A pass that returns NaN or infinity keeps the pixel it was given: the picture where it writes the
     // picture, black in its own textures.
-    if (any(!isfinite(c)))
+    if (SWOFTY_NOT_FINITE(c))
         c = all(swofty_size == swofty_scene_size) ? scene_at(int2(id.xy)) : float4(0, 0, 0, 0);
     swofty_output[id.xy] = c;
 }
