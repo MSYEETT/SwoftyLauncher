@@ -2149,12 +2149,32 @@ impl Shell {
         let id = man.id.clone();
         let selected = self.open_addon.as_ref() == Some(&id);
         let draggable = self.movable(m);
-        let off = !self.vanilla() && !self.addon_on(m);
+        let has_configs = self.shaders.read(cx).has_configs(&id);
+        let shader_only = has_configs && crate::shaders::is_shader_only(man);
+        let off = !self.vanilla() && !self.addon_on(m) && !shader_only;
         let pairs = self.live_pairs(m);
         let lost = pairs.iter().filter(|pr| pr.loser == id).count();
         let won = pairs.len() - lost;
         let kept = self.stock_removals(m);
-        let trailing = if m.locked {
+        let trailing = if shader_only {
+            let open = id.clone();
+            h_flex()
+                .gap(px(10.))
+                .items_center()
+                .child(crate::pages::tag("Shader config", p))
+                .child(
+                    Button::new(SharedString::from(format!("open-shaders-{id}")))
+                        .ghost()
+                        .small()
+                        .icon(IconName::Palette)
+                        .label("Open in Shaders")
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.open_shaders_for(&open, cx)
+                        })),
+                )
+                .into_any_element()
+        } else if m.locked {
             h_flex()
                 .gap(px(5.))
                 .text_size(px(12.))
@@ -2169,12 +2189,28 @@ impl Shell {
                 .into_any_element()
         } else {
             let id = id.clone();
-            self.toggle(
+            let switch = self.toggle(
                 format!("toggle-{id}"),
                 m.enabled && !self.vanilla(),
                 cx,
                 move |this, on, window, cx| this.set_addon_enabled(&id, on, window, cx),
-            )
+            );
+            if has_configs {
+                v_flex()
+                    .items_end()
+                    .gap(px(2.))
+                    .child(switch)
+                    .child(
+                        div()
+                            .text_size(px(11.))
+                            .text_color(p.text_placeholder)
+                            .whitespace_nowrap()
+                            .child("Its shader config stays in Shaders while it's off"),
+                    )
+                    .into_any_element()
+            } else {
+                switch
+            }
         };
         let icon = match &m.icon {
             _ if man.is_builtin() => logo(28.),
