@@ -5,9 +5,22 @@
 
 use std::collections::BTreeMap;
 use std::ops::Range;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+
+mod compile;
+mod config;
+mod editor;
+mod effect;
+mod lint;
+mod pack;
+mod text;
+
+pub use compile::{CompileError, CompiledEffect, PassEntry, compile, compile_pass};
+pub use editor::{completions, hover, tokens};
+pub use effect::{params_hlsl, parse_effect};
+pub use lint::lint;
+pub use pack::{pack, resolve};
 
 /// The most float slots one effect's params may take (`option(0..31)`).
 pub const MAX_SLOTS: usize = 32;
@@ -128,18 +141,6 @@ pub struct Effect {
     pub origin: Origin,
 }
 
-/// Reads an `<id>.effect.json` (DESIGN.md §3).
-pub fn parse_effect(json: &str, origin: Origin) -> Result<Effect, String> {
-    let _ = (json, origin);
-    Err("not written yet".into())
-}
-
-/// The `swofty/params.hlsli` accessors for an effect (DESIGN.md §3).
-pub fn params_hlsl(effect: &Effect) -> String {
-    let _ = effect;
-    String::new()
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Catalog {
     pub effects: Vec<Effect>,
@@ -148,6 +149,11 @@ pub struct Catalog {
 impl Catalog {
     pub fn get(&self, id: &str) -> Option<&Effect> {
         self.effects.iter().find(|e| e.id == id)
+    }
+
+    /// The effect id closest to `id`, for a "did you mean" fix.
+    pub fn did_you_mean(&self, id: &str) -> Option<&str> {
+        text::did_you_mean(id, self.effects.iter().map(|e| e.id.as_str()))
     }
 }
 
@@ -217,12 +223,6 @@ impl Lint {
     }
 }
 
-/// Parses and checks a config against the catalog (DESIGN.md §2).
-pub fn lint(text: &str, catalog: &Catalog) -> Lint {
-    let _ = (text, catalog);
-    Lint::default()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompletionKind {
     Effect,
@@ -241,21 +241,11 @@ pub struct Completion {
     pub insert: String,
 }
 
-pub fn completions(text: &str, offset: usize, catalog: &Catalog) -> Vec<Completion> {
-    let _ = (text, offset, catalog);
-    Vec::new()
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Hover {
     /// Markdown.
     pub text: String,
     pub range: Range<usize>,
-}
-
-pub fn hover(text: &str, offset: usize, catalog: &Catalog) -> Option<Hover> {
-    let _ = (text, offset, catalog);
-    None
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -273,12 +263,6 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub range: Range<usize>,
-}
-
-/// Highlighting tokens; tolerant of broken text.
-pub fn tokens(text: &str) -> Vec<Token> {
-    let _ = text;
-    Vec::new()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -302,28 +286,11 @@ pub struct Active {
     pub instances: Vec<ActiveInstance>,
 }
 
-/// The enabled instances with their packed, clamped param slots.
-pub fn resolve(config: &Config, catalog: &Catalog) -> Vec<ActiveInstance> {
-    let _ = (config, catalog);
-    Vec::new()
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
     Dxil,
     Spirv,
 }
 
-/// Compiles an effect's passes, one blob per pass. `dir` holds the effect's HLSL; `dxc` is the
-/// compiler (`swofty_core::postfx::dxc()`); `header` is `postfx.hlsli`.
-pub fn compile(
-    effect: &Effect,
-    dir: &Path,
-    target: Target,
-    dxc: &Path,
-    header: &str,
-    cache: &Path,
-) -> Result<Vec<Vec<u8>>, String> {
-    let _ = (effect, dir, target, dxc, header, cache);
-    Err("not written yet".into())
-}
+/// Dxc's profile for passes.
+pub const PROFILE: &str = "cs_6_0";
