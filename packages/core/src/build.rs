@@ -1030,6 +1030,9 @@ pub(crate) fn build_as(store: &Store, profile: &str, game: &Game, checking: bool
         }
     }
     let shader_files = crate::shaders::build_files(store, &p);
+    if !shader_files.files.is_empty() {
+        runtime.enable("postfx");
+    }
     hasher.update(format!("shaders {};", shader_files.digest));
     built.lines.extend(shader_files.line);
     built.warnings.extend(shader_files.warnings);
@@ -7461,6 +7464,15 @@ mod tests {
         let effects: serde_json::Value = serde_json::from_slice(&read("shaders/effects.json")).unwrap();
         let list = effects["effects"].as_array().unwrap();
         assert_eq!(list.len(), library, "{:?}", built.warnings);
+        let assets: serde_json::Value = serde_json::from_slice(&read("assets.json")).unwrap();
+        assert!(
+            assets["features"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f == "postfx"),
+            "a running config turns the core's postfx feature on"
+        );
         let spark = list.iter().find(|e| e["id"] == "spark").unwrap();
         assert_eq!(
             (spark["addon"].as_str(), spark["slots"].as_u64()),
@@ -7524,10 +7536,10 @@ mod tests {
         let mut p = store.profile("default").unwrap();
         crate::shaders::set_active(&store, &mut p, Some(r)).unwrap();
         let built = build(&store, "default", &game).unwrap();
-        let active: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&built.plan.loader["swofty/shaders/active.json"]).unwrap())
-                .unwrap();
-        assert_eq!(active["instances"], serde_json::json!([]));
+        assert!(
+            !built.plan.loader.keys().any(|k| k.starts_with("swofty/shaders/")),
+            "no shader files when nothing runs"
+        );
         assert!(
             built
                 .warnings

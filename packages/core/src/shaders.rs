@@ -827,24 +827,26 @@ pub fn build_files(store: &Store, profile: &Profile) -> BuildFiles {
         return out;
     }
     let resolved = resolve_active(store, profile, &loaded.catalog);
-    let wanted = !resolved.active.instances.is_empty();
-    let (compiled, mut warnings) = if crate::postfx::dxc().is_none() && !wanted {
-        (Vec::new(), loaded.warnings.clone())
-    } else {
-        compile_loaded(store, &loaded, Target::Dxil)
-    };
+    if resolved.active.instances.is_empty() {
+        // Nothing runs, so the game gets no shader files and the core arms none of its hooks.
+        out.warnings = loaded.warnings;
+        if let Some(problem) = &resolved.problem {
+            out.warnings.push(format!("shaders: {problem}; shaders are off"));
+        }
+        out.line = Some("shaders: off".into());
+        return out;
+    }
+    let (compiled, mut warnings) = compile_loaded(store, &loaded, Target::Dxil);
     if let Some(problem) = &resolved.problem {
         warnings.push(format!("shaders: {problem}; shaders are off"));
     }
     out.warnings = warnings;
     if compiled.is_empty() {
-        if wanted {
-            out.line = Some("shaders: off".into());
-            out.warnings.push(format!(
-                "shaders: {} is off; no effect compiled",
-                resolved.active.name
-            ));
-        }
+        out.line = Some("shaders: off".into());
+        out.warnings.push(format!(
+            "shaders: {} is off; no effect compiled",
+            resolved.active.name
+        ));
         return out;
     }
     let mut active = resolved.active;

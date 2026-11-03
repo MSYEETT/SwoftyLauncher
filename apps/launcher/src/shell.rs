@@ -952,10 +952,11 @@ impl Shell {
 
     pub(crate) fn sync_shaders(&mut self, refresh: bool, cx: &mut Context<Self>) {
         let dir = self.install.as_ref().map(|i| i.dir.clone());
-        let running = dir
-            .as_ref()
-            .is_some_and(|d| self.processes.iter().any(|g| g.is_in(d)))
-            && swofty_core::recovery::SessionLock::held_elsewhere(&self.store.root);
+        // Live edits need a session of this data dir whose game started with a shader config on: a game
+        // that started with shaders off has no effects loaded.
+        let running = dir.as_ref().is_some_and(|d| {
+            self.processes.iter().any(|g| g.is_in(d)) && d.join("swofty/shaders/effects.json").exists()
+        }) && swofty_core::recovery::SessionLock::held_elsewhere(&self.store.root);
         let info = crate::shaders::Info {
             profile: self.library.profile.name.clone(),
             game_dir: dir,
