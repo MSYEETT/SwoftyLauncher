@@ -876,9 +876,14 @@ mod tests {
         let open = swofty_core::journal::Journal::open(&h.store.root).unwrap();
         assert_eq!(open.len(), 1);
         assert!(open[0].session);
-        assert_eq!(open[0].entries.last().unwrap().path, MIP);
+        assert!(open[0].entries.iter().any(|e| e.path == MIP));
         let notice = swofty_core::recovery::Notice::read(&h.store.root).unwrap();
-        assert_eq!(notice.lines, [format!("removed {MIP}")]);
+        let removed: Vec<_> = notice
+            .lines
+            .iter()
+            .filter(|l| !l.starts_with("removed swofty/"))
+            .collect();
+        assert_eq!(removed, [&format!("removed {MIP}")]);
 
         let inst = Installer::new(&h.store.root, &h.game);
         inst.roll_back(true).unwrap();

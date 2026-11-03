@@ -60,10 +60,10 @@ The launcher checks a config on every change in the editor, in `swofty shaders l
 Top-level keys:
 
 ```toml
-name = "Mine"        # required, not empty:  A config needs a `name = "..."`
+name = "Mine"        # required: A config needs a `name = "..."` (quick fix: Add a name); an empty name is `name` must not be empty
 author = "Me"        # a string
 description = "..."  # a string
-swfx = 1             # must be 1
+swfx = 1             # must be 1: `swfx` must be 1, the only config format version
 colour = "x"         # warning: Unknown top-level key `colour`; it is ignored
 ```
 
@@ -77,7 +77,7 @@ amoutn = 0.4         # error: `vignette` has no param `amoutn`        (quick fix
 amount = "high"      # error: `amount` expects a number, not a string
 radius = 9           # warning: `radius` is above its maximum of 1.5; it is clamped to 1.5
                      #          quick fix: Clamp to 1.5
-enabled = 1          # error: `enabled` expects true or false, not an integer
+enabled = 1          # error: `enabled` expects true or false, not a whole number
 
 [vignette]           # error: `[vignette]` appears twice; give the second a label, like `[vignette.second]`
 ```
@@ -96,7 +96,7 @@ brightness = [0, 0, 0]           # float2, color3 and color4: an array of 2, 3 o
 - A value outside the option's `min` and `max` is a warning, and the value is clamped.
 - A label cannot repeat one of the effect's option names: `The label `bloom` is also a param of `glare``.
 - A config with no enabled instance gets the info `This config changes nothing`.
-- An effect from an addon that is not installed is the unknown-effect error. The first addon in load order wins when two addons declare the same effect id.
+- An effect from an addon that is not installed is the unknown-effect error. When two addons declare the same effect id, or an addon declares a library id, the first in load order wins and the other effect is ignored with a warning in the build output. Load order is the profile's addon order, then the remaining addons by id.
 
 ## Bundle a config in an addon
 
@@ -123,9 +123,11 @@ swofty.realistic-shader/
   shaders/realistic-hdr.swfx
 ```
 
-- `shaders` is a list of entries; `config` is a `.swfx` path inside the addon. Its file name without `.swfx` is the config's id: `addon:swofty.realistic-shader/realistic`.
+- `shaders` is a list of entries; `config` is a relative `.swfx` path inside the addon. Its file name without `.swfx` is the config's id: `addon:swofty.realistic-shader/realistic`. Two entries with the same file name are refused.
+- `effects` is a list of relative `<id>.effect.json` paths inside the addon.
 - The configs show on the Shaders page under **From addons** with the addon's name, read-only. A player can copy one to personal.
-- The configs stay available while the addon is switched off. Deleting the addon removes them.
+- The configs stay available while the addon is switched off. Deleting the addon removes them, and every profile that had one of them active goes back to no config.
+- Set `compat.launcher` to `>=1.8.0`: an older launcher refuses the addon at install with `needs Swofty Launcher >=1.8.0`.
 - An addon never turns its own config on. The player picks it.
 
 ### Forcing a config
@@ -136,11 +138,13 @@ swofty.realistic-shader/
 ]
 ```
 
-While the addon is switched on, `force: true` makes that config the active one, locks the Shaders page and shows the banner "You have an addon which forces this shader configuration". Use it for an addon whose other content only looks right with that config.
+While the addon is switched on, `force: true` makes that config the active one, locks the Shaders page and shows the banner "You have an addon which forces this shader configuration", with a **View addon** button. Use it for an addon whose other content only looks right with that config.
+
+An addon may force one config; the manifest is refused with `only one config may be forced` otherwise. When several enabled addons force a config, the last one in load order wins, as later addons override earlier ones everywhere else in the launcher. A shader-only addon has no switch and counts as on whenever it is installed.
 
 ### Shader-only addons
 
-An addon whose content is only `shaders` and `effects`, plus metadata, an icon and a category, is a shader-only addon. It has no on/off switch on the **Addons** page, and shows a **Shader config** chip with **Open in Shaders**. An addon that has other content keeps its switch, and says under it "Its shader config stays in Shaders while it's off".
+An addon whose content is only `shaders` and `effects`, plus metadata, an icon and a category, is a shader-only addon. Any `options`, `operations`, `launcher`, `hud`, `hub_tab`, `career_setup`, `multiplayer`, `shader` or `postfx` entry makes it a mixed addon. It has no on/off switch on the **Addons** page, and shows a **Shader config** chip with **Open in Shaders**. `swofty addons list` shows it as `shaders`. An addon that has other content keeps its switch, and says under it "Its shader config stays in Shaders while it's off".
 
 ## An effect in full
 
@@ -284,10 +288,10 @@ An effect's `textures` and `passes` are the [post-process passes](./postfx) cont
 ## The `swofty shaders` command
 
 ```sh
-swofty shaders list                          # every config: ref, name, source
+swofty shaders list                          # every config: ref, name, source; marks the active (or forced) one
 swofty shaders effects                       # every effect available
 swofty shaders effects ambient_light         # one effect with its params, slots and defaults
-swofty shaders show personal:night-race      # a config's text
+swofty shaders show personal:night-race      # a config's text; a config's name works in place of a ref
 swofty shaders lint my-look.swfx             # check a file or a ref; exits non-zero on an error
 swofty shaders use addon:swofty.realistic-shader/realistic
 swofty shaders use off
@@ -297,12 +301,13 @@ swofty shaders rename personal:night-race "Night race 2"
 swofty shaders delete personal:night-race
 swofty shaders import my-look.swfx
 swofty shaders export personal:night-race night-race.swfx
-swofty shaders key F9                        # the in-game on/off key; "None" for no key
+swofty shaders key F9                        # the in-game on/off key: A-Z, 0-9, F1-F24 or "None"
+swofty shaders key                           # print the key
 ```
 
 A ref is `personal:<slug>` for a file in the launcher's `shaders/` folder, or `addon:<addon id>/<file name without .swfx>`.
 
-`swofty shaders lint` prints each diagnostic with its line and column and its severity, and exits non-zero when the config has an error.
+`swofty shaders lint` prints each diagnostic as `file:line:column: severity: message`, followed by a `fix:` line when there is a quick fix, and exits 1 when the config has an error. `swofty shaders use` also says when an addon forces a config over the one you chose.
 
 ## What the game logs
 

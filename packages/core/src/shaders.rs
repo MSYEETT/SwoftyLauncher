@@ -1275,6 +1275,47 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn a_shader_only_addon_installs_from_a_folder_and_a_zip_and_removing_it_clears_the_profiles() {
+        let root = temp("install");
+        let store = Store::new(root.join("data"));
+        let manifest = r#"{"schema_version":1,"id":"t.look","name":"Look","version":"1.0.0","author":"t",
+            "category":"shaders","compat":{"game":"f1_25"},"shaders":[{"config":"look.swfx"}]}"#;
+        let config = "name = \"Look\"\n[spark]\nintensity = 2.0\n";
+        let folder = root.join("src/t.look");
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("swofty.json"), manifest).unwrap();
+        std::fs::write(folder.join("look.swfx"), config).unwrap();
+        let zip = root.join("look.swoftyaddon");
+        let mut z = zip::ZipWriter::new(std::fs::File::create(&zip).unwrap());
+        let opts = zip::write::SimpleFileOptions::default();
+        z.start_file("swofty.json", opts).unwrap();
+        std::io::Write::write_all(&mut z, manifest.as_bytes()).unwrap();
+        z.start_file("look.swfx", opts).unwrap();
+        std::io::Write::write_all(&mut z, config.as_bytes()).unwrap();
+        z.finish().unwrap();
+
+        let r = ConfigRef::Addon {
+            addon: "t.look".into(),
+            file: "look".into(),
+        };
+        for src in [&folder, &zip] {
+            assert!(store.install_addon(src).unwrap().is_shader_only());
+            let listed: Vec<_> = list(&store).into_iter().map(|e| e.r#ref).collect();
+            assert_eq!(listed, std::slice::from_ref(&r));
+            let mut p = store.profile("default").unwrap();
+            set_active(&store, &mut p, Some(r.clone())).unwrap();
+            assert_eq!(active(&store, &p), Some(r.clone()));
+            assert_eq!(read(&store, &r).unwrap(), config);
+            store.remove_addon("t.look").unwrap();
+            assert!(list(&store).is_empty());
+            let p = store.profile("default").unwrap();
+            assert_eq!(p.shader, None);
+            assert_eq!(active(&store, &p), None);
+        }
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn the_catalog_effects_compile_to_dxil_when_dxc_is_at_hand() {
         if crate::postfx::dxc().is_none() {
             return;

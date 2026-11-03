@@ -26,7 +26,7 @@ Each `[table]` is an effect from the launcher's [effect library](/reference/addo
 ## The page
 
 ```text
-Shaders        Realistic · from Realistic Shader        In-game key [B]   Browse shaders
+Shaders        Realistic · from Realistic Shader        In-game key: B   Browse shaders
 +------------------------------------------+-----------------------------+
 | [ Editor | Preview ]                      |  Off                        |
 |                                           |  Your configs               |
@@ -38,16 +38,16 @@ Shaders        Realistic · from Realistic Shader        In-game key [B]   Brows
 +------------------------------------------+-----------------------------+
 ```
 
-- The header names the active config and where it comes from, or **Off**.
+- The header names the active config and where it comes from ("Realistic · from Realistic Shader", "My look · yours"), or **Off**. A forced config reads "Realistic · forced by Realistic Shader".
 - The list is on the right: **Off**, then **Your configs**, then **From addons**.
 - The left side is the **Editor** or the **Preview**, switched at the top.
 - **Browse shaders** opens the [Addon Browser](./addon-browser) on the Shaders category.
 
 ## Use a config
 
-Select a row to open it on the left. Select **Use** on the row to make it the active config; select **Off** to run no config. The choice belongs to the current profile and applies the next time the game starts, and straight away while the game runs.
+Select a row to open it on the left. Select the dot at the start of the row, or **Use** in the row's `...` menu, to make it the active config; select **Off** to run no config. The choice belongs to the current profile and applies the next time the game starts, and straight away while the game runs.
 
-The **In-game key** turns every shader pass on and off while you play, with a toast. The default is `B`. Pressing it does not change the profile.
+The **In-game key** button in the header opens a list of keys (`B`, `F9` to `F11`, `Insert`, `Home`, `End`, `Page Up`, `Page Down` or `None`). The key turns every shader pass on and off while you play, with a toast. The default is `B`. Pressing it does not change the profile.
 
 ## The Editor
 
@@ -64,13 +64,13 @@ amoutn = 0.4       # error: `vignette` has no param `amoutn`   (quick fix: Chang
 radius = 3         # warning: `radius` is above its maximum of 1.5; it is clamped to 1.5
 ```
 
-- **Problems** are listed in a strip under the editor. Select one to jump to it. Squiggles mark them in the text.
+- **Problems** are listed in a strip under the editor. Select one to jump to it. Squiggles mark them in the text: red for errors, yellow for warnings, and a quieter colour for info and hints. Hover a squiggle for the message.
 - **Quick fixes** apply from the problem. They fix a misspelt effect or option, add a missing `name`, and clamp a value.
 - **Completions** open after `[` with effect ids, inside a table with that effect's options, and after `=` with an option's values.
 - **Hover** over an effect for its description, and over an option for its label, what it does, its range and its default.
-- The status pill reads **Valid · live in game**, **Valid**, or **2 problems · not applied**. A config with an error is not applied; the last valid version stays live.
+- The status pill reads **Valid · live in game**, **Valid**, **Valid · 1 warning**, or **2 problems · not applied**. A config with an error is not applied; the last valid version stays live.
 
-A config of yours saves by itself whenever it is valid. When it is the active config and the game is running, every valid change reaches the game within a moment, so you can tune a value and watch the picture.
+A config of yours saves by itself whenever it is valid (the header says "Saved automatically"). A config from an addon opens read-only with **Copy to personal to edit**. When it is the active config and a game started from this launcher is running, every valid change reaches the game within a moment, so you can tune a value and watch the picture.
 
 Any effect can be switched off without deleting it:
 
@@ -87,7 +87,7 @@ The [authoring reference](/reference/addons/shaders) lists every rule the checke
 The Preview plays a short clip from the game with the config applied.
 
 - Play and pause, and a scrub bar with a frame counter.
-- The clip picker switches between clips. The launcher downloads a clip the first time you pick it.
+- The clip picker switches between clips. The launcher downloads the preview clips the first time you open the Preview.
 - **Compare** puts a vertical line over the picture. Drag it: the left side is the original, the right side has your config.
 
 The Preview updates as you type. It runs the same effects as the game, so the picture is close to what you see in game, though not pixel for pixel.
@@ -98,11 +98,11 @@ Your configs are files in the launcher's data folder, under `shaders/`.
 
 ```text
 New config      starts from a template with the effects commented out
-Import          a .swfx file, or pasted text
+Import          from a file, or from the clipboard
 Rename          changes the name and the file name
-Duplicate       "My look (copy)"
-Export          saves a .swfx file to share
-Delete          removes the file; if it was active, shaders go Off
+Duplicate       "My look (copy)", then "My look (copy 2)"
+Export          saves a .swfx file to share (also for configs from addons)
+Delete          removes the file; every profile that used it goes Off
 ```
 
 ## Configs from addons
@@ -118,13 +118,15 @@ The **Addons** page shows an addon that holds only shader configs with a **Shade
 
 ### A forced config
 
-An addon can force its config. While that addon is switched on, the page shows
+An addon can force its config. While that addon is switched on (an addon that holds only shader configs is always on), the page shows
 
 ```text
 You have an addon which forces this shader configuration
 ```
 
-with the addon's name. The list and **Use** are locked, and the forced config opens in the Editor read-only. Switch the addon off to choose a config again.
+and `<addon> chooses the shaders while it is on.`, with a **View addon** button. The list and **Use** are locked, and the forced config opens in the Editor read-only. Switch the addon off to choose a config again.
+
+When several enabled addons force a config, the last one in load order wins, as later addons override earlier ones everywhere else in the launcher.
 
 ## Built-in configs
 

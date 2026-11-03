@@ -727,7 +727,15 @@ impl Store {
             };
             let listed = p.addons.iter().any(|a| a.id == id);
             let had_options = p.options.contains_key(id) || p.applied.contains_key(id);
-            if listed || had_options {
+            let shader = p.shader.as_deref().is_some_and(|r| {
+                r.strip_prefix("addon:")
+                    .and_then(|r| r.split_once('/'))
+                    .is_some_and(|(a, _)| a == id)
+            });
+            if listed || had_options || shader {
+                if shader {
+                    p.shader = None;
+                }
                 p.addons.retain(|a| a.id != id);
                 p.options.remove(id);
                 p.applied.remove(id);

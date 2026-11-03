@@ -111,7 +111,7 @@ See [Restoring the game](/using/profiles-and-restoring).
 
 | Command | Purpose |
 |---|---|
-| `swofty addons list` | List installed addons and whether they are enabled; an addon this launcher can't read is `unusable`, with the reason |
+| `swofty addons list` | List installed addons and whether they are enabled; an addon that holds only shader configs is `shaders`, with no switch; an addon this launcher can't read is `unusable`, with the reason |
 | `swofty addons install <path>` | Install an addon folder, a `.swoftyaddon` file or a zip that holds an addon |
 | `swofty addons enable <id>` | Enable an addon |
 | `swofty addons disable <id> [--yes]` | Disable an addon; SwoftyMod cannot be disabled |
@@ -176,6 +176,10 @@ These commands come from the built-in Team Simplified addon. Use them to manage 
 `swofty run --steam-saves-once` plays one session on the Steam save though the profile uses launcher saves. `swofty run` snapshots the profile save (the profile's launcher saves, or the Steam save) before the session and again after the game has closed and the session's game files are rolled back. [Career vault](/reference/saves) has the folder layout, the snapshot format and the notices.
 
 After a restore, Steam may ask which copy to keep the next time F1 25 starts; keep the local files.
+
+## `swofty shaders`
+
+Lists, checks and switches [shader configs](./addons/shaders#the-swofty-shaders-command): `list`, `effects`, `show`, `lint`, `use`, `new`, `copy`, `rename`, `delete`, `import`, `export` and `key`.
 
 ## `swofty postfx`
 
