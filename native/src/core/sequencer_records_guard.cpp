@@ -30,9 +30,9 @@ std::string hook_error(const safetyhook::MidHook::Error &e);
 // site a null rax resumes at that join with the asset groups of that event left out, which only costs the team mate
 // scene assets.
 //
-// The site is found by byte scan, which works without an exported KB row.
+// The KB rows for the site are not L2 with an agree verify, so the guard ships off. The site is found by byte scan.
 //
-// SWOFTY_SEQUENCER_RECORDS_GUARD=0 turns it off.
+// SWOFTY_SEQUENCER_RECORDS_GUARD=1 turns it on.
 
 namespace {
 
@@ -68,10 +68,8 @@ void setup()
 {
     char v[16] = {};
     DWORD n = GetEnvironmentVariableA("SWOFTY_SEQUENCER_RECORDS_GUARD", v, sizeof v);
-    if (n && n < sizeof v && (!strcmp(v, "0") || !strcmp(v, "off"))) {
-        swofty::log("[career] events sequencer record guard off (SWOFTY_SEQUENCER_RECORDS_GUARD=%s)", v);
+    if (!n || n >= sizeof v || !(!strcmp(v, "1") || !strcmp(v, "on")))
         return;
-    }
     uintptr_t at = runtime::find(S_FIRST, "career", "career");
     if (!at)
         return;
