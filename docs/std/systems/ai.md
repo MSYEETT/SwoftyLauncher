@@ -291,7 +291,7 @@ events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpda
 
 ## Racecraft per car, live
 
-Each car has its own copy of its driver config. Its slots are `cars::live` fields (see [Car physics](./car-physics)), so a layer changes one car for as long as it is held. The blocking evaluator re-reads its four on every tick.
+Each car has its own copy of its driver config. Its slots are `cars::live` fields (see [Car physics](./car-physics)), so a layer changes one car for as long as it is held. The blocking evaluator re-reads its four distance and fraction floats and eight more of the blocking keys on every tick; `start_blocking_intersection_time` and `merge_back_to_racing_line` have no reader that was found.
 
 | Field | Group | Kind | Range | Stock |
 |---|---|---|---|---|
@@ -299,6 +299,18 @@ Each car has its own copy of its driver config. Its slots are `cars::live` field
 | `ai.blocking.fraction_of_follow_speed_at_race_start` | blocking | float | 0 .. 4 | 0.875 |
 | `ai.blocking.max_blocking_distance` | blocking | float | 0 .. 1000 | 18 |
 | `ai.blocking.max_blocking_distance_at_race_start` | blocking | float | 0 .. 1000 | 18 |
+| `ai.blocking.start_blocking_intersection_time` (off) | blocking | float | 0 .. 60 | 1.1 |
+| `ai.blocking.start_blocking_maximum_time_to_corner` (off) | blocking | float | 0 .. 60 | 8 |
+| `ai.blocking.start_blocking_minimum_time_to_corner` (off) | blocking | curve | 0 .. 60 | curve |
+| `ai.blocking.time_to_corner_for_end_merge_rate` (off) | blocking | float | 0 .. 60 | 3.5 |
+| `ai.blocking.time_to_corner_for_start_merge_rate` (off) | blocking | float | 0 .. 60 | 7 |
+| `ai.blocking.end_blocking_time_to_corner_vs_offset` (off) | blocking | curve | 0 .. 50 | curve |
+| `ai.blocking.blocking_offset_from_car_behind` (off) | blocking | curve | 0 .. 50 | curve |
+| `ai.blocking.blocking_speed_differential` (off) | blocking | float | 0 .. 100 | 0.6 |
+| `ai.blocking.blocking_threat_time_modifier` (off) | blocking | float | -10 .. 10 | 0.175 |
+| `ai.blocking.blocking_variable_offset_fraction` (off) | blocking | float | 0 .. 1 | 0.5 |
+| `ai.blocking.avoidance_decrease_rate` (off) | blocking | float | 0 .. 100 | 1 |
+| `ai.blocking.merge_back_to_racing_line` (off) | blocking | curve | 0 .. 10 | curve |
 | `ai.alongside.speed_difference_for_limited_zone_yielding` | alongside | float | 0 .. 500 | 3 |
 | `ai.alongside.yield_overtake_rate` | alongside | float | 0 .. 100 | 1 |
 | `ai.alongside.min_presence_within_buffer` (off) | alongside | curve | 0 .. 100 | curve |
@@ -374,9 +386,9 @@ Erasing the `Layer` puts the game's value back for that car. The values of the o
 
 - **Written to no database cell.** The core swaps the car's 8-byte slot in its AI record for a pointer to its own cell and restores the game's pointer at the last release.
 - **Race start.** The `_at_race_start` pair is read until the race start state machine reaches its last state, the plain pair after it.
-- **Readiness.** The fields answer `Result::unavailable` until the AI system is built and the KB rows `AiSystem.records_begin`, `AiCarRecord.vehicle_index` and `AiCarRecord.driver_config` have independent agree verify rows. Each field also needs the `AiDriverConfig.<group>_<key>` row of its own; the four `blocking` rows have one, the 43 others do not yet.
-- **Re-read per tick.** The blocking evaluator, `overtake.overlap_percentage` and the two `alongside` yield floats re-read their slot on every call. For the other fields no consumer was found: whether the game caches the value is unproven, and the float, int or curve kind rests on the key name.
-- **Not exposed.** `cede_position.*`, `exit_fallibility.*`, `race_start.*`, the other `blocking.*` keys and the remaining `alongside.*`, `offset_variation.*` and `overtake.*` keys (`danger_overtake_buffer` among them) are not fields.
+- **Readiness.** The fields answer `Result::unavailable` until the AI system is built and the KB rows `AiSystem.records_begin`, `AiCarRecord.vehicle_index` and `AiCarRecord.driver_config` have independent agree verify rows. Each field also needs the `AiDriverConfig.<group>_<key>` row of its own; the four `blocking` rows have one, the 55 others do not yet.
+- **Re-read per tick.** The blocking evaluator (all the blocking keys but `start_blocking_intersection_time` and `merge_back_to_racing_line`), `overtake.overlap_percentage` and the two `alongside` yield floats re-read their slot on every call. For the other fields no consumer was found: whether the game caches the value is unproven, and the float, int or curve kind rests on the key name.
+- **Not exposed.** `cede_position.*`, `exit_fallibility.*`, `race_start.*`, the remaining `alongside.*`, `offset_variation.*` and `overtake.*` keys (`danger_overtake_buffer` among them) are not fields.
 - **Not verified in game.** Whether the first `session.lap` of a car ends lap 1.
 
 ## Events and operations
