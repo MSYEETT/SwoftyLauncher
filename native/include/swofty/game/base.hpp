@@ -9,8 +9,11 @@ inline constexpr const char build_sha256[] = "d873a1c8d2044cef2fd76c99c9d5a97649
 
 struct Action;
 struct ActivityDef;
+struct AiCarRecord;
 struct AiController;
+struct AiDriverConfig;
 struct AiHandlingConfig;
+struct AiSystem;
 struct BankAccount;
 struct BankSubAccount;
 struct BankTransaction;

@@ -249,6 +249,32 @@ pub struct ActivityDef {
 const _: () = assert!(core::mem::offset_of!(ActivityDef, r#type) == 0x10);
 
 #[repr(C)]
+pub struct AiDriverConfig {
+    _pad_0x0: [u8; 0x90],
+    pub blocking_fraction_of_follow_speed: *mut *mut c_void,
+    pub blocking_fraction_of_follow_speed_at_race_start: *mut *mut c_void,
+    pub blocking_max_blocking_distance: *mut *mut c_void,
+    pub blocking_max_blocking_distance_at_race_start: *mut *mut c_void,
+}
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed) == 0x90);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed_at_race_start) == 0x98);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance) == 0xa0);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance_at_race_start) == 0xa8);
+
+#[repr(C)]
+pub struct AiCarRecord {
+    pub vehicle_index: u8,
+    _pad_0x1: [u8; 0x22f],
+    pub handling_config: *mut c_void,
+    pub driver_config: AiDriverConfig,
+}
+const _: () = assert!(core::mem::offset_of!(AiCarRecord, vehicle_index) == 0x0);
+const _: () = assert!(core::mem::offset_of!(AiCarRecord, handling_config) == 0x230);
+const _: () = assert!(core::mem::offset_of!(AiCarRecord, driver_config) == 0x238);
+
+#[repr(C)]
 pub struct AiController {
     _pad_0x0: [u8; 0x8],
     pub input: *mut InputRecord,
@@ -258,6 +284,13 @@ pub struct AiController {
 const _: () = assert!(core::mem::offset_of!(AiController, input) == 0x8);
 const _: () = assert!(core::mem::offset_of!(AiController, owner) == 0x10);
 const _: () = assert!(core::mem::offset_of!(AiController, vehicle) == 0x18);
+
+#[repr(C)]
+pub struct AiSystem {
+    _pad_0x0: [u8; 0xa8],
+    pub records_begin: *mut AiCarRecord,
+}
+const _: () = assert!(core::mem::offset_of!(AiSystem, records_begin) == 0xa8);
 
 #[repr(C)]
 pub struct BankAccount {
@@ -466,9 +499,57 @@ const _: () = assert!(core::mem::offset_of!(CarF1Aero, lift_scale) == 0x19a4);
 
 #[repr(C)]
 pub struct CarFuelEcu {
-    _pad_0x0: [u8; 0x128],
+    _pad_0x0: [u8; 0x28],
+    pub fuel_burn_scale_lean: CarObfFloat,
+    _pad_0x34: [u8; 0x4],
+    pub fuel_burn_scale_standard: CarObfFloat,
+    _pad_0x44: [u8; 0x4],
+    pub fuel_burn_scale_rich: CarObfFloat,
+    _pad_0x54: [u8; 0x4],
+    pub fuel_burn_scale_max: CarObfFloat,
+    _pad_0x64: [u8; 0x4],
+    pub fuel_power_scale_lean: CarObfFloat,
+    _pad_0x74: [u8; 0x4],
+    pub fuel_power_scale_standard: CarObfFloat,
+    _pad_0x84: [u8; 0x4],
+    pub fuel_power_scale_rich: CarObfFloat,
+    _pad_0x94: [u8; 0x4],
+    pub fuel_power_scale_max: CarObfFloat,
+    _pad_0xa4: [u8; 0x4],
+    pub fuel_revs_scale_lean: CarObfFloat,
+    _pad_0xb4: [u8; 0x4],
+    pub fuel_revs_scale_standard: CarObfFloat,
+    _pad_0xc4: [u8; 0x4],
+    pub fuel_revs_scale_rich: CarObfFloat,
+    _pad_0xd4: [u8; 0x4],
+    pub fuel_revs_scale_max: CarObfFloat,
+    _pad_0xe4: [u8; 0x4],
+    pub temperature_scale_lean: CarObfFloat,
+    _pad_0xf4: [u8; 0x4],
+    pub temperature_scale_standard: CarObfFloat,
+    _pad_0x104: [u8; 0x4],
+    pub temperature_scale_rich: CarObfFloat,
+    _pad_0x114: [u8; 0x4],
+    pub temperature_scale_max: CarObfFloat,
+    _pad_0x124: [u8; 0x4],
     pub fuel_mode: i32,
 }
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_burn_scale_lean) == 0x28);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_burn_scale_standard) == 0x38);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_burn_scale_rich) == 0x48);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_burn_scale_max) == 0x58);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_power_scale_lean) == 0x68);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_power_scale_standard) == 0x78);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_power_scale_rich) == 0x88);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_power_scale_max) == 0x98);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_revs_scale_lean) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_revs_scale_standard) == 0xb8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_revs_scale_rich) == 0xc8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_revs_scale_max) == 0xd8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, temperature_scale_lean) == 0xe8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, temperature_scale_standard) == 0xf8);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, temperature_scale_rich) == 0x108);
+const _: () = assert!(core::mem::offset_of!(CarFuelEcu, temperature_scale_max) == 0x118);
 const _: () = assert!(core::mem::offset_of!(CarFuelEcu, fuel_mode) == 0x128);
 
 #[repr(C)]
@@ -14340,6 +14421,11 @@ pub mod bindings {
     pub const k_Sess_TyreComponentType: Binding = Binding {
         id: "k_Sess_TyreComponentType",
         kind: "data",
+        status: Status::Experimental,
+    };
+    pub const site_Ai_BuildSystem_RecordPushed: Binding = Binding {
+        id: "site_Ai_BuildSystem_RecordPushed",
+        kind: "site",
         status: Status::Experimental,
     };
     pub const site_Ai_TableGripInput: Binding = Binding {

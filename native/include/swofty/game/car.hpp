@@ -114,9 +114,57 @@ static_assert(offsetof(CarF1Aero, drag_scale) == 0x19a0);
 static_assert(offsetof(CarF1Aero, lift_scale) == 0x19a4);
 
 struct CarFuelEcu {
-    uint8_t _pad_0x0[0x128];
+    uint8_t _pad_0x0[0x28];
+    CarObfFloat fuel_burn_scale_lean; // L2 experimental
+    uint8_t _pad_0x34[0x4];
+    CarObfFloat fuel_burn_scale_standard; // L2 experimental
+    uint8_t _pad_0x44[0x4];
+    CarObfFloat fuel_burn_scale_rich; // L2 experimental
+    uint8_t _pad_0x54[0x4];
+    CarObfFloat fuel_burn_scale_max; // L2 experimental
+    uint8_t _pad_0x64[0x4];
+    CarObfFloat fuel_power_scale_lean; // L2 experimental
+    uint8_t _pad_0x74[0x4];
+    CarObfFloat fuel_power_scale_standard; // L2 experimental
+    uint8_t _pad_0x84[0x4];
+    CarObfFloat fuel_power_scale_rich; // L2 experimental
+    uint8_t _pad_0x94[0x4];
+    CarObfFloat fuel_power_scale_max; // L2 experimental
+    uint8_t _pad_0xa4[0x4];
+    CarObfFloat fuel_revs_scale_lean; // L2 experimental
+    uint8_t _pad_0xb4[0x4];
+    CarObfFloat fuel_revs_scale_standard; // L2 experimental
+    uint8_t _pad_0xc4[0x4];
+    CarObfFloat fuel_revs_scale_rich; // L2 experimental
+    uint8_t _pad_0xd4[0x4];
+    CarObfFloat fuel_revs_scale_max; // L2 experimental
+    uint8_t _pad_0xe4[0x4];
+    CarObfFloat temperature_scale_lean; // L2 experimental
+    uint8_t _pad_0xf4[0x4];
+    CarObfFloat temperature_scale_standard; // L2 experimental
+    uint8_t _pad_0x104[0x4];
+    CarObfFloat temperature_scale_rich; // L2 experimental
+    uint8_t _pad_0x114[0x4];
+    CarObfFloat temperature_scale_max; // L2 experimental
+    uint8_t _pad_0x124[0x4];
     int32_t fuel_mode; // L3 stable
 };
+static_assert(offsetof(CarFuelEcu, fuel_burn_scale_lean) == 0x28);
+static_assert(offsetof(CarFuelEcu, fuel_burn_scale_standard) == 0x38);
+static_assert(offsetof(CarFuelEcu, fuel_burn_scale_rich) == 0x48);
+static_assert(offsetof(CarFuelEcu, fuel_burn_scale_max) == 0x58);
+static_assert(offsetof(CarFuelEcu, fuel_power_scale_lean) == 0x68);
+static_assert(offsetof(CarFuelEcu, fuel_power_scale_standard) == 0x78);
+static_assert(offsetof(CarFuelEcu, fuel_power_scale_rich) == 0x88);
+static_assert(offsetof(CarFuelEcu, fuel_power_scale_max) == 0x98);
+static_assert(offsetof(CarFuelEcu, fuel_revs_scale_lean) == 0xa8);
+static_assert(offsetof(CarFuelEcu, fuel_revs_scale_standard) == 0xb8);
+static_assert(offsetof(CarFuelEcu, fuel_revs_scale_rich) == 0xc8);
+static_assert(offsetof(CarFuelEcu, fuel_revs_scale_max) == 0xd8);
+static_assert(offsetof(CarFuelEcu, temperature_scale_lean) == 0xe8);
+static_assert(offsetof(CarFuelEcu, temperature_scale_standard) == 0xf8);
+static_assert(offsetof(CarFuelEcu, temperature_scale_rich) == 0x108);
+static_assert(offsetof(CarFuelEcu, temperature_scale_max) == 0x118);
 static_assert(offsetof(CarFuelEcu, fuel_mode) == 0x128);
 
 struct CarFuelTank {
