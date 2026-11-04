@@ -83,10 +83,10 @@ constexpr Row ROWS[] = {
     {"AiSystem.records_begin", false},
     {"AiCarRecord.vehicle_index", false},
     {"AiCarRecord.driver_config", false},
-    {"AiCarRecord.blocking_fraction_of_follow_speed", false},
-    {"AiCarRecord.blocking_fraction_of_follow_speed_at_race_start", false},
-    {"AiCarRecord.blocking_max_blocking_distance", false},
-    {"AiCarRecord.blocking_max_blocking_distance_at_race_start", false},
+    {"AiDriverConfig.blocking_fraction_of_follow_speed", false},
+    {"AiDriverConfig.blocking_fraction_of_follow_speed_at_race_start", false},
+    {"AiDriverConfig.blocking_max_blocking_distance", false},
+    {"AiDriverConfig.blocking_max_blocking_distance_at_race_start", false},
 };
 
 bool row_ready(const char *name)
@@ -514,7 +514,7 @@ std::vector<CoreMixins> car_levers_mixins()
                        {{"site_Ai_BuildSystem_RecordPushed", SWOFTY_MIXIN_SITE, 50, (void *)&ai_system_built, nullptr}}});
     else
         swofty::log("[ai] ai.blocking.* off: needs AiSystem.records_begin, AiCarRecord.vehicle_index and driver_config, "
-                    "the four AiCarRecord.blocking_* rows and site_Ai_BuildSystem_RecordPushed");
+                    "the four AiDriverConfig.blocking_* rows and site_Ai_BuildSystem_RecordPushed");
     if (!mixins.empty())
         out.push_back({LEVERS, std::move(mixins)});
     return out;

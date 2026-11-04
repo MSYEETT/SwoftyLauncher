@@ -196,14 +196,14 @@ inline constexpr Field FIELDS[] = {
      Via::system, "CarF1Aero.slipstream"},
     // Version 5: the blocking evaluator's per-car config floats (ai_racecraft.hpp), read afresh on every AI tick.
     {SWOFTY_CAR_AI_BLOCKING_FRACTION, "ai.blocking.fraction_of_follow_speed", 0, 0, Kind::cell, 0, 4, Rederive::none,
-     Via::system, "AiCarRecord.blocking_fraction_of_follow_speed", 0, false, ai_racecraft::fraction},
+     Via::system, "AiDriverConfig.blocking_fraction_of_follow_speed", 0, false, ai_racecraft::fraction},
     {SWOFTY_CAR_AI_BLOCKING_FRACTION_RACE_START, "ai.blocking.fraction_of_follow_speed_at_race_start", 0, 0, Kind::cell, 0,
-     4, Rederive::none, Via::system, "AiCarRecord.blocking_fraction_of_follow_speed_at_race_start", 0, false,
+     4, Rederive::none, Via::system, "AiDriverConfig.blocking_fraction_of_follow_speed_at_race_start", 0, false,
      ai_racecraft::fraction_race_start},
     {SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE, "ai.blocking.max_blocking_distance", 0, 0, Kind::cell, 0, 1000, Rederive::none,
-     Via::system, "AiCarRecord.blocking_max_blocking_distance", 0, false, ai_racecraft::max_distance},
+     Via::system, "AiDriverConfig.blocking_max_blocking_distance", 0, false, ai_racecraft::max_distance},
     {SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE_RACE_START, "ai.blocking.max_blocking_distance_at_race_start", 0, 0, Kind::cell, 0,
-     1000, Rederive::none, Via::system, "AiCarRecord.blocking_max_blocking_distance_at_race_start", 0, false,
+     1000, Rederive::none, Via::system, "AiDriverConfig.blocking_max_blocking_distance_at_race_start", 0, false,
      ai_racecraft::max_distance_race_start},
 };
 

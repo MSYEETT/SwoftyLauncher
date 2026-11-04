@@ -308,7 +308,7 @@ int main()
     expect(Ops::op_layer("lap1", 1, SWOFTY_CAR_AI_BLOCKING_FRACTION, SWOFTY_CAR_OP_SET, 0.1f, 0, &t10) == SWOFTY_ASSET_UNAVAILABLE,
            "the fields are off until their KB rows have an agree verify row");
     rows_off.clear();
-    rows_off.insert("AiCarRecord.blocking_max_blocking_distance");
+    rows_off.insert("AiDriverConfig.blocking_max_blocking_distance");
     expect(Ops::op_layer("lap1", 1, SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE, SWOFTY_CAR_OP_SET, 10.0f, 0, &t10) ==
                    SWOFTY_ASSET_UNAVAILABLE &&
                Ops::op_layer("lap1", 1, SWOFTY_CAR_AI_BLOCKING_FRACTION, SWOFTY_CAR_OP_SET, 0.1f, 0, &t10) == SWOFTY_ASSET_OK,
