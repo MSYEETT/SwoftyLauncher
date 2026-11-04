@@ -254,12 +254,24 @@ pub struct AiDriverConfig {
     pub alongside_speed_difference_for_limited_zone_yielding: *mut *mut c_void,
     pub alongside_yield_overtake_rate: *mut *mut c_void,
     pub alongside_min_presence_within_buffer: *mut *mut c_void,
-    _pad_0x38: [u8; 0x58],
+    _pad_0x38: [u8; 0x8],
+    pub blocking_start_blocking_intersection_time: *mut *mut c_void,
+    pub blocking_start_blocking_maximum_time_to_corner: *mut *mut c_void,
+    pub blocking_start_blocking_minimum_time_to_corner: *mut *mut c_void,
+    pub blocking_time_to_corner_for_end_merge_rate: *mut *mut c_void,
+    pub blocking_time_to_corner_for_start_merge_rate: *mut *mut c_void,
+    pub blocking_end_blocking_time_to_corner_vs_offset: *mut *mut c_void,
+    pub blocking_blocking_offset_from_car_behind: *mut *mut c_void,
+    pub blocking_blocking_speed_differential: *mut *mut c_void,
+    pub blocking_blocking_threat_time_modifier: *mut *mut c_void,
+    pub blocking_blocking_variable_offset_fraction: *mut *mut c_void,
     pub blocking_fraction_of_follow_speed: *mut *mut c_void,
     pub blocking_fraction_of_follow_speed_at_race_start: *mut *mut c_void,
     pub blocking_max_blocking_distance: *mut *mut c_void,
     pub blocking_max_blocking_distance_at_race_start: *mut *mut c_void,
-    _pad_0xb0: [u8; 0x40],
+    pub blocking_avoidance_decrease_rate: *mut *mut c_void,
+    pub blocking_merge_back_to_racing_line: *mut *mut c_void,
+    _pad_0xc0: [u8; 0x30],
     pub divebomb_defense_max_presence_alongside: *mut *mut c_void,
     pub divebomb_defense_max_time_to_ignore: *mut *mut c_void,
     pub divebomb_defense_max_track_offset: *mut *mut c_void,
@@ -313,12 +325,32 @@ const _: () = assert!(
 );
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, alongside_yield_overtake_rate) == 0x28);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, alongside_min_presence_within_buffer) == 0x30);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_start_blocking_intersection_time) == 0x40);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_start_blocking_maximum_time_to_corner) == 0x48);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_start_blocking_minimum_time_to_corner) == 0x50);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_time_to_corner_for_end_merge_rate) == 0x58);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_time_to_corner_for_start_merge_rate) == 0x60);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_end_blocking_time_to_corner_vs_offset) == 0x68);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_blocking_offset_from_car_behind) == 0x70);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_blocking_speed_differential) == 0x78);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_blocking_threat_time_modifier) == 0x80);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, blocking_blocking_variable_offset_fraction) == 0x88);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed) == 0x90);
 const _: () =
     assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed_at_race_start) == 0x98);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance) == 0xa0);
 const _: () =
     assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance_at_race_start) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_avoidance_decrease_rate) == 0xb0);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_merge_back_to_racing_line) == 0xb8);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_presence_alongside) == 0xf0);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_time_to_ignore) == 0xf8);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_track_offset) == 0x100);

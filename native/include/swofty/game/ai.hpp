@@ -8,12 +8,24 @@ struct AiDriverConfig {
     void **alongside_speed_difference_for_limited_zone_yielding; // L2 experimental
     void **alongside_yield_overtake_rate; // L2 experimental
     void **alongside_min_presence_within_buffer; // L2 experimental
-    uint8_t _pad_0x38[0x58];
+    uint8_t _pad_0x38[0x8];
+    void **blocking_start_blocking_intersection_time; // L2 experimental
+    void **blocking_start_blocking_maximum_time_to_corner; // L2 experimental
+    void **blocking_start_blocking_minimum_time_to_corner; // L2 experimental
+    void **blocking_time_to_corner_for_end_merge_rate; // L2 experimental
+    void **blocking_time_to_corner_for_start_merge_rate; // L2 experimental
+    void **blocking_end_blocking_time_to_corner_vs_offset; // L2 experimental
+    void **blocking_blocking_offset_from_car_behind; // L2 experimental
+    void **blocking_blocking_speed_differential; // L2 experimental
+    void **blocking_blocking_threat_time_modifier; // L2 experimental
+    void **blocking_blocking_variable_offset_fraction; // L2 experimental
     void **blocking_fraction_of_follow_speed; // L2 experimental
     void **blocking_fraction_of_follow_speed_at_race_start; // L2 experimental
     void **blocking_max_blocking_distance; // L2 experimental
     void **blocking_max_blocking_distance_at_race_start; // L2 experimental
-    uint8_t _pad_0xb0[0x40];
+    void **blocking_avoidance_decrease_rate; // L2 experimental
+    void **blocking_merge_back_to_racing_line; // L2 experimental
+    uint8_t _pad_0xc0[0x30];
     void **divebomb_defense_max_presence_alongside; // L2 experimental
     void **divebomb_defense_max_time_to_ignore; // L2 experimental
     void **divebomb_defense_max_track_offset; // L2 experimental
@@ -62,10 +74,22 @@ struct AiDriverConfig {
 static_assert(offsetof(AiDriverConfig, alongside_speed_difference_for_limited_zone_yielding) == 0x20);
 static_assert(offsetof(AiDriverConfig, alongside_yield_overtake_rate) == 0x28);
 static_assert(offsetof(AiDriverConfig, alongside_min_presence_within_buffer) == 0x30);
+static_assert(offsetof(AiDriverConfig, blocking_start_blocking_intersection_time) == 0x40);
+static_assert(offsetof(AiDriverConfig, blocking_start_blocking_maximum_time_to_corner) == 0x48);
+static_assert(offsetof(AiDriverConfig, blocking_start_blocking_minimum_time_to_corner) == 0x50);
+static_assert(offsetof(AiDriverConfig, blocking_time_to_corner_for_end_merge_rate) == 0x58);
+static_assert(offsetof(AiDriverConfig, blocking_time_to_corner_for_start_merge_rate) == 0x60);
+static_assert(offsetof(AiDriverConfig, blocking_end_blocking_time_to_corner_vs_offset) == 0x68);
+static_assert(offsetof(AiDriverConfig, blocking_blocking_offset_from_car_behind) == 0x70);
+static_assert(offsetof(AiDriverConfig, blocking_blocking_speed_differential) == 0x78);
+static_assert(offsetof(AiDriverConfig, blocking_blocking_threat_time_modifier) == 0x80);
+static_assert(offsetof(AiDriverConfig, blocking_blocking_variable_offset_fraction) == 0x88);
 static_assert(offsetof(AiDriverConfig, blocking_fraction_of_follow_speed) == 0x90);
 static_assert(offsetof(AiDriverConfig, blocking_fraction_of_follow_speed_at_race_start) == 0x98);
 static_assert(offsetof(AiDriverConfig, blocking_max_blocking_distance) == 0xa0);
 static_assert(offsetof(AiDriverConfig, blocking_max_blocking_distance_at_race_start) == 0xa8);
+static_assert(offsetof(AiDriverConfig, blocking_avoidance_decrease_rate) == 0xb0);
+static_assert(offsetof(AiDriverConfig, blocking_merge_back_to_racing_line) == 0xb8);
 static_assert(offsetof(AiDriverConfig, divebomb_defense_max_presence_alongside) == 0xf0);
 static_assert(offsetof(AiDriverConfig, divebomb_defense_max_time_to_ignore) == 0xf8);
 static_assert(offsetof(AiDriverConfig, divebomb_defense_max_track_offset) == 0x100);
