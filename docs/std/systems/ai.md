@@ -289,6 +289,45 @@ events::on<ai::events::ControllerUpdate>().replace([](ai::events::ControllerUpda
 - **Only AI cars.** The point runs for a car whose controller set is in AI mode, including the player's car while `sessions::set_control` has handed it to the AI. A handler gets no `events::Context` (the point builds none), so it reads the car through `u.car()`; `when()` and `in()` selectors still apply. A value a handler writes that is not a finite number is dropped.
 - **Where it runs.** By default the core writes its dispatcher into slot 1 of the AI controller's vtable while the point has a subscriber, and puts the game's function back with the last one. The core's config key `ai_controller_site` set to `"apply"` runs the point instead as a mid-hook on the record-apply call in `Sess_ControllerSystem_ApplyInputs`: there the record already holds the game's decision, so `before` and `after` see the same values and a `replace` handler decides on top of them. The default follows in-game check T145.
 
+## Racecraft per car, live
+
+The blocking evaluator re-reads four values from each car's own copy of its driver config on every tick. They are `cars::live` fields (see [Car physics](./car-physics)), so a layer changes one car for as long as it is held:
+
+```
+ai.blocking.fraction_of_follow_speed
+ai.blocking.fraction_of_follow_speed_at_race_start
+ai.blocking.max_blocking_distance
+ai.blocking.max_blocking_distance_at_race_start
+```
+
+```cpp
+using namespace swofty;
+using cars::live::Cars;
+using cars::live::Layer;
+
+static std::map<uint32_t, Layer> lap_one;
+
+SWOFTY_REGISTER
+{
+    events::on("race.start").after([](std::span<const std::byte>, const events::Context &) {
+        for (auto &car : cars::live::cars())
+            if (car.is_ai())
+                lap_one[car.index()] = Layer::set(Cars::car(car), "ai.blocking.max_blocking_distance", 40.0f);
+    });
+    events::on<sessions::events::Lap>().after([](const sessions::events::Lap &l, const events::Context &) {
+        lap_one.erase(l.car.index());
+    });
+}
+```
+
+Erasing the `Layer` puts the game's value back for that car. The values of the other cars and the game's database stay as they were.
+
+- **Written to no database cell.** The core swaps the car's 8-byte slot in its AI record for a pointer to its own cell and restores the game's pointer at the last release.
+- **Race start.** The `_at_race_start` pair is read until the race start state machine reaches its last state, the plain pair after it.
+- **Readiness.** The fields answer `Result::unavailable` until the AI system is built and the KB rows `AiSystem.records_begin`, `AiCarRecord.vehicle_index`, `AiCarRecord.driver_config` and `AiDriverConfig.blocking_*` have independent agree verify rows.
+- **Not exposed.** `divebomb_defense.*`, `alongside.*` and the other driver config groups have no consumer proven to re-read them per tick.
+- **Not verified in game.** Whether the first `session.lap` of a car ends lap 1.
+
 ## Events and operations
 
 ```cpp

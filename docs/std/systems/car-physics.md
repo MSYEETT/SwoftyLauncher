@@ -173,6 +173,10 @@ aero.slipstream_car_width              0.1 .. 10, the width of the wake the car 
 engine.power_scale                     0 .. 4, the engine drive torque, written to no game data
 engine.limiter_offset_rpm              negative: the torque is cut that many rpm under the limiter
 ai.grip_scale                          0 .. 4, the AI's table grip input, dry weather only
+ai.blocking.fraction_of_follow_speed   0 .. 4, per car, layers only: the blocking evaluator's fraction once the race start is over (stock 0.975)
+ai.blocking.fraction_of_follow_speed_at_race_start      0 .. 4, the same before it (stock 0.875)
+ai.blocking.max_blocking_distance      0 .. 1000, per car, layers only: how far behind an attacker still counts as a threat, after the race start
+ai.blocking.max_blocking_distance_at_race_start         0 .. 1000, the same before it
 tyres.front.grip_scale                 off: the tyre solver never reads GripMultiplier
 tyres.rear.grip_scale
 chassis.ballast_kg                     -300 .. 600, added to the VTF mass, then the chassis reset (fuel mass drops out until the next fuel update)
@@ -183,6 +187,8 @@ suspension.rear.camber   .toe  .anti_roll  .ride_height_offset
 ```
 
 `engine.power_scale`, `engine.limiter_offset_rpm` and `ai.grip_scale` are the core's own handlers: nothing is written to the car, and a car with no layer on them runs the game's code unchanged. The suspension fields are copied into the solver every frame, so a write reaches the car on the next frame.
+
+The `ai.blocking.*` fields are per car and take layers only (`set` answers `Result::unavailable`). The core never writes the game's database cell: it points the car's slot in its AI record at an own cell holding the composed value, and puts the game's pointer back when the car's last layer on the field goes. The base of a layer is the game's value for that car. `get` returns the value the AI reads. The fields answer `Result::unavailable` until the AI system is built and has stopped growing, and a layer made earlier applies then. A session change forgets every swap and leaves the old session's records alone; the owned cells are not freed. The `_at_race_start` pair is read while the race start state machine is before its last state, the plain pair after it.
 
 A car's index is the game's vehicle id: dense from 0 in the order the cars were built, the safety car included. A `Car` from `cars()` also carries the game's car, and a call on it answers `Result::late` once that car is gone from its slot. `set` runs on the game's flow thread, so call it from a frame, setting or event handler; from another thread it answers `Result::late`. The values are read from the build the core's field table was mapped on: on any other build of the game `cars::live::available()` is false and `cars()` is empty.
 
