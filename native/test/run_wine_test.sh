@@ -312,7 +312,7 @@ PY
     fallback)
         once "loader: a dialog before the window is logged with its text" 'dialog shown: Error: Game launch error\. Error code: 0x00000004[[:space:]]*$'
         count "loader: a dialog is not taken as the main window" 0 "main window visible.*class '#32770'"
-        once "loader: another module's window is logged and skipped" "fallback watcher: window class 'F125TuneStatus' belongs to .*user32\\.dll, not the game"
+        once "loader: another module's window is logged and skipped" "fallback watcher: window class 'F125TuneStatus' belongs to .*kernel32\\.dll, not the game"
         count "loader: another module's window is not taken as the main window" 0 "main window visible.*class 'F125TuneStatus'"
         check "scan cache: the second run reads the saved addresses" '\[core\] scan cache: [1-9][0-9]* address\(es\) for this exe \(key [0-9a-f]{16}\), each checked'
         check "scan cache: a cached address is checked against the pattern and used without a scan" 'scan \.xtls \[.*\] -> 1 hit at 0x[0-9a-f]+ \(base\+0x[0-9a-f]+\), the address cached for this exe'

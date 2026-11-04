@@ -2493,10 +2493,13 @@ static void show_foreign_window(void)
     ATOM(WINAPI * rc)(const WNDCLASSEXW *) = (void *)GetProcAddress(u32, "RegisterClassExW");
     HWND(WINAPI * cw)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID) =
         (void *)GetProcAddress(u32, "CreateWindowExW");
-    WNDCLASSEXW fc = {.cbSize = sizeof fc, .lpfnWndProc = DefWindowProcW, .hInstance = u32,
+    HMODULE tool = GetModuleHandleW(L"kernel32.dll");
+    WNDCLASSEXW fc = {.cbSize = sizeof fc, .lpfnWndProc = DefWindowProcW, .hInstance = tool,
                       .lpszClassName = L"F125TuneStatus"};
-    rc(&fc);
-    HWND f = cw(0, L"F125TuneStatus", L"", WS_POPUP, 0, 0, 40, 20, NULL, NULL, u32, NULL);
+    ATOM a = rc(&fc);
+    HWND f = cw(0, L"F125TuneStatus", L"", WS_POPUP, 0, 0, 40, 20, NULL, NULL, tool, NULL);
+    if (!f)
+        printf("      foreign window: RegisterClassExW %u, CreateWindowExW error %lu\n", a, GetLastError());
     ShowWindow(f, SW_SHOWNOACTIVATE);
     for (DWORD t0 = GetTickCount(); GetTickCount() - t0 < 600;) {
         MSG m;
