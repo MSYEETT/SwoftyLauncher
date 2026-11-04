@@ -300,16 +300,16 @@ Each car has its own copy of its driver config. Its slots are `cars::live` field
 | `ai.blocking.max_blocking_distance` | blocking | float | 0 .. 1000 | 18 |
 | `ai.blocking.max_blocking_distance_at_race_start` | blocking | float | 0 .. 1000 | 18 |
 | `ai.blocking.start_blocking_intersection_time` (off) | blocking | float | 0 .. 60 | 1.1 |
-| `ai.blocking.start_blocking_maximum_time_to_corner` (off) | blocking | float | 0 .. 60 | 8 |
-| `ai.blocking.start_blocking_minimum_time_to_corner` (off) | blocking | curve | 0 .. 60 | curve |
-| `ai.blocking.time_to_corner_for_end_merge_rate` (off) | blocking | float | 0 .. 60 | 3.5 |
-| `ai.blocking.time_to_corner_for_start_merge_rate` (off) | blocking | float | 0 .. 60 | 7 |
-| `ai.blocking.end_blocking_time_to_corner_vs_offset` (off) | blocking | curve | 0 .. 50 | curve |
-| `ai.blocking.blocking_offset_from_car_behind` (off) | blocking | curve | 0 .. 50 | curve |
-| `ai.blocking.blocking_speed_differential` (off) | blocking | float | 0 .. 100 | 0.6 |
-| `ai.blocking.blocking_threat_time_modifier` (off) | blocking | float | -10 .. 10 | 0.175 |
-| `ai.blocking.blocking_variable_offset_fraction` (off) | blocking | float | 0 .. 1 | 0.5 |
-| `ai.blocking.avoidance_decrease_rate` (off) | blocking | float | 0 .. 100 | 1 |
+| `ai.blocking.start_blocking_maximum_time_to_corner` | blocking | float | 0 .. 60 | 8 |
+| `ai.blocking.start_blocking_minimum_time_to_corner` | blocking | curve | 0 .. 60 | curve |
+| `ai.blocking.time_to_corner_for_end_merge_rate` | blocking | float | 0 .. 60 | 3.5 |
+| `ai.blocking.time_to_corner_for_start_merge_rate` | blocking | float | 0 .. 60 | 7 |
+| `ai.blocking.end_blocking_time_to_corner_vs_offset` | blocking | curve | 0 .. 50 | curve |
+| `ai.blocking.blocking_offset_from_car_behind` | blocking | curve | 0 .. 50 | curve |
+| `ai.blocking.blocking_speed_differential` | blocking | float | 0 .. 100 | 0.6 |
+| `ai.blocking.blocking_threat_time_modifier` | blocking | float | -10 .. 10 | 0.175 |
+| `ai.blocking.blocking_variable_offset_fraction` | blocking | float | 0 .. 1 | 0.5 |
+| `ai.blocking.avoidance_decrease_rate` | blocking | float | 0 .. 100 | 1 |
 | `ai.blocking.merge_back_to_racing_line` (off) | blocking | curve | 0 .. 10 | curve |
 | `ai.alongside.speed_difference_for_limited_zone_yielding` | alongside | float | 0 .. 500 | 3 |
 | `ai.alongside.yield_overtake_rate` | alongside | float | 0 .. 100 | 1 |
@@ -355,7 +355,7 @@ Each car has its own copy of its driver config. Its slots are `cars::live` field
 | `ai.space_seeking.cars_moving_away_speed_to_ignore` | space_seeking | float | 0 .. 500 | 5 |
 | `ai.space_seeking.can_start_track_radius` | space_seeking | float | 0 .. 10000 | 400 |
 
-Fields marked off report unavailable: no AI behaviour re-reads them per tick (the divebomb defence rows are read only by the human-divebomb behaviour, `alongside.min_presence_within_buffer` and `space_seeking.remember_crowed` have no reader found, and the opportunist speed difference is read behind a packed thunk). Stock values are `default_driver`'s; every stock driver has the same.
+Fields marked off report unavailable: no AI behaviour re-reads them per tick (the divebomb defence rows are read only by the human-divebomb behaviour, `alongside.min_presence_within_buffer` and `space_seeking.remember_crowed` have no reader found, the opportunist speed difference is read behind a packed thunk, and nothing reads `blocking.start_blocking_intersection_time` or `blocking.merge_back_to_racing_line` per tick). Stock values are `default_driver`'s; every stock driver has the same.
 
 `-` in Stock: the key catalog lists these keys by name only. `get` returns the game's value for the car.
 
