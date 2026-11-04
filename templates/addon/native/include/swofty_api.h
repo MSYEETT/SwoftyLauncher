@@ -1032,6 +1032,15 @@ typedef struct SwoftySessionOps {
 #define SWOFTY_CAR_AERO_SLIPSTREAM_LIFT 67u
 #define SWOFTY_CAR_AERO_SLIPSTREAM_CAR_WIDTH 68u
 
+/* Version 5: the blocking evaluator's per-car AI config floats (ai.blocking.*), read afresh on every AI tick. Layers
+   only (set is SWOFTY_ASSET_UNAVAILABLE): the core points the car's slot in its AI record at an own cell and puts
+   the game's cell back when the last layer goes. get returns the value the AI reads. SWOFTY_ASSET_UNAVAILABLE
+   until the AI system is built and settled. */
+#define SWOFTY_CAR_AI_BLOCKING_FRACTION 69u
+#define SWOFTY_CAR_AI_BLOCKING_FRACTION_RACE_START 70u
+#define SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE 71u
+#define SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE_RACE_START 72u
+
 #define SWOFTY_CAR_FUEL_MIX_LEAN 1u
 #define SWOFTY_CAR_FUEL_MIX_STANDARD 2u
 #define SWOFTY_CAR_FUEL_MIX_RICH 4u

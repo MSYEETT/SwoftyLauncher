@@ -79,6 +79,14 @@ constexpr Row ROWS[] = {
     {"PitStopInstance.car", false},
     {"Car_FuelEcu_SetMode_Thunk", true},
     {"EngineModeAvail.fuel", true},
+    {"site_Ai_BuildSystem_RecordPushed", true},
+    {"AiSystem.records_begin", false},
+    {"AiCarRecord.vehicle_index", false},
+    {"AiCarRecord.driver_config", false},
+    {"AiCarRecord.blocking_fraction_of_follow_speed", false},
+    {"AiCarRecord.blocking_fraction_of_follow_speed_at_race_start", false},
+    {"AiCarRecord.blocking_max_blocking_distance", false},
+    {"AiCarRecord.blocking_max_blocking_distance_at_race_start", false},
 };
 
 bool row_ready(const char *name)
@@ -286,6 +294,7 @@ void frame(double, void *)
         g_epoch = facts->epoch;
     if (changed) {
         mem::invalidate();
+        Ops::racecraft_forget();
         uint32_t n = 0;
         if (Ops::op_count(&n) == SWOFTY_ASSET_OK)
             for (uint32_t i = 0; i < n; i++)
@@ -296,6 +305,7 @@ void frame(double, void *)
         mem::Trust trust(runtime::HEAP_TRUST_MS);
         perf::Scope scope(unlock_probe);
         Ops::unlock_tick();
+        Ops::racecraft_tick();
     }
     uint32_t profiled = 0, applied = 0;
     for (const auto &p : Ops::take_frame()) {
@@ -454,6 +464,7 @@ void arm_car_points()
 namespace {
 
 constexpr const char *LEVERS = "swofty_core.dll (car levers)";
+constexpr const char *RACECRAFT = "swofty_core.dll (ai racecraft)";
 bool g_levers_offered = false;
 
 void engine_torque(SwoftyContext *c)
@@ -464,6 +475,11 @@ void engine_torque(SwoftyContext *c)
                                                               swofty::mem::read(c->rbx + 0x2528, limiter);
                                                               return limiter;
                                                           }());
+}
+
+void ai_system_built(SwoftyContext *c)
+{
+    swofty_core::hooks::Ops::racecraft_pushed(c->rbx);
 }
 
 void ai_grip(SwoftyContext *c)
@@ -490,6 +506,15 @@ std::vector<CoreMixins> car_levers_mixins()
         mixins.push_back({"site_Ai_TableGripInput", SWOFTY_MIXIN_SITE, 100, (void *)&ai_grip, nullptr});
     else
         swofty::log("[cars] ai.grip_scale off: needs site_Ai_TableGripInput");
+    bool racecraft_rows = true;
+    for (const char *row : swofty_core::hooks::car_live::RACECRAFT_ROWS)
+        racecraft_rows = racecraft_rows && swofty_core::hooks::row_ready(row);
+    if (racecraft_rows && swofty::api->resolve("site_Ai_BuildSystem_RecordPushed"))
+        out.push_back({RACECRAFT,
+                       {{"site_Ai_BuildSystem_RecordPushed", SWOFTY_MIXIN_SITE, 50, (void *)&ai_system_built, nullptr}}});
+    else
+        swofty::log("[ai] ai.blocking.* off: needs AiSystem.records_begin, AiCarRecord.vehicle_index and driver_config, "
+                    "the four AiCarRecord.blocking_* rows and site_Ai_BuildSystem_RecordPushed");
     if (!mixins.empty())
         out.push_back({LEVERS, std::move(mixins)});
     return out;

@@ -443,6 +443,10 @@ enum class Field : uint32_t {
     aero_slipstream_rear_wing = SWOFTY_CAR_AERO_SLIPSTREAM_REAR_WING,
     aero_slipstream_lift = SWOFTY_CAR_AERO_SLIPSTREAM_LIFT,
     aero_slipstream_car_width = SWOFTY_CAR_AERO_SLIPSTREAM_CAR_WIDTH,
+    ai_blocking_fraction_of_follow_speed = SWOFTY_CAR_AI_BLOCKING_FRACTION,   // layers only; per car, read on every AI tick
+    ai_blocking_fraction_of_follow_speed_at_race_start = SWOFTY_CAR_AI_BLOCKING_FRACTION_RACE_START,
+    ai_blocking_max_blocking_distance = SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE,
+    ai_blocking_max_blocking_distance_at_race_start = SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE_RACE_START,
 };
 
 }

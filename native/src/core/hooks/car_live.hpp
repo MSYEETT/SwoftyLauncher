@@ -11,6 +11,8 @@
 
 #include <swofty_api.h>
 
+#include "ai_racecraft.hpp"
+
 // The core's live car operations (SwoftyCoreCarOps, standard library 1.6): cars::live reads and writes a
 // car's handling values while it is on track. A car is a slot of g_Sess_VehicleTable (its CarLive, whose
 // vehicle_id is the slot); each value is a field of one of the systems the car caches by section name at
@@ -33,7 +35,8 @@ constexpr uintptr_t FUEL_ECU_MODE = 0x128;
 constexpr uintptr_t MODE_AVAIL_FUEL = 0x28, MODE_AVAIL_STRIDE = 0x20;
 constexpr uint32_t MODE_AVAIL_CARS = 26;
 
-enum class Kind { plain, obf, virt };
+// cell: a per-car AI config float behind a game database cell (ai_racecraft.hpp); vslot is its slot in the driver config.
+enum class Kind { plain, obf, virt, cell };
 
 // What set re-runs after the write so the game's derived copy follows: the engine's derived values
 // (Car_Engine_ComputeDerived_Thunk), the gearbox's ratio table (Car_Tuning_SetFinalDrive with 0x20|0x2000, which
@@ -191,7 +194,21 @@ inline constexpr Field FIELDS[] = {
      Via::system, "CarF1Aero.slipstream"},
     {SWOFTY_CAR_AERO_SLIPSTREAM_CAR_WIDTH, "aero.slipstream_car_width", F1_AERO, 0x128, Kind::obf, 0.1f, 10, Rederive::none,
      Via::system, "CarF1Aero.slipstream"},
+    // Version 5: the blocking evaluator's per-car config floats (ai_racecraft.hpp), read afresh on every AI tick.
+    {SWOFTY_CAR_AI_BLOCKING_FRACTION, "ai.blocking.fraction_of_follow_speed", 0, 0, Kind::cell, 0, 4, Rederive::none,
+     Via::system, "AiCarRecord.blocking_fraction_of_follow_speed", 0, false, ai_racecraft::fraction},
+    {SWOFTY_CAR_AI_BLOCKING_FRACTION_RACE_START, "ai.blocking.fraction_of_follow_speed_at_race_start", 0, 0, Kind::cell, 0,
+     4, Rederive::none, Via::system, "AiCarRecord.blocking_fraction_of_follow_speed_at_race_start", 0, false,
+     ai_racecraft::fraction_race_start},
+    {SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE, "ai.blocking.max_blocking_distance", 0, 0, Kind::cell, 0, 1000, Rederive::none,
+     Via::system, "AiCarRecord.blocking_max_blocking_distance", 0, false, ai_racecraft::max_distance},
+    {SWOFTY_CAR_AI_BLOCKING_MAX_DISTANCE_RACE_START, "ai.blocking.max_blocking_distance_at_race_start", 0, 0, Kind::cell, 0,
+     1000, Rederive::none, Via::system, "AiCarRecord.blocking_max_blocking_distance_at_race_start", 0, false,
+     ai_racecraft::max_distance_race_start},
 };
+
+inline constexpr const char *RACECRAFT_ROWS[] = {"AiSystem.records_begin", "AiCarRecord.vehicle_index",
+                                                 "AiCarRecord.driver_config", "site_Ai_BuildSystem_RecordPushed"};
 
 inline constexpr size_t FIELD_COUNT = sizeof FIELDS / sizeof FIELDS[0];
 
@@ -278,6 +295,7 @@ template <class Tag> struct Ops {
     static inline uint32_t next_token = 1;
     static inline uint64_t next_order = 0;
     static inline Slot slots[MAX_CARS][FIELD_COUNT];
+    static inline ai_racecraft::Fields racecraft;
     static inline std::atomic<float> virt[MAX_CARS][VIRTUALS];
     static inline std::atomic<bool> dirty{false}, power_active{false}, ai_active{false};
     static inline std::mutex slot_lock;
@@ -309,6 +327,7 @@ template <class Tag> struct Ops {
                     s = Slot{};
         }
         reset_virtuals();
+        racecraft.forget();
         dirty = false;
         std::lock_guard<std::mutex> g(pending_lock);
         pending.clear();
@@ -319,7 +338,18 @@ template <class Tag> struct Ops {
 
     static int available() { return bound.load() && env.table && env.count && (!env.enabled || env.enabled()) ? 1 : 0; }
 
-    static bool ready(const Field &f) { return !f.needs || !env.row_ready || env.row_ready(f.needs); }
+    static bool ready(const Field &f)
+    {
+        if (f.needs && env.row_ready && !env.row_ready(f.needs))
+            return false;
+        if (f.kind == Kind::cell && env.row_ready)
+            for (const char *row : RACECRAFT_ROWS)
+                if (!env.row_ready(row))
+                    return false;
+        return true;
+    }
+
+    static ai_racecraft::Mem cell_mem() { return {env.read, env.write}; }
 
     static int cars(uint32_t &n)
     {
@@ -358,7 +388,7 @@ template <class Tag> struct Ops {
     // The address of a field's storage on one car; sys is the system the field belongs to (for a rederive).
     static int locate(uintptr_t car, const Field &f, uintptr_t &sys, uintptr_t &at)
     {
-        if (f.kind == Kind::virt)
+        if (f.kind == Kind::virt || f.kind == Kind::cell)
             return SWOFTY_ASSET_UNAVAILABLE;
         if (f.via == Via::system) {
             if (int r = system_at(car, f.system, sys); r != SWOFTY_ASSET_OK)
@@ -514,6 +544,12 @@ template <class Tag> struct Ops {
             *value = virt[index][f->vslot].load();
             return SWOFTY_ASSET_OK;
         }
+        if (f->kind == Kind::cell) {
+            uintptr_t car = 0;
+            if (int r = car_at(index, handle, car); r != SWOFTY_ASSET_OK)
+                return r;
+            return racecraft.read(cell_mem(), index, f->vslot, *value) ? SWOFTY_ASSET_OK : SWOFTY_ASSET_UNAVAILABLE;
+        }
         uintptr_t car = 0, sys = 0, at = 0;
         if (int r = car_at(index, handle, car); r != SWOFTY_ASSET_OK)
             return r;
@@ -581,7 +617,7 @@ template <class Tag> struct Ops {
         const Field *f = field(id);
         if (!f || !std::isfinite(value) || value < f->lo || value > f->hi)
             return SWOFTY_ASSET_INVALID;
-        if (!ready(*f))
+        if (!ready(*f) || f->kind == Kind::cell)
             return SWOFTY_ASSET_UNAVAILABLE;
         if (f->kind == Kind::virt) {
             if (index >= MAX_CARS)
@@ -627,6 +663,31 @@ template <class Tag> struct Ops {
         return x == y;
     }
 
+    // A cell field changes only on the flow thread, with the AI system settled (ai_racecraft.hpp); anything else waits
+    // for the next apply.
+    static void apply_cell(uint32_t index, const Field &f, bool want, const std::vector<LayerRec> &mine)
+    {
+        if (!want && !racecraft.swapped(index, f.vslot))
+            return;
+        if (!ready(f))
+            return;
+        if (env.flow_thread && !env.flow_thread()) {
+            dirty = true;
+            return;
+        }
+        racecraft.apply(cell_mem(), index, f.vslot, want,
+                        [&](float base) { return clamp(f, composed_of(mine, f, base)); });
+    }
+
+    // The core's handlers: the AI system built (site_Ai_BuildSystem_RecordPushed), a frame, a new session.
+    static void racecraft_pushed(uintptr_t system) { racecraft.pushed(cell_mem(), system); }
+    static void racecraft_forget() { racecraft.forget(); }
+    static void racecraft_tick()
+    {
+        if (racecraft.tick(cell_mem()))
+            dirty = true;
+    }
+
     // Applies every layer that matches one car now. A memory field's base is the value the game last wrote: the
     // value read is the game's when it differs from what this wrote, so a reset (which restores the game's value)
     // is picked up as the new base, and a layer applied twice does not compound.
@@ -643,6 +704,10 @@ template <class Tag> struct Ops {
             if (f.kind == Kind::virt)
                 continue;
             bool want = std::any_of(mine.begin(), mine.end(), [&](const LayerRec &l) { return l.field == f.id; });
+            if (f.kind == Kind::cell) {
+                apply_cell(index, f, want, mine);
+                continue;
+            }
             Slot &s = slots[index][i];
             if (!want && !s.valid)
                 continue;
