@@ -2485,6 +2485,29 @@ static void show_launch_error(void)
     expect(box != NULL, "fallback mode: a launch error dialog came up before the window");
 }
 
+/* Tuning and overlay tools put a visible window of their own into the game a moment after it starts, before the
+   game's: the loader must not take it for the main window and load addons past the early stage. */
+static void show_foreign_window(void)
+{
+    HMODULE u32 = GetModuleHandleW(L"user32.dll");
+    ATOM(WINAPI * rc)(const WNDCLASSEXW *) = (void *)GetProcAddress(u32, "RegisterClassExW");
+    HWND(WINAPI * cw)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID) =
+        (void *)GetProcAddress(u32, "CreateWindowExW");
+    WNDCLASSEXW fc = {.cbSize = sizeof fc, .lpfnWndProc = DefWindowProcW, .hInstance = u32,
+                      .lpszClassName = L"F125TuneStatus"};
+    rc(&fc);
+    HWND f = cw(0, L"F125TuneStatus", L"", WS_POPUP, 0, 0, 40, 20, NULL, NULL, u32, NULL);
+    ShowWindow(f, SW_SHOWNOACTIVATE);
+    for (DWORD t0 = GetTickCount(); GetTickCount() - t0 < 600;) {
+        MSG m;
+        while (PeekMessageW(&m, NULL, 0, 0, PM_REMOVE))
+            DispatchMessageW(&m);
+        Sleep(20);
+    }
+    expect(f != NULL && IsWindowVisible(f), "fallback mode: another module's window came up before the game's");
+    DestroyWindow(f);
+}
+
 #ifdef PACKED_TEST
 // Two full pages of filler so every page the core samples is covered by encrypted bytes.
 __asm__(".section .xtls,\"xr\"\n.fill 0x2000, 1, 0xCC\n.text\n");
@@ -2782,6 +2805,9 @@ int main(int argc, char **argv)
         show_launch_error();
         run_build(1, 1);
         expect(ncalls == 3 && movie_built(), "fallback mode: a dialog before the window does not load addons");
+        show_foreign_window();
+        run_build(1, 1);
+        expect(ncalls == 3 && movie_built(), "fallback mode: another module's window before the game's does not load addons");
     }
     else
         expect(ncalls == 3 && calls[1].index == 3 && !movie_built(),
