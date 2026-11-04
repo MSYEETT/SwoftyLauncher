@@ -250,18 +250,154 @@ const _: () = assert!(core::mem::offset_of!(ActivityDef, r#type) == 0x10);
 
 #[repr(C)]
 pub struct AiDriverConfig {
-    _pad_0x0: [u8; 0x90],
+    _pad_0x0: [u8; 0x20],
+    pub alongside_speed_difference_for_limited_zone_yielding: *mut *mut c_void,
+    pub alongside_yield_overtake_rate: *mut *mut c_void,
+    pub alongside_min_presence_within_buffer: *mut *mut c_void,
+    _pad_0x38: [u8; 0x58],
     pub blocking_fraction_of_follow_speed: *mut *mut c_void,
     pub blocking_fraction_of_follow_speed_at_race_start: *mut *mut c_void,
     pub blocking_max_blocking_distance: *mut *mut c_void,
     pub blocking_max_blocking_distance_at_race_start: *mut *mut c_void,
+    _pad_0xb0: [u8; 0x40],
+    pub divebomb_defense_max_presence_alongside: *mut *mut c_void,
+    pub divebomb_defense_max_time_to_ignore: *mut *mut c_void,
+    pub divebomb_defense_max_track_offset: *mut *mut c_void,
+    pub divebomb_defense_max_track_radius: *mut *mut c_void,
+    _pad_0x110: [u8; 0x10],
+    pub offset_variation_max_offset: *mut *mut c_void,
+    pub offset_variation_offset_limit_at_corner_start: *mut *mut c_void,
+    pub offset_variation_offset_limit_blend_distance: *mut *mut c_void,
+    _pad_0x138: [u8; 0x10],
+    pub offset_variation_half_width_scaling_graph: *mut *mut c_void,
+    pub offset_variation_radius_scalar_graph: *mut *mut c_void,
+    pub overtake_attacker_close_enough_car_lengths: *mut *mut c_void,
+    pub overtake_braking_zone_abort_overtake_time: *mut *mut c_void,
+    pub overtake_close_range_car_lengths_to_continue_overtake: *mut *mut c_void,
+    pub overtake_close_range_car_lengths_to_start_overtake: *mut *mut c_void,
+    pub overtake_oppertunist_overtake_time: *mut *mut c_void,
+    pub overtake_oppertunist_overtake_track_speed_difference: *mut *mut c_void,
+    pub overtake_danger_overtake_continue_time_adjustment: *mut *mut c_void,
+    pub overtake_danger_overtake_full_heat_time_adjustment: *mut *mut c_void,
+    pub overtake_danger_overtake_initiate_time_adjustment: *mut *mut c_void,
+    pub overtake_danger_overtake_pull_out_time: *mut *mut c_void,
+    _pad_0x1a8: [u8; 0x8],
+    pub overtake_regular_overtake_continue_time_adjustment: *mut *mut c_void,
+    pub overtake_regular_overtake_full_heat_time_adjustment: *mut *mut c_void,
+    pub overtake_regular_overtake_initiate_time_adjustment: *mut *mut c_void,
+    pub overtake_regular_overtake_pull_out_time: *mut *mut c_void,
+    pub overtake_overlap_percentage: *mut *mut c_void,
+    pub overtake_concede_speed_diff: *mut *mut c_void,
+    pub overtake_concede_slowdown_speed_diff: *mut *mut c_void,
+    pub overtake_concede_time_vs_behind: *mut *mut c_void,
+    _pad_0x1f0: [u8; 0x48],
+    pub space_seeking_added_buffer: *mut *mut c_void,
+    pub space_seeking_speed_below_follow: *mut *mut c_void,
+    pub space_seeking_first_speed_below_follow: *mut *mut c_void,
+    pub space_seeking_car_in_front_needed: *mut *mut c_void,
+    pub space_seeking_remember_crowed: *mut *mut c_void,
+    pub space_seeking_concede_overtake_blocked_by_crowed_time: *mut *mut c_void,
+    pub space_seeking_total_queue_needed: *mut *mut c_void,
+    pub space_seeking_distance_braking_point: *mut *mut c_void,
+    pub space_seeking_time_to_switch_sides: *mut *mut c_void,
+    pub space_seeking_track_distance_needed: *mut *mut c_void,
+    pub space_seeking_track_abort_distance: *mut *mut c_void,
+    pub space_seeking_cars_moving_away_speed_to_ignore: *mut *mut c_void,
+    pub space_seeking_can_start_track_radius: *mut *mut c_void,
 }
+const _: () = assert!(
+    core::mem::offset_of!(
+        AiDriverConfig,
+        alongside_speed_difference_for_limited_zone_yielding
+    ) == 0x20
+);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, alongside_yield_overtake_rate) == 0x28);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, alongside_min_presence_within_buffer) == 0x30);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed) == 0x90);
 const _: () =
     assert!(core::mem::offset_of!(AiDriverConfig, blocking_fraction_of_follow_speed_at_race_start) == 0x98);
 const _: () = assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance) == 0xa0);
 const _: () =
     assert!(core::mem::offset_of!(AiDriverConfig, blocking_max_blocking_distance_at_race_start) == 0xa8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_presence_alongside) == 0xf0);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_time_to_ignore) == 0xf8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_track_offset) == 0x100);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, divebomb_defense_max_track_radius) == 0x108);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, offset_variation_max_offset) == 0x120);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, offset_variation_offset_limit_at_corner_start) == 0x128);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, offset_variation_offset_limit_blend_distance) == 0x130);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, offset_variation_half_width_scaling_graph) == 0x148);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, offset_variation_radius_scalar_graph) == 0x150);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, overtake_attacker_close_enough_car_lengths) == 0x158);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, overtake_braking_zone_abort_overtake_time) == 0x160);
+const _: () = assert!(
+    core::mem::offset_of!(
+        AiDriverConfig,
+        overtake_close_range_car_lengths_to_continue_overtake
+    ) == 0x168
+);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_close_range_car_lengths_to_start_overtake) == 0x170
+);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_oppertunist_overtake_time) == 0x178);
+const _: () = assert!(
+    core::mem::offset_of!(
+        AiDriverConfig,
+        overtake_oppertunist_overtake_track_speed_difference
+    ) == 0x180
+);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_danger_overtake_continue_time_adjustment) == 0x188
+);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_danger_overtake_full_heat_time_adjustment) == 0x190
+);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_danger_overtake_initiate_time_adjustment) == 0x198
+);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_danger_overtake_pull_out_time) == 0x1a0);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_regular_overtake_continue_time_adjustment) == 0x1b0
+);
+const _: () = assert!(
+    core::mem::offset_of!(
+        AiDriverConfig,
+        overtake_regular_overtake_full_heat_time_adjustment
+    ) == 0x1b8
+);
+const _: () = assert!(
+    core::mem::offset_of!(AiDriverConfig, overtake_regular_overtake_initiate_time_adjustment) == 0x1c0
+);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, overtake_regular_overtake_pull_out_time) == 0x1c8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_overlap_percentage) == 0x1d0);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_concede_speed_diff) == 0x1d8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_concede_slowdown_speed_diff) == 0x1e0);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, overtake_concede_time_vs_behind) == 0x1e8);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_added_buffer) == 0x238);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_speed_below_follow) == 0x240);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_first_speed_below_follow) == 0x248);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_car_in_front_needed) == 0x250);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_remember_crowed) == 0x258);
+const _: () = assert!(
+    core::mem::offset_of!(
+        AiDriverConfig,
+        space_seeking_concede_overtake_blocked_by_crowed_time
+    ) == 0x260
+);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_total_queue_needed) == 0x268);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_distance_braking_point) == 0x270);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_time_to_switch_sides) == 0x278);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_track_distance_needed) == 0x280);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_track_abort_distance) == 0x288);
+const _: () =
+    assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_cars_moving_away_speed_to_ignore) == 0x290);
+const _: () = assert!(core::mem::offset_of!(AiDriverConfig, space_seeking_can_start_track_radius) == 0x298);
 
 #[repr(C)]
 pub struct AiCarRecord {
