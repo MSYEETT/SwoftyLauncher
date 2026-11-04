@@ -80,13 +80,13 @@ constexpr Row ROWS[] = {
     {"Car_FuelEcu_SetMode_Thunk", true},
     {"EngineModeAvail.fuel", true},
     {"site_Ai_BuildSystem_RecordPushed", true},
-    {"AiSystem.records_begin", false},
-    {"AiCarRecord.vehicle_index", false},
-    {"AiCarRecord.driver_config", false},
-    {"AiDriverConfig.blocking_fraction_of_follow_speed", false},
-    {"AiDriverConfig.blocking_fraction_of_follow_speed_at_race_start", false},
-    {"AiDriverConfig.blocking_max_blocking_distance", false},
-    {"AiDriverConfig.blocking_max_blocking_distance_at_race_start", false},
+    {"AiSystem.records_begin", true},
+    {"AiCarRecord.vehicle_index", true},
+    {"AiCarRecord.driver_config", true},
+    {"AiDriverConfig.blocking_fraction_of_follow_speed", true},
+    {"AiDriverConfig.blocking_fraction_of_follow_speed_at_race_start", true},
+    {"AiDriverConfig.blocking_max_blocking_distance", true},
+    {"AiDriverConfig.blocking_max_blocking_distance_at_race_start", true},
 };
 
 bool row_ready(const char *name)
