@@ -1,9 +1,10 @@
 // Host unit test for the core's per-car AI racecraft fields (ai_racecraft.hpp and car_live.hpp, ai.blocking.*) on a
 // fake AI system laid out as the KB's: the record vector at S+0xa8..0xb0, stride 0x508, the vehicle index at R+0 and
 // the driver config slots at R+0x238+off, each slot a pointer to a cell holding a pointer to the record whose float
-// is at +8. run_car_live_test.sh builds and runs it.
+// is at +8 (a curve key: the baked curve record). run_car_live_test.sh builds and runs it.
 #include "../../src/core/hooks/car_live.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <set>
@@ -37,7 +38,7 @@ static std::vector<std::pair<uintptr_t, uintptr_t>> written;
 static std::set<std::string> rows_off;
 
 struct Db {
-    alignas(16) uint8_t record[0x40];
+    alignas(16) uint8_t record[0x80];
     alignas(16) uint64_t cell;
 };
 
@@ -45,9 +46,12 @@ struct World {
     alignas(16) uint8_t system[0x1a8];
     std::vector<uint8_t> records;
     Db db[CARS][3];
+    Db extra[CARS][3];
     uint64_t shared_cell = 0;
     alignas(16) uint8_t shared_rec[0x40];
 };
+
+static void put(uint8_t *p, float v) { memcpy(p, &v, 4); }
 
 static uint8_t *rec_at(World &w, int car) { return w.records.data() + size_t(car) * rc::STRIDE; }
 
@@ -76,6 +80,32 @@ static void build(World &w, bool shared = false)
         }
     }
     (void)shared;
+    constexpr uintptr_t EXTRA_OFF[3] = {0x268, 0x1d0, 0x1e0};
+    for (int c = 0; c < CARS; c++)
+        for (int s = 0; s < 3; s++) {
+            Db &d = w.extra[c][s];
+            memset(&d, 0, sizeof d);
+            d.record[0x20] = 0xc0;
+            d.record[0x6f] = uint8_t(0xd0 + s);
+            d.record[0x7f] = uint8_t(0xe0 + s);
+            if (s == 0) {
+                int32_t n = 7;
+                memcpy(d.record + 8, &n, 4);
+            } else if (s == 1) {
+                put(d.record + 0x10, 2.0f);
+                put(d.record + 0x14, -0.25f);
+                put(d.record + 0x18, 0.5f);
+                put(d.record + 0x1c, 3.0f);
+                put(d.record + 0x24, 1.0f);
+                put(d.record + 0x28, 3.0f);
+                for (int i = 0; i < 65; i++)
+                    d.record[0x2c + i] = uint8_t(i * 3);
+            } else
+                put(d.record + 8, 12.5f);
+            d.cell = reinterpret_cast<uintptr_t>(d.record);
+            uint64_t p = reinterpret_cast<uintptr_t>(&d.cell);
+            memcpy(rec_at(w, c) + rc::R_DRIVER + EXTRA_OFF[s], &p, 8);
+        }
     fill_system(w, CARS);
 }
 
@@ -314,6 +344,162 @@ int main()
                Ops::op_layer("lap1", 1, SWOFTY_CAR_AI_BLOCKING_FRACTION, SWOFTY_CAR_OP_SET, 0.1f, 0, &t10) == SWOFTY_ASSET_OK,
            "each field has its own row");
     rows_off.clear();
+
+    {
+        constexpr uint32_t QUEUE = SWOFTY_CAR_AI_SPACE_SEEKING_TOTAL_QUEUE_NEEDED, OVERLAP = SWOFTY_CAR_AI_OVERTAKE_OVERLAP_PERCENTAGE,
+                           SLOWDOWN = SWOFTY_CAR_AI_OVERTAKE_CONCEDE_SLOWDOWN_SPEED_DIFF;
+        constexpr uintptr_t QUEUE_SLOT = rc::R_DRIVER + 0x268, OVERLAP_SLOT = rc::R_DRIVER + 0x1d0, SLOWDOWN_SLOT = rc::R_DRIVER + 0x1e0;
+
+        expect(rc::FIELD_COUNT == 47, "the driver table has the four blocking floats and 43 more");
+        bool table_ok = true;
+        for (auto &f : cl::FIELDS) {
+            if (f.kind != cl::Kind::cell)
+                continue;
+            const rc::Config &c = rc::DRIVER[f.vslot];
+            table_ok = table_ok && f.vslot < rc::FIELD_COUNT && std::string("ai.") + c.key == f.name && (c.offset & 7) == 0 &&
+                       c.offset < 0x2a0 && rc::slot(c.key) == f.vslot;
+        }
+        expect(table_ok, "every cell field names its table row, offsets are slots inside the 0x2a0 driver config");
+        std::set<uint32_t> ids;
+        std::set<uintptr_t> offsets;
+        int cells = 0;
+        for (auto &f : cl::FIELDS)
+            if (f.kind == cl::Kind::cell) {
+                cells++;
+                ids.insert(f.id);
+                offsets.insert(rc::DRIVER[f.vslot].offset);
+            }
+        expect(cells == 47 && ids.size() == 47 && offsets.size() == 47, "ids and driver offsets are unique");
+        expect(rc::DRIVER[rc::slot("overtake.overlap_percentage")].offset == 0x1d0 &&
+                   rc::DRIVER[rc::slot("overtake.overlap_percentage")].type == rc::Type::curve &&
+                   rc::DRIVER[rc::slot("space_seeking.total_queue_needed")].type == rc::Type::i32 &&
+                   rc::DRIVER[rc::slot("blocking.max_blocking_distance")].offset == 0xa0 &&
+                   rc::slot("overtake.nothing") == rc::FIELD_COUNT,
+               "table lookup by key gives the offset and type");
+        uint32_t qid = 0;
+        expect(Ops::op_field("ai.space_seeking.total_queue_needed", &qid) == SWOFTY_ASSET_OK && qid == QUEUE &&
+                   Ops::op_field("ai.alongside.min_presence_within_buffer", &qid) == SWOFTY_ASSET_OK &&
+                   Ops::op_field("ai.overtake.oppertunist_overtake_track_speed_difference", &qid) == SWOFTY_ASSET_OK,
+               "the new fields resolve by path");
+
+        World w3;
+        build(w3);
+        Ops::bind(make_env());
+        Ops::racecraft_pushed(reinterpret_cast<uintptr_t>(w3.system));
+        settle();
+        auto slot3 = [&](int car, uintptr_t off) { return slot_of(w3, car, off); };
+        auto db3 = [&](int car, int s) { return uint64_t(reinterpret_cast<uintptr_t>(&w3.extra[car][s].cell)); };
+        auto bytes_of = [&](int car, int s) { return std::vector<uint8_t>(w3.extra[car][s].record, w3.extra[car][s].record + 0x80); };
+
+        expect(get(1, QUEUE) == 7.0f && get(1, SLOWDOWN) == 12.5f, "get reads an int cell as its integer and a float cell as its float");
+        expect(get(1, OVERLAP) == 49.0f, "get on an untouched curve field is the curve at x = 0 (LUT sample 96 * 0.5 + 1)");
+
+        std::vector<uint8_t> stock_int = bytes_of(1, 0), stock_curve = bytes_of(1, 1), stock_float = bytes_of(1, 2);
+        uint32_t ta = 0, tb = 0, tc = 0;
+        Ops::op_layer("a", 1, QUEUE, SWOFTY_CAR_OP_SET, 3.4f, 0, &ta);
+        expect(slot3(1, QUEUE_SLOT) != db3(1, 0) && get(1, QUEUE) == 3.0f, "an int field is written as an integer, rounded to nearest");
+        {
+            uint64_t cellp = slot3(1, QUEUE_SLOT), recp = 0;
+            int32_t n = 0;
+            memcpy(&recp, reinterpret_cast<void *>(cellp), 8);
+            memcpy(&n, reinterpret_cast<void *>(recp + 8), 4);
+            expect(n == 3 && reinterpret_cast<uint8_t *>(recp)[0x7f] == 0xe0, "the int cell holds 3 in the game's own layout");
+        }
+        Ops::op_layer("a2", 1, QUEUE, SWOFTY_CAR_OP_SET, 3.6f, 1, &tb);
+        expect(get(1, QUEUE) == 4.0f, "3.6 rounds to 4");
+        Ops::op_unlayer(tb);
+        Ops::op_layer("c", 1, SLOWDOWN, SWOFTY_CAR_OP_ADD, 2.5f, 0, &tc);
+        expect(get(1, SLOWDOWN) == 15.0f, "a float field composes on the game's value");
+        expect(bytes_of(1, 0) == stock_int && bytes_of(1, 2) == stock_float, "the game's int and float cells are never written");
+
+        uint32_t tcur = 0;
+        Ops::op_layer("lap1", 1, OVERLAP, SWOFTY_CAR_OP_SET, 5.0f, 0, &tcur);
+        uint64_t curp = slot3(1, OVERLAP_SLOT);
+        expect(curp != db3(1, 1) && get(1, OVERLAP) == 5.0f, "a layer on a curve field points the slot at an own cell");
+        uint64_t recp = 0;
+        memcpy(&recp, reinterpret_cast<void *>(curp), 8);
+        const uint8_t *own = reinterpret_cast<const uint8_t *>(recp);
+        bool flat = true;
+        for (float x : {0.0f, 0.37f, 1.0f, -2.0f, 0.5f, 100.0f, 1e-7f, 0.9999f, 3.4e38f})
+            flat = flat && rc::curve_at(own, x) == 5.0f;
+        expect(flat, "the flat curve evaluates to the value at x = 0, 0.37, 1 and beyond, by the game's evaluator arithmetic");
+        expect(rc::float_at(own + 0x18) == 0.0f && rc::float_at(own + 0x24) == 5.0f && rc::float_at(own + 0x1c) == 5.0f &&
+                   rc::float_at(own + 0x28) == 5.0f,
+               "step 0, min, last value and max are the value");
+        bool lut_zero = true;
+        for (int i = 0; i < 65; i++)
+            lut_zero = lut_zero && own[0x2c + i] == 0;
+        expect(lut_zero, "the 64-sample LUT and the interpolation sample after it are zero");
+        expect(rc::float_at(own + 0x10) == 2.0f && rc::float_at(own + 0x14) == -0.25f && own[0x20] == 0xc0 && own[0x6f] == 0xd1,
+               "scale, offset and the rest of the record are the original's");
+        expect(bytes_of(1, 1) == stock_curve, "the game's curve record is never written");
+        {
+            const uint8_t *orig = w3.extra[1][1].record;
+            bool matches = rc::curve_at(orig, 0.0f) == 49.0f && rc::curve_at(orig, 1.0f) == 3.0f &&
+                           rc::curve_at(orig, 0.37f) == 3.0f && std::fabs(rc::curve_at(orig, 0.1f) - 68.2f) < 0.01f;
+            expect(matches, "the evaluator reproduces the original curve: x = 0 mid-table, 0.1 interpolated, 0.37 and 1 the last value");
+        }
+        uint32_t tscale = 0;
+        Ops::op_layer("s", 1, OVERLAP, SWOFTY_CAR_OP_SCALE, 2.0f, 5, &tscale);
+        expect(get(1, OVERLAP) == 10.0f, "layers compose on a curve from the value the set layer gave");
+        Ops::op_unlayer(tcur);
+        expect(get(1, OVERLAP) == 98.0f, "dropping the set layer leaves the scale on the curve's stock value at x = 0 (49 * 2)");
+        Ops::op_unlayer(tscale);
+        expect(slot3(1, OVERLAP_SLOT) == db3(1, 1) && get(1, OVERLAP) == 49.0f, "the last curve layer going puts the game's curve back");
+        Ops::op_unlayer(ta);
+        Ops::op_unlayer(tc);
+        expect(slot3(1, QUEUE_SLOT) == db3(1, 0) && slot3(1, SLOWDOWN_SLOT) == db3(1, 2) && get(1, QUEUE) == 7.0f &&
+                   get(1, SLOWDOWN) == 12.5f,
+               "every slot is back and the AI reads the game's values");
+
+        uint32_t tclamp = 0;
+        Ops::op_layer("c", 1, OVERLAP, SWOFTY_CAR_OP_SET, 1000.0f, 0, &tclamp);
+        expect(get(1, OVERLAP) == 100.0f, "a curve value is clamped to the field's range");
+        Ops::op_unlayer(tclamp);
+
+        put(w3.extra[2][2].record + 8, 0.0f);
+        uint32_t bits = 3;
+        memcpy(w3.extra[2][2].record + 8, &bits, 4);
+        int before3 = writes;
+        uint32_t tbad = 0;
+        int gr = 0;
+        get(2, SLOWDOWN, &gr);
+        Ops::op_layer("bad", 2, SLOWDOWN, SWOFTY_CAR_OP_SET, 1.0f, 0, &tbad);
+        expect(gr == SWOFTY_ASSET_UNAVAILABLE && writes == before3 && slot3(2, SLOWDOWN_SLOT) == db3(2, 2),
+               "a float field whose cell holds a denormal (an int read as a float) is refused and not written");
+        Ops::op_unlayer(tbad);
+        uint32_t bigint = 0x3f800000u;
+        memcpy(w3.extra[2][0].record + 8, &bigint, 4);
+        Ops::op_layer("bad", 2, QUEUE, SWOFTY_CAR_OP_SET, 2.0f, 0, &tbad);
+        get(2, QUEUE, &gr);
+        expect(gr == SWOFTY_ASSET_UNAVAILABLE && writes == before3 && slot3(2, QUEUE_SLOT) == db3(2, 0),
+               "an int field whose cell holds float bits is refused and not written");
+        Ops::op_unlayer(tbad);
+        put(w3.extra[2][1].record + 0x18, std::nanf(""));
+        Ops::op_layer("bad", 2, OVERLAP, SWOFTY_CAR_OP_SET, 2.0f, 0, &tbad);
+        get(2, OVERLAP, &gr);
+        expect(gr == SWOFTY_ASSET_UNAVAILABLE && writes == before3 && slot3(2, OVERLAP_SLOT) == db3(2, 1),
+               "a curve field whose record has a non-finite step is refused and not written");
+        Ops::op_unlayer(tbad);
+
+        rows_off.insert("AiDriverConfig.overtake_overlap_percentage");
+        uint32_t tg1 = 0, tg2 = 0;
+        expect(Ops::op_layer("g", 1, OVERLAP, SWOFTY_CAR_OP_SET, 5.0f, 0, &tg1) == SWOFTY_ASSET_UNAVAILABLE &&
+                   Ops::op_layer("g", 1, QUEUE, SWOFTY_CAR_OP_SET, 5.0f, 0, &tg2) == SWOFTY_ASSET_OK,
+               "a new field is gated by its own KB row");
+        rows_off.clear();
+        Ops::op_unlayer(tg2);
+        for (const char *row : {"AiDriverConfig.space_seeking_total_queue_needed", "AiDriverConfig.alongside_yield_overtake_rate"}) {
+            rows_off.insert(row);
+        }
+        uint32_t tg3 = 0;
+        expect(Ops::op_layer("g", 1, QUEUE, SWOFTY_CAR_OP_SET, 5.0f, 0, &tg3) == SWOFTY_ASSET_UNAVAILABLE &&
+                   Ops::op_layer("g", 1, SLOWDOWN, SWOFTY_CAR_OP_SET, 5.0f, 0, &tg3) == SWOFTY_ASSET_OK,
+               "each row gates only its field");
+        rows_off.clear();
+        Ops::op_unlayer(tg3);
+        Ops::racecraft_forget();
+    }
 
     printf("%s\n", fails ? "FAILED" : "all ok");
     return fails ? 1 : 0;

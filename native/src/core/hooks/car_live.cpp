@@ -87,6 +87,49 @@ constexpr Row ROWS[] = {
     {"AiDriverConfig.blocking_fraction_of_follow_speed_at_race_start", true},
     {"AiDriverConfig.blocking_max_blocking_distance", true},
     {"AiDriverConfig.blocking_max_blocking_distance_at_race_start", true},
+    {"AiDriverConfig.alongside_speed_difference_for_limited_zone_yielding", false},
+    {"AiDriverConfig.alongside_yield_overtake_rate", false},
+    {"AiDriverConfig.alongside_min_presence_within_buffer", false},
+    {"AiDriverConfig.divebomb_defense_max_presence_alongside", false},
+    {"AiDriverConfig.divebomb_defense_max_time_to_ignore", false},
+    {"AiDriverConfig.divebomb_defense_max_track_offset", false},
+    {"AiDriverConfig.divebomb_defense_max_track_radius", false},
+    {"AiDriverConfig.offset_variation_max_offset", false},
+    {"AiDriverConfig.offset_variation_offset_limit_at_corner_start", false},
+    {"AiDriverConfig.offset_variation_offset_limit_blend_distance", false},
+    {"AiDriverConfig.offset_variation_half_width_scaling_graph", false},
+    {"AiDriverConfig.offset_variation_radius_scalar_graph", false},
+    {"AiDriverConfig.overtake_attacker_close_enough_car_lengths", false},
+    {"AiDriverConfig.overtake_braking_zone_abort_overtake_time", false},
+    {"AiDriverConfig.overtake_close_range_car_lengths_to_continue_overtake", false},
+    {"AiDriverConfig.overtake_close_range_car_lengths_to_start_overtake", false},
+    {"AiDriverConfig.overtake_oppertunist_overtake_time", false},
+    {"AiDriverConfig.overtake_oppertunist_overtake_track_speed_difference", false},
+    {"AiDriverConfig.overtake_danger_overtake_continue_time_adjustment", false},
+    {"AiDriverConfig.overtake_danger_overtake_full_heat_time_adjustment", false},
+    {"AiDriverConfig.overtake_danger_overtake_initiate_time_adjustment", false},
+    {"AiDriverConfig.overtake_danger_overtake_pull_out_time", false},
+    {"AiDriverConfig.overtake_regular_overtake_continue_time_adjustment", false},
+    {"AiDriverConfig.overtake_regular_overtake_full_heat_time_adjustment", false},
+    {"AiDriverConfig.overtake_regular_overtake_initiate_time_adjustment", false},
+    {"AiDriverConfig.overtake_regular_overtake_pull_out_time", false},
+    {"AiDriverConfig.overtake_overlap_percentage", false},
+    {"AiDriverConfig.overtake_concede_speed_diff", false},
+    {"AiDriverConfig.overtake_concede_slowdown_speed_diff", false},
+    {"AiDriverConfig.overtake_concede_time_vs_behind", false},
+    {"AiDriverConfig.space_seeking_added_buffer", false},
+    {"AiDriverConfig.space_seeking_speed_below_follow", false},
+    {"AiDriverConfig.space_seeking_first_speed_below_follow", false},
+    {"AiDriverConfig.space_seeking_car_in_front_needed", false},
+    {"AiDriverConfig.space_seeking_remember_crowed", false},
+    {"AiDriverConfig.space_seeking_concede_overtake_blocked_by_crowed_time", false},
+    {"AiDriverConfig.space_seeking_total_queue_needed", false},
+    {"AiDriverConfig.space_seeking_distance_braking_point", false},
+    {"AiDriverConfig.space_seeking_time_to_switch_sides", false},
+    {"AiDriverConfig.space_seeking_track_distance_needed", false},
+    {"AiDriverConfig.space_seeking_track_abort_distance", false},
+    {"AiDriverConfig.space_seeking_cars_moving_away_speed_to_ignore", false},
+    {"AiDriverConfig.space_seeking_can_start_track_radius", false},
 };
 
 bool row_ready(const char *name)
@@ -513,8 +556,8 @@ std::vector<CoreMixins> car_levers_mixins()
         out.push_back({RACECRAFT,
                        {{"site_Ai_BuildSystem_RecordPushed", SWOFTY_MIXIN_SITE, 50, (void *)&ai_system_built, nullptr}}});
     else
-        swofty::log("[ai] ai.blocking.* off: needs AiSystem.records_begin, AiCarRecord.vehicle_index and driver_config, "
-                    "the four AiDriverConfig.blocking_* rows and site_Ai_BuildSystem_RecordPushed");
+        swofty::log("[ai] ai.<group>.<key> fields off: need AiSystem.records_begin, AiCarRecord.vehicle_index and "
+                    "driver_config and site_Ai_BuildSystem_RecordPushed");
     if (!mixins.empty())
         out.push_back({LEVERS, std::move(mixins)});
     return out;

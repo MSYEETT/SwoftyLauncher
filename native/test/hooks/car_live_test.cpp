@@ -149,7 +149,7 @@ static void core_ops()
                std::fabs(v - 0.001f) < 1e-9f,
            "suspension front damage scale decodes with the handle checked");
     expect(Ops::op_get(0, nullptr, SWOFTY_CAR_CLUTCH_TORQUE, &v) == SWOFTY_ASSET_OK && v == 1.5f, "clutch torque plain");
-    expect(Ops::op_get(0, nullptr, 99, &v) == SWOFTY_ASSET_INVALID, "an unknown field is invalid");
+    expect(Ops::op_get(0, nullptr, 200, &v) == SWOFTY_ASSET_INVALID, "an unknown field is invalid");
     expect(Ops::op_get(0, car_mem[1], SWOFTY_CAR_CLUTCH_TORQUE, &v) == SWOFTY_ASSET_LATE,
            "a handle that isn't the slot's car is late");
     expect(Ops::op_get(2, nullptr, SWOFTY_CAR_TURBO_MAX_BOOST, &v) == SWOFTY_ASSET_UNAVAILABLE,
