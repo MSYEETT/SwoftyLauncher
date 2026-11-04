@@ -297,51 +297,53 @@ Each car has its own copy of its driver config. Its slots are `cars::live` field
 |---|---|---|---|---|
 | `ai.blocking.fraction_of_follow_speed` | blocking | float | 0 .. 4 | 0.975 |
 | `ai.blocking.fraction_of_follow_speed_at_race_start` | blocking | float | 0 .. 4 | 0.875 |
-| `ai.blocking.max_blocking_distance` | blocking | float | 0 .. 1000 | - |
-| `ai.blocking.max_blocking_distance_at_race_start` | blocking | float | 0 .. 1000 | - |
-| `ai.alongside.speed_difference_for_limited_zone_yielding` | alongside | float | 0 .. 500 | - |
-| `ai.alongside.yield_overtake_rate` | alongside | float | 0 .. 100 | - |
-| `ai.alongside.min_presence_within_buffer` | alongside | curve | 0 .. 100 | - |
-| `ai.divebomb_defense.max_presence_alongside` | divebomb_defense | curve | 0 .. 100 | - |
-| `ai.divebomb_defense.max_time_to_ignore` | divebomb_defense | float | 0 .. 60 | - |
-| `ai.divebomb_defense.max_track_offset` | divebomb_defense | float | 0 .. 50 | - |
-| `ai.divebomb_defense.max_track_radius` | divebomb_defense | float | 0 .. 10000 | - |
-| `ai.offset_variation.max_offset` | offset_variation | float | 0 .. 50 | - |
-| `ai.offset_variation.offset_limit_at_corner_start` | offset_variation | float | 0 .. 50 | - |
-| `ai.offset_variation.offset_limit_blend_distance` | offset_variation | float | 0 .. 1000 | - |
-| `ai.offset_variation.half_width_scaling_graph` | offset_variation | curve | 0 .. 100 | - |
-| `ai.offset_variation.radius_scalar_graph` | offset_variation | curve | 0 .. 100 | - |
-| `ai.overtake.attacker_close_enough_car_lengths` | overtake | float | 0 .. 50 | - |
-| `ai.overtake.braking_zone_abort_overtake_time` | overtake | float | 0 .. 60 | - |
-| `ai.overtake.close_range_car_lengths_to_continue_overtake` | overtake | float | 0 .. 50 | - |
-| `ai.overtake.close_range_car_lengths_to_start_overtake` | overtake | float | 0 .. 50 | - |
-| `ai.overtake.oppertunist_overtake_time` | overtake | float | 0 .. 60 | - |
-| `ai.overtake.oppertunist_overtake_track_speed_difference` | overtake | float | 0 .. 500 | - |
-| `ai.overtake.danger_overtake_continue_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.danger_overtake_full_heat_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.danger_overtake_initiate_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.danger_overtake_pull_out_time` | overtake | curve | 0 .. 60 | - |
-| `ai.overtake.regular_overtake_continue_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.regular_overtake_full_heat_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.regular_overtake_initiate_time_adjustment` | overtake | float | -100 .. 100 | - |
-| `ai.overtake.regular_overtake_pull_out_time` | overtake | curve | 0 .. 60 | - |
-| `ai.overtake.overlap_percentage` | overtake | curve | 0 .. 100 | - |
-| `ai.overtake.concede_speed_diff` | overtake | curve | -500 .. 500 | - |
-| `ai.overtake.concede_slowdown_speed_diff` | overtake | float | 0 .. 500 | - |
-| `ai.overtake.concede_time_vs_behind` | overtake | curve | 0 .. 60 | - |
-| `ai.space_seeking.added_buffer` | space_seeking | float | 0 .. 100 | - |
-| `ai.space_seeking.speed_below_follow` | space_seeking | float | 0 .. 500 | - |
-| `ai.space_seeking.first_speed_below_follow` | space_seeking | float | 0 .. 500 | - |
-| `ai.space_seeking.car_in_front_needed` | space_seeking | int | 0 .. 32 | - |
-| `ai.space_seeking.remember_crowed` | space_seeking | float | 0 .. 600 | - |
-| `ai.space_seeking.concede_overtake_blocked_by_crowed_time` | space_seeking | float | 0 .. 600 | - |
-| `ai.space_seeking.total_queue_needed` | space_seeking | int | 0 .. 32 | - |
-| `ai.space_seeking.distance_braking_point` | space_seeking | float | 0 .. 1000 | - |
-| `ai.space_seeking.time_to_switch_sides` | space_seeking | float | 0 .. 60 | - |
-| `ai.space_seeking.track_distance_needed` | space_seeking | float | 0 .. 1000 | - |
-| `ai.space_seeking.track_abort_distance` | space_seeking | float | 0 .. 1000 | - |
-| `ai.space_seeking.cars_moving_away_speed_to_ignore` | space_seeking | float | 0 .. 500 | - |
-| `ai.space_seeking.can_start_track_radius` | space_seeking | float | 0 .. 10000 | - |
+| `ai.blocking.max_blocking_distance` | blocking | float | 0 .. 1000 | 18 |
+| `ai.blocking.max_blocking_distance_at_race_start` | blocking | float | 0 .. 1000 | 18 |
+| `ai.alongside.speed_difference_for_limited_zone_yielding` | alongside | float | 0 .. 500 | 3 |
+| `ai.alongside.yield_overtake_rate` | alongside | float | 0 .. 100 | 1 |
+| `ai.alongside.min_presence_within_buffer` (off) | alongside | curve | 0 .. 100 | curve |
+| `ai.divebomb_defense.max_presence_alongside` (off) | divebomb_defense | curve | 0 .. 100 | curve |
+| `ai.divebomb_defense.max_time_to_ignore` (off) | divebomb_defense | float | 0 .. 60 | 5 |
+| `ai.divebomb_defense.max_track_offset` (off) | divebomb_defense | float | 0 .. 50 | 1.75 |
+| `ai.divebomb_defense.max_track_radius` (off) | divebomb_defense | float | 0 .. 10000 | 160 |
+| `ai.offset_variation.max_offset` | offset_variation | float | 0 .. 50 | 1.33 |
+| `ai.offset_variation.offset_limit_at_corner_start` | offset_variation | float | 0 .. 50 | 0.2 |
+| `ai.offset_variation.offset_limit_blend_distance` | offset_variation | float | 0 .. 1000 | 250 |
+| `ai.offset_variation.half_width_scaling_graph` | offset_variation | curve | 0 .. 100 | curve |
+| `ai.offset_variation.radius_scalar_graph` | offset_variation | curve | 0 .. 100 | curve |
+| `ai.overtake.attacker_close_enough_car_lengths` | overtake | float | 0 .. 50 | 3 |
+| `ai.overtake.braking_zone_abort_overtake_time` | overtake | float | 0 .. 60 | 0.6667 |
+| `ai.overtake.close_range_car_lengths_to_continue_overtake` | overtake | float | 0 .. 50 | 2 |
+| `ai.overtake.close_range_car_lengths_to_start_overtake` | overtake | float | 0 .. 50 | 1.5 |
+| `ai.overtake.oppertunist_overtake_time` | overtake | float | 0 .. 60 | 0.25 |
+| `ai.overtake.oppertunist_overtake_track_speed_difference` (off) | overtake | float | 0 .. 500 | 12 |
+| `ai.overtake.danger_overtake_continue_time_adjustment` | overtake | float | -100 .. 100 | 0.75 |
+| `ai.overtake.danger_overtake_full_heat_time_adjustment` (off) | overtake | float | -100 .. 100 | 0.5 |
+| `ai.overtake.danger_overtake_initiate_time_adjustment` | overtake | float | -100 .. 100 | 0.5 |
+| `ai.overtake.danger_overtake_pull_out_time` | overtake | curve | 0 .. 60 | curve |
+| `ai.overtake.regular_overtake_continue_time_adjustment` | overtake | float | -100 .. 100 | 1.25 |
+| `ai.overtake.regular_overtake_full_heat_time_adjustment` (off) | overtake | float | -100 .. 100 | 0.95 |
+| `ai.overtake.regular_overtake_initiate_time_adjustment` | overtake | float | -100 .. 100 | 0.75 |
+| `ai.overtake.regular_overtake_pull_out_time` | overtake | curve | 0 .. 60 | curve |
+| `ai.overtake.overlap_percentage` | overtake | curve | 0 .. 100 | curve |
+| `ai.overtake.concede_speed_diff` | overtake | curve | -500 .. 500 | curve |
+| `ai.overtake.concede_slowdown_speed_diff` | overtake | float | 0 .. 500 | 1.75 |
+| `ai.overtake.concede_time_vs_behind` | overtake | curve | 0 .. 60 | curve |
+| `ai.space_seeking.added_buffer` | space_seeking | float | 0 .. 100 | 0.05 |
+| `ai.space_seeking.speed_below_follow` | space_seeking | float | 0 .. 500 | 4 |
+| `ai.space_seeking.first_speed_below_follow` | space_seeking | float | 0 .. 500 | 2 |
+| `ai.space_seeking.car_in_front_needed` | space_seeking | int | 0 .. 32 | 2 |
+| `ai.space_seeking.remember_crowed` (off) | space_seeking | float | 0 .. 600 | 4 |
+| `ai.space_seeking.concede_overtake_blocked_by_crowed_time` | space_seeking | float | 0 .. 600 | 5 |
+| `ai.space_seeking.total_queue_needed` | space_seeking | int | 0 .. 32 | 3 |
+| `ai.space_seeking.distance_braking_point` | space_seeking | float | 0 .. 1000 | 75 |
+| `ai.space_seeking.time_to_switch_sides` | space_seeking | float | 0 .. 60 | 2 |
+| `ai.space_seeking.track_distance_needed` | space_seeking | float | 0 .. 1000 | 170 |
+| `ai.space_seeking.track_abort_distance` | space_seeking | float | 0 .. 1000 | 50 |
+| `ai.space_seeking.cars_moving_away_speed_to_ignore` | space_seeking | float | 0 .. 500 | 5 |
+| `ai.space_seeking.can_start_track_radius` | space_seeking | float | 0 .. 10000 | 400 |
+
+Fields marked off report unavailable: no AI behaviour re-reads them per tick (the divebomb defence rows are read only by the human-divebomb behaviour, `alongside.min_presence_within_buffer` and `space_seeking.remember_crowed` have no reader found, and the opportunist speed difference is read behind a packed thunk). Stock values are `default_driver`'s; every stock driver has the same.
 
 `-` in Stock: the key catalog lists these keys by name only. `get` returns the game's value for the car.
 
