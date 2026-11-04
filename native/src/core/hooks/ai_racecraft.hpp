@@ -98,6 +98,18 @@ inline constexpr Config DRIVER[] = {
     {"space_seeking.track_abort_distance", 0x288, Type::flt},
     {"space_seeking.cars_moving_away_speed_to_ignore", 0x290, Type::flt},
     {"space_seeking.can_start_track_radius", 0x298, Type::flt},
+    {"blocking.start_blocking_intersection_time", 0x40, Type::flt},
+    {"blocking.start_blocking_maximum_time_to_corner", 0x48, Type::flt},
+    {"blocking.start_blocking_minimum_time_to_corner", 0x50, Type::curve},
+    {"blocking.time_to_corner_for_end_merge_rate", 0x58, Type::flt},
+    {"blocking.time_to_corner_for_start_merge_rate", 0x60, Type::flt},
+    {"blocking.end_blocking_time_to_corner_vs_offset", 0x68, Type::curve},
+    {"blocking.blocking_offset_from_car_behind", 0x70, Type::curve},
+    {"blocking.blocking_speed_differential", 0x78, Type::flt},
+    {"blocking.blocking_threat_time_modifier", 0x80, Type::flt},
+    {"blocking.blocking_variable_offset_fraction", 0x88, Type::flt},
+    {"blocking.avoidance_decrease_rate", 0xb0, Type::flt},
+    {"blocking.merge_back_to_racing_line", 0xb8, Type::curve},
 };
 
 constexpr uint32_t FIELD_COUNT = sizeof DRIVER / sizeof DRIVER[0];

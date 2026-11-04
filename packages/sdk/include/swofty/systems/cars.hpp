@@ -490,6 +490,18 @@ enum class Field : uint32_t {
     ai_space_seeking_track_abort_distance = SWOFTY_CAR_AI_SPACE_SEEKING_TRACK_ABORT_DISTANCE,
     ai_space_seeking_cars_moving_away_speed_to_ignore = SWOFTY_CAR_AI_SPACE_SEEKING_CARS_MOVING_AWAY_SPEED_TO_IGNORE,
     ai_space_seeking_can_start_track_radius = SWOFTY_CAR_AI_SPACE_SEEKING_CAN_START_TRACK_RADIUS,
+    ai_blocking_start_blocking_intersection_time = SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_INTERSECTION_TIME,
+    ai_blocking_start_blocking_maximum_time_to_corner = SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_MAXIMUM_TIME_TO_CORNER,
+    ai_blocking_start_blocking_minimum_time_to_corner = SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_MINIMUM_TIME_TO_CORNER,
+    ai_blocking_time_to_corner_for_end_merge_rate = SWOFTY_CAR_AI_BLOCKING_TIME_TO_CORNER_FOR_END_MERGE_RATE,
+    ai_blocking_time_to_corner_for_start_merge_rate = SWOFTY_CAR_AI_BLOCKING_TIME_TO_CORNER_FOR_START_MERGE_RATE,
+    ai_blocking_end_blocking_time_to_corner_vs_offset = SWOFTY_CAR_AI_BLOCKING_END_BLOCKING_TIME_TO_CORNER_VS_OFFSET,
+    ai_blocking_blocking_offset_from_car_behind = SWOFTY_CAR_AI_BLOCKING_BLOCKING_OFFSET_FROM_CAR_BEHIND,
+    ai_blocking_blocking_speed_differential = SWOFTY_CAR_AI_BLOCKING_BLOCKING_SPEED_DIFFERENTIAL,
+    ai_blocking_blocking_threat_time_modifier = SWOFTY_CAR_AI_BLOCKING_BLOCKING_THREAT_TIME_MODIFIER,
+    ai_blocking_blocking_variable_offset_fraction = SWOFTY_CAR_AI_BLOCKING_BLOCKING_VARIABLE_OFFSET_FRACTION,
+    ai_blocking_avoidance_decrease_rate = SWOFTY_CAR_AI_BLOCKING_AVOIDANCE_DECREASE_RATE,
+    ai_blocking_merge_back_to_racing_line = SWOFTY_CAR_AI_BLOCKING_MERGE_BACK_TO_RACING_LINE,
 };
 
 }

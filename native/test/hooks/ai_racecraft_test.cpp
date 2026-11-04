@@ -350,7 +350,7 @@ int main()
                            SLOWDOWN = SWOFTY_CAR_AI_OVERTAKE_CONCEDE_SLOWDOWN_SPEED_DIFF;
         constexpr uintptr_t QUEUE_SLOT = rc::R_DRIVER + 0x268, OVERLAP_SLOT = rc::R_DRIVER + 0x1d0, SLOWDOWN_SLOT = rc::R_DRIVER + 0x1e0;
 
-        expect(rc::FIELD_COUNT == 47, "the driver table has the four blocking floats and 43 more");
+        expect(rc::FIELD_COUNT == 59, "the driver table has the four blocking floats, 43 more and 12 more blocking keys");
         bool table_ok = true;
         for (auto &f : cl::FIELDS) {
             if (f.kind != cl::Kind::cell)
@@ -369,17 +369,28 @@ int main()
                 ids.insert(f.id);
                 offsets.insert(rc::DRIVER[f.vslot].offset);
             }
-        expect(cells == 47 && ids.size() == 47 && offsets.size() == 47, "ids and driver offsets are unique");
+        expect(cells == 59 && ids.size() == 59 && offsets.size() == 59, "ids and driver offsets are unique");
         expect(rc::DRIVER[rc::slot("overtake.overlap_percentage")].offset == 0x1d0 &&
                    rc::DRIVER[rc::slot("overtake.overlap_percentage")].type == rc::Type::curve &&
                    rc::DRIVER[rc::slot("space_seeking.total_queue_needed")].type == rc::Type::i32 &&
                    rc::DRIVER[rc::slot("blocking.max_blocking_distance")].offset == 0xa0 &&
+                   rc::DRIVER[rc::slot("blocking.start_blocking_intersection_time")].offset == 0x40 &&
+                   rc::DRIVER[rc::slot("blocking.start_blocking_intersection_time")].type == rc::Type::flt &&
+                   rc::DRIVER[rc::slot("blocking.start_blocking_minimum_time_to_corner")].offset == 0x50 &&
+                   rc::DRIVER[rc::slot("blocking.start_blocking_minimum_time_to_corner")].type == rc::Type::curve &&
+                   rc::DRIVER[rc::slot("blocking.blocking_offset_from_car_behind")].offset == 0x70 &&
+                   rc::DRIVER[rc::slot("blocking.blocking_offset_from_car_behind")].type == rc::Type::curve &&
+                   rc::DRIVER[rc::slot("blocking.avoidance_decrease_rate")].offset == 0xb0 &&
+                   rc::DRIVER[rc::slot("blocking.merge_back_to_racing_line")].offset == 0xb8 &&
+                   rc::DRIVER[rc::slot("blocking.merge_back_to_racing_line")].type == rc::Type::curve &&
                    rc::slot("overtake.nothing") == rc::FIELD_COUNT,
                "table lookup by key gives the offset and type");
         uint32_t qid = 0;
         expect(Ops::op_field("ai.space_seeking.total_queue_needed", &qid) == SWOFTY_ASSET_OK && qid == QUEUE &&
                    Ops::op_field("ai.alongside.min_presence_within_buffer", &qid) == SWOFTY_ASSET_OK &&
-                   Ops::op_field("ai.overtake.oppertunist_overtake_track_speed_difference", &qid) == SWOFTY_ASSET_OK,
+                   Ops::op_field("ai.overtake.oppertunist_overtake_track_speed_difference", &qid) == SWOFTY_ASSET_OK &&
+                   Ops::op_field("ai.blocking.blocking_threat_time_modifier", &qid) == SWOFTY_ASSET_OK &&
+                   qid == SWOFTY_CAR_AI_BLOCKING_BLOCKING_THREAT_TIME_MODIFIER,
                "the new fields resolve by path");
 
         World w3;

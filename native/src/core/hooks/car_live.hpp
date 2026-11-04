@@ -270,6 +270,18 @@ inline constexpr Field FIELDS[] = {
     AI_CELL(SWOFTY_CAR_AI_SPACE_SEEKING_CARS_MOVING_AWAY_SPEED_TO_IGNORE,
             space_seeking, cars_moving_away_speed_to_ignore, 0.0f, 500.0f),
     AI_CELL(SWOFTY_CAR_AI_SPACE_SEEKING_CAN_START_TRACK_RADIUS, space_seeking, can_start_track_radius, 0.0f, 10000.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_INTERSECTION_TIME, blocking, start_blocking_intersection_time, 0.0f, 60.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_MAXIMUM_TIME_TO_CORNER, blocking, start_blocking_maximum_time_to_corner, 0.0f, 60.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_START_BLOCKING_MINIMUM_TIME_TO_CORNER, blocking, start_blocking_minimum_time_to_corner, 0.0f, 60.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_TIME_TO_CORNER_FOR_END_MERGE_RATE, blocking, time_to_corner_for_end_merge_rate, 0.0f, 60.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_TIME_TO_CORNER_FOR_START_MERGE_RATE, blocking, time_to_corner_for_start_merge_rate, 0.0f, 60.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_END_BLOCKING_TIME_TO_CORNER_VS_OFFSET, blocking, end_blocking_time_to_corner_vs_offset, 0.0f, 50.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_BLOCKING_OFFSET_FROM_CAR_BEHIND, blocking, blocking_offset_from_car_behind, 0.0f, 50.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_BLOCKING_SPEED_DIFFERENTIAL, blocking, blocking_speed_differential, 0.0f, 100.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_BLOCKING_THREAT_TIME_MODIFIER, blocking, blocking_threat_time_modifier, -10.0f, 10.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_BLOCKING_VARIABLE_OFFSET_FRACTION, blocking, blocking_variable_offset_fraction, 0.0f, 1.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_AVOIDANCE_DECREASE_RATE, blocking, avoidance_decrease_rate, 0.0f, 100.0f),
+    AI_CELL(SWOFTY_CAR_AI_BLOCKING_MERGE_BACK_TO_RACING_LINE, blocking, merge_back_to_racing_line, 0.0f, 10.0f),
 };
 
 
