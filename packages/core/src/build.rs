@@ -691,17 +691,12 @@ pub fn refused_fix(data: &Path, game: &Path, e: &Error) -> Option<String> {
     else {
         return None;
     };
-    let refused = source.kind() == std::io::ErrorKind::PermissionDenied
-        || (cfg!(windows) && source.raw_os_error() == Some(32));
-    if !refused {
+    let in_use = cfg!(windows) && source.raw_os_error() == Some(32);
+    if !in_use && source.kind() != std::io::ErrorKind::PermissionDenied {
         return None;
     }
     if path.starts_with(game) {
-        return Some(format!(
-            "Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, or move F1 25 \
-             to a folder outside Program Files",
-            game.display()
-        ));
+        return Some(game_refused_text(data, game, in_use));
     }
     path.starts_with(data).then(|| {
         format!(
@@ -711,6 +706,25 @@ pub fn refused_fix(data: &Path, game: &Path, e: &Error) -> Option<String> {
             game = game.display()
         )
     })
+}
+
+/// What to tell the player when Windows refused a write in the game folder; `in_use` is a sharing
+/// violation (os error 32): another program has the file open, which no administrator right fixes.
+fn game_refused_text(data: &Path, game: &Path, in_use: bool) -> String {
+    if in_use {
+        return format!(
+            "another program has a file in {game} open, so Swofty can't change it: close F1 25 if it's still \
+             running (look for F1_25.exe in Task Manager), let any Steam update or file check of F1 25 finish, \
+             and add {game} and {data} as exclusions in your antivirus, then try again",
+            game = game.display(),
+            data = data.display()
+        );
+    }
+    format!(
+        "Windows refused to let Swofty change files in {}; run Swofty Launcher as administrator, or move F1 25 \
+         to a folder outside Program Files",
+        game.display()
+    )
 }
 
 /// The names of the addons in `order` the core has registry records of to apply at boot (data
@@ -3051,6 +3065,37 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
+
+    #[test]
+    fn a_file_another_program_holds_gets_its_own_hint() {
+        let (data, game) = (Path::new("/data/Swofty"), Path::new("/games/F1 25"));
+        let held = game_refused_text(data, game, true);
+        assert!(
+            held.starts_with("another program has a file in /games/F1 25 open"),
+            "{held}"
+        );
+        assert!(
+            held.contains("F1_25.exe") && held.contains("/data/Swofty"),
+            "{held}"
+        );
+        assert!(!held.contains("administrator"), "{held}");
+        assert!(game_refused_text(data, game, false).contains("run Swofty Launcher as administrator"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_sharing_violation_in_the_game_folder_is_not_an_administrator_problem() {
+        let (data, game) = (
+            Path::new("C:/data/Swofty"),
+            Path::new("E:/SteamLibrary/steamapps/common/F1 25"),
+        );
+        let held = Error::Io {
+            path: game.join("2025_asset_groups/animation_package/scenes/incardriver/cs16/incardriver_f1.erp"),
+            source: std::io::Error::from_raw_os_error(32),
+        };
+        let text = refused_fix(data, game, &held).unwrap();
+        assert!(text.starts_with("another program has a file in"), "{text}");
+    }
     use crate::asset::{AssetBatch, Op, Origin};
     use crate::asset::{FileOp, Root, Source};
     use crate::baseline::Identity;
