@@ -45,6 +45,7 @@ pub enum Page {
     Careers,
     Database,
     Multiplayer,
+    Settings,
     Section(usize),
 }
 
@@ -61,6 +62,7 @@ impl Page {
             Self::Careers => "Saves",
             Self::Database => "DB Editor",
             Self::Multiplayer => "Multiplayer",
+            Self::Settings => "Settings",
             Self::Section(_) => "",
         }
     }
@@ -85,6 +87,7 @@ impl Page {
             Self::Careers => IconName::Save,
             Self::Database => IconName::Database,
             Self::Multiplayer => IconName::Users,
+            Self::Settings => IconName::Settings,
             Self::Section(_) => IconName::Package,
         }
     }
@@ -154,6 +157,8 @@ pub struct Shell {
     pub(crate) vr_profiles: BTreeSet<String>,
     pub(crate) start_store: bool,
     pub(crate) developer_mode: bool,
+    /// `keep_session_logs` from config.json: old session logs aren't cleared at start.
+    pub(crate) keep_session_logs: bool,
     reload_generation: u64,
     slow_logged: bool,
     /// `updates.check` from config.json, read when the library loads.
@@ -193,6 +198,7 @@ pub struct Shell {
     pub(crate) shaders: Entity<crate::shaders::ShadersView>,
     _shaders_events: Subscription,
     pub(crate) tools: crate::tools::Carousel,
+    pub(crate) settings: crate::settings::Settings,
     _console_closed: Subscription,
     _poll: Task<()>,
     _live: Task<()>,
@@ -411,6 +417,7 @@ impl Shell {
         let vr_profiles = config.vr_profiles;
         let start_store = config.launch.start_store;
         let developer_mode = config.developer;
+        let keep_session_logs = config.keep_session_logs;
         let update_check = config.updates.check;
         let stale = store.clone();
         cx.background_executor()
@@ -420,6 +427,9 @@ impl Shell {
                     Err(e) => eprintln!("swofty-launcher: could not check for an unfinished session: {e}"),
                 }
                 game::vault_at_start(&stale);
+                if !keep_session_logs {
+                    crate::settings::clear_logs_at_start(&stale.root);
+                }
             })
             .detach();
         let poll = cx.spawn_in(window, async move |this, cx| {
@@ -574,6 +584,7 @@ impl Shell {
             vr_profiles,
             start_store,
             developer_mode,
+            keep_session_logs,
             reload_generation: 0,
             slow_logged: false,
             update_check,
@@ -605,6 +616,7 @@ impl Shell {
             shaders,
             _shaders_events: shaders_events,
             tools: Default::default(),
+            settings: Default::default(),
             _console_closed: console_closed,
             _poll: poll,
             _live: live,
@@ -939,6 +951,7 @@ impl Shell {
         self.library = library;
         let config = self.store.config();
         self.developer_mode = config.developer;
+        self.keep_session_logs = config.keep_session_logs;
         self.vr_profiles = config.vr_profiles;
         self.start_store = config.launch.start_store;
         self.update_check = config.updates.check;
@@ -1113,6 +1126,19 @@ impl Shell {
         }
         if let Some(d) = swofty_core::known_problems::outdated_exe(install.version().as_deref()) {
             window.push_notification(Notification::warning(d.text()).title(d.title).autohide(false), cx);
+        }
+        // Warn only: F1 25 does its own 2 GB check, and Play must never be
+        // blocked by a reading that is wrong.
+        let space = swofty_core::data_usage::Room::now(&self.store.root);
+        if let Some(short) = crate::settings::low_space_warning(space) {
+            let text = format!("{short} Settings shows what takes the room and clears old logs.");
+            crate::app_log::note(&format!("play: {text}"));
+            window.push_notification(
+                Notification::warning(text)
+                    .title("Low on disk space")
+                    .autohide(false),
+                cx,
+            );
         }
         let armed = match &room {
             Some(_) => Some(swofty_core::multiplayer::bridge::ARMED),
@@ -1314,6 +1340,18 @@ impl Shell {
             window.push_notification(Notification::error(e.to_string()), cx);
         }
         self.start_store = config.launch.start_store;
+        cx.notify();
+    }
+
+    /// The "Clear old session logs automatically" switch (on means not kept).
+    pub(crate) fn set_keep_session_logs(&mut self, keep: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let mut config = self.store.config();
+        config.keep_session_logs = keep;
+        if let Err(e) = self.store.save_config(&config) {
+            crate::app_log::action("save settings").failed(&e);
+            window.push_notification(Notification::error(e.to_string()), cx);
+        }
+        self.keep_session_logs = config.keep_session_logs;
         cx.notify();
     }
 
@@ -2300,6 +2338,7 @@ impl Shell {
         if self.mp_allowed() {
             big.push((Page::Multiplayer, None));
         }
+        big.push((Page::Settings, None));
         v_flex()
             .w(px(220.))
             .h_full()
@@ -2451,6 +2490,7 @@ impl Render for Shell {
             Page::Profiles => self.profiles_page(p, wide, cx),
             Page::Careers => self.careers_page(p, wide, cx),
             Page::Multiplayer => self.multiplayer_page(p, cx),
+            Page::Settings => self.settings_page(p, cx),
             Page::Section(i) => self.section_page(i, p, cx),
         };
         if self.dropping && !cx.has_active_drag() {

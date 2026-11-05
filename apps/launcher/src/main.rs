@@ -26,6 +26,7 @@ mod reveal;
 mod scroll;
 mod sections;
 mod send_logs;
+mod settings;
 mod setup;
 mod shaders;
 mod shell;

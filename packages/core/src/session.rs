@@ -83,6 +83,10 @@ pub struct Config {
     pub console: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub developer: bool,
+    /// Keep every game session log: the launcher doesn't clear old ones when
+    /// it starts (see `data_usage::prune_sessions`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub keep_session_logs: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub sidebar_list: bool,
     #[serde(default)]
@@ -835,6 +839,21 @@ mod tests {
         config.console = true;
         let json = serde_json::to_string(&config).unwrap();
         assert!(serde_json::from_str::<Config>(&json).unwrap().console);
+    }
+
+    #[test]
+    fn old_session_logs_are_cleared_unless_kept() {
+        assert!(!Config::default().keep_session_logs);
+        let old: Config = serde_json::from_str(r#"{ "developer": true }"#).unwrap();
+        assert!(!old.keep_session_logs);
+        assert!(!serde_json::to_string(&old).unwrap().contains("keep_session_logs"));
+        let kept = Config {
+            keep_session_logs: true,
+            ..Config::default()
+        };
+        let json = serde_json::to_string(&kept).unwrap();
+        assert!(json.contains(r#""keep_session_logs":true"#), "{json}");
+        assert!(serde_json::from_str::<Config>(&json).unwrap().keep_session_logs);
     }
 
     #[test]
