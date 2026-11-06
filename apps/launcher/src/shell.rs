@@ -157,8 +157,8 @@ pub struct Shell {
     pub(crate) vr_profiles: BTreeSet<String>,
     pub(crate) start_store: bool,
     pub(crate) developer_mode: bool,
-    /// `keep_session_logs` from config.json: old session logs aren't cleared at start.
-    pub(crate) keep_session_logs: bool,
+    /// `clear_old_session_logs` from config.json: opt-in, old session logs are cleared at start.
+    pub(crate) clear_old_session_logs: bool,
     reload_generation: u64,
     slow_logged: bool,
     /// `updates.check` from config.json, read when the library loads.
@@ -417,7 +417,7 @@ impl Shell {
         let vr_profiles = config.vr_profiles;
         let start_store = config.launch.start_store;
         let developer_mode = config.developer;
-        let keep_session_logs = config.keep_session_logs;
+        let clear_old_session_logs = config.clear_old_session_logs;
         let update_check = config.updates.check;
         let stale = store.clone();
         cx.background_executor()
@@ -427,7 +427,7 @@ impl Shell {
                     Err(e) => eprintln!("swofty-launcher: could not check for an unfinished session: {e}"),
                 }
                 game::vault_at_start(&stale);
-                if !keep_session_logs {
+                if clear_old_session_logs {
                     crate::settings::clear_logs_at_start(&stale.root);
                 }
             })
@@ -584,7 +584,7 @@ impl Shell {
             vr_profiles,
             start_store,
             developer_mode,
-            keep_session_logs,
+            clear_old_session_logs,
             reload_generation: 0,
             slow_logged: false,
             update_check,
@@ -951,7 +951,7 @@ impl Shell {
         self.library = library;
         let config = self.store.config();
         self.developer_mode = config.developer;
-        self.keep_session_logs = config.keep_session_logs;
+        self.clear_old_session_logs = config.clear_old_session_logs;
         self.vr_profiles = config.vr_profiles;
         self.start_store = config.launch.start_store;
         self.update_check = config.updates.check;
@@ -1343,15 +1343,14 @@ impl Shell {
         cx.notify();
     }
 
-    /// The "Clear old session logs automatically" switch (on means not kept).
-    pub(crate) fn set_keep_session_logs(&mut self, keep: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn set_clear_old_session_logs(&mut self, on: bool, window: &mut Window, cx: &mut Context<Self>) {
         let mut config = self.store.config();
-        config.keep_session_logs = keep;
+        config.clear_old_session_logs = on;
         if let Err(e) = self.store.save_config(&config) {
             crate::app_log::action("save settings").failed(&e);
             window.push_notification(Notification::error(e.to_string()), cx);
         }
-        self.keep_session_logs = config.keep_session_logs;
+        self.clear_old_session_logs = config.clear_old_session_logs;
         cx.notify();
     }
 

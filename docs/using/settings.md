@@ -27,7 +27,7 @@ A moved data folder is measured where it really is, through the junction or symb
 
 Every game session leaves its logs in `sessions` in the data folder, and nothing removed them before. **Clear old** keeps the newest 20 sessions and every session from the last 2 days, and removes the rest. It doesn't run while F1 25 is open. The button names how many sessions it would remove and how much room that frees; it reads **Nothing to clear** when every session is new enough to keep.
 
-The launcher also clears old logs by the same rule each time it starts. To keep every log, turn off **Clear old logs** under General.
+**Clear old** asks you to confirm before it deletes anything. The launcher keeps every log unless you turn on **Clear old logs** under General: with it on, the launcher clears old logs by the same rule each time it starts, without asking. It is off by default, so updating never deletes logs.
 
 ### Low space when you press Play
 
@@ -39,4 +39,4 @@ When you press **Play** with less than 3 GB free on F1 25's own drive (the drive
 |---|---|
 | **Start Steam automatically** (or the EA app) | Starts your game's store when you press **Play**, as the same item in the **Play** menu does |
 | **Developer mode** | Shows the [Tools](/using/tools) page with the `swofty dev` actions, as the same item in the **Play** menu does |
-| **Clear old logs** | On by default: clears old session logs when the launcher starts, as **Clear old** does. Off keeps every log |
+| **Clear old logs** | Off by default. On: clears old session logs when the launcher starts, as **Clear old** does, without asking. Off keeps every log |

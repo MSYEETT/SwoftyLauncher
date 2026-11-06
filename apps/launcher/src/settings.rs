@@ -5,7 +5,7 @@
 use std::time::SystemTime;
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariant};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Sizable, WindowExt, h_flex, v_flex};
@@ -38,8 +38,8 @@ pub fn size(bytes: u64) -> String {
     }
 }
 
-/// Clears old session logs when the launcher starts, unless the player keeps
-/// them. Runs after an unfinished session was recovered; the newest sessions,
+/// Clears old session logs when the launcher starts, when the player turned
+/// that on. Runs after an unfinished session was recovered; the newest sessions,
 /// the last `KEEP_FOR` and anything written in the last hour always stay.
 pub fn clear_logs_at_start(root: &std::path::Path) {
     let done = data_usage::prune_sessions(&root.join("sessions"), KEEP_SESSIONS, KEEP_FOR, SystemTime::now());
@@ -113,6 +113,38 @@ impl Shell {
         })
         .detach();
         cx.notify();
+    }
+
+    fn confirm_clear_logs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.processes.is_empty() {
+            window.push_notification(
+                Notification::error("Close F1 25 first: it may still be writing its session log"),
+                cx,
+            );
+            return;
+        }
+        let old = self.settings.prunable;
+        if old.sessions == 0 {
+            return;
+        }
+        let shell = cx.entity().downgrade();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let shell = shell.clone();
+            alert
+                .width(px(480.))
+                .title(format!("Delete {} old sessions ({})?", old.sessions, size(old.bytes)))
+                .description(format!(
+                    "Their logs are deleted for good. The newest {KEEP_SESSIONS} sessions and everything from the last {} days stay.",
+                    KEEP_FOR.as_secs() / 86_400
+                ))
+                .ok_text("Delete sessions")
+                .ok_variant(ButtonVariant::Danger)
+                .show_cancel(true)
+                .on_ok(move |_, window, cx| {
+                    shell.update(cx, |s, cx| s.settings_clear_logs(window, cx)).ok();
+                    true
+                })
+        });
     }
 
     fn settings_clear_logs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -286,7 +318,7 @@ impl Shell {
                         format!("Clear {} old ({})", old.sessions, size(old.bytes))
                     })
                     .disabled(old.sessions == 0 || self.settings.clearing)
-                    .on_click(cx.listener(|this, _, window, cx| this.settings_clear_logs(window, cx)));
+                    .on_click(cx.listener(|this, _, window, cx| this.confirm_clear_logs(window, cx)));
                 rows.push(row(
                     "Session logs",
                     muted(
@@ -339,11 +371,9 @@ impl Shell {
             .small()
             .on_click(cx.listener(|this, on: &bool, window, cx| this.set_developer(*on, window, cx)));
         let auto_clear = Switch::new("settings-auto-clear-logs")
-            .checked(!self.keep_session_logs)
+            .checked(self.clear_old_session_logs)
             .small()
-            .on_click(
-                cx.listener(|this, on: &bool, window, cx| this.set_keep_session_logs(!*on, window, cx)),
-            );
+            .on_click(cx.listener(|this, on: &bool, window, cx| this.set_clear_old_session_logs(*on, window, cx)));
         card(
             "General",
             vec![
@@ -363,7 +393,7 @@ impl Shell {
                     "Clear old logs",
                     muted(
                         format!(
-                            "When the launcher starts, as Clear old does: keeps the newest {KEEP_SESSIONS} sessions \
+                            "Off by default. When on, the launcher clears old logs as it starts, as Clear old does: keeps the newest {KEEP_SESSIONS} sessions \
                              and the last {} days",
                             KEEP_FOR.as_secs() / 86_400
                         ),
