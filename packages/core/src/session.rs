@@ -846,14 +846,22 @@ mod tests {
         assert!(!Config::default().clear_old_session_logs);
         let old: Config = serde_json::from_str(r#"{ "developer": true }"#).unwrap();
         assert!(!old.clear_old_session_logs);
-        assert!(!serde_json::to_string(&old).unwrap().contains("clear_old_session_logs"));
+        assert!(
+            !serde_json::to_string(&old)
+                .unwrap()
+                .contains("clear_old_session_logs")
+        );
         let on = Config {
             clear_old_session_logs: true,
             ..Config::default()
         };
         let json = serde_json::to_string(&on).unwrap();
         assert!(json.contains(r#""clear_old_session_logs":true"#), "{json}");
-        assert!(serde_json::from_str::<Config>(&json).unwrap().clear_old_session_logs);
+        assert!(
+            serde_json::from_str::<Config>(&json)
+                .unwrap()
+                .clear_old_session_logs
+        );
     }
 
     #[test]

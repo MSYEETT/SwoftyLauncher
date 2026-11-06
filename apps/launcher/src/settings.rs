@@ -373,7 +373,9 @@ impl Shell {
         let auto_clear = Switch::new("settings-auto-clear-logs")
             .checked(self.clear_old_session_logs)
             .small()
-            .on_click(cx.listener(|this, on: &bool, window, cx| this.set_clear_old_session_logs(*on, window, cx)));
+            .on_click(
+                cx.listener(|this, on: &bool, window, cx| this.set_clear_old_session_logs(*on, window, cx)),
+            );
         card(
             "General",
             vec![

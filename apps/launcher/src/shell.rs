@@ -1343,7 +1343,12 @@ impl Shell {
         cx.notify();
     }
 
-    pub(crate) fn set_clear_old_session_logs(&mut self, on: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn set_clear_old_session_logs(
+        &mut self,
+        on: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let mut config = self.store.config();
         config.clear_old_session_logs = on;
         if let Err(e) = self.store.save_config(&config) {
