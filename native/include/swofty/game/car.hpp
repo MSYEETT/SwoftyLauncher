@@ -488,6 +488,7 @@ inline constexpr address<"Car_FrontWing_OnCollision"> Car_FrontWing_OnCollision{
 inline constexpr address<"Car_FuelEcu_Reset_Thunk"> Car_FuelEcu_Reset_Thunk{}; // L2 experimental
 inline constexpr address<"Car_FuelEcu_SetMode_Thunk"> Car_FuelEcu_SetMode_Thunk{}; // L2 experimental
 inline constexpr address<"Car_FuelTank_StepBurn"> Car_FuelTank_StepBurn{}; // L2 experimental
+inline constexpr address<"Car_GearBox_Update"> Car_GearBox_Update{}; // L2 experimental
 using Car_GearBox_UpdateShiftTimersAndFaults_t = void(void *gearbox, float dt);
 inline constexpr fn<"Car_GearBox_UpdateShiftTimersAndFaults", Car_GearBox_UpdateShiftTimersAndFaults_t> Car_GearBox_UpdateShiftTimersAndFaults{}; // L2 experimental
 inline constexpr address<"Car_Load_Vtf"> Car_Load_Vtf{}; // L2 experimental

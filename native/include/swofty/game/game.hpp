@@ -981,6 +981,7 @@ using Game_Network_SendingRedFlagVehicleStatusUpdate_t = void(void *red_flag_sta
 inline constexpr fn<"Game_Network_SendingRedFlagVehicleStatusUpdate", Game_Network_SendingRedFlagVehicleStatusUpdate_t> Game_Network_SendingRedFlagVehicleStatusUpdate{}; // L2 experimental
 using Game_Network_SetScenario_t = void(void *session, uint8_t stat_id, const void *spec);
 inline constexpr fn<"Game_Network_SetScenario", Game_Network_SetScenario_t> Game_Network_SetScenario{}; // L2 experimental
+inline constexpr address<"Game_Network_SkippingLightsMPReasons"> Game_Network_SkippingLightsMPReasons{}; // L2 experimental
 inline constexpr address<"Game_Network_TrackSetMatched"> Game_Network_TrackSetMatched{}; // L2 experimental
 inline constexpr address<"Game_Objective_CheckFinishPosition"> Game_Objective_CheckFinishPosition{}; // L2 experimental
 inline constexpr address<"Game_Objective_CheckOvertakeTarget"> Game_Objective_CheckOvertakeTarget{}; // L2 experimental
@@ -1393,6 +1394,7 @@ inline constexpr address<"Game_VehicleAntiStallSystem_GetStateByPlayerId"> Game_
 inline constexpr address<"Game_VehicleAntiStallSystem_IsLaunchPending"> Game_VehicleAntiStallSystem_IsLaunchPending{}; // L2 experimental
 inline constexpr address<"Game_VehicleAntiStallSystem_IsStalled"> Game_VehicleAntiStallSystem_IsStalled{}; // L2 experimental
 inline constexpr address<"Game_VehicleAntiStallSystem_IsStartPromptActive"> Game_VehicleAntiStallSystem_IsStartPromptActive{}; // L2 experimental
+inline constexpr address<"Game_VehicleAntiStallSystem_Update"> Game_VehicleAntiStallSystem_Update{}; // L2 experimental
 inline constexpr address<"Game_VehicleCustomisationReplicationManager_AddReplicatedPlayer"> Game_VehicleCustomisationReplicationManager_AddReplicatedPlayer{}; // L2 experimental
 inline constexpr address<"Game_VehicleLapProgress_CommitNetLapDelta"> Game_VehicleLapProgress_CommitNetLapDelta{}; // L2 experimental
 inline constexpr address<"Game_VehiclePitlaneManager_ApplyVehicleRemotePitStatusInternal"> Game_VehiclePitlaneManager_ApplyVehicleRemotePitStatusInternal{}; // L2 experimental, VehiclePitlaneManager::applyVehicleRemotePitStatusInternal

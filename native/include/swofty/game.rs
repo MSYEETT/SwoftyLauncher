@@ -5746,6 +5746,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Car_GearBox_Update: Binding = Binding {
+        id: "Car_GearBox_Update",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Car_GearBox_UpdateShiftTimersAndFaults: Binding = Binding {
         id: "Car_GearBox_UpdateShiftTimersAndFaults",
         kind: "func",
@@ -11876,6 +11881,11 @@ pub mod bindings {
         kind: "func",
         status: Status::Experimental,
     };
+    pub const Game_Network_SkippingLightsMPReasons: Binding = Binding {
+        id: "Game_Network_SkippingLightsMPReasons",
+        kind: "func",
+        status: Status::Experimental,
+    };
     pub const Game_Network_TrackSetMatched: Binding = Binding {
         id: "Game_Network_TrackSetMatched",
         kind: "func",
@@ -13598,6 +13608,11 @@ pub mod bindings {
     };
     pub const Game_VehicleAntiStallSystem_IsStartPromptActive: Binding = Binding {
         id: "Game_VehicleAntiStallSystem_IsStartPromptActive",
+        kind: "func",
+        status: Status::Experimental,
+    };
+    pub const Game_VehicleAntiStallSystem_Update: Binding = Binding {
+        id: "Game_VehicleAntiStallSystem_Update",
         kind: "func",
         status: Status::Experimental,
     };
