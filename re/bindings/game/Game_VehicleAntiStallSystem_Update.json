@@ -45,7 +45,37 @@
    "verdict": "agree",
    "evidence": "decomp:re/decomp/142f4a070.c",
    "notes": "V4173 Strings '[VEHICLE RACE START] sending Race Start message for vehicle id: %d reaction time: %.3f', 'Anti Stall System: vehicle id %u is out of bounds'; state entry+0x18, +0x1fc bit 2 set/cleared on input block entry+0x50, system ptr [0x146095a68]+0x100 (vtable/indirect)"
+  },
+  {
+   "date": "2026-11-23",
+   "verifier": "msyeett",
+   "kind": "func",
+   "item": "Game_VehicleAntiStallSystem_Update",
+   "claimed": "L2",
+   "verdict": "agree",
+   "evidence": "decomp:own disasm 0x142f4c600-0x142f4dfc5;xref:0x1457fac68,0x142f4cb9d",
+   "notes": "gh:msyeett build 26566308: per-car race start / anti-stall state machine; logs '[VEHICLE RACE START] sending Race Start message for vehicle id' at 0x142f4cb9d and 'Anti Stall System: vehicle id %u is out of bounds'; only reference is its vtable cell"
   }
  ],
- "proofs": []
+ "proofs": [
+  {
+   "by": "msyeett",
+   "date": "2026-11-23",
+   "tool": "binding.py verify",
+   "exe": {
+    "sha256": "46009bd31f49d93a92d73cbd0b66131d2b37964a92da7293168d3c3a872d9389",
+    "size": 391613312,
+    "pe_timestamp": 1794312636
+   },
+   "result": {
+    "result": "resolved",
+    "method": "scan",
+    "matches": 1,
+    "match": "0x142f4c600",
+    "target": "0x142f4c600"
+   },
+   "sigcheck": "skipped (not the KB build)",
+   "digest": "f85fa7e9fc7359a4e2ecb269355f6b649857241c3c9ea09e3a4e2685ffb78297"
+  }
+ ]
 }

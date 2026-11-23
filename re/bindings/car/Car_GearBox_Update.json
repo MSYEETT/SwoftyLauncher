@@ -65,7 +65,37 @@
    "verdict": "agree",
    "evidence": "decomp:re/decomp/1446a6b60.c;xref:0x1409d5a73",
    "notes": "V6811 +0x698 formula and zero conditions confirmed; also runs shift timers and gear change."
+  },
+  {
+   "date": "2026-11-23",
+   "verifier": "msyeett",
+   "kind": "func",
+   "item": "Car_GearBox_Update",
+   "claimed": "L2",
+   "verdict": "agree",
+   "evidence": "decomp:own disasm 0x1446a93d0-0x1446a9521;xref:0x1446a94ec,0x1446a950b",
+   "notes": "gh:msyeett build 26566308: +0x698 = (1.0 - [car+0x1c0]) * ([Eng+0x2518]^[Eng+0x2520]) * [gb+0xe8] (plain vmulss), stored at 0x1446a94ec; zeroed at 0x1446a950b when [gb+0x680]==1, a global flag, or [car+0x128]==1; also adds the step to +0x688/+0x68c/+0x690 and moves the gear +0x680 toward +0x684"
   }
  ],
- "proofs": []
+ "proofs": [
+  {
+   "by": "msyeett",
+   "date": "2026-11-23",
+   "tool": "binding.py verify",
+   "exe": {
+    "sha256": "46009bd31f49d93a92d73cbd0b66131d2b37964a92da7293168d3c3a872d9389",
+    "size": 391613312,
+    "pe_timestamp": 1794312636
+   },
+   "result": {
+    "result": "resolved",
+    "method": "scan",
+    "matches": 1,
+    "match": "0x1446a93d0",
+    "target": "0x1446a93d0"
+   },
+   "sigcheck": "skipped (not the KB build)",
+   "digest": "831fd85e1cd2e2554280252f43c4d043c6c92c7ccc69ebe35aba28c3f983df92"
+  }
+ ]
 }

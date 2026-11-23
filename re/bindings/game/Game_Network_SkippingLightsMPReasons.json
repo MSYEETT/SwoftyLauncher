@@ -55,7 +55,37 @@
    "verdict": "agree",
    "evidence": "decomp:re/decomp/142d8fcc0.c",
    "notes": "V6894 327 decomp lines, strings match current name; vtable/indirect"
+  },
+  {
+   "date": "2026-11-23",
+   "verifier": "msyeett",
+   "kind": "func",
+   "item": "Game_Network_SkippingLightsMPReasons",
+   "claimed": "L2",
+   "verdict": "agree",
+   "evidence": "decomp:own disasm 0x142d92250-0x142d92e7b;xref:0x1457e4708,0x1457e4c08",
+   "notes": "gh:msyeett build 26566308: slot 9 (+0x48, onStateUpdate) of the SessionStateStartLights vtable (cell 0x1457e4708) and of SessionStateStoryStartLights (cell 0x1457e4c08); no direct calls; reads the delay before the lights at state+0xdf0"
   }
  ],
- "proofs": []
+ "proofs": [
+  {
+   "by": "msyeett",
+   "date": "2026-11-23",
+   "tool": "binding.py verify",
+   "exe": {
+    "sha256": "46009bd31f49d93a92d73cbd0b66131d2b37964a92da7293168d3c3a872d9389",
+    "size": 391613312,
+    "pe_timestamp": 1794312636
+   },
+   "result": {
+    "result": "resolved",
+    "method": "scan",
+    "matches": 1,
+    "match": "0x142d92250",
+    "target": "0x142d92250"
+   },
+   "sigcheck": "skipped (not the KB build)",
+   "digest": "9b6c66b263b83a1f229ac658a3dfe9247ac4ec0816a87d23fdd18399be4b58fd"
+  }
+ ]
 }
